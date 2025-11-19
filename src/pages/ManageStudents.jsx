@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const API_URL = "http://student-management-system-32lc.onrender.com/api/students";
+const API_URL = "https://student-management-system-32lc.onrender.com/api/students";
 
 const ManageStudents = () => {
   const [students, setStudents] = useState([]);

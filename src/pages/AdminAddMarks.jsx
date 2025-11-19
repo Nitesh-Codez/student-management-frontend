@@ -16,7 +16,7 @@ const AdminAddMarks = () => {
   // Fetch classes
   useEffect(() => {
     axios
-      .get("http://student-management-system-32lc.onrender.com/api/marks/admin/classes")
+      .get("https://student-management-system-32lc.onrender.com/api/marks/admin/classes")
       .then((res) => {
         if (res.data.success) setClasses(res.data.classes);
       })

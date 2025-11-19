@@ -11,7 +11,7 @@ const SubjectsList = () => {
   const studentId = localStorage.getItem("studentId"); // Make sure studentId is stored on login
 
   useEffect(() => {
-    axios.get("http://student-management-system-32lc.onrender.com/api/marks/subjects")
+    axios.get("https://student-management-system-32lc.onrender.com/api/marks/subjects")
       .then(res => {
         setSubjects(res.data.subjects || []);
         setLoading(false);

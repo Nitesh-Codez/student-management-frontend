@@ -9,7 +9,7 @@ const StudentAttendance = ({ user }) => {
   // Fetch attendance
   useEffect(() => {
     if (!user) return;
-    fetch(`http://student-management-system-32lc.onrender.com/api/attendance/${user.id}`)
+    fetch(`https://student-management-system-32lc.onrender.com/api/attendance/${user.id}`)
       .then(res => res.json())
       .then(data => setAttendance(data.success ? data.attendance : []))
       .catch(err => console.log(err));

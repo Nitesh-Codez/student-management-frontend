@@ -7,7 +7,7 @@ const StudentFees = ({ user }) => {
   useEffect(() => {
     if (!user) return;
     axios
-      .get(`http://student-management-system-32lc.onrender.com/api/fees/${user.id}`)
+      .get(`https://student-management-system-32lc.onrender.com/api/fees/${user.id}`)
       .then((res) => {
         if (res.data.success) setFees(res.data.fees);
       })

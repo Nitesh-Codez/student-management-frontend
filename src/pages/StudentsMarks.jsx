@@ -16,7 +16,7 @@ const StudentsMarks = () => {
       return;
     }
 
-    axios.get(`http://student-management-system-32lc.onrender.com/api/marks/student/${studentId}/${subject}`)
+    axios.get(`https://student-management-system-32lc.onrender.com/api/marks/student/${studentId}/${subject}`)
       .then(res => {
         if (res.data.success) setMarksData(res.data);
         else setError(res.data.message || "Marks not found");

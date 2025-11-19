@@ -8,8 +8,8 @@ const AttendanceView = () => {
     const user = JSON.parse(localStorage.getItem("user"));
     const URL =
       user.role === "admin"
-        ? "http://student-management-system-32lc.onrender.com/attendance/all"
-        : "http://student-management-system-32lc.onrender.com/api/attendance/me";
+        ? "https://student-management-system-32lc.onrender.com/attendance/all"
+        : "https://student-management-system-32lc.onrender.com/api/attendance/me";
 
     fetch(URL)
       .then((res) => res.json())

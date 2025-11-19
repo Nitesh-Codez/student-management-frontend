@@ -13,7 +13,7 @@ const Login = () => {
     setError("");
 
     try {
-      const res = await axios.post("student-management-system-32lc.onrender.com/api/auth/login", {
+      const res = await axios.post("https://student-management-system-32lc.onrender.com/api/auth/login", {
         name,
         password
       });

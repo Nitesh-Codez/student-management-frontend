@@ -15,13 +15,13 @@ const AdminFees = () => {
   });
 
   useEffect(() => {
-    axios.get("student-management-system-32lc.onrender.com/api/students")
+    axios.get("https://student-management-system-32lc.onrender.com/api/students")
       .then(res => { if(res.data.success) setStudents(res.data.students); });
     fetchFees();
   }, []);
 
   const fetchFees = () => {
-    axios.get("student-management-system-32lc.onrender.com/api/fees")
+    axios.get("https://student-management-system-32lc.onrender.com/api/fees")
       .then(res => { if(res.data.success) setFees(res.data.fees); });
   };
 
@@ -29,7 +29,7 @@ const AdminFees = () => {
 
   const handleSubmit = e => {
     e.preventDefault();
-    axios.post("student-management-system-32lc.onrender.com/api/fees", form)
+    axios.post("https://student-management-system-32lc.onrender.com/api/fees", form)
       .then(res => {
         if(res.data.success){
           alert(res.data.message);

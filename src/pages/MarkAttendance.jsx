@@ -58,7 +58,7 @@ const MarkAttendance = () => {
         status: attendance[s.studentId] || "Present"
       }));
 
-      const res = await axios.post("http://student-management-system-32lc.onrender.com/api/attendance", { attendance: attendanceData, date });
+      const res = await axios.post("https://student-management-system-32lc.onrender.com/api/attendance", { attendance: attendanceData, date });
       if (res.data.success) {
         setSuccessMsg(editing ? `✅ Attendance updated successfully for ${date}!` : `✅ Attendance recorded successfully for ${date}!`);
         setAlreadyMarked(true);
