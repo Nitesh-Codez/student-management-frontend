@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import "./MarkAttendance.css";
 
+const API_URL = process.env.REACT_APP_API_URL; // .env me define kiya hua
+
 const MarkAttendance = () => {
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
@@ -14,7 +16,7 @@ const MarkAttendance = () => {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/attendance?date=${date}`);
+      const res = await axios.get(`${API_URL}/api/attendance?date=${date}`);
       const studentsList = res.data.students || [];
       setStudents(studentsList);
 
@@ -25,7 +27,6 @@ const MarkAttendance = () => {
       });
       setAttendance(initAttendance);
 
-      // Check if attendance is already marked
       const allMarked = studentsList.length > 0 && studentsList.every(s => s.status);
       setAlreadyMarked(allMarked);
       setEditing(false);
@@ -58,7 +59,7 @@ const MarkAttendance = () => {
         status: attendance[s.studentId] || "Present"
       }));
 
-      const res = await axios.post("https://student-management-system-32lc.onrender.com/api/attendance", { attendance: attendanceData, date });
+      const res = await axios.post(`${API_URL}/api/attendance`, { attendance: attendanceData, date });
       if (res.data.success) {
         setSuccessMsg(editing ? `✅ Attendance updated successfully for ${date}!` : `✅ Attendance recorded successfully for ${date}!`);
         setAlreadyMarked(true);

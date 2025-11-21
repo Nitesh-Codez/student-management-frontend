@@ -8,12 +8,14 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  const API_URL = process.env.REACT_APP_API_URL; // <-- Add this
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
-      const res = await axios.post("https://student-management-system-32lc.onrender.com/api/auth/login", {
+      const res = await axios.post(`${API_URL}/api/auth/login`, { // <-- Use env
         name,
         password
       });

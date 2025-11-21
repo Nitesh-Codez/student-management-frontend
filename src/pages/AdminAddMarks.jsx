@@ -10,18 +10,20 @@ const AdminAddMarks = () => {
   const [subject, setSubject] = useState("");
   const [marks, setMarks] = useState("");
   const [maxMarks, setMaxMarks] = useState("");
-  const [testDate, setTestDate] = useState(new Date().toISOString().split("T")[0]); // default today
+  const [testDate, setTestDate] = useState(new Date().toISOString().split("T")[0]);
   const [message, setMessage] = useState("");
+
+  const API_URL = process.env.REACT_APP_API_URL;
 
   // Fetch classes
   useEffect(() => {
     axios
-      .get("https://student-management-system-32lc.onrender.com/api/marks/admin/classes")
+      .get(`${API_URL}/api/marks/admin/classes`)
       .then((res) => {
         if (res.data.success) setClasses(res.data.classes);
       })
-      .catch((err) => console.log(err));
-  }, []);
+      .catch((err) => console.error("Error fetching classes:", err));
+  }, [API_URL]);
 
   // Fetch students based on selected class
   useEffect(() => {
@@ -29,13 +31,13 @@ const AdminAddMarks = () => {
     const encodedClass = encodeURIComponent(selectedClass);
 
     axios
-      .get(`http://localhost:5000/api/marks/admin/students/${encodedClass}`)
+      .get(`${API_URL}/api/marks/admin/students/${encodedClass}`)
       .then((res) => {
         if (res.data.success) setStudents(res.data.students);
         else setStudents([]);
       })
       .catch(() => setStudents([]));
-  }, [selectedClass]);
+  }, [selectedClass, API_URL]);
 
   const handleAddMarks = () => {
     if (!selectedStudent || !subject || !marks || !maxMarks || !testDate) {
@@ -44,7 +46,7 @@ const AdminAddMarks = () => {
     }
 
     axios
-      .post("http://localhost:5000/api/marks/admin/add", {
+      .post(`${API_URL}/api/marks/admin/add`, {
         studentId: selectedStudent,
         subject,
         marks,
@@ -54,7 +56,6 @@ const AdminAddMarks = () => {
       .then((res) => {
         if (res.data.success) {
           setMessage("Marks added successfully!");
-          // Clear inputs
           setSelectedClass("");
           setSelectedStudent("");
           setSubject("");
@@ -105,9 +106,7 @@ const AdminAddMarks = () => {
         </h2>
 
         {/* CLASS */}
-        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>
-          Class
-        </label>
+        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>Class</label>
         <select
           value={selectedClass}
           onChange={(e) => setSelectedClass(e.target.value)}
@@ -122,16 +121,12 @@ const AdminAddMarks = () => {
         >
           <option value="">Select Class</option>
           {classes.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
+            <option key={c} value={c}>{c}</option>
           ))}
         </select>
 
         {/* STUDENT */}
-        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>
-          Student
-        </label>
+        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>Student</label>
         <select
           value={selectedStudent}
           onChange={(e) => setSelectedStudent(e.target.value)}
@@ -146,85 +141,47 @@ const AdminAddMarks = () => {
         >
           <option value="">Select Student</option>
           {students.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
+            <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
 
         {/* SUBJECT */}
-        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>
-          Subject
-        </label>
+        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>Subject</label>
         <input
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder="Enter subject"
-          style={{
-            width: "100%",
-            padding: "12px",
-            borderRadius: "10px",
-            marginBottom: "20px",
-            border: "1px solid #ccc",
-            fontSize: "15px",
-          }}
+          style={{ width: "100%", padding: "12px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #ccc", fontSize: "15px" }}
         />
 
         {/* MARKS */}
-        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>
-          Marks Obtained
-        </label>
+        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>Marks Obtained</label>
         <input
           type="number"
           value={marks}
           onChange={(e) => setMarks(e.target.value)}
           placeholder="Enter marks obtained"
-          style={{
-            width: "100%",
-            padding: "12px",
-            borderRadius: "10px",
-            marginBottom: "20px",
-            border: "1px solid #ccc",
-            fontSize: "15px",
-          }}
+          style={{ width: "100%", padding: "12px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #ccc", fontSize: "15px" }}
         />
 
         {/* TOTAL MARKS */}
-        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>
-          Total Marks
-        </label>
+        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>Total Marks</label>
         <input
           type="number"
           value={maxMarks}
           onChange={(e) => setMaxMarks(e.target.value)}
           placeholder="Enter total marks for the test"
-          style={{
-            width: "100%",
-            padding: "12px",
-            borderRadius: "10px",
-            marginBottom: "20px",
-            border: "1px solid #ccc",
-            fontSize: "15px",
-          }}
+          style={{ width: "100%", padding: "12px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #ccc", fontSize: "15px" }}
         />
 
         {/* TEST DATE */}
-        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>
-          Test Date
-        </label>
+        <label style={{ fontWeight: "600", marginBottom: "5px", display: "block" }}>Test Date</label>
         <input
           type="date"
           value={testDate}
           onChange={(e) => setTestDate(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "12px",
-            borderRadius: "10px",
-            marginBottom: "20px",
-            border: "1px solid #ccc",
-            fontSize: "15px",
-          }}
+          style={{ width: "100%", padding: "12px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #ccc", fontSize: "15px" }}
         />
 
         {/* BUTTON */}
