@@ -6,16 +6,18 @@ const Login = () => {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false); // <-- NEW
   const navigate = useNavigate();
 
-  const API_URL = process.env.REACT_APP_API_URL; // <-- Add this
+  const API_URL = process.env.REACT_APP_API_URL;
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true); // <-- Disable button
 
     try {
-      const res = await axios.post(`${API_URL}/api/auth/login`, { // <-- Use env
+      const res = await axios.post(`${API_URL}/api/auth/login`, {
         name,
         password
       });
@@ -35,17 +37,21 @@ const Login = () => {
     } catch (err) {
       setError("Server Error: " + err.message);
     }
+
+    setLoading(false); // <-- Re-enable button
   };
 
   return (
-    <div style={{
-      maxWidth: "400px",
-      margin: "80px auto",
-      padding: "30px",
-      borderRadius: "10px",
-      boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-      background: "linear-gradient(to bottom, #f0f4f8, #d9e2ec)",
-    }}>
+    <div
+      style={{
+        maxWidth: "400px",
+        margin: "80px auto",
+        padding: "30px",
+        borderRadius: "10px",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+        background: "linear-gradient(to bottom, #f0f4f8, #d9e2ec)",
+      }}
+    >
       <h2 style={{ textAlign: "center" }}>Login</h2>
 
       {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
@@ -69,7 +75,13 @@ const Login = () => {
           style={inputStyle}
         />
 
-        <button type="submit" style={buttonStyle}>Login</button>
+        <button
+          type="submit"
+          style={buttonStyle}
+          disabled={loading} // <-- Disable while logging in
+        >
+          {loading ? "Please wait..." : "Login"} {/* <-- Smooth feel */}
+        </button>
       </form>
     </div>
   );
@@ -92,6 +104,7 @@ const buttonStyle = {
   backgroundColor: "#007bff",
   color: "#fff",
   cursor: "pointer",
+  opacity: 1,
 };
 
 export default Login;
