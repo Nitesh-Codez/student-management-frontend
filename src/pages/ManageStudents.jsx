@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+// FIXED URL
 const API_URL = process.env.REACT_APP_API_URL + "/api/students";
-
 
 const ManageStudents = () => {
   const [students, setStudents] = useState([]);
@@ -21,7 +21,7 @@ const ManageStudents = () => {
       const res = await axios.get(API_URL);
       if (res.data.success) setStudents(res.data.students);
       else setErrorMsg(res.data.message);
-    } catch {
+    } catch (err) {
       setErrorMsg("Server error while fetching students");
     }
   };
@@ -49,11 +49,14 @@ const ManageStudents = () => {
         setSuccessMsg(res.data.message);
         setErrorMsg("");
         setShowForm(false);
+
+        // Reset inputs
         setName("");
         setStudentClass("");
         setPassword("");
         setAddress("");
         setMobile("");
+
         fetchStudents();
       } else {
         setErrorMsg(res.data.message);
