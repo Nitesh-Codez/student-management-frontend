@@ -20,16 +20,18 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Public Route */}
         <Route path="/" element={<Login />} />
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/manage-students" element={<ManageStudents />} />
-        <Route path="/admin/manage-fees" element={<AdminFees />} />
-        <Route path="/admin/mark-attendance" element={<MarkAttendance />} />
-        <Route path="/admin/attendance-view" element={<AttendanceView />} />
-        <Route path="/admin/add-marks" element={<AdminAddMarks />} />
-        <Route path="/admin/reports" element={<div>Reports Page</div>} />
+        <Route path="/admin" element={<AdminDashboard />}>
+          <Route path="manage-students" element={<ManageStudents />} />
+          <Route path="manage-fees" element={<AdminFees />} />
+          <Route path="mark-attendance" element={<MarkAttendance />} />
+          <Route path="attendance-view" element={<AttendanceView />} />
+          <Route path="add-marks" element={<AdminAddMarks />} />
+          <Route path="reports" element={<div>Reports Page</div>} />
+        </Route>
 
         {/* Student Routes */}
         <Route path="/student" element={<StudentDashboard />}>
@@ -40,6 +42,9 @@ function App() {
           <Route path="marks" element={<SubjectsList />} />
           <Route path="marks/:subject" element={<StudentsMarks />} />
         </Route>
+
+        {/* Catch-all for unmatched routes */}
+        <Route path="*" element={<div>404 - Page Not Found</div>} />
       </Routes>
     </Router>
   );
