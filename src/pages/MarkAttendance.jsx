@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import "./MarkAttendance.css";
 
-const API_URL = process.env.REACT_APP_API_URL; // .env me define kiya hua
+const API_URL = process.env.REACT_APP_API_URL;
 
 const MarkAttendance = () => {
   const [students, setStudents] = useState([]);
@@ -20,7 +20,6 @@ const MarkAttendance = () => {
       const studentsList = res.data.students || [];
       setStudents(studentsList);
 
-      // Initialize attendance object
       const initAttendance = {};
       studentsList.forEach(s => {
         initAttendance[s.studentId] = s.status || "Present";
