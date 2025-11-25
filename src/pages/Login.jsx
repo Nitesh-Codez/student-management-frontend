@@ -6,7 +6,7 @@ const Login = () => {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // <-- NEW
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const API_URL = process.env.REACT_APP_API_URL;
@@ -14,23 +14,18 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true); // <-- Disable button
+    setLoading(true);
 
     try {
       const res = await axios.post(`${API_URL}/api/auth/login`, {
         name,
-        password
+        password,
       });
 
       if (res.data.success) {
         localStorage.setItem("user", JSON.stringify(res.data.user));
         const role = res.data.user.role;
-
-        if (role === "admin") {
-          navigate("/admin");
-        } else {
-          navigate("/student");
-        }
+        navigate(role === "admin" ? "/admin" : "/student");
       } else {
         setError(res.data.message);
       }
@@ -38,73 +33,134 @@ const Login = () => {
       setError("Server Error: " + err.message);
     }
 
-    setLoading(false); // <-- Re-enable button
+    setLoading(false);
   };
 
   return (
-    <div
-      style={{
-        maxWidth: "400px",
-        margin: "80px auto",
-        padding: "30px",
-        borderRadius: "10px",
-        boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-        background: "linear-gradient(to bottom, #f0f4f8, #d9e2ec)",
-      }}
-    >
-      <h2 style={{ textAlign: "center" }}>Login</h2>
+    <div style={page}>
+      {/* Left Branding Section */}
+      <div style={leftBox}>
+        <h1 style={instituteName}>Smart Students Classes</h1>
+        <p style={tagline}>Be the best version of yourself</p>
+      </div>
 
-      {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
+      {/* Right Login Card */}
+      <div style={loginCard}>
+        <h2 style={loginTitle}>Login</h2>
 
-      <form onSubmit={handleLogin}>
-        <label>Name:</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          style={inputStyle}
-        />
+        {error && <p style={errorStyle}>{error}</p>}
 
-        <label>Password:</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={inputStyle}
-        />
+        <form onSubmit={handleLogin}>
+          <label style={label}>Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={input}
+            required
+          />
 
-        <button
-          type="submit"
-          style={buttonStyle}
-          disabled={loading} // <-- Disable while logging in
-        >
-          {loading ? "Please wait..." : "Login"} {/* <-- Smooth feel */}
-        </button>
-      </form>
+          <label style={label}>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={input}
+            required
+          />
+
+          <button type="submit" style={button} disabled={loading}>
+            {loading ? "Please wait..." : "Login"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
 
-const inputStyle = {
+/* ---------------- STYLES ---------------- */
+/* ---------------- RESPONSIVE STYLES ---------------- */
+
+const page = {
+  minHeight: "100vh",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  padding: "20px",
+  background: "linear-gradient(135deg, #dfe9f3 0%, #ffffff 100%)",
+  flexWrap: "wrap", // mobile = stack
+};
+
+const leftBox = {
+  width: "40%",
+  paddingRight: "50px",
+  textAlign: "right",
+  minWidth: "280px",   // ensures mobile support
+  marginBottom: "20px",
+};
+
+const instituteName = {
+  fontSize: "32px",
+  fontWeight: "700",
+  marginBottom: "10px",
+  color: "#003366",
+};
+
+const tagline = {
+  fontSize: "18px",
+  color: "#444",
+  fontStyle: "italic",
+  fontWeight: "500",
+};
+
+const loginCard = {
+  width: "350px",
+  padding: "35px",
+  background: "white",
+  borderRadius: "12px",
+  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+};
+
+const loginTitle = {
+  marginBottom: "20px",
+  fontWeight: "600",
+  textAlign: "center",
+  fontSize: "22px",
+  color: "#003366",
+};
+
+const label = {
+  display: "block",
+  marginBottom: "6px",
+  fontWeight: "500",
+  color: "#333",
+};
+
+const input = {
   width: "100%",
-  padding: "10px",
-  marginBottom: "15px",
-  borderRadius: "5px",
+  padding: "12px",
+  borderRadius: "8px",
   border: "1px solid #ccc",
+  marginBottom: "15px",
   fontSize: "16px",
 };
 
-const buttonStyle = {
+const button = {
   width: "100%",
-  padding: "10px",
+  padding: "12px",
+  borderRadius: "8px",
   border: "none",
-  borderRadius: "5px",
-  backgroundColor: "#007bff",
-  color: "#fff",
+  background: "#003366",
+  color: "white",
+  fontSize: "17px",
   cursor: "pointer",
-  opacity: 1,
+  transition: "0.3s",
+};
+
+const errorStyle = {
+  color: "red",
+  marginBottom: "10px",
+  textAlign: "center",
 };
 
 export default Login;
