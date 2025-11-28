@@ -15,8 +15,8 @@ const AdminFees = () => {
     payment_time: "",
     status: "On Time"
   });
+  const [showRecords, setShowRecords] = useState(false); // toggle table visibility
 
-  // Fetch data inside useEffect to remove ESLint warning
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -29,7 +29,6 @@ const AdminFees = () => {
         console.log("Error fetching data:", err);
       }
     };
-
     fetchData();
   }, [API_URL]);
 
@@ -57,7 +56,7 @@ const AdminFees = () => {
         status: "On Time"
       });
 
-      // Refetch data after submit
+      // Refetch data
       const feesRes = await axios.get(`${API_URL}/api/fees`);
       if (feesRes.data.success) setFees(feesRes.data.fees);
     } catch (err) {
@@ -94,17 +93,19 @@ const AdminFees = () => {
 
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif", background: "#f9f9f9", minHeight: "100vh" }}>
-      <h2 style={{ marginBottom: "20px", color: "#1f3c88", textAlign: "center" }}>Admin - Add/Edit Fees</h2>
+      <h2 style={{ marginBottom: "30px", color: "#1f3c88", textAlign: "center" }}>Admin - Add/Edit Fees</h2>
 
-      {/* Form */}
+      {/* Form Vertical */}
       <form
         onSubmit={handleSubmit}
         style={{
           marginBottom: "30px",
           display: "flex",
-          flexWrap: "wrap",
-          gap: "10px",
-          justifyContent: "center"
+          flexDirection: "column",
+          gap: "15px",
+          maxWidth: "600px",
+          margin: "0 auto",
+          width: "100%"
         }}
       >
         <select
@@ -114,7 +115,7 @@ const AdminFees = () => {
             const s = students.find(st => st.id === +e.target.value);
             setForm({ ...form, student_id: e.target.value, student_name: s?.name, class_name: s?.class });
           }}
-          style={{ padding: "10px", borderRadius: "6px", minWidth: "150px", flex: "1" }}
+          style={{ padding: "12px", borderRadius: "6px", width: "100%" }}
         >
           <option value="">Select Student</option>
           {students.map(s => (
@@ -124,112 +125,85 @@ const AdminFees = () => {
           ))}
         </select>
 
-        <input
-          type="number"
-          name="amount"
-          placeholder="Amount"
-          value={form.amount}
-          onChange={handleChange}
-          required
-          style={{ padding: "10px", borderRadius: "6px", flex: "1", minWidth: "100px" }}
-        />
+        <input type="number" name="amount" placeholder="Amount" value={form.amount} onChange={handleChange} required style={{ padding: "12px", borderRadius: "6px", width: "100%" }} />
 
-        <input
-          type="date"
-          name="payment_date"
-          value={form.payment_date}
-          onChange={handleChange}
-          required
-          style={{ padding: "10px", borderRadius: "6px", flex: "1" }}
-        />
+        <input type="date" name="payment_date" value={form.payment_date} onChange={handleChange} required style={{ padding: "12px", borderRadius: "6px", width: "100%" }} />
 
-        <input
-          type="time"
-          name="payment_time"
-          value={form.payment_time}
-          onChange={handleChange}
-          required
-          style={{ padding: "10px", borderRadius: "6px", flex: "1" }}
-        />
+        <input type="time" name="payment_time" value={form.payment_time} onChange={handleChange} required style={{ padding: "12px", borderRadius: "6px", width: "100%" }} />
 
-        <select name="status" value={form.status} onChange={handleChange} style={{ padding: "10px", borderRadius: "6px", flex: "1" }}>
+        <select name="status" value={form.status} onChange={handleChange} style={{ padding: "12px", borderRadius: "6px", width: "100%" }}>
           <option value="On Time">On Time</option>
           <option value="Late">Late</option>
           <option value="Early">Early</option>
         </select>
 
-        <button
-          type="submit"
-          style={{
-            padding: "10px 15px",
-            borderRadius: "6px",
-            background: "#1f3c88",
-            color: "#fff",
-            border: "none",
-            cursor: "pointer",
-            flex: "1",
-            minWidth: "100px"
-          }}
-        >
+        <button type="submit" style={{ padding: "12px", borderRadius: "6px", background: "#1f3c88", color: "#fff", border: "none", cursor: "pointer", width: "100%" }}>
           {form.id ? "Update Fee" : "Add Fee"}
         </button>
       </form>
 
-      {/* Fee Records Table */}
-      <h3 style={{ marginBottom: "15px", color: "#1f3c88", textAlign: "center" }}>All Fee Records</h3>
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            minWidth: "600px",
-            background: "#fff",
-            borderRadius: "8px",
-            boxShadow: "0 5px 20px rgba(0,0,0,0.1)"
-          }}
-        >
-          <thead>
-            <tr style={{ background: "#3959a1", color: "#fff", textAlign: "left" }}>
-              <th style={{ padding: "10px" }}>Date</th>
-              <th style={{ padding: "10px" }}>Time</th>
-              <th style={{ padding: "10px" }}>Student</th>
-              <th style={{ padding: "10px" }}>Class</th>
-              <th style={{ padding: "10px" }}>Amount</th>
-              <th style={{ padding: "10px" }}>Status</th>
-              <th style={{ padding: "10px" }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {fees.map(f => (
-              <tr
-                key={f.id}
-                style={{
-                  background: f.status === "Late" ? "#f8d7da" : f.status === "Early" ? "#d1ecf1" : "#d4edda",
-                  fontWeight: "500"
-                }}
-              >
-                <td style={{ padding: "8px" }}>{formatDate(f.payment_date)}</td>
-                <td style={{ padding: "8px" }}>{formatTime(f.payment_time)}</td>
-                <td style={{ padding: "8px" }}>{f.student_name}</td>
-                <td style={{ padding: "8px" }}>{f.class_name}</td>
-                <td style={{ padding: "8px" }}>₹ {f.amount}</td>
-                <td style={{ padding: "8px", fontWeight: "600" }}>{f.status}</td>
-                <td style={{ padding: "8px" }}>
-                  <button onClick={() => handleEdit(f)} style={{ marginRight: "5px", padding: "5px 8px" }}>
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(f.id)}
-                    style={{ padding: "5px 8px", background: "#f44336", color: "#fff", border: "none", borderRadius: "4px" }}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* View Records Toggle */}
+      <div style={{ textAlign: "center", marginBottom: "50px" }}>
+        <button
+  onClick={() => setShowRecords(!showRecords)}
+  style={{
+    padding: "12px 20px",
+    borderRadius: "6px",
+    background: "#1f3c88",
+    color: "#fff",
+    border: "none",
+    cursor: "pointer",
+    marginTop: "30px"  // <-- yahan gap add kiya
+  }}
+>
+  {showRecords ? "Hide Records" : "View Records"}
+</button>
+
       </div>
+
+      {/* Fee Records Table */}
+      {showRecords && (
+        <div style={{ overflowX: "auto" }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              minWidth: "600px",
+              background: "#fff",
+              borderRadius: "8px",
+              boxShadow: "0 5px 20px rgba(0,0,0,0.1)"
+            }}
+          >
+            <thead>
+              <tr style={{ background: "#3959a1", color: "#fff", textAlign: "left" }}>
+                <th style={{ padding: "10px" }}>Date</th>
+                <th style={{ padding: "10px" }}>Time</th>
+                <th style={{ padding: "10px" }}>Student</th>
+                <th style={{ padding: "10px" }}>Class</th>
+                <th style={{ padding: "10px" }}>Amount</th>
+                <th style={{ padding: "10px" }}>Status</th>
+                <th style={{ padding: "10px" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {fees.map(f => (
+                <tr key={f.id} style={{ background: f.status === "Late" ? "#f8d7da" : f.status === "Early" ? "#d1ecf1" : "#d4edda", fontWeight: "500" }}>
+                  <td style={{ padding: "10px" }}>{formatDate(f.payment_date)}</td>
+                  <td style={{ padding: "10px" }}>{formatTime(f.payment_time)}</td>
+                  <td style={{ padding: "10px" }}>{f.student_name}</td>
+                  <td style={{ padding: "10px" }}>{f.class_name}</td>
+                  <td style={{ padding: "10px" }}>₹ {f.amount}</td>
+                  <td style={{ padding: "10px", fontWeight: "600" }}>{f.status}</td>
+                  <td style={{ padding: "10px", display: "flex", gap: "5px" }}>
+                    <button onClick={() => handleEdit(f)} style={{ padding: "5px 8px" }}>Edit</button>
+                    <button onClick={() => handleDelete(f.id)} style={{ padding: "5px 8px", background: "#f44336", color: "#fff", border: "none", borderRadius: "4px" }}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
