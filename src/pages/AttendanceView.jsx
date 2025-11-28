@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 const AttendanceView = () => {
@@ -7,26 +7,25 @@ const AttendanceView = () => {
 
   const API_URL = process.env.REACT_APP_API_URL;
 
-  const fetchAttendance = useCallback(() => {
-    setLoading(true);
-    const user = JSON.parse(localStorage.getItem("user"));
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user")); // user object me role aur id hona chahiye
 
-    let URL = "";
-    if (user.role === "admin") {
-      // Admin ke liye aaj ki attendance %
-      URL = `${API_URL}/api/attendance/today-percent`;
-    } else {
-      // Student ke liye apna full attendance
-      URL = `${API_URL}/api/attendance/${user.id}`;
-    }
+    // Correct backend URLs
+    const URL =
+      user.role === "admin"
+        ? `${API_URL}/api/attendance/list`   // Admin ke liye full list
+        : `${API_URL}/api/attendance/${user.id}`; // Student ke liye apna ID
 
     axios
       .get(URL)
       .then((res) => {
         let records = [];
+
         if (user.role === "admin") {
+          // Admin ke liye response.students array hai
           records = res.data.students || [];
         } else {
+          // Student ke liye response.attendance array hai
           records = res.data.attendance || [];
         }
 
@@ -36,24 +35,38 @@ const AttendanceView = () => {
           return;
         }
 
+        // Map data for table display
         const mappedStudents = records.map((rec) => {
-          let name, present, total, absent, percentage;
+          let present = 0;
+          let total = 0;
+          let absent = 0;
+          let name = "";
 
           if (user.role === "admin") {
-            name = rec.name;
-            present = rec.present;
-            total = rec.total;
+            name = rec.studentName;
+            present = rec.status === "Present" ? 1 : 0;
+            total = 1; // sirf ek date ka status show ho raha hai
             absent = total - present;
-            percentage = rec.percentage;
           } else {
+            // student ke liye multiple date ka data
             name = user.name;
             present = records.filter((r) => r.status === "Present").length;
             total = records.length;
             absent = total - present;
-            percentage = total > 0 ? ((present / total) * 100).toFixed(2) : "0.00";
           }
 
-          return { name, present, total, absent, percentage };
+          // Percentage with absent penalty
+          const percentage = total > 0
+            ? ((present / total) * 100 - absent * 0.3).toFixed(2)
+            : "0.00";
+
+          return {
+            name,
+            present,
+            total,
+            absent,
+            percentage,
+          };
         });
 
         setStudents(mappedStudents);
@@ -66,30 +79,21 @@ const AttendanceView = () => {
       });
   }, [API_URL]);
 
-  useEffect(() => {
-    fetchAttendance();
-  }, [fetchAttendance]);
-
+  // Coloring logic
   const getPercentageColor = (percent) => {
-    if (percent > 85) return "#70d618ff";
-    if (percent >= 75) return "#d7f969ff";
-    return "#ff0015ff";
+    if (percent > 85) return "#7bda28ff"; // green
+    if (percent >= 75) return "#d7f969ff"; // yellow
+    return "#ff0015ff"; // red
   };
+
+  if (loading)
+    return <p style={{ textAlign: "center", marginTop: "50px" }}>Loading attendance...</p>;
 
   return (
     <div style={{ padding: "30px", fontFamily: "Arial", maxWidth: "900px", margin: "0 auto" }}>
       <h2 style={{ color: "#1f3c88", marginBottom: "20px" }}>Attendance Records</h2>
 
-      <button
-        onClick={fetchAttendance}
-        style={{ marginBottom: "20px", padding: "5px 10px" }}
-      >
-        Refresh
-      </button>
-
-      {loading ? (
-        <p style={{ textAlign: "center", marginTop: "50px" }}>Loading attendance...</p>
-      ) : students.length === 0 ? (
+      {students.length === 0 ? (
         <p style={{ textAlign: "center", marginTop: "30px" }}>No Attendance Found</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
@@ -101,7 +105,13 @@ const AttendanceView = () => {
             }}
           >
             <thead>
-              <tr style={{ background: "#343a40", color: "#fff", textTransform: "uppercase" }}>
+              <tr
+                style={{
+                  background: "#343a40",
+                  color: "#fff",
+                  textTransform: "uppercase",
+                }}
+              >
                 <th style={thTd}>Student</th>
                 <th style={thTd}>Present</th>
                 <th style={thTd}>Total</th>
@@ -116,7 +126,13 @@ const AttendanceView = () => {
                   <td style={thTd}>{s.present}</td>
                   <td style={thTd}>{s.total}</td>
                   <td style={thTd}>{s.absent}</td>
-                  <td style={{ ...thTd, backgroundColor: getPercentageColor(s.percentage), fontWeight: "600" }}>
+                  <td
+                    style={{
+                      ...thTd,
+                      backgroundColor: getPercentageColor(s.percentage),
+                      fontWeight: "600",
+                    }}
+                  >
                     {s.percentage}%
                   </td>
                 </tr>
@@ -129,6 +145,10 @@ const AttendanceView = () => {
   );
 };
 
-const thTd = { padding: "12px", textAlign: "center", border: "1px solid #ccc" };
+const thTd = {
+  padding: "12px",
+  textAlign: "center",
+  border: "1px solid #ccc",
+};
 
 export default AttendanceView;
