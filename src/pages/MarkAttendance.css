@@ -26,6 +26,16 @@
   background-color: #f2f2f2;
 }
 
+/* ✅ NEW: Present row light green */
+.row-present {
+  background-color: #e9f0e9 !important;
+}
+
+/* ✅ NEW: Absent row light red */
+.row-absent {
+  background-color: #f2b0b0 !important;
+}
+
 .submit-btn, .edit-btn {
   margin-top: 10px;
   padding: 8px 16px;

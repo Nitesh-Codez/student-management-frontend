@@ -10,9 +10,11 @@ const MarkAttendance = () => {
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState("");
   const [selectedDate, setSelectedDate] = useState(getFormattedDate());
-  const [isEditable, setIsEditable] = useState(true); // submit or edit
+  const [isEditable, setIsEditable] = useState(true);
+  const [showTable, setShowTable] = useState(true);
+  const [isFirstTime, setIsFirstTime] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Format date as YYYY-MM-DD
   function getFormattedDate(date = new Date()) {
     return (
       date.getFullYear() +
@@ -26,8 +28,12 @@ const MarkAttendance = () => {
   const fetchStudents = async (date) => {
     setLoading(true);
     setSuccessMsg("");
+    setShowTable(true);
+    setIsEditing(false);
+
     try {
       const res = await axios.get(`${API_URL}/api/attendance/list?date=${date}`);
+
       if (res.data.success) {
         const list = res.data.students.map((s) => ({
           id: s.studentId,
@@ -38,28 +44,22 @@ const MarkAttendance = () => {
 
         setStudents(list);
 
+        const allAbsent = list.every((s) => s.status === "Absent");
+        setIsFirstTime(allAbsent);
+
         const initAtt = {};
         list.forEach((s) => {
-          initAtt[s.id] = s.status || "Absent";
+          initAtt[s.id] = allAbsent ? "Present" : s.status;
         });
 
         setAttendance(initAtt);
-
-        // Determine if editable (if all absent → first time, else already marked)
-        const alreadyMarked = list.some((s) => s.status !== "Absent");
-        setIsEditable(!alreadyMarked);
-      } else {
-        console.error("Error from backend:", res.data.message);
-        setStudents([]);
-        setIsEditable(true);
+        setIsEditable(allAbsent);
       }
     } catch (err) {
-      console.error("Error fetching students:", err);
-      setStudents([]);
-      setIsEditable(true);
-    } finally {
-      setLoading(false);
+      console.log(err);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -70,27 +70,50 @@ const MarkAttendance = () => {
     setAttendance((prev) => ({ ...prev, [id]: status }));
   };
 
-  const handleSubmit = async () => {
+  const submitAttendance = async () => {
     try {
       const attendanceData = students.map((s) => ({
         studentId: s.id,
         status: attendance[s.id],
       }));
 
-      const res = await axios.post(`${API_URL}/api/attendance/mark`, {
+      await axios.post(`${API_URL}/api/attendance/mark`, {
         date: selectedDate,
         attendance: attendanceData,
       });
 
-      if (res.data.success) {
-        setSuccessMsg("Attendance recorded successfully!");
-        setStudents([]); // reset list after submission
-      } else {
-        setSuccessMsg("Error saving attendance.");
-      }
+      setSuccessMsg("Attendance Submitted Successfully!");
+      alert("Attendance Saved Successfully!");
+
+      setShowTable(false);
+      setIsEditable(false);
+      setIsFirstTime(false);
+      setIsEditing(false);
     } catch (err) {
-      console.error("Error submitting attendance:", err);
-      setSuccessMsg("Error saving attendance.");
+      alert("Error submitting attendance");
+    }
+  };
+
+  const updateAttendance = async () => {
+    try {
+      const attendanceData = students.map((s) => ({
+        studentId: s.id,
+        status: attendance[s.id],
+      }));
+
+      await axios.post(`${API_URL}/api/attendance/mark`, {
+        date: selectedDate,
+        attendance: attendanceData,
+      });
+
+      setSuccessMsg("Attendance Updated Successfully!");
+      alert("Attendance Updated Successfully!");
+
+      setShowTable(false);
+      setIsEditable(false);
+      setIsEditing(false);
+    } catch (err) {
+      alert("Error updating attendance");
     }
   };
 
@@ -98,7 +121,6 @@ const MarkAttendance = () => {
     <div className="attendance-container">
       <h1>Mark Attendance</h1>
 
-      {/* Date Picker */}
       <div className="date-picker">
         <label>Select Date: </label>
         <input
@@ -110,63 +132,84 @@ const MarkAttendance = () => {
       </div>
 
       {loading ? (
-        <p>Loading students...</p>
+        <p>Loading...</p>
+      ) : showTable ? (
+        <>
+          <table className="attendance-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Class</th>
+                <th>Present</th>
+                <th>Absent</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {students.map((s) => (
+                <tr
+                  key={s.id}
+                  className={
+                    attendance[s.id] === "Present"
+                      ? "row-present"
+                      : "row-absent"
+                  }
+                >
+                  <td>{s.id}</td>
+                  <td>{s.name}</td>
+                  <td>{s.class}</td>
+
+                  <td>
+                    <input
+                      type="radio"
+                      name={`att-${s.id}`}
+                      disabled={!isEditable}
+                      checked={attendance[s.id] === "Present"}
+                      onChange={() => handleChange(s.id, "Present")}
+                    />
+                  </td>
+
+                  <td>
+                    <input
+                      type="radio"
+                      name={`att-${s.id}`}
+                      disabled={!isEditable}
+                      checked={attendance[s.id] === "Absent"}
+                      onChange={() => handleChange(s.id, "Absent")}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {isFirstTime && !isEditing && (
+            <button className="submit-btn" onClick={submitAttendance}>
+              Submit Attendance
+            </button>
+          )}
+
+          {isEditing && (
+            <button className="submit-btn" onClick={updateAttendance}>
+              Update Attendance
+            </button>
+          )}
+        </>
       ) : (
         <>
-          {students.length === 0 ? (
-            <p>No students found for this date.</p>
-          ) : (
-            <>
-              <table className="attendance-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Class</th>
-                    <th>Present</th>
-                    <th>Absent</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((s) => (
-                    <tr key={s.id}>
-                      <td>{s.id}</td>
-                      <td>{s.name}</td>
-                      <td>{s.class}</td>
-                      <td>
-                        <input
-                          type="radio"
-                          name={`att-${s.id}`}
-                          checked={attendance[s.id] === "Present"}
-                          onChange={() => handleChange(s.id, "Present")}
-                          disabled={!isEditable}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="radio"
-                          name={`att-${s.id}`}
-                          checked={attendance[s.id] === "Absent"}
-                          onChange={() => handleChange(s.id, "Absent")}
-                          disabled={!isEditable}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <p className="success-msg">{successMsg}</p>
 
-              <button
-                className="submit-btn"
-                onClick={handleSubmit}
-                disabled={!isEditable}
-              >
-                {isEditable ? "Submit Attendance" : "Edit Attendance"}
-              </button>
-
-              {successMsg && <p className="success-msg">{successMsg}</p>}
-            </>
-          )}
+          <button
+            className="submit-btn"
+            onClick={() => {
+              setShowTable(true);
+              setIsEditable(true);
+              setIsEditing(true);
+            }}
+          >
+            Edit Attendance
+          </button>
         </>
       )}
     </div>
