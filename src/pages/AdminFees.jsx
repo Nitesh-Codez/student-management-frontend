@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const AdminFees = () => {
+  const API_URL = process.env.REACT_APP_API_URL;
   const [students, setStudents] = useState([]);
   const [fees, setFees] = useState([]);
   const [form, setForm] = useState({
@@ -15,36 +16,49 @@ const AdminFees = () => {
   });
 
   useEffect(() => {
-    axios.get("https://student-management-system-32lc.onrender.com/api/students")
-      .then(res => { if(res.data.success) setStudents(res.data.students); });
-    fetchFees();
-  }, []);
+    // fetch students and fees inline
+    const fetchData = async () => {
+      try {
+        const studentsRes = await axios.get(`${API_URL}/api/students`);
+        if (studentsRes.data.success) setStudents(studentsRes.data.students);
 
-  const fetchFees = () => {
-    axios.get("https://student-management-system-32lc.onrender.com/api/fees")
-      .then(res => { if(res.data.success) setFees(res.data.fees); });
-  };
+        const feesRes = await axios.get(`${API_URL}/api/fees`);
+        if (feesRes.data.success) setFees(feesRes.data.fees);
+      } catch (err) {
+        console.log("Error fetching data:", err);
+      }
+    };
+    fetchData();
+  }, [API_URL]); // only API_URL as dependency
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    axios.post("https://student-management-system-32lc.onrender.com/api/fees", form)
-      .then(res => {
-        if(res.data.success){
-          alert(res.data.message);
-          fetchFees();
-          setForm({ student_id: "", student_name: "", class_name: "", amount: "", payment_date: "", payment_time: "", status: "On Time" });
-        }
-      });
+    try {
+      const res = await axios.post(`${API_URL}/api/fees`, form);
+      if (res.data.success) {
+        alert(res.data.message);
+        // refetch fees
+        const feesRes = await axios.get(`${API_URL}/api/fees`);
+        if (feesRes.data.success) setFees(feesRes.data.fees);
+        setForm({
+          student_id: "",
+          student_name: "",
+          class_name: "",
+          amount: "",
+          payment_date: "",
+          payment_time: "",
+          status: "On Time"
+        });
+      }
+    } catch (err) {
+      console.log("Error submitting fee:", err);
+    }
   };
 
-  const formatDate = (dateStr) => {
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    return new Date(dateStr).toLocaleDateString(undefined, options);
-  };
-
-  const formatTime = (timeStr) => {
+  const formatDate = dateStr => new Date(dateStr).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const formatTime = timeStr => {
     const [hour, minute] = timeStr.split(":");
     const date = new Date();
     date.setHours(hour, minute);
@@ -132,10 +146,7 @@ const AdminFees = () => {
         </thead>
         <tbody>
           {fees.map(f => (
-            <tr key={f.id} style={{
-              background: f.status==="Late"?"#f8d7da":f.status==="Early"?"#d1ecf1":"#d4edda",
-              fontWeight: "500"
-            }}>
+            <tr key={f.id} style={{ background: f.status==="Late"?"#f8d7da":f.status==="Early"?"#d1ecf1":"#d4edda", fontWeight: "500" }}>
               <td style={{ padding:"10px 15px" }}>{formatDate(f.payment_date)}</td>
               <td style={{ padding:"10px 15px" }}>{formatTime(f.payment_time)}</td>
               <td style={{ padding:"10px 15px" }}>{f.student_name}</td>

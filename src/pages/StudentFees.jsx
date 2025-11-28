@@ -2,24 +2,24 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const StudentFees = ({ user }) => {
+  const API_URL = process.env.REACT_APP_API_URL;
   const [fees, setFees] = useState([]);
 
   useEffect(() => {
     if (!user) return;
-    axios
-      .get(`https://student-management-system-32lc.onrender.com/api/fees/${user.id}`)
-      .then((res) => {
+    const fetchFees = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/fees/${user.id}`);
         if (res.data.success) setFees(res.data.fees);
-      })
-      .catch((err) => console.log("Error fetching fees:", err));
-  }, [user]);
+      } catch (err) {
+        console.log("Error fetching fees:", err);
+      }
+    };
+    fetchFees();
+  }, [user, API_URL]);
 
-  const formatDate = (dateStr) => {
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    return new Date(dateStr).toLocaleDateString(undefined, options);
-  };
-
-  const formatTime = (timeStr) => {
+  const formatDate = dateStr => new Date(dateStr).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const formatTime = timeStr => {
     const [hour, minute] = timeStr.split(":");
     const date = new Date();
     date.setHours(hour, minute);
@@ -42,20 +42,8 @@ const StudentFees = ({ user }) => {
             </tr>
           </thead>
           <tbody>
-            {fees.map((f) => (
-              <tr
-                key={f.id}
-                style={{
-                  background:
-                    f.status === "Late"
-                      ? "#f8d7da"
-                      : f.status === "Early"
-                      ? "#d1ecf1"
-                      : "#d4edda",
-                  textAlign: "left",
-                  fontWeight: "500",
-                }}
-              >
+            {fees.map(f => (
+              <tr key={f.id} style={{ background: f.status === "Late" ? "#f8d7da" : f.status === "Early" ? "#d1ecf1" : "#d4edda", fontWeight: "500" }}>
                 <td style={{ padding: "10px 15px" }}>{formatDate(f.payment_date)}</td>
                 <td style={{ padding: "10px 15px" }}>{formatTime(f.payment_time)}</td>
                 <td style={{ padding: "10px 15px" }}>₹ {f.amount}</td>
