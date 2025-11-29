@@ -91,7 +91,7 @@ const StudentAttendance = () => {
           color: "#1f3c88",
         }}
       >
-        Student Attendance
+        See your Attendance dear Student 
       </h2>
 
       {/* Month */}
@@ -104,7 +104,7 @@ const StudentAttendance = () => {
           alignItems: "center",
         }}
       >
-        <label style={{ fontWeight: "bold" }}>Select Month:</label>
+        <label style={{ fontWeight: "bold" }}>Current Month:</label>
         <input
           type="month"
           value={month}
@@ -184,7 +184,8 @@ const StudentAttendance = () => {
       <div style={{ overflowX: "auto" }}>
         <table
           style={{
-            width: "100%",
+            width: "50%",
+            tableLayout:"fixed",
             borderCollapse: "collapse",
             minWidth: "600px",
             borderRadius: "10px",
@@ -214,7 +215,7 @@ const StudentAttendance = () => {
                     key={i}
                     style={{
                       background:
-                        a.status === "Absent" ? "#f8d7da" : "#d4edda",
+                        a.status === "Absent" ? "#de5b66ff" : "#d8f5c6ff",
                       color: a.status === "Absent" ? "#721c24" : "#155724",
                       fontWeight: "500",
                     }}
@@ -232,14 +233,14 @@ const StudentAttendance = () => {
 };
 
 const th = {
-  padding: "12px",
+  padding: "15px",
   border: "1px solid #ddd",
   textAlign: "center",
 };
 
 const td = {
-  padding: "12px",
-  border: "1px solid #ddd",
+  padding: "10px",
+  border: "1px solid #866868ff",
   textAlign: "center",
 };
 
