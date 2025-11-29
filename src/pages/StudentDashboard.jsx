@@ -4,6 +4,10 @@ import StudentAttendance from "./StudentAttendance";
 import StudentFees from "./StudentFees";
 import SubjectsList from "./SubjectsList";
 import StudentsMarks from "./StudentsMarks";
+import HomeworkStudent from "./HomeworkStudent";
+
+// ❌ LOGO REMOVED
+// import logo from "../assets/logo.png";
 
 const linkStyle = {
   color: "#fff",
@@ -16,13 +20,14 @@ const linkStyle = {
 };
 
 const boxStyle = (bgColor) => ({
-  padding: "30px",
+  padding: "40px",
   background: bgColor,
   color: "#fff",
-  borderRadius: "10px",
+  borderRadius: "14px",
   boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
   textAlign: "center",
   cursor: "pointer",
+  fontSize: "18px",
 });
 
 
@@ -32,7 +37,6 @@ const boxStyle = (bgColor) => ({
 const DashboardBoxes = ({ user, navigate, feesPaid }) => {
   return (
     <div>
-      {/* FEES NOTICE - Sirf dashboard me */}
       {!feesPaid && (
         <div
           style={{
@@ -45,49 +49,53 @@ const DashboardBoxes = ({ user, navigate, feesPaid }) => {
             fontWeight: "bold",
           }}
         >
-          ⚠ Your fees for the **previous month** is pending.  
+          ⚠ Your fees for the **previous month** is pending.
           Please submit as soon as possible.
         </div>
       )}
 
-      <h2 style={{ marginBottom: "20px" }}>
+      <h2 style={{ marginBottom: "20px", fontSize: "28px", fontWeight: "700" }}>
         Hi, {user.name}! Welcome to your Dashboard 👋
       </h2>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-          gap: "20px",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: "25px",
         }}
       >
-        <div
-          style={boxStyle("#1ABC9C")}
-          onClick={() => navigate("/student/attendance")}
-        >
+        <div style={boxStyle("#1ABC9C")} onClick={() => navigate("/student/attendance")}>
           <h3>Your Attendance</h3>
-          <p>Check your current attendance status</p>
+          <p>Check your current attendance</p>
         </div>
 
-        <div
-          style={boxStyle("#E57373")}
-          onClick={() => navigate("/student/fees")}
-        >
+        <div style={boxStyle("#E57373")} onClick={() => navigate("/student/fees")}>
           <h3>Fees Status</h3>
-          <p>See your pending or paid fees</p>
+          <p>Pending or Paid</p>
         </div>
 
-        <div
-          style={boxStyle("#F39C12")}
-          onClick={() => navigate("/student/marks")}
-        >
-          <h3>Check Your Test Marks</h3>
-          <p>View your latest test scores</p>
+        <div style={boxStyle("#F39C12")} onClick={() => navigate("/student/marks")}>
+          <h3>Test Marks</h3>
+          <p>Your latest scores</p>
         </div>
 
         <div style={boxStyle("#9B59B6")}>
           <h3>See Your Record</h3>
-          <p>View your overall academic records</p>
+          <p>Overall performance</p>
+        </div>
+
+        <div
+  style={boxStyle("#3498DB")}
+  onClick={() => navigate("/student/homework")}
+>
+  <h3>Homework Status</h3>
+  <p>Check pending homework</p>
+</div>
+
+        <div style={boxStyle("#16A085")}>
+          <h3>This Month Feedback</h3>
+          <p>Your teacher’s remarks</p>
         </div>
       </div>
     </div>
@@ -95,9 +103,8 @@ const DashboardBoxes = ({ user, navigate, feesPaid }) => {
 };
 
 
-
 // =========================
-// MAIN DASHBOARD PAGE
+// MAIN DASHBOARD
 // =========================
 const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -109,50 +116,102 @@ const StudentDashboard = () => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
     setUser(storedUser);
 
-    // feesPaidThisMonth = payment of previous month
     const isPaid = localStorage.getItem("feesPaidThisMonth");
     setFeesPaid(isPaid === "true");
   }, []);
 
   if (!user)
-    return (
-      <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>
-    );
+    return <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>;
 
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: "Arial, sans-serif" }}>
-      
-      {/* SIDEBAR */}
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+
+      {/* =========================
+          SIDEBAR 
+      ========================= */}
       <aside
         style={{
-          width: sidebarOpen ? "220px" : "0",
+          width: sidebarOpen ? "260px" : "0",
           background: "#2C3E50",
-          padding: sidebarOpen ? "30px 20px" : "0",
+          padding: sidebarOpen ? "25px 20px" : "0",
           color: "#fff",
           overflow: "hidden",
           transition: "all 0.3s ease",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {sidebarOpen && (
           <>
-            <h2 style={{ marginBottom: "30px", textAlign: "center", fontSize: "24px" }}>
-              <Link to="/student" style={{ color: "#1ABC9C", textDecoration: "none" }}>
-                Home
-              </Link>
+            {/* 🔥 TOP HEADING */}
+            <h2
+              style={{
+                textAlign: "center",
+                marginBottom: "25px",
+                fontSize: "22px",
+                fontWeight: "700",
+                letterSpacing: "1px",
+                color: "#1ABC9C",
+              }}
+            >
+              Smart Student Classes
             </h2>
 
-            <nav style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+            {/* HOME BUTTON */}
+            <div style={{ marginBottom: "20px" }}>
+              <Link
+                to="/student"
+                style={{
+                  ...linkStyle,
+                  background: "#1ABC9C",
+                  display: "block",
+                  textAlign: "center",
+                  fontWeight: "600",
+                }}
+              >
+                ⬅ Go to Dashboard
+              </Link>
+            </div>
+
+            {/* NAVIGATION MENU */}
+            <nav
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "15px",
+                overflow: "visible",
+              }}
+            >
               <Link to="profile" style={linkStyle}>Profile</Link>
               <Link to="fees" style={linkStyle}>Fees</Link>
               <Link to="attendance" style={linkStyle}>Attendance</Link>
               <Link to="marks" style={linkStyle}>Test Marks</Link>
+
+              {/* EXTRA 6 OPTIONS */}
+              <Link style={linkStyle}>Submit Exam Form</Link>
+              <Link style={linkStyle}>Generate Admit Card</Link>
+              <Link style={linkStyle}>Download Syllabus</Link>
+              <Link style={linkStyle}>Time Table</Link>
+              <Link style={linkStyle}>Study Material</Link>
+              <Link style={linkStyle}>Holiday List</Link>
+
+              {/* 🆕 NEW OPTIONS */}
+              <Link style={linkStyle}>Withdrawal Request</Link>
+              <Link style={linkStyle}>My Suggestions</Link>
             </nav>
           </>
         )}
       </aside>
 
-
-      {/* MAIN CONTENT */}
+      {/* =========================
+          MAIN CONTENT
+      ========================= */}
       <main
         style={{
           flex: 1,
@@ -183,21 +242,21 @@ const StudentDashboard = () => {
           <Route
             index
             element={
-              <DashboardBoxes user={user} navigate={navigate} feesPaid={feesPaid} />
+              <DashboardBoxes
+                user={user}
+                navigate={navigate}
+                feesPaid={feesPaid}
+              />
             }
           />
 
           <Route path="profile" element={<div><h2>Profile Page</h2></div>} />
-
           <Route path="fees" element={<StudentFees user={user} />} />
-
           <Route path="attendance" element={<StudentAttendance user={user} />} />
-
           <Route path="marks" element={<SubjectsList user={user} />} />
-
           <Route path="marks/:subject" element={<StudentsMarks user={user} />} />
+          <Route path="homework" element={<HomeworkStudent />} />
         </Routes>
-
       </main>
     </div>
   );

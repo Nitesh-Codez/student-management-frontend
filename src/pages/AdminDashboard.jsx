@@ -1,20 +1,21 @@
 import React, { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { FaBars, FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaChartLine } from "react-icons/fa";
+import { FaBars, FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload } from "react-icons/fa";
 
 const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
-  const links = [
-    { title: "Manage Students", path: "manage-students", icon: <FaUserGraduate /> },
-    { title: "Manage Fees", path: "manage-fees", icon: <FaMoneyBillWave /> },
-    { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck /> },
-    { title: "View Attendance", path: "attendance-view", icon: <FaClipboardCheck /> },
-    { title: "Test Marks", path: "testmarks", icon: <FaChartLine /> },
-    { title: "Add Marks", path: "add-marks", icon: <FaChartLine /> },
-    { title: "Reports", path: "reports", icon: <FaChartLine /> },
-  ];
+ const links = [
+  { title: "Manage Students", path: "manage-students", icon: <FaUserGraduate /> },
+  { title: "Manage Fees", path: "manage-fees", icon: <FaMoneyBillWave /> },
+  { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck /> },
+  { title: "View Attendance", path: "attendance-view", icon: <FaClipboardCheck /> },
+  { title: "Upload Homework", path: "upload-homework", icon: <FaUpload /> }, // ✅ fixed
+  { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
+  { title: "Reports", path: "reports", icon: <FaUpload /> },
+];
+
 
   // Dashboard cards only show on /admin
   const showDashboard = location.pathname === "/admin";

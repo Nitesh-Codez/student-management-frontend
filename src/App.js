@@ -15,6 +15,9 @@ import StudentFees from "./pages/StudentFees";
 import AttendanceView from "./pages/AttendanceView";
 import SubjectsList from "./pages/SubjectsList";
 import StudentsMarks from "./pages/StudentsMarks";
+import HomeworkStudent from "./pages/HomeworkStudent";
+import HomeworkAdmin from "./pages/HomeworkAdmin";
+ // Admin homework page
 
 function App() {
   return (
@@ -32,6 +35,8 @@ function App() {
           <Route path="attendance-view" element={<AttendanceView />} />
           <Route path="add-marks" element={<AdminAddMarks />} />
           <Route path="reports" element={<div>Reports Page</div>} />
+          <Route path="upload-homework" element={<HomeworkAdmin />} />
+ {/* Admin Homework */}
         </Route>
 
         {/* Student Routes */}
@@ -42,6 +47,8 @@ function App() {
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="marks" element={<SubjectsList />} />
           <Route path="marks/:subject" element={<StudentsMarks />} />
+          <Route path="homework" element={<HomeworkStudent />} /> 
+          {/* Student Homework */}
         </Route>
 
         {/* Catch-all for unmatched routes */}

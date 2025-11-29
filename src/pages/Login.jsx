@@ -130,9 +130,9 @@ const logoBorder = {
   padding: "0 5px",
   border: "2px solid #ffcc00",
   borderRadius: "5px",
-  boxShadow: "2px 2px 10px rgba(0,0,0,0.5)",
+  boxShadow: "2px 2px 10px rgba(0, 255, 21, 0.95)",
   margin: "0 2px",
-  color: "#ffcc00",
+  color: "#000000ff",
 };
 
 const tagline = {
