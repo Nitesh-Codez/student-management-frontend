@@ -30,30 +30,12 @@ const boxStyle = (bgColor) => ({
   fontSize: "18px",
 });
 
-
 // =========================
 // DASHBOARD BOXES
 // =========================
-const DashboardBoxes = ({ user, navigate, feesPaid }) => {
+const DashboardBoxes = ({ user, navigate }) => {
   return (
     <div>
-      {!feesPaid && (
-        <div
-          style={{
-            padding: "15px",
-            background: "#ffcccc",
-            color: "#b30000",
-            borderRadius: "8px",
-            marginBottom: "20px",
-            textAlign: "center",
-            fontWeight: "bold",
-          }}
-        >
-          ⚠ Your fees for the **previous month** is pending.
-          Please submit as soon as possible.
-        </div>
-      )}
-
       <h2 style={{ marginBottom: "20px", fontSize: "28px", fontWeight: "700" }}>
         Hi, {user.name}! Welcome to your Dashboard 👋
       </h2>
@@ -85,13 +67,10 @@ const DashboardBoxes = ({ user, navigate, feesPaid }) => {
           <p>Overall performance</p>
         </div>
 
-        <div
-  style={boxStyle("#3498DB")}
-  onClick={() => navigate("/student/homework")}
->
-  <h3>Homework Status</h3>
-  <p>Check pending homework</p>
-</div>
+        <div style={boxStyle("#3498DB")} onClick={() => navigate("/student/homework")}>
+          <h3>Homework Status</h3>
+          <p>Check pending homework</p>
+        </div>
 
         <div style={boxStyle("#16A085")}>
           <h3>This Month Feedback</h3>
@@ -102,22 +81,17 @@ const DashboardBoxes = ({ user, navigate, feesPaid }) => {
   );
 };
 
-
 // =========================
 // MAIN DASHBOARD
 // =========================
 const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [feesPaid, setFeesPaid] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
     setUser(storedUser);
-
-    const isPaid = localStorage.getItem("feesPaidThisMonth");
-    setFeesPaid(isPaid === "true");
   }, []);
 
   if (!user)
@@ -131,7 +105,6 @@ const StudentDashboard = () => {
         fontFamily: "Arial, sans-serif",
       }}
     >
-
       {/* =========================
           SIDEBAR 
       ========================= */}
@@ -241,15 +214,8 @@ const StudentDashboard = () => {
         <Routes>
           <Route
             index
-            element={
-              <DashboardBoxes
-                user={user}
-                navigate={navigate}
-                feesPaid={feesPaid}
-              />
-            }
+            element={<DashboardBoxes user={user} navigate={navigate} />}
           />
-
           <Route path="profile" element={<div><h2>Profile Page</h2></div>} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
