@@ -13,14 +13,36 @@ const StudentFees = ({ user }) => {
 
   useEffect(() => {
     if (!user) return;
+
     const fetchFees = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/fees/${user.id}`);
-        if (res.data.success) setFees(res.data.fees);
+        if (res.data.success) {
+          const feesData = res.data.fees;
+          setFees(feesData);
+
+          // ⭐ Store last-month fee status
+          const today = new Date();
+          let lastMonth = today.getMonth() - 1;
+          let year = today.getFullYear();
+
+          if (lastMonth < 0) {
+            lastMonth = 11;
+            year = year - 1;
+          }
+
+          const hasPaidLastMonth = feesData.some((f) => {
+            const fd = new Date(f.payment_date);
+            return fd.getMonth() === lastMonth && fd.getFullYear() === year;
+          });
+
+          localStorage.setItem("feesPaidLastMonth", hasPaidLastMonth);
+        }
       } catch (err) {
         console.log("Error fetching fees:", err);
       }
     };
+
     fetchFees();
   }, [user, API_URL]);
 
@@ -44,18 +66,20 @@ const StudentFees = ({ user }) => {
     return "#e7ffed";
   };
 
+  // ⭐⭐ NEW LOGIC: Show next month’s fee when user clicks a month
   const filteredFees =
     selectedMonth === null
       ? []
-      : fees.filter(
-          (f) => new Date(f.payment_date).getMonth() === selectedMonth
-        );
+      : fees.filter((f) => {
+          const paidMonth = new Date(f.payment_date).getMonth();
+          const nextMonth = (selectedMonth + 1) % 12;
+          return paidMonth === nextMonth;
+        });
 
   return (
     <div style={styles.page}>
       <h2 style={styles.title}>Your Fee Records</h2>
 
-      {/* MONTH BUTTONS */}
       <div style={styles.monthGrid}>
         {months.map((m, i) => (
           <button
@@ -72,7 +96,6 @@ const StudentFees = ({ user }) => {
         ))}
       </div>
 
-      {/* TABLE + CARD WRAPPER */}
       <div style={styles.box}>
         {selectedMonth === null ? (
           <p style={styles.msg}>Select a month to view fee records.</p>
@@ -80,7 +103,6 @@ const StudentFees = ({ user }) => {
           <p style={styles.msg}>No records for this month.</p>
         ) : (
           <>
-            {/* DESKTOP TABLE */}
             <div className="desktop-table" style={styles.tableWrapper}>
               <table style={styles.table}>
                 <thead>
@@ -106,7 +128,6 @@ const StudentFees = ({ user }) => {
               </table>
             </div>
 
-            {/* MOBILE CARD VIEW */}
             <div className="mobile-view" style={styles.mobileList}>
               {filteredFees.map((f) => (
                 <div
@@ -127,14 +148,12 @@ const StudentFees = ({ user }) => {
         )}
       </div>
 
-      {/* RESPONSIVE CSS */}
       <style>
         {`
         @media (max-width: 768px) {
           .desktop-table { display: none; }
           .mobile-view { display: block !important; }
         }
-
         @media (min-width: 769px) {
           .desktop-table { display: block; }
           .mobile-view { display: none; }
@@ -145,7 +164,6 @@ const StudentFees = ({ user }) => {
   );
 };
 
-/* STYLES */
 const styles = {
   page: {
     padding: "20px",
