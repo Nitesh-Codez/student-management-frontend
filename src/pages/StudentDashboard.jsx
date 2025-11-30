@@ -5,9 +5,7 @@ import StudentFees from "./StudentFees";
 import SubjectsList from "./SubjectsList";
 import StudentsMarks from "./StudentsMarks";
 import HomeworkStudent from "./HomeworkStudent";
-
-// ❌ LOGO REMOVED
-// import logo from "../assets/logo.png";
+import StudentProfile from "./StudentProfile";
 
 const linkStyle = {
   color: "#fff",
@@ -98,13 +96,7 @@ const StudentDashboard = () => {
     return <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
+    <div style={{ display: "flex", height: "100vh", fontFamily: "Arial, sans-serif" }}>
       {/* =========================
           SIDEBAR 
       ========================= */}
@@ -122,7 +114,6 @@ const StudentDashboard = () => {
       >
         {sidebarOpen && (
           <>
-            {/* 🔥 TOP HEADING */}
             <h2
               style={{
                 textAlign: "center",
@@ -136,7 +127,6 @@ const StudentDashboard = () => {
               Smart Student Classes
             </h2>
 
-            {/* HOME BUTTON */}
             <div style={{ marginBottom: "20px" }}>
               <Link
                 to="/student"
@@ -152,7 +142,6 @@ const StudentDashboard = () => {
               </Link>
             </div>
 
-            {/* NAVIGATION MENU */}
             <nav
               style={{
                 display: "flex",
@@ -166,7 +155,6 @@ const StudentDashboard = () => {
               <Link to="attendance" style={linkStyle}>Attendance</Link>
               <Link to="marks" style={linkStyle}>Test Marks</Link>
 
-              {/* EXTRA 6 OPTIONS */}
               <Link style={linkStyle}>Submit Exam Form</Link>
               <Link style={linkStyle}>Generate Admit Card</Link>
               <Link style={linkStyle}>Download Syllabus</Link>
@@ -174,7 +162,6 @@ const StudentDashboard = () => {
               <Link style={linkStyle}>Study Material</Link>
               <Link style={linkStyle}>Holiday List</Link>
 
-              {/* 🆕 NEW OPTIONS */}
               <Link style={linkStyle}>Withdrawal Request</Link>
               <Link style={linkStyle}>My Suggestions</Link>
             </nav>
@@ -212,11 +199,8 @@ const StudentDashboard = () => {
         </button>
 
         <Routes>
-          <Route
-            index
-            element={<DashboardBoxes user={user} navigate={navigate} />}
-          />
-          <Route path="profile" element={<div><h2>Profile Page</h2></div>} />
+          <Route index element={<DashboardBoxes user={user} navigate={navigate} />} />
+          <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
           <Route path="marks" element={<SubjectsList user={user} />} />

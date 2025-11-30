@@ -17,7 +17,7 @@ import SubjectsList from "./pages/SubjectsList";
 import StudentsMarks from "./pages/StudentsMarks";
 import HomeworkStudent from "./pages/HomeworkStudent";
 import HomeworkAdmin from "./pages/HomeworkAdmin";
- // Admin homework page
+import StudentProfile from "./pages/StudentProfile";
 
 function App() {
   return (
@@ -36,22 +36,21 @@ function App() {
           <Route path="add-marks" element={<AdminAddMarks />} />
           <Route path="reports" element={<div>Reports Page</div>} />
           <Route path="upload-homework" element={<HomeworkAdmin />} />
- {/* Admin Homework */}
         </Route>
 
         {/* Student Routes */}
         <Route path="/student" element={<StudentDashboard />}>
           <Route index element={<SubjectsList />} />
-          <Route path="profile" element={<div>Profile Page</div>} />
+          <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees />} />
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="marks" element={<SubjectsList />} />
           <Route path="marks/:subject" element={<StudentsMarks />} />
-          <Route path="homework" element={<HomeworkStudent />} /> 
-          {/* Student Homework */}
+          <Route path="homework" element={<HomeworkStudent />} />
+          <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Route>
 
-        {/* Catch-all for unmatched routes */}
+        {/* Catch all route */}
         <Route path="*" element={<div>404 - Page Not Found</div>} />
       </Routes>
     </Router>
