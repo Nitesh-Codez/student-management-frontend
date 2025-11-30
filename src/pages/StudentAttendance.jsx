@@ -12,10 +12,9 @@ const StudentAttendance = () => {
   // 🔵 COLOR LOGIC
   const getCircleColor = (perc, absentCount, total) => {
     if (total === 0) return "#f8f1e4"; // NEW MONTH → CREAM
-    if (absentCount > 4) return "#dc3545"; // RED
     if (perc >= 85) return "#28a745"; // GREEN
-    if (perc >= 75) return "#ffc107"; // YELLOW
-    return "#d13422ff"; // LOW %
+    if (perc <= 75) return "#e70303ff"; // YELLOW
+    return "#40ff06ff"; // LOW %
   };
 
   // 📌 FETCH ALL STUDENT ATTENDANCE

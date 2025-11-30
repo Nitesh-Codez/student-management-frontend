@@ -185,48 +185,75 @@ const AdminFees = () => {
     <div style={{ padding: "10px" }}>
       <h2 style={{ textAlign: "center", color: "#1f3c88" }}>Admin - Fees</h2>
 
-      {/* MONTH BUTTONS (HIDE AFTER CLICK) */}
-      {!hideMonths && (
-        <div
+     {/* MONTH SELECTION SECTION */}
+{!hideMonths && (
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column", // vertical alignment
+      justifyContent: "center", // vertically center
+      alignItems: "center", // horizontally center
+      gap: "24px", // space between heading and buttons
+      height: "100vh", // full page height
+      width: "100%", // full width
+      padding: "20px",
+      boxSizing: "border-box",
+      background: "#f5f5f5", // optional background
+    }}
+  >
+    {/* Heading */}
+    <h2 style={{ 
+      fontSize: "24px", 
+      marginBottom: "20px", 
+      color: "#1f3c88",
+      textAlign: "center"
+    }}>
+      Select the Month for Fee
+    </h2>
+
+    {/* Month Buttons */}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        width: "100%",
+        maxWidth: "250px",
+      }}
+    >
+      {[
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ].map((m, index) => (
+        <button
+          key={index}
+          onClick={() => loadMonth(index + 1)}
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "8px",
-            justifyContent: "center",
-            marginTop: "10px",
+            padding: "16px 28px", // longer & bigger buttons
+            background: "#1f3c88",
+            color: "#fff",
+            borderRadius: "8px",
+            border: "none",
+            fontSize: "18px",
+            width: "100%", // full width of parent div
           }}
         >
-          {[
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December",
-          ].map((m, index) => (
-            <button
-              key={index}
-              onClick={() => loadMonth(index + 1)}
-              style={{
-                padding: "8px 12px",
-                background: "#1f3c88",
-                color: "#fff",
-                borderRadius: "6px",
-                border: "none",
-                fontSize: "14px",
-              }}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-      )}
+          {m}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
 
       {/* SEE RECORDS BUTTON */}
 

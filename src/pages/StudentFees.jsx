@@ -5,6 +5,7 @@ const StudentFees = ({ user }) => {
   const API_URL = process.env.REACT_APP_API_URL;
   const [fees, setFees] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
+  const [showMonths, setShowMonths] = useState(true); // Show/hide month buttons
 
   const months = [
     "January","February","March","April","May","June",
@@ -21,7 +22,7 @@ const StudentFees = ({ user }) => {
           const feesData = res.data.fees;
           setFees(feesData);
 
-          // ⭐ Store last-month fee status
+          // Store last-month fee status
           const today = new Date();
           let lastMonth = today.getMonth() - 1;
           let year = today.getFullYear();
@@ -66,35 +67,80 @@ const StudentFees = ({ user }) => {
     return "#e7ffed";
   };
 
-  // ⭐⭐ NEW LOGIC: Show next month’s fee when user clicks a month
+  // Filter fees for selected month
   const filteredFees =
     selectedMonth === null
       ? []
-      : fees.filter((f) => {
-          const paidMonth = new Date(f.payment_date).getMonth();
-          const nextMonth = (selectedMonth + 1) % 12;
-          return paidMonth === nextMonth;
-        });
+      : fees.filter((f) => new Date(f.payment_date).getMonth() === selectedMonth);
+
+  const handleMonthSelect = (i) => {
+    setSelectedMonth(i);
+    setShowMonths(false); // Hide months after selection
+  };
 
   return (
     <div style={styles.page}>
-      <h2 style={styles.title}>Your Fee Records</h2>
+      {/* Dynamic Heading */}
+      <h2 style={styles.heading}>
+        {showMonths ? "Select the Month for Fee" : "Go Back to Months"}
+      </h2>
 
-      <div style={styles.monthGrid}>
-        {months.map((m, i) => (
-          <button
-            key={i}
-            onClick={() => setSelectedMonth(i)}
-            style={{
-              ...styles.monthButton,
-              background: selectedMonth === i ? "#1f3c88" : "#d5def3",
-              color: selectedMonth === i ? "white" : "#333",
-            }}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
+      {/* Show Months Button */}
+      {!showMonths && (
+        <button
+          onClick={() => setShowMonths(true)}
+          style={{
+            margin: "15px auto",
+            display: "block",
+            padding: "12px 24px",
+            background: "#1f3c88",
+            color: "#fff",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "16px",
+          }}
+        >
+          Show Months
+        </button>
+      )}
+
+      {/* Vertical Month Buttons */}
+      {showMonths && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "12px",
+            marginBottom: "20px",
+            width: "100%",
+            maxWidth: "250px",
+            marginLeft: "auto",
+            marginRight: "auto",
+          }}
+        >
+          {months.map((m, i) => (
+            <button
+              key={i}
+              onClick={() => handleMonthSelect(i)}
+              style={{
+                padding: "16px 28px",
+                background: selectedMonth === i ? "#1f3c88" : "#d5def3",
+                color: selectedMonth === i ? "#fff" : "#333",
+                borderRadius: "8px",
+                border: "none",
+                fontSize: "18px",
+                width: "100%",
+                cursor: "pointer",
+              }}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div style={styles.box}>
         {selectedMonth === null ? (
@@ -103,6 +149,7 @@ const StudentFees = ({ user }) => {
           <p style={styles.msg}>No records for this month.</p>
         ) : (
           <>
+            {/* Desktop Table */}
             <div className="desktop-table" style={styles.tableWrapper}>
               <table style={styles.table}>
                 <thead>
@@ -119,24 +166,17 @@ const StudentFees = ({ user }) => {
                       <td style={styles.td}>{formatDate(f.payment_date)}</td>
                       <td style={styles.td}>{formatTime(f.payment_time)}</td>
                       <td style={styles.td}>₹ {f.amount}</td>
-                      <td style={{ ...styles.td, fontWeight: "700" }}>
-                        {f.status}
-                      </td>
+                      <td style={{ ...styles.td, fontWeight: "700" }}>{f.status}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
+            {/* Mobile Cards */}
             <div className="mobile-view" style={styles.mobileList}>
               {filteredFees.map((f) => (
-                <div
-                  key={f.id}
-                  style={{
-                    ...styles.card,
-                    background: rowColor(f.status),
-                  }}
-                >
+                <div key={f.id} style={{ ...styles.card, background: rowColor(f.status) }}>
                   <p><strong>Date:</strong> {formatDate(f.payment_date)}</p>
                   <p><strong>Time:</strong> {formatTime(f.payment_time)}</p>
                   <p><strong>Amount:</strong> ₹ {f.amount}</p>
@@ -148,6 +188,7 @@ const StudentFees = ({ user }) => {
         )}
       </div>
 
+      {/* Media Queries */}
       <style>
         {`
         @media (max-width: 768px) {
@@ -158,7 +199,7 @@ const StudentFees = ({ user }) => {
           .desktop-table { display: block; }
           .mobile-view { display: none; }
         }
-      `}
+        `}
       </style>
     </div>
   );
@@ -171,24 +212,11 @@ const styles = {
     minHeight: "100vh",
     fontFamily: "Arial, sans-serif",
   },
-  title: {
+  heading: {
     textAlign: "center",
     color: "#1f3c88",
+    fontSize: "24px",
     marginBottom: "20px",
-  },
-  monthGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "10px",
-    marginBottom: "25px",
-  },
-  monthButton: {
-    padding: "10px",
-    borderRadius: "8px",
-    border: "none",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "0.2s",
   },
   box: {
     background: "#fff",
