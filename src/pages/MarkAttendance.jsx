@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = process.env.REACT_APP_API_URL || "";
 
 const MarkAttendance = () => {
   const [students, setStudents] = useState([]);
@@ -9,9 +9,12 @@ const MarkAttendance = () => {
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState("");
   const [selectedDate, setSelectedDate] = useState(getFormattedDate());
-  const [showTable, setShowTable] = useState(true);
+  const [showTable, setShowTable] = useState(false);
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [btnDisabled, setBtnDisabled] = useState(false);
+
+  // NEW — which batch to show
+  const [batchType, setBatchType] = useState("4pm");
 
   function getFormattedDate(date = new Date()) {
     return (
@@ -23,19 +26,21 @@ const MarkAttendance = () => {
     );
   }
 
+  // -------- FETCH STUDENTS --------
   const fetchStudents = async (date) => {
     setLoading(true);
     setSuccessMsg("");
-    setShowTable(true);
+   
 
     try {
       const res = await axios.get(`${API_URL}/api/attendance/list?date=${date}`);
-      if (res.data.success) {
-        const list = res.data.students.map((s) => ({
+
+      if (res?.data?.success) {
+        const list = (res.data.students || []).map((s) => ({
           id: s.studentId,
           name: s.studentName,
           class: s.class,
-          status: s.status,
+          status: s.status || "Absent",
         }));
 
         setStudents(list);
@@ -49,31 +54,42 @@ const MarkAttendance = () => {
         });
         setAttendance(initAtt);
 
-        setShowTable(allAbsent || list.length > 0); // show table if students exist
+       
+      } else {
+        setStudents([]);
+        setAttendance({});
+        setIsFirstTime(true);
+        setShowTable(false);
       }
     } catch (err) {
-      console.log(err);
+      console.error("Fetch Error:", err);
+      setStudents([]);
+      setAttendance({});
+      setIsFirstTime(true);
+      setShowTable(false);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
-  useEffect(() => {
-    fetchStudents(selectedDate);
-  }, [selectedDate]);
+ useEffect(() => {
+  // bas data fetch hoga, table tabhi dikhega jab batch click hoga
+  fetchStudents(selectedDate);
+  setShowTable(false);
+}, [selectedDate]);
 
-  const handleChange = (id, status) => {
+
+  // CHANGE STATUS
+  const handleChange = (id, status) =>
     setAttendance((prev) => ({ ...prev, [id]: status }));
-  };
 
-  const submitAttendance = async () => {
+  // SUBMIT OR UPDATE
+  const sendAttendance = async (action = "submit") => {
     setBtnDisabled(true);
-    alert("Attendance Saved Successfully!");
-    setShowTable(false);
 
     const attendanceData = students.map((s) => ({
       studentId: s.id,
-      status: attendance[s.id],
+      status: attendance[s.id] || "Absent",
     }));
 
     try {
@@ -81,44 +97,137 @@ const MarkAttendance = () => {
         date: selectedDate,
         attendance: attendanceData,
       });
-      setSuccessMsg("Attendance Submitted Successfully!");
-    } catch {
+
+      const msg =
+        action === "submit"
+          ? "Attendance Submitted Successfully!"
+          : "Attendance Updated Successfully!";
+
+      alert(msg);
+      setSuccessMsg(msg);
+      setShowTable(false);
+    } catch (err) {
+      console.error("Submit Error:", err);
       alert("Error submitting attendance");
     } finally {
       setBtnDisabled(false);
     }
   };
 
-  const updateAttendance = async () => {
-    setBtnDisabled(true);
-    alert("Attendance Updated Successfully!");
-    setShowTable(false);
+  const submitAttendance = () => sendAttendance("submit");
+  const updateAttendance = () => sendAttendance("update");
 
-    const attendanceData = students.map((s) => ({
-      studentId: s.id,
-      status: attendance[s.id],
-    }));
+  // FIXED BATCH SPLIT
+  const batch4 = students.filter((s) => {
+    const c = s.class.toUpperCase();
+    const cls = parseInt(s.class, 10);
+    return (
+      (!isNaN(cls) && cls <= 5) ||
+      c === "LKG" ||
+      c === "L.K.G" ||
+      c === "UKG" ||
+      c === "U.K.G"
+    );
+  });
 
-    try {
-      await axios.post(`${API_URL}/api/attendance/mark`, {
-        date: selectedDate,
-        attendance: attendanceData,
-      });
-      setSuccessMsg("Attendance Updated Successfully!");
-    } catch {
-      alert("Error updating attendance");
-    } finally {
-      setBtnDisabled(false);
-    }
-  };
+  const batch530 = students.filter((s) => {
+    const c = s.class.toUpperCase();
+    const cls = parseInt(s.class, 10);
+    return (
+      (!isNaN(cls) && cls >= 6) &&
+      !["LKG", "L.K.G", "UKG", "U.K.G"].includes(c)
+    );
+  });
+
+  // RENDER TABLE
+  const renderTable = (title, list) => (
+    <div className="table-wrapper">
+      <h2 style={{ marginTop: "18px" }}>{title} ({list.length})</h2>
+
+      {list.length === 0 ? (
+        <p style={{ marginTop: 6 }}>No students in this batch.</p>
+      ) : (
+        <table className="attendance-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Class</th>
+              <th>Present</th>
+              <th>Absent</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((s) => (
+              <tr
+  key={s.id}
+  style={{
+    backgroundColor:
+      attendance[s.id] === "Present" ? " #e9f0e9" : "#f2b0b0"
+  }}
+>
+
+                
+                <td>{s.id}</td>
+                <td>{s.name}</td>
+                <td>{s.class}</td>
+                <td>
+                  <input
+                    type="radio"
+                    name={`att-${s.id}`}
+                    checked={attendance[s.id] === "Present"}
+                    onChange={() => handleChange(s.id, "Present")}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="radio"
+                    name={`att-${s.id}`}
+                    checked={attendance[s.id] === "Absent"}
+                    onChange={() => handleChange(s.id, "Absent")}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 
   return (
     <div className="attendance-container">
       <h1>Mark Attendance</h1>
 
+      {/* BATCH SELECT — OPTION D (BIG CLICK LINKS) */}
+      <div style={{ marginTop: "20px" }}>
+        <h9
+  style={{ cursor: "pointer", color: "blue" }}
+  onClick={() => {
+    setBatchType("4pm");
+    setShowTable(true);
+  }}
+>
+  🔗 4:00 PM Batch
+</h9>
+
+<h9
+  style={{ cursor: "pointer", color: "blue", marginTop: "10px" }}
+  onClick={() => {
+    setBatchType("530pm");
+    setShowTable(true);
+  }}
+>
+  🔗 5:30 PM Batch
+</h9>
+
+      </div>
+
+      {/* DATE PICKER */}
       <div className="date-picker">
-        <label>Select Date: </label>
+        <label htmlFor="att-date">Select Date: </label>
         <input
+          id="att-date"
           type="date"
           value={selectedDate}
           max={getFormattedDate()}
@@ -134,57 +243,23 @@ const MarkAttendance = () => {
         </div>
       ) : showTable ? (
         <>
-          <div className="table-wrapper">
-            <table className="attendance-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Class</th>
-                  <th>Present</th>
-                  <th>Absent</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s) => (
-                  <tr
-                    key={s.id}
-                    className={attendance[s.id] === "Present" ? "row-present" : "row-absent"}
-                  >
-                    <td>{s.id}</td>
-                    <td>{s.name}</td>
-                    <td>{s.class}</td>
-                    <td>
-                      <input
-                        type="radio"
-                        name={`att-${s.id}`}
-                        checked={attendance[s.id] === "Present"}
-                        onChange={() => handleChange(s.id, "Present")}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="radio"
-                        name={`att-${s.id}`}
-                        checked={attendance[s.id] === "Absent"}
-                        onChange={() => handleChange(s.id, "Absent")}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {batchType === "4pm" &&
+            renderTable("Batch 4:00 PM (1–5 + LKG/UKG)", batch4)}
 
-          {isFirstTime ? (
-            <button className="submit-btn" onClick={submitAttendance} disabled={btnDisabled}>
-              Submit Attendance
-            </button>
-          ) : (
-            <button className="submit-btn" onClick={updateAttendance} disabled={btnDisabled}>
-              Update Attendance
-            </button>
-          )}
+          {batchType === "530pm" &&
+            renderTable("Batch 5:30 PM (Class 6+)", batch530)}
+
+          <div style={{ marginTop: 12 }}>
+            {isFirstTime ? (
+              <button className="submit-btn" onClick={submitAttendance} disabled={btnDisabled}>
+                Submit Attendance
+              </button>
+            ) : (
+              <button className="submit-btn" onClick={updateAttendance} disabled={btnDisabled}>
+                Update Attendance
+              </button>
+            )}
+          </div>
         </>
       ) : (
         <>
@@ -198,22 +273,21 @@ const MarkAttendance = () => {
           </button>
         </>
       )}
-      <style jsx>{`
+
+      <style>{`
+         
+         
         .attendance-container {
           width: 95%;
-          max-width: 900px;
+          max-width: 980px;
           margin: 20px auto;
           font-family: Arial, sans-serif;
-        }
-
-        .date-picker {
-          margin-bottom: 10px;
         }
 
         .attendance-table {
           width: 100%;
           border-collapse: collapse;
-          margin-top: 10px;
+          margin-top: 8px;
         }
 
         .attendance-table th,
@@ -228,20 +302,7 @@ const MarkAttendance = () => {
           color: white;
         }
 
-        .attendance-table tr:nth-child(even) {
-          background-color: #f2f2f2;
-        }
-
-        .row-present {
-          background-color: #e9f0e9 !important;
-        }
-
-        .row-absent {
-          background-color: #f2b0b0 !important;
-        }
-
         .submit-btn {
-          margin-top: 10px;
           padding: 8px 16px;
           background-color: #4caf50;
           color: white;
@@ -250,35 +311,9 @@ const MarkAttendance = () => {
           border-radius: 4px;
         }
 
-        .submit-btn:hover {
-          background-color: #45a049;
-        }
-
         .success-msg {
-          margin-top: 10px;
           color: green;
-          font-weight: bold;
-        }
-
-        .empty-state {
-          text-align: center;
-          margin: 50px 0;
-          color: #555;
-          font-size: 18px;
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 600px) {
-          .attendance-table th,
-          .attendance-table td {
-            padding: 6px;
-            font-size: 14px;
-          }
-
-          .submit-btn {
-            width: 100%;
-            padding: 10px;
-          }
+          margin-top: 10px;
         }
       `}</style>
     </div>
