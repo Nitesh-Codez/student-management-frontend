@@ -131,7 +131,7 @@ const StudentAttendance = () => {
           <strong>Name:</strong> {user?.name}
         </p>
         <p>
-          <p><strong>Class:</strong> {user?.class}</p>
+          <strong>Class:</strong> {user?.class}
         </p>
 
         {/* Circle */}
@@ -208,7 +208,7 @@ const StudentAttendance = () => {
               </tr>
             ) : (
               [...filtered]
-                .sort((a, b) => new Date(a.date) - new Date(b.date)) // 🔥 ASCENDING ORDER
+                .sort((a, b) => new Date(a.date) - new Date(b.date))
                 .map((a, i) => (
                   <tr
                     key={i}

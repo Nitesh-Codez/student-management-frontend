@@ -2,201 +2,76 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const StudentProfile = () => {
-  const API_URL = process.env.REACT_APP_API_URL;
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  // Get saved password correctly
   const savedUser = JSON.parse(localStorage.getItem("user"));
-  const savedPassword = savedUser?.pass || savedUser?.password || "";
+  const id = savedUser?.id;
 
-  const [password, setPassword] = useState(savedPassword);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [profile, setProfile] = useState({
-    name: "",
-    class: "",
-    role: "student",
-    mobile: "",
-    address: "",
-    photo: "",
-    gender: "",
-    category: "",
-    dob: "",
-    fatherName: "",
-    motherName: "",
-    brotherName: "",
-    sisterName: "",
-    tuition: "",
-  });
-
-  const [loading, setLoading] = useState(false);
-
-  // Auto Fetch profile
   useEffect(() => {
-    if (!password || !API_URL) return;
-
-    axios
-      .post(`${API_URL}/api/student-profile/get`, { password })
-      .then((res) => {
-        if (res.data.success) {
-          setProfile(res.data.profile);
-        }
-      })
-      .catch((err) => {
-        console.error("Error fetching profile:", err.message);
-      });
-  }, [password, API_URL]);
-
-  // Handle Change
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setProfile({ ...profile, [name]: value });
-  };
-
-  // Handle Photo Upload
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) =>
-      setProfile({ ...profile, photo: event.target.result });
-    reader.readAsDataURL(file);
-  };
-
-  // -------------------------
-  // SAVE PROFILE USING FORMDATA
-  // -------------------------
-  const handleSave = async () => {
-    if (!password) {
-      alert("Password is required!");
+    if (!id) {
+      setError("No user ID found in localStorage. Please login first!");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.post(`${API_URL}/api/student-profile/get`, { id });
 
-    try {
-      // Create FormData
-      const form = new FormData();
-      form.append("password", password);
-
-      Object.entries(profile).forEach(([key, value]) => {
-        form.append(key, value || "");
-      });
-
-      // Axios POST Request
-      const res = await axios.post(
-        `${API_URL}/api/student-profile/save`,
-        form,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
+        if (res.data.success && res.data.profile) {
+          setProfile(res.data.profile);
+        } else {
+          setError(res.data.message || "Profile not found");
         }
-      );
-
-      if (res.data.success) {
-        alert("Profile Saved Successfully!");
-
-        // Save password properly in localStorage
-        localStorage.setItem("user", JSON.stringify({ pass: password }));
-
-        setProfile(res.data.profile || profile);
+      } catch (err) {
+        setError("Error fetching profile: " + err.message);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      alert("Error saving profile: " + err.message);
-    }
+    };
 
-    setLoading(false);
-  };
+    fetchProfile();
+  }, [id, API_URL]);
+
+  if (loading) return <p style={{ textAlign: "center" }}>Loading profile...</p>;
+  if (error) return <p style={{ textAlign: "center", color: "red", fontWeight: "bold" }}>{error}</p>;
 
   return (
-    <div style={styles.page}>
-      <h2 style={styles.heading}>My Profile</h2>
+    <div style={{ maxWidth: 600, margin: "0 auto", padding: 20 }}>
+      <h2 style={{ textAlign: "center", color: "#1f3c88", marginBottom: 20 }}>My Profile</h2>
 
-      <div style={styles.passwordContainer}>
-        <label>Password:</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={styles.input}
-          placeholder="Enter your password"
-        />
-      </div>
-
-      <div style={styles.photoContainer}>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
         <img
           src={profile.photo || "/images/profile.png"}
           alt="Profile"
-          style={styles.photo}
+          style={{ width: 130, height: 130, borderRadius: "50%", objectFit: "cover", border: "2px solid #1f3c88" }}
         />
-        <input type="file" onChange={handlePhotoUpload} style={styles.fileInput} />
       </div>
 
-      <div style={styles.form}>
+      <div>
         {Object.entries(profile).map(([key, value]) => (
-          <div key={key}>
-            <label style={styles.label}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}:
-            </label>
-            <input
-              type="text"
-              name={key}
-              value={value || ""}
-              onChange={handleChange}
-              style={styles.input}
-            />
+          <div
+            key={key}
+            style={{
+              marginBottom: 12,
+              padding: 10,
+              background: "#f1f5ff",
+              borderRadius: 8,
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
+            <strong style={{ textTransform: "capitalize" }}>{key.replace(/_/g, " ")}:</strong>
+            <span>{value || "-"}</span>
           </div>
         ))}
-
-        <button onClick={handleSave} style={styles.saveBtn} disabled={loading}>
-          {loading ? "Saving..." : "Save Profile"}
-        </button>
       </div>
     </div>
   );
-};
-
-const styles = {
-  page: {
-    padding: "20px",
-    maxWidth: "600px",
-    margin: "0 auto",
-    fontFamily: "Arial, sans-serif",
-  },
-  heading: { textAlign: "center", color: "#1f3c88", marginBottom: "20px" },
-  passwordContainer: { marginBottom: "20px" },
-  photoContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  photo: {
-    width: "150px",
-    height: "150px",
-    borderRadius: "50%",
-    objectFit: "cover",
-    marginBottom: "10px",
-    border: "2px solid #1f3c88",
-  },
-  fileInput: { cursor: "pointer" },
-  form: { display: "flex", flexDirection: "column", gap: "15px" },
-  label: { fontWeight: "600" },
-  input: {
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    fontSize: "16px",
-    width: "100%",
-  },
-  saveBtn: {
-    padding: "12px",
-    backgroundColor: "#1f3c88",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "16px",
-    marginTop: "10px",
-  },
 };
 
 export default StudentProfile;
