@@ -1,55 +1,108 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-
 const StudentProfile = () => {
   const [profile, setProfile] = useState(null);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   useEffect(() => {
-    const studentId = localStorage.getItem("studentId"); // ID saved during login
-    if (!studentId) {
-      setError("Student not logged in");
-      return;
-    }
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) return;
 
-    const fetchProfile = async () => {
+    const id = user.id;
+
+    const fetchData = async () => {
       try {
-        const res = await axios.post(`${API_URL}/api/student-profile/get`, { id: studentId });
-        setProfile(res.data.data);
+        const { data } = await axios.get(`${API_URL}/api/student-profile/${id}`);
+        setProfile(data.student);
       } catch (err) {
-        setError(err.response?.data?.message || "Something went wrong");
+        console.error("Error fetching profile:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchProfile();
-  }, []);
+    fetchData();
+  }, [API_URL]); // <-- ESLint warning fix
 
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
-  if (!profile) return <p>Loading...</p>;
+  if (loading) return <h2 style={{ textAlign: "center" }}>Loading Profile...</h2>;
+  if (!profile) return <h2 style={{ textAlign: "center" }}>No profile found</h2>;
 
   return (
-    <div style={{ padding: "20px", maxWidth: "500px", margin: "auto" }}>
-      <h2>Student Profile</h2>
-      <div style={{ marginTop: "20px", border: "1px solid #ccc", padding: "15px" }}>
-        <p><strong>ID:</strong> {profile.id}</p>
-        <p><strong>Name:</strong> {profile.name}</p>
-        <p><strong>Class:</strong> {profile.class}</p>
-        <p><strong>Role:</strong> {profile.role}</p>
-        <p><strong>Mobile:</strong> {profile.mobile}</p>
-        <p><strong>Address:</strong> {profile.address}</p>
-        <p><strong>Gender:</strong> {profile.gender}</p>
-        <p><strong>Category:</strong> {profile.category}</p>
-        <p><strong>DOB:</strong> {profile.dob}</p>
-        <p><strong>Father:</strong> {profile.fatherName}</p>
-        <p><strong>Mother:</strong> {profile.motherName}</p>
-        <p><strong>Brother:</strong> {profile.brotherName}</p>
-        <p><strong>Sister:</strong> {profile.sisterName}</p>
-        <p><strong>Tuition:</strong> {profile.tuition}</p>
+    <div style={container}>
+      <div style={card}>
+        <h2 style={title}>Student Profile</h2>
+
+        <div style={item}>
+          <strong>Name:</strong> {profile.name}
+        </div>
+
+        <div style={item}>
+          <strong>Father Name:</strong> {profile.fatherName}
+        </div>
+
+        <div style={item}>
+          <strong>Class:</strong> {profile.class}
+        </div>
+
+        <div style={item}>
+          <strong>Phone:</strong> {profile.phone}
+        </div>
+
+        <div style={item}>
+          <strong>Address:</strong> {profile.address}
+        </div>
+
+        <div style={item}>
+          <strong>Fees Paid This Month:</strong>{" "}
+          {profile.feesPaid === 1 ? "Yes" : "No"}
+        </div>
+
+        <div style={item}>
+          <strong>Roll No:</strong> {profile.rollNo}
+        </div>
+
+        <div style={item}>
+          <strong>Join Date:</strong> {profile.joinDate?.split("T")[0]}
+        </div>
       </div>
     </div>
   );
+};
+
+// ---------------- Styles ----------------
+
+const container = {
+  display: "flex",
+  justifyContent: "center",
+  marginTop: "40px",
+  padding: "20px",
+};
+
+const card = {
+  width: "100%",
+  maxWidth: "500px",
+  background: "#ffffff",
+  padding: "25px",
+  borderRadius: "12px",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+};
+
+const title = {
+  textAlign: "center",
+  marginBottom: "20px",
+  fontSize: "26px",
+  fontWeight: "700",
+  color: "#222",
+};
+
+const item = {
+  marginBottom: "12px",
+  fontSize: "18px",
+  borderBottom: "1px solid #ddd",
+  paddingBottom: "8px",
 };
 
 export default StudentProfile;
