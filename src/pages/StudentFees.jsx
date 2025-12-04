@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 
 const StudentFees = ({ user }) => {
   const API_URL = process.env.REACT_APP_API_URL;
@@ -67,12 +68,17 @@ const StudentFees = ({ user }) => {
     return "#e7ffed";
   };
 
-  // Filter fees for selected month
+  // Filter fees for the NEXT month of selected month
   const filteredFees =
     selectedMonth === null
       ? []
-      : fees.filter((f) => new Date(f.payment_date).getMonth() === selectedMonth);
+      : fees.filter((f) => {
+          const feeMonth = new Date(f.payment_date).getMonth();
+          const nextMonth = (selectedMonth + 1) % 12; // next month logic
+          return feeMonth === nextMonth;
+        });
 
+  // Update month selection handler
   const handleMonthSelect = (i) => {
     setSelectedMonth(i);
     setShowMonths(false); // Hide months after selection
@@ -82,12 +88,16 @@ const StudentFees = ({ user }) => {
     <div style={styles.page}>
       {/* Dynamic Heading */}
       <h2 style={styles.heading}>
-        {showMonths ? "Select the Month for Fee" : "Go Back to Months"}
+        {showMonths
+          ? "Select the Month for Fee"
+          : selectedMonth !== null
+          ? `You are viewing your ${months[selectedMonth]} fees (which have been paid in  ${months[(selectedMonth + 1) % 12]})`
+          : "Go Back to Months"}
       </h2>
 
       {/* Show Months Button */}
       {!showMonths && (
-        <button
+        <Link
           onClick={() => setShowMonths(true)}
           style={{
             margin: "15px auto",
@@ -101,8 +111,8 @@ const StudentFees = ({ user }) => {
             fontSize: "16px",
           }}
         >
-          Show Months
-        </button>
+          Please click here for viewing the lists of Months
+        </Link>
       )}
 
       {/* Vertical Month Buttons */}
