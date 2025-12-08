@@ -1,49 +1,80 @@
-import React, { useEffect, useState } from "react";
+// src/pages/StudentMarks.jsx
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
 
-const StudentsMarks = () => {
-  const { subject } = useParams();
-  const studentId = localStorage.getItem("studentId");
-  const [marksData, setMarksData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+const StudentMarks = () => {
+  const [studentId, setStudentId] = useState("");
+  const [captcha, setCaptcha] = useState("");
+  const [captchaInput, setCaptchaInput] = useState("");
+  const [marks, setMarks] = useState([]);
+  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    if (!studentId) {
-      setError("Student not logged in");
-      setLoading(false);
-      return;
-    }
+  const API_URL = process.env.REACT_APP_API_URL;
 
-    axios.get(`https://student-management-system-32lc.onrender.com/api/marks/student/${studentId}/${subject}`)
+  // Generate captcha
+  const generateCaptcha = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "";
+    for(let i=0;i<5;i++) code += chars[Math.floor(Math.random()*chars.length)];
+    setCaptcha(code);
+  };
+
+  useEffect(() => generateCaptcha(), []);
+
+  const handleCheckMarks = () => {
+    if(captchaInput !== captcha){ setMessage("Captcha incorrect!"); generateCaptcha(); return; }
+    if(!studentId){ setMessage("Enter your student ID"); return; }
+
+    axios.post(`${API_URL}/api/marks/check`, { studentId })
       .then(res => {
-        if (res.data.success) setMarksData(res.data);
-        else setError(res.data.message || "Marks not found");
-        setLoading(false);
+        if(res.data.success){ setMarks(res.data.data); setMessage(""); }
+        else { setMarks([]); setMessage(res.data.message); }
       })
-      .catch(err => {
-        console.error(err);
-        setError("Error fetching marks");
-        setLoading(false);
-      });
-  }, [studentId, subject]);
-
-  if (loading) return <div style={{ padding: "50px", textAlign: "center" }}>Loading marks...</div>;
-  if (error) return <div style={{ padding: "50px", textAlign: "center", color: "red" }}>{error}</div>;
+      .catch(() => setMessage("Something went wrong"));
+  };
 
   return (
-    <div style={{ width: "100vw", minHeight: "100vh", padding: "40px 20px", display: "flex", justifyContent: "center", background: "#eef2f3" }}>
-      <div style={{ width: "100%", maxWidth: "620px", background: "white", padding: "35px", borderRadius: "18px", boxShadow: "0 8px 25px rgba(0,0,0,0.08)" }}>
-        <h2 style={{ textAlign: "center", marginBottom: "25px", fontSize: "26px", fontWeight: 600, color: "#2c3e50" }}>
-          📄 Marks - {marksData.subject}
-        </h2>
-        <p><strong>Marks:</strong> {marksData.marks} / {marksData.maxMarks}</p>
-        <p><strong>Date:</strong> {marksData.date}</p>
-        <p><strong>Remark:</strong> {marksData.remark || "-"}</p>
+    <div className="container">
+      <h2>Check Your Marks</h2>
+
+      <input type="number" value={studentId} onChange={e=>setStudentId(e.target.value)} placeholder="Enter Student ID" />
+      
+      <div>
+        <span>Captcha: {captcha}</span>
+        <button onClick={generateCaptcha}>Refresh</button>
       </div>
+      <input type="text" value={captchaInput} onChange={e=>setCaptchaInput(e.target.value)} placeholder="Enter Captcha" />
+
+      <button onClick={handleCheckMarks}>Check Marks</button>
+
+      {message && <p className="error">{message}</p>}
+
+      {marks.length > 0 && (
+        <table border="1">
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Total</th>
+              <th>Obtained</th>
+              <th>Status</th>
+              <th>Test Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {marks.map(m => (
+              <tr key={m.id}>
+                <td>{m.subject_name}</td>
+                <td>{m.total_marks}</td>
+                <td>{m.obtained_marks}</td>
+                <td>{m.status}</td>
+                <td>{new Date(m.test_date).toLocaleDateString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };
 
-export default StudentsMarks;
+export default StudentMarks;
