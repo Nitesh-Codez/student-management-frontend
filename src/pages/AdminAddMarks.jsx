@@ -4,7 +4,6 @@ import axios from "axios";
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const AdminAddMarks = () => {
-  // Class-wise subjects mapping
   const subjectsByClass = {
     "5th": ["Math", "English","Hindi", "EVS"],
     "6th": ["Math", "English","Hindi", "Science"],
@@ -23,28 +22,74 @@ const AdminAddMarks = () => {
   const [subject, setSubject] = useState("");
   const [marks, setMarks] = useState("");
   const [maxMarks, setMaxMarks] = useState("");
-  const [testDate, setTestDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [testDate, setTestDate] = useState(new Date().toISOString().split("T")[0]);
   const [message, setMessage] = useState("");
 
-  // FETCH ALL STUDENTS
+  // STYLES INLINE
+  const styles = {
+    container: {
+      maxWidth: "500px",
+      margin: "40px auto",
+      padding: "25px",
+      background: "#fff",
+      borderRadius: "15px",
+      boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+      fontFamily: "Poppins, sans-serif",
+    },
+    heading: {
+      textAlign: "center",
+      marginBottom: "20px",
+      color: "#333",
+    },
+    label: {
+      display: "block",
+      marginTop: "12px",
+      marginBottom: "5px",
+      fontWeight: "600",
+    },
+    input: {
+      width: "100%",
+      padding: "12px",
+      border: "1px solid #ccc",
+      borderRadius: "8px",
+      fontSize: "15px",
+      marginBottom: "5px",
+    },
+    button: {
+      width: "100%",
+      padding: "12px",
+      background: "#4a90e2",
+      border: "none",
+      color: "white",
+      marginTop: "18px",
+      fontSize: "16px",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontWeight: "600",
+    },
+    msg: {
+      marginTop: "15px",
+      padding: "10px",
+      textAlign: "center",
+      borderRadius: "8px",
+      background: "#f0f4ff",
+      color: "#3551c9",
+      fontWeight: "600",
+    },
+  };
+
   useEffect(() => {
-    axios
-      .get(`${API_URL}/api/students`)
+    axios.get(`${API_URL}/api/students`)
       .then((res) => {
         if (res.data.success) {
           setAllStudents(res.data.students);
-          const uniqueClasses = [
-            ...new Set(res.data.students.map((s) => s.class)),
-          ];
+          const uniqueClasses = [...new Set(res.data.students.map((s) => s.class))];
           setClasses(uniqueClasses);
         }
       })
       .catch((err) => console.error(err));
   }, []);
 
-  // FILTER STUDENTS BY CLASS
   useEffect(() => {
     if (!selectedClass) {
       setStudents([]);
@@ -53,10 +98,9 @@ const AdminAddMarks = () => {
     }
     const filtered = allStudents.filter((s) => s.class === selectedClass);
     setStudents(filtered);
-    setSubject(""); // Reset subject when class changes
+    setSubject("");
   }, [selectedClass, allStudents]);
 
-  // ADD MARKS
   const handleAddMarks = async () => {
     if (!selectedStudent || !subject || !marks || !maxMarks) {
       setMessage("Please fill all fields");
@@ -89,75 +133,72 @@ const AdminAddMarks = () => {
   };
 
   return (
-    <div className="container">
-      <h2>Add Marks</h2>
+    <div style={styles.container}>
+      <h2 style={styles.heading}>Add Marks</h2>
 
-      {/* Class Selection */}
-      <label>Class</label>
+      <label style={styles.label}>Class</label>
       <select
+        style={styles.input}
         value={selectedClass}
         onChange={(e) => setSelectedClass(e.target.value)}
       >
         <option value="">Select Class</option>
         {classes.map((c, i) => (
-          <option key={i} value={c}>
-            {c}
-          </option>
+          <option key={i} value={c}>{c}</option>
         ))}
       </select>
 
-      {/* Student Selection */}
-      <label>Student</label>
+      <label style={styles.label}>Student</label>
       <select
+        style={styles.input}
         value={selectedStudent}
         onChange={(e) => setSelectedStudent(e.target.value)}
       >
         <option value="">Select Student</option>
         {students.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
+          <option key={s.id} value={s.id}>{s.name}</option>
         ))}
       </select>
 
-      {/* Subject Selection */}
-      <label>Subject</label>
-      <select value={subject} onChange={(e) => setSubject(e.target.value)}>
+      <label style={styles.label}>Subject</label>
+      <select
+        style={styles.input}
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
+      >
         <option value="">Select Subject</option>
         {subjectsByClass[selectedClass]?.map((sub, i) => (
-          <option key={i} value={sub}>
-            {sub}
-          </option>
+          <option key={i} value={sub}>{sub}</option>
         ))}
       </select>
 
-      {/* Marks Input */}
-      <label>Marks</label>
+      <label style={styles.label}>Marks</label>
       <input
+        style={styles.input}
         type="number"
         value={marks}
         onChange={(e) => setMarks(e.target.value)}
       />
 
-      {/* Total Marks Input */}
-      <label>Total Marks</label>
+      <label style={styles.label}>Total Marks</label>
       <input
+        style={styles.input}
         type="number"
         value={maxMarks}
         onChange={(e) => setMaxMarks(e.target.value)}
       />
 
-      {/* Test Date */}
-      <label>Date</label>
+      <label style={styles.label}>Date</label>
       <input
+        style={styles.input}
         type="date"
         value={testDate}
         onChange={(e) => setTestDate(e.target.value)}
       />
 
-      <button onClick={handleAddMarks}>Add Marks</button>
+      <button style={styles.button} onClick={handleAddMarks}>Add Marks</button>
 
-      {message && <p>{message}</p>}
+      {message && <p style={styles.msg}>{message}</p>}
     </div>
   );
 };

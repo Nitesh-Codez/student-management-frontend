@@ -5,15 +5,14 @@ import axios from "axios";
 
 const StudentMarks = () => {
   const [studentId, setStudentId] = useState("");
+  const [studentName, setStudentName] = useState("");
   const [captcha, setCaptcha] = useState("");
   const [captchaInput, setCaptchaInput] = useState("");
   const [marks, setMarks] = useState([]);
   const [message, setMessage] = useState("");
 
-  const API_URL = process.env.REACT_APP_API_URL; 
-  // Example: https://student-management-system-4-hose.onrender.com
+  const API_URL = process.env.REACT_APP_API_URL;
 
-  // Generate captcha
   const generateCaptcha = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
@@ -34,13 +33,16 @@ const StudentMarks = () => {
       return;
     }
 
-    if (!studentId) {
-      setMessage("Enter your student ID");
+    if (!studentId || !studentName) {
+      setMessage("Enter Student ID and Name");
       return;
     }
 
     axios
-      .post(`${API_URL}/api/marks/check`, { studentId })
+      .post(`${API_URL}/api/marks/check`, {
+        studentId,
+        studentName,
+      })
       .then((res) => {
         if (res.data.success) {
           setMarks(res.data.data);
@@ -50,16 +52,13 @@ const StudentMarks = () => {
           setMessage(res.data.message);
         }
       })
-      .catch(() => {
-        setMessage("Something went wrong");
-      });
+      .catch(() => setMessage("Something went wrong"));
   };
 
   return (
     <div className="container">
       <h2>Check Your Marks</h2>
 
-      {/* Student ID Input */}
       <input
         type="number"
         value={studentId}
@@ -67,7 +66,14 @@ const StudentMarks = () => {
         placeholder="Enter Student ID"
       />
 
-      {/* Captcha */}
+      <input
+        type="text"
+        value={studentName}
+        onChange={(e) => setStudentName(e.target.value)}
+        placeholder="Enter Student Name"
+        style={{ marginTop: "10px" }}
+      />
+
       <div style={{ marginTop: "10px" }}>
         <strong>Captcha: {captcha}</strong>
         <button onClick={generateCaptcha} style={{ marginLeft: "10px" }}>
@@ -86,7 +92,6 @@ const StudentMarks = () => {
 
       {message && <p className="error">{message}</p>}
 
-      {/* Marks Table */}
       {marks.length > 0 && (
         <table border="1" style={{ marginTop: "20px", width: "100%" }}>
           <thead>
