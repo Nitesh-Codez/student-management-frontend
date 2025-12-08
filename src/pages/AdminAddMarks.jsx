@@ -4,21 +4,20 @@ import axios from "axios";
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const AdminAddMarks = () => {
- const subjectsByClass = {
-  "5th": ["Math", "English", "Hindi", "EVS", "Math Viva", "English Viva", "Hindi Viva", "EVS Viva"],
-  "6th": ["Math", "English", "Hindi", "Science", "Math Viva", "English Viva", "Hindi Viva", "Science Viva"],
-  "7th": ["Math", "English", "Hindi", "Science", "Civics", "Geography", "Economics", "History",
-          "Math Viva", "English Viva", "Hindi Viva", "Science Viva", "Civics Viva", "Geography Viva", "Economics Viva", "History Viva"],
-  "8th": ["Math", "English", "Science", "Hindi", "Civics", "Geography", "Economics", "History",
-          "Math Viva", "English Viva", "Science Viva", "Hindi Viva", "Civics Viva", "Geography Viva", "Economics Viva", "History Viva"],
-  "9th": ["Math", "English", "Hindi", "Science", "S.S.T",
-          "Math Viva", "English Viva", "Hindi Viva", "Science Viva", "S.S.T Viva"],
-  "10th": ["Math", "English", "Hindi", "Science", "S.S.T",
-           "Math Viva", "English Viva", "Hindi Viva", "Science Viva", "S.S.T Viva"],
-  "11th": ["Chemistry", "Math", "English", "Physics", "Biology",
-           "Chemistry Viva", "Math Viva", "English Viva", "Physics Viva", "Biology Viva"],
-};
-
+  const subjectsByClass = {
+    "5th": ["Math", "English", "Hindi", "EVS", "Math Viva", "English Viva", "Hindi Viva", "EVS Viva"],
+    "6th": ["Math", "English", "Hindi", "Science", "Math Viva", "English Viva", "Hindi Viva", "Science Viva"],
+    "7th": ["Math", "English", "Hindi", "Science", "Civics", "Geography", "Economics", "History",
+            "Math Viva", "English Viva", "Hindi Viva", "Science Viva", "Civics Viva", "Geography Viva", "Economics Viva", "History Viva"],
+    "8th": ["Math", "English", "Science", "Hindi", "Civics", "Geography", "Economics", "History",
+            "Math Viva", "English Viva", "Science Viva", "Hindi Viva", "Civics Viva", "Geography Viva", "Economics Viva", "History Viva"],
+    "9th": ["Math", "English", "Hindi", "Science", "S.S.T",
+            "Math Viva", "English Viva", "Hindi Viva", "Science Viva", "S.S.T Viva"],
+    "10th": ["Math", "English", "Hindi", "Science", "S.S.T",
+             "Math Viva", "English Viva", "Hindi Viva", "Science Viva", "S.S.T Viva"],
+    "11th": ["Chemistry", "Math", "English", "Physics", "Biology",
+             "Chemistry Viva", "Math Viva", "English Viva", "Physics Viva", "Biology Viva"],
+  };
 
   const [allStudents, setAllStudents] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -97,7 +96,7 @@ const AdminAddMarks = () => {
       .catch((err) => console.error(err));
   }, []);
 
-  // Update students dropdown when class changes
+  // Filter students by selected class
   useEffect(() => {
     if (!selectedClass) {
       setStudents([]);
@@ -109,34 +108,15 @@ const AdminAddMarks = () => {
     setSubject("");
   }, [selectedClass, allStudents]);
 
-  // Fetch existing marks for editing
-  useEffect(() => {
-    if (!selectedStudent || !subject || !testDate) {
-      setMarks("");
-      setMaxMarks("");
-      return;
-    }
-    axios.get(`${API_URL}/api/marks/${selectedStudent}?subject=${subject}&date=${testDate}`)
-      .then(res => {
-        if (res.data.success && res.data.mark) {
-          setMarks(res.data.mark.marks);
-          setMaxMarks(res.data.mark.maxMarks);
-        } else {
-          setMarks("");
-          setMaxMarks("");
-        }
-      })
-      .catch(err => console.error(err));
-  }, [selectedStudent, subject, testDate]);
-
-  const handleAddOrUpdateMarks = async () => {
+  // Handle adding marks
+  const handleAddMarks = async () => {
     if (!selectedStudent || !subject || !marks || !maxMarks) {
       setMessage("Please fill all fields");
       return;
     }
 
     try {
-      const res = await axios.post(`${API_URL}/api/marks/addOrUpdate`, {
+      const res = await axios.post(`${API_URL}/api/marks/add`, {
         studentId: selectedStudent,
         subject,
         marks: parseInt(marks),
@@ -145,21 +125,24 @@ const AdminAddMarks = () => {
       });
 
       if (res.data.success) {
-        setMessage(res.data.message || "Marks saved successfully!");
+        setMessage("Marks added successfully!");
+        setSubject("");
         setMarks("");
         setMaxMarks("");
+        setSelectedStudent("");
+        setSelectedClass("");
       } else {
         setMessage(res.data.message || "Error occurred!");
       }
     } catch (err) {
       console.error(err);
-      setMessage("Server Error while saving marks");
+      setMessage("Server Error while adding marks");
     }
   };
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.heading}>Add/Edit Marks</h2>
+      <h2 style={styles.heading}>Add Marks</h2>
 
       <label style={styles.label}>Class</label>
       <select
@@ -221,9 +204,7 @@ const AdminAddMarks = () => {
         onChange={(e) => setTestDate(e.target.value)}
       />
 
-      <button style={styles.button} onClick={handleAddOrUpdateMarks}>
-        Save Marks
-      </button>
+      <button style={styles.button} onClick={handleAddMarks}>Add Marks</button>
 
       {message && <p style={styles.msg}>{message}</p>}
     </div>
