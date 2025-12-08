@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import StudentAttendance from "./StudentAttendance";
 import StudentFees from "./StudentFees";
-import SubjectsList from "./SubjectsList";
 import StudentsMarks from "./StudentsMarks";
 import HomeworkStudent from "./HomeworkStudent";
 import StudentProfile from "./StudentProfile";
@@ -203,8 +202,7 @@ const StudentDashboard = () => {
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
-          <Route path="marks" element={<SubjectsList user={user} />} />
-          <Route path="marks/:subject" element={<StudentsMarks user={user} />} />
+          <Route path="marks" element={<StudentsMarks user={user} />} />
           <Route path="homework" element={<HomeworkStudent />} />
         </Routes>
       </main>
