@@ -10,12 +10,18 @@ const StudentAttendance = () => {
   const [percentage, setPercentage] = useState(0);
 
   // 🔵 COLOR LOGIC
-  const getCircleColor = (perc, absentCount, total) => {
-    if (total === 0) return "#f8f1e4"; // NEW MONTH → CREAM
-    if (perc >= 85) return "#28a745"; // GREEN
-    if (perc <= 75) return "#e70303ff"; // YELLOW
-    return "#40ff06ff"; // LOW %
-  };
+const getCircleColor = (perc, absentCount, total) => {
+  if (total === 0) return "#f8f1e4"; // NEW MONTH → CREAM
+
+  if (perc >= 85) {
+    return "#18a539ff"; // GREEN
+  } else if (perc >= 75 && perc < 85) {
+    return "#b8ff11ff"; // YELLOW
+  } else {
+    return "#ff0606ff"; // RED
+  }
+};
+
 
   // 📌 FETCH ALL STUDENT ATTENDANCE
   useEffect(() => {

@@ -31,7 +31,6 @@ const StudentMarks = () => {
   const API_URL = process.env.REACT_APP_API_URL;
   const user = JSON.parse(localStorage.getItem("user"));
 
-  // Generate captcha
   const generateCaptcha = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
@@ -46,7 +45,6 @@ const StudentMarks = () => {
     if (user && savedMarks[user.id]) {
       setMarks(savedMarks[user.id]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCheckMarks = () => {
@@ -55,6 +53,7 @@ const StudentMarks = () => {
       generateCaptcha();
       return;
     }
+
     if (!user?.id) {
       setMessage("User not found. Please login again.");
       return;
@@ -70,9 +69,8 @@ const StudentMarks = () => {
           setMarks(res.data.data);
           setMessage("");
 
-          const savedMarks = JSON.parse(
-            localStorage.getItem("userMarks")
-          ) || {};
+          const savedMarks =
+            JSON.parse(localStorage.getItem("userMarks")) || {};
           savedMarks[user.id] = res.data.data;
           localStorage.setItem("userMarks", JSON.stringify(savedMarks));
         } else {
@@ -105,7 +103,6 @@ const StudentMarks = () => {
     "#DDA0DD",
   ];
 
-  // Gradient function
   const getGradient = (ctx, color) => {
     const gradient = ctx.createLinearGradient(0, 0, 0, 300);
     gradient.addColorStop(0, color + "AA");
@@ -127,6 +124,7 @@ const StudentMarks = () => {
           (mark.obtained_marks / mark.total_marks) *
           100
         ).toFixed(1);
+
       return last;
     });
 
@@ -149,10 +147,6 @@ const StudentMarks = () => {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    animation: {
-      duration: 1000,
-      easing: "easeOutQuart",
-    },
     plugins: {
       legend: { position: "top" },
       title: { display: true, text: "Overall Performance Graph" },
@@ -180,34 +174,45 @@ const StudentMarks = () => {
         background: "#F5F6FA",
         minHeight: "100vh",
         width: "100%",
+        maxWidth: "100%",
         boxSizing: "border-box",
       }}
     >
       <h2>Your Test Marks</h2>
       <p>
-        Welcome, <strong>{user?.name}</strong>! Your marks are shown
-        below.
+        Welcome, <strong>{user?.name}</strong>!
       </p>
 
-      {/* Captcha */}
+      {/* Captcha Section */}
       <div
         style={{
-          marginTop: 10,
+          marginTop: 15,
           display: "flex",
-          flexWrap: "wrap",
+          flexDirection: "column",
           gap: 10,
+          width: "100%",
         }}
       >
-        <strong>Captcha: {captcha}</strong>
+        <strong
+          style={{
+            padding: 10,
+            background: "#fff",
+            borderRadius: 8,
+            width: "100%",
+          }}
+        >
+          Captcha: {captcha}
+        </strong>
 
         <button
           onClick={generateCaptcha}
           style={{
-            padding: "5px 10px",
             background: "#3498DB",
+            padding: 10,
             color: "#fff",
-            borderRadius: 5,
             border: "none",
+            borderRadius: 8,
+            width: "100%",
           }}
         >
           Refresh
@@ -219,8 +224,9 @@ const StudentMarks = () => {
           onChange={(e) => setCaptchaInput(e.target.value)}
           placeholder="Enter Captcha"
           style={{
-            padding: 5,
-            borderRadius: 5,
+            padding: 10,
+            borderRadius: 8,
+            width: "100%",
             border: "1px solid #ccc",
           }}
         />
@@ -228,60 +234,58 @@ const StudentMarks = () => {
         <button
           onClick={handleCheckMarks}
           style={{
-            padding: "5px 15px",
+            padding: 12,
             background: "#2ECC71",
             color: "#fff",
-            borderRadius: 5,
+            borderRadius: 8,
             border: "none",
+            width: "100%",
           }}
         >
           Check Marks
         </button>
       </div>
 
-      {message && <p style={{ color: "red" }}>{message}</p>}
+      {message && (
+        <p style={{ color: "red", marginTop: 10 }}>{message}</p>
+      )}
 
       {/* Stats Cards */}
       {marks.length > 0 && (
         <div
           style={{
-            display: "flex",
-            gap: 20,
-            flexWrap: "wrap",
-            marginTop: 20,
-            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 15,
+            marginTop: 25,
           }}
         >
           <div
             style={{
-              flex: "1 1 200px",
               background: "#fff",
-              borderRadius: 10,
               padding: 20,
-              boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+              borderRadius: 10,
+              boxShadow: "0px 4px 10px rgba(0,0,0,0.1)",
               textAlign: "center",
-              width: "100%",
             }}
           >
-            <h3>Overall Percentage</h3>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#E74C3C" }}>
+            <h2>Overall %</h2>
+            <div style={{ fontSize: 30, fontWeight:"Bold", color: "#ed2e19ff" }}>
               {overallPercentage}%
             </div>
           </div>
 
           <div
             style={{
-              flex: "1 1 200px",
               background: "#fff",
-              borderRadius: 10,
               padding: 20,
-              boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+              borderRadius: 10,
+              boxShadow: "0px 4px 10px rgba(0,0,0,0.1)",
               textAlign: "center",
-              width: "100%",
             }}
           >
             <h3>Total Tests</h3>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#3498DB" }}>
+            <div style={{ fontSize: 30, color: "#3498DB" }}>
               {marks.length}
             </div>
           </div>
@@ -296,9 +300,8 @@ const StudentMarks = () => {
             background: "#fff",
             padding: 20,
             borderRadius: 10,
-            boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+            boxShadow: "0px 4px 10px rgba(0,0,0,0.1)",
             width: "100%",
-            boxSizing: "border-box",
           }}
         >
           <div style={{ width: "100%", height: "350px" }}>
@@ -307,7 +310,7 @@ const StudentMarks = () => {
         </div>
       )}
 
-      {/* SUBJECT TABLES */}
+      {/* Subject Tables */}
       {Object.keys(grouped).map((subject, idx) => (
         <div
           key={subject}
@@ -316,9 +319,8 @@ const StudentMarks = () => {
             padding: 20,
             borderRadius: 10,
             marginTop: 30,
-            boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+            boxShadow: "0px 4px 10px rgba(0,0,0,0.1)",
             width: "100%",
-            boxSizing: "border-box",
           }}
         >
           <h3
@@ -336,15 +338,14 @@ const StudentMarks = () => {
               width: "100%",
               borderCollapse: "collapse",
               marginTop: 10,
-              fontSize: "14px",
             }}
           >
             <thead>
               <tr style={{ background: "#f1f1f1" }}>
                 <th style={{ padding: 10 }}>Date</th>
-                <th style={{ padding: 10 }}>Total Marks</th>
-                <th style={{ padding: 10 }}>Obtained</th>
-                <th style={{ padding: 10 }}>Percentage</th>
+                <th style={{ padding: 10 }}>Total</th>
+                <th style={{ padding: 10 }}>Obt</th>
+                <th style={{ padding: 10 }}>%</th>
                 <th style={{ padding: 10 }}>Status</th>
               </tr>
             </thead>
