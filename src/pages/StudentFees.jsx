@@ -6,7 +6,7 @@ const StudentFees = ({ user }) => {
   const API_URL = process.env.REACT_APP_API_URL;
   const [fees, setFees] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
-  const [showMonths, setShowMonths] = useState(true); // Show/hide month buttons
+  const [showMonths, setShowMonths] = useState(true);
 
   const months = [
     "January","February","March","April","May","June",
@@ -23,21 +23,17 @@ const StudentFees = ({ user }) => {
           const feesData = res.data.fees;
           setFees(feesData);
 
-          // Store last-month fee status
           const today = new Date();
           let lastMonth = today.getMonth() - 1;
           let year = today.getFullYear();
-
           if (lastMonth < 0) {
             lastMonth = 11;
-            year = year - 1;
+            year -= 1;
           }
-
           const hasPaidLastMonth = feesData.some((f) => {
             const fd = new Date(f.payment_date);
             return fd.getMonth() === lastMonth && fd.getFullYear() === year;
           });
-
           localStorage.setItem("feesPaidLastMonth", hasPaidLastMonth);
         }
       } catch (err) {
@@ -49,11 +45,7 @@ const StudentFees = ({ user }) => {
   }, [user, API_URL]);
 
   const formatDate = (d) =>
-    new Date(d).toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    new Date(d).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" });
 
   const formatTime = (t) => {
     const [h, m] = t.split(":");
@@ -63,87 +55,53 @@ const StudentFees = ({ user }) => {
   };
 
   const rowColor = (status) => {
-    if (status === "Late") return "#ffe6e9";
-    if (status === "Early") return "#e6f7fb";
-    return "#e7ffed";
+    if (status === "Late") return "#ffe6e6";
+    if (status === "Early") return "#e6f7ff";
+    return "#e7ffe7";
   };
 
-  // Filter fees for the NEXT month of selected month
-  const filteredFees =
-    selectedMonth === null
-      ? []
-      : fees.filter((f) => {
-          const feeMonth = new Date(f.payment_date).getMonth();
-          const nextMonth = (selectedMonth + 1) % 12; // next month logic
-          return feeMonth === nextMonth;
-        });
+  const filteredFees = selectedMonth === null
+    ? []
+    : fees.filter((f) => {
+        const feeMonth = new Date(f.payment_date).getMonth();
+        const nextMonth = (selectedMonth + 1) % 12;
+        return feeMonth === nextMonth;
+      });
 
-  // Update month selection handler
   const handleMonthSelect = (i) => {
     setSelectedMonth(i);
-    setShowMonths(false); // Hide months after selection
+    setShowMonths(false);
   };
 
   return (
     <div style={styles.page}>
-      {/* Dynamic Heading */}
       <h2 style={styles.heading}>
         {showMonths
-          ? "Select the Month for Fee"
+          ? "Select the Month to View Fees"
           : selectedMonth !== null
-          ? `You are viewing your ${months[selectedMonth]} fees (which have been paid in  ${months[(selectedMonth + 1) % 12]})`
+          ? `Viewing ${months[selectedMonth]} fees (Paid in ${months[(selectedMonth + 1) % 12]})`
           : "Go Back to Months"}
       </h2>
 
-      {/* Show Months Button */}
       {!showMonths && (
         <Link
           onClick={() => setShowMonths(true)}
-          style={{
-            margin: "15px auto",
-            display: "block",
-            padding: "12px 24px",
-            background: "#1f3c88",
-            color: "#fff",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "16px",
-          }}
+          style={styles.backButton}
         >
-          Please click here for viewing the lists of Months
+          &larr; Back to Months
         </Link>
       )}
 
-      {/* Vertical Month Buttons */}
       {showMonths && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: "12px",
-            marginBottom: "20px",
-            width: "100%",
-            maxWidth: "250px",
-            marginLeft: "auto",
-            marginRight: "auto",
-          }}
-        >
+        <div style={styles.monthButtons}>
           {months.map((m, i) => (
             <button
               key={i}
               onClick={() => handleMonthSelect(i)}
               style={{
-                padding: "16px 28px",
-                background: selectedMonth === i ? "#1f3c88" : "#d5def3",
+                ...styles.monthBtn,
+                background: selectedMonth === i ? "#1f3c88" : "linear-gradient(135deg, #d5def3, #f0f4fa)",
                 color: selectedMonth === i ? "#fff" : "#333",
-                borderRadius: "8px",
-                border: "none",
-                fontSize: "18px",
-                width: "100%",
-                cursor: "pointer",
               }}
             >
               {m}
@@ -172,7 +130,7 @@ const StudentFees = ({ user }) => {
                 </thead>
                 <tbody>
                   {filteredFees.map((f) => (
-                    <tr key={f.id} style={{ background: rowColor(f.status) }}>
+                    <tr key={f.id} style={{ background: rowColor(f.status), transition: "0.3s all" }}>
                       <td style={styles.td}>{formatDate(f.payment_date)}</td>
                       <td style={styles.td}>{formatTime(f.payment_time)}</td>
                       <td style={styles.td}>₹ {f.amount}</td>
@@ -198,7 +156,6 @@ const StudentFees = ({ user }) => {
         )}
       </div>
 
-      {/* Media Queries */}
       <style>
         {`
         @media (max-width: 768px) {
@@ -217,26 +174,61 @@ const StudentFees = ({ user }) => {
 
 const styles = {
   page: {
-    padding: "20px",
-    background: "#eef2f7",
+    padding: "30px",
+    background: "linear-gradient(to bottom, #f0f4fa, #eef2f7)",
     minHeight: "100vh",
-    fontFamily: "Arial, sans-serif",
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
   },
   heading: {
     textAlign: "center",
     color: "#1f3c88",
-    fontSize: "24px",
-    marginBottom: "20px",
+    fontSize: "28px",
+    fontWeight: "700",
+    marginBottom: "30px",
+    textShadow: "1px 1px 6px rgba(0,0,0,0.1)",
+  },
+  backButton: {
+    margin: "10px auto 25px",
+    display: "block",
+    padding: "12px 28px",
+    background: "#1f3c88",
+    color: "#fff",
+    borderRadius: "12px",
+    textAlign: "center",
+    cursor: "pointer",
+    fontSize: "16px",
+    textDecoration: "none",
+    transition: "0.3s all",
+  },
+  monthButtons: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "12px",
+    maxWidth: "300px",
+    margin: "0 auto 30px",
+  },
+  monthBtn: {
+    padding: "16px 28px",
+    borderRadius: "14px",
+    border: "none",
+    fontSize: "18px",
+    width: "100%",
+    cursor: "pointer",
+    fontWeight: "600",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.1)",
+    transition: "0.3s all",
   },
   box: {
     background: "#fff",
-    padding: "15px",
-    borderRadius: "12px",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+    padding: "25px",
+    borderRadius: "18px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
   },
   msg: {
     textAlign: "center",
-    color: "#777",
+    color: "#555",
+    fontSize: "16px",
   },
   tableWrapper: {
     overflowX: "auto",
@@ -244,32 +236,34 @@ const styles = {
   table: {
     width: "100%",
     borderCollapse: "collapse",
-    minWidth: "600px",
+    minWidth: "650px",
   },
   tableHeadRow: {
-    background: "#1f3c88",
-    color: "white",
+    background: "linear-gradient(90deg, #1f3c88, #4060b0)",
+    color: "#fff",
   },
   th: {
-    padding: "12px",
+    padding: "14px",
     textAlign: "left",
-    fontSize: "14px",
+    fontSize: "15px",
+    letterSpacing: "0.5px",
   },
   td: {
-    padding: "12px",
+    padding: "14px",
     borderBottom: "1px solid #ddd",
-    fontSize: "14px",
+    fontSize: "15px",
   },
   mobileList: {
-    marginTop: "10px",
+    marginTop: "15px",
     display: "none",
   },
   card: {
-    padding: "12px",
-    borderRadius: "10px",
-    marginBottom: "12px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+    padding: "18px",
+    borderRadius: "16px",
+    marginBottom: "18px",
+    boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
     fontSize: "15px",
+    transition: "0.3s all",
   },
 };
 

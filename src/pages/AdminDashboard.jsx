@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  FaBars,
   FaUserGraduate,
   FaMoneyBillWave,
   FaClipboardCheck,
@@ -9,7 +8,6 @@ import {
 } from "react-icons/fa";
 
 const AdminDashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
   const links = [
@@ -26,68 +24,19 @@ const AdminDashboard = () => {
 
   return (
     <div style={page}>
-      {/* Sidebar */}
-<div
-  style={{
-    ...sidebar,
-    width: sidebarOpen ? "250px" : "70px", // closed: 70px, open: 250px
-    padding: sidebarOpen ? "30px 20px" : "20px 10px", // smooth padding
-  }}
->
-  <h2 style={{ ...sidebarHeader, opacity: sidebarOpen ? 1 : 0, transition: "opacity 0.3s" }}>
-    Smart Students
-  </h2>
-  <ul style={sidebarLinks}>
-    {links.map((link) => (
-      <li key={link.title}>
-        <Link
-          to={link.path}
-          style={{
-            ...sidebarLink,
-            background: location.pathname.includes(link.path)
-              ? "rgba(255,255,255,0.25)"
-              : "transparent",
-            boxShadow: location.pathname.includes(link.path)
-              ? "0 0 10px rgba(255,255,255,0.5)"
-              : "none",
-            justifyContent: sidebarOpen ? "flex-start" : "center",
-            padding: sidebarOpen ? "12px 15px" : "12px 0",
-          }}
-        >
-          {link.icon}
-          {sidebarOpen && <span style={{ marginLeft: "12px", fontWeight: "600" }}>{link.title}</span>}
-        </Link>
-      </li>
-    ))}
-  </ul>
-</div>
-
-
       {/* Main Content */}
       <div style={main}>
         {/* Header & Dashboard cards */}
         {showDashboard && (
           <>
             <div style={header}>
-              <FaBars
-                size={28}
-                color="#1f3c88"
-                style={{
-                  cursor: "pointer",
-                  position: "absolute",
-                  left: 20,
-                  top: 20,
-                  transition: "transform 0.3s",
-                }}
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              />
-              <h1 style={heading}>    Hello Nitesh</h1>
+              <h1 style={heading}>Hello Nitesh</h1>
               <p style={welcomeText}>Welcome, Admin workspace👋</p>
             </div>
 
             {/* Action Cards */}
             <div style={grid}>
-              {links.map((link, idx) => (
+              {links.map((link) => (
                 <Link
                   to={link.path}
                   key={link.title}
@@ -124,7 +73,6 @@ const AdminDashboard = () => {
             50% { transform: translateY(-8px);}
           }
 
-          /* Card hover */
           a:hover {
             transform: translateY(-8px) scale(1.05);
             box-shadow: 0 15px 30px rgba(0,0,0,0.25);
@@ -141,49 +89,12 @@ const page = {
   minHeight: "100vh",
   fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
   background: "#f5f6fa",
-  transition: "0.3s",
-};
-
-const sidebar = {
-  background: "linear-gradient(180deg, #1f3c88, #3959a1)",
-  color: "#fff",
-  display: "flex",
-  flexDirection: "column",
-  overflow: "hidden",
-  transition: "0.3s",
-  boxShadow: "2px 0 15px rgba(0,0,0,0.2)",
-  zIndex: 2,
-};
-
-const sidebarHeader = {
-  fontSize: "24px",
-  fontWeight: "700",
-  marginBottom: "30px",
-  textAlign: "center",
-  textTransform: "uppercase",
-  letterSpacing: "1px",
-  textShadow: "0 0 10px rgba(255,255,255,0.5)",
-};
-
-const sidebarLinks = { listStyle: "none", padding: 0 };
-const sidebarLink = {
-  display: "flex",
-  alignItems: "center",
-  padding: "12px 15px",
-  borderRadius: "10px",
-  color: "#fff",
-  marginBottom: "10px",
-  textDecoration: "none",
-  fontWeight: "500",
-  transition: "0.3s",
-  boxShadow: "0 0 0 rgba(0,0,0,0)",
 };
 
 const main = {
   flex: 1,
   padding: "40px",
   position: "relative",
-  transition: "margin-left 0.3s",
 };
 
 const header = { marginBottom: "40px", textAlign: "center", position: "relative" };
