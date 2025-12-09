@@ -112,14 +112,21 @@ const logo = {
   fontSize: "10vw",
   fontWeight: "900",
   margin: "0 auto",
-  letterSpacing: "0.3em",
-  color: "#ffffffff",
-  textShadow: "2px 2px 20px rgba(122, 255, 60, 0.99), 0 0 30px rgba(255,204,0,0.3)",
+  letterSpacing: "0.18em", // thoda tight, smooth look
+  color: "#ffffff",
+  textShadow: `
+    0 0 5px rgba(255,255,255,0.7),
+    0 0 10px rgba(122, 255, 60, 0.5),
+    0 0 20px rgba(255,204,0,0.3)
+  `,
   fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  WebkitFontSmoothing: "antialiased",
+  MozOsxFontSmoothing: "grayscale",
 };
 
+
 const tagline = {
-  fontSize: "3.5vw",
+  fontSize: "4.5vw",
   marginTop: "15px",
   color: "#ffffffff",
   fontWeight: "600",
