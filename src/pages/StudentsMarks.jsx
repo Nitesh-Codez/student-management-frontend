@@ -12,7 +12,15 @@ import {
   Legend,
 } from "chart.js";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const StudentMarks = () => {
   const [marks, setMarks] = useState([]);
@@ -23,13 +31,11 @@ const StudentMarks = () => {
   const API_URL = process.env.REACT_APP_API_URL;
   const user = JSON.parse(localStorage.getItem("user"));
 
-  // ✅ Generate captcha function at correct position
+  // Generate captcha
   const generateCaptcha = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
-    for (let i = 0; i < 5; i++) {
-      code += chars[Math.floor(Math.random() * chars.length)];
-    }
+    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
     setCaptcha(code);
   };
 
@@ -39,6 +45,7 @@ const StudentMarks = () => {
   if (user && savedMarks[user.id]) {
     setMarks(savedMarks[user.id]);
   }
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
@@ -49,8 +56,7 @@ const StudentMarks = () => {
       generateCaptcha();
       return;
     }
-
-    if (!user || !user.id) {
+    if (!user?.id) {
       setMessage("User not found. Please login again.");
       return;
     }
@@ -70,28 +76,32 @@ const StudentMarks = () => {
           localStorage.setItem("userMarks", JSON.stringify(savedMarks));
         } else {
           setMessage("No test held yet");
-          const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
-          if (savedMarks[user.id]) setMarks(savedMarks[user.id]);
-          else setMarks([]);
         }
       })
       .catch(() => setMessage("Something went wrong"));
   };
 
-  const sortedMarks = [...marks].sort((a, b) => new Date(a.test_date) - new Date(b.test_date));
-  const uniqueDates = [...new Set(sortedMarks.map((m) => new Date(m.test_date).toLocaleDateString()))];
-  const subjects = [...new Set(sortedMarks.map((m) => m.subject_name))];
+  const sorted = [...marks].sort(
+    (a, b) => new Date(a.test_date) - new Date(b.test_date)
+  );
+
+  const uniqueDates = [...new Set(sorted.map((m) => new Date(m.test_date).toLocaleDateString()))];
+  const subjects = [...new Set(sorted.map((m) => m.subject_name))];
+
   const colors = ["#FFD700", "#FF7F50", "#87CEEB", "#90EE90", "#FFA07A", "#DDA0DD"];
 
   const datasets = subjects.map((subject, idx) => {
-    let lastValue = 0;
+    let last = 0;
     const data = uniqueDates.map((date) => {
-      const mark = sortedMarks.find(
-        (m) => m.subject_name === subject && new Date(m.test_date).toLocaleDateString() === date
+      const mark = sorted.find(
+        (m) =>
+          m.subject_name === subject &&
+          new Date(m.test_date).toLocaleDateString() === date
       );
-      if (mark) lastValue = ((mark.obtained_marks / mark.total_marks) * 100).toFixed(1);
-      return lastValue;
+      if (mark) last = ((mark.obtained_marks / mark.total_marks) * 100).toFixed(1);
+      return last;
     });
+
     return {
       label: subject,
       data,
@@ -99,116 +109,216 @@ const StudentMarks = () => {
       backgroundColor: colors[idx % colors.length] + "33",
       tension: 0.4,
       fill: false,
-      pointRadius: 6,
-      pointBackgroundColor: colors[idx % colors.length],
+      pointRadius: 7,
     };
   });
 
   const chartData = { labels: uniqueDates, datasets };
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false, // MOBILE FIX
     plugins: {
-      legend: { display: true, position: "top" },
+      legend: { position: "top" },
       title: { display: true, text: "Overall Performance Graph" },
-      tooltip: {
-        callbacks: {
-          label: (context) => {
-            const subject = context.dataset.label;
-            const value = context.raw;
-            return `${subject}: ${value !== null ? value + "%" : "N/A"}`;
-          },
-        },
-      },
     },
     scales: { y: { beginAtZero: true, max: 100 } },
   };
 
-  const totalObtained = marks.reduce((sum, m) => sum + m.obtained_marks, 0);
-  const totalMarks = marks.reduce((sum, m) => sum + m.total_marks, 0);
-  const overallPercentage = totalMarks ? ((totalObtained / totalMarks) * 100).toFixed(1) : 0;
+  const totalObt = marks.reduce((a, b) => a + b.obtained_marks, 0);
+  const totalMarks = marks.reduce((a, b) => a + b.total_marks, 0);
+  const overallPercentage = totalMarks ? ((totalObt / totalMarks) * 100).toFixed(1) : 0;
 
-  const groupedMarks = marks.reduce((acc, mark) => {
-    if (!acc[mark.subject_name]) acc[mark.subject_name] = [];
-    acc[mark.subject_name].push(mark);
+  const grouped = marks.reduce((acc, m) => {
+    if (!acc[m.subject_name]) acc[m.subject_name] = [];
+    acc[m.subject_name].push(m);
     return acc;
   }, {});
 
   return (
-    <div style={{ padding: "30px", fontFamily: "Arial, sans-serif", background: "#F5F6FA", minHeight: "100vh" }}>
+    <div
+      style={{
+        padding: "30px",
+        fontFamily: "Arial",
+        background: "#F5F6FA",
+        minHeight: "100vh",
+      }}
+    >
       <h2>Your Test Marks</h2>
-      <p>Welcome, <strong>{user?.name}</strong>! Your marks are shown below.</p>
+      <p>
+        Welcome, <strong>{user?.name}</strong>! Your marks are shown below.
+      </p>
 
       {/* Captcha */}
-      <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+      <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 10 }}>
         <strong>Captcha: {captcha}</strong>
+
         <button
           onClick={generateCaptcha}
-          style={{ padding: "5px 10px", background: "#3498DB", color: "#fff", border: "none", borderRadius: "5px" }}
+          style={{
+            padding: "5px 10px",
+            background: "#3498DB",
+            color: "#fff",
+            borderRadius: 5,
+            border: "none",
+          }}
         >
           Refresh
         </button>
+
         <input
           type="text"
           value={captchaInput}
           onChange={(e) => setCaptchaInput(e.target.value)}
           placeholder="Enter Captcha"
-          style={{ padding: "5px", borderRadius: "5px", border: "1px solid #ccc" }}
+          style={{
+            padding: 5,
+            borderRadius: 5,
+            border: "1px solid #ccc",
+          }}
         />
+
         <button
           onClick={handleCheckMarks}
-          style={{ padding: "5px 15px", background: "#2ECC71", color: "#fff", border: "none", borderRadius: "5px" }}
+          style={{
+            padding: "5px 15px",
+            background: "#2ECC71",
+            color: "#fff",
+            borderRadius: 5,
+            border: "none",
+          }}
         >
           Check Marks
         </button>
       </div>
 
-      {message && <p style={{ color: "red", marginTop: "10px" }}>{message}</p>}
+      {message && <p style={{ color: "red" }}>{message}</p>}
 
-      {/* Overall Percentage */}
+      {/* Overall stats */}
       {marks.length > 0 && (
-        <div style={{ display: "flex", gap: "20px", marginTop: "20px", flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 200px", background: "#fff", padding: "20px", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", textAlign: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 20,
+            flexWrap: "wrap",
+            marginTop: 20,
+          }}
+        >
+          {/* Percentage */}
+          <div
+            style={{
+              flex: "1 1 200px",
+              background: "#fff",
+              borderRadius: 10,
+              padding: 20,
+              boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+              textAlign: "center",
+            }}
+          >
             <h3>Overall Percentage</h3>
-            <div style={{ fontSize: "32px", fontWeight: "700", color: "#E74C3C" }}>{overallPercentage}%</div>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#E74C3C" }}>
+              {overallPercentage}%
+            </div>
           </div>
-          <div style={{ flex: "1 1 200px", background: "#fff", padding: "20px", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", textAlign: "center" }}>
+
+          {/* Total tests */}
+          <div
+            style={{
+              flex: "1 1 200px",
+              background: "#fff",
+              borderRadius: 10,
+              padding: 20,
+              boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+              textAlign: "center",
+            }}
+          >
             <h3>Total Tests</h3>
-            <div style={{ fontSize: "32px", fontWeight: "700", color: "#3498DB" }}>{marks.length}</div>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#3498DB" }}>
+              {marks.length}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Chart */}
+      {/* BIG RESPONSIVE GRAPH */}
       {marks.length > 0 && (
-        <div style={{ marginTop: "30px", background: "#fff", padding: "20px", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", overflowX: "auto" }}>
+        <div
+          style={{
+            marginTop: 30,
+            background: "#fff",
+            padding: 20,
+            borderRadius: 10,
+            boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+            overflowX: "auto",
+
+            /* GRAPH BIG ON MOBILE */
+            minWidth: "700px",
+            height: "350px",
+          }}
+        >
           <Line data={chartData} options={chartOptions} />
         </div>
       )}
 
-      {/* Subject Tables */}
-      {Object.keys(groupedMarks).map((subject, idx) => (
-        <div key={subject} style={{ background: "#fff", borderRadius: "10px", padding: "20px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", marginTop: "30px" }}>
-          <h3 style={{ borderBottom: `3px solid ${colors[idx % colors.length]}`, paddingBottom: "10px", color: colors[idx % colors.length] }}>{subject}</h3>
-          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
+      {/* Subject Wise Table */}
+      {Object.keys(grouped).map((subject, idx) => (
+        <div
+          key={subject}
+          style={{
+            background: "#fff",
+            padding: 20,
+            borderRadius: 10,
+            marginTop: 30,
+            boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+            overflowX: "auto", // FIX TABLE OVERFLOW
+          }}
+        >
+          <h3
+            style={{
+              borderBottom: `3px solid ${colors[idx % colors.length]}`,
+              paddingBottom: 10,
+              color: colors[idx % colors.length],
+            }}
+          >
+            {subject}
+          </h3>
+
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              marginTop: 10,
+              minWidth: "600px", // TABLE ALWAYS FITS MOBILE
+            }}
+          >
             <thead>
               <tr style={{ background: "#f1f1f1" }}>
-                <th style={{ padding: "10px", textAlign: "left" }}>Date</th>
-                <th style={{ padding: "10px", textAlign: "left" }}>Total Marks</th>
-                <th style={{ padding: "10px", textAlign: "left" }}>Obtained</th>
-                <th style={{ padding: "10px", textAlign: "left" }}>Percentage</th>
-                <th style={{ padding: "10px", textAlign: "left" }}>Status</th>
+                <th style={{ padding: 10 }}>Date</th>
+                <th style={{ padding: 10 }}>Total Marks</th>
+                <th style={{ padding: 10 }}>Obtained</th>
+                <th style={{ padding: 10 }}>Percentage</th>
+                <th style={{ padding: 10 }}>Status</th>
               </tr>
             </thead>
+
             <tbody>
-              {groupedMarks[subject].map((m) => {
-                const testPercentage = ((m.obtained_marks / m.total_marks) * 100).toFixed(1);
+              {grouped[subject].map((m) => {
+                const p = ((m.obtained_marks / m.total_marks) * 100).toFixed(1);
+
                 return (
-                  <tr key={m.id} style={{ background: colors[idx % colors.length] + "22", borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "10px" }}>{new Date(m.test_date).toLocaleDateString()}</td>
-                    <td style={{ padding: "10px" }}>{m.total_marks}</td>
-                    <td style={{ padding: "10px" }}>{m.obtained_marks}</td>
-                    <td style={{ padding: "10px" }}>{testPercentage}%</td>
-                    <td style={{ padding: "10px" }}>{m.status}</td>
+                  <tr
+                    key={m.id}
+                    style={{
+                      background: colors[idx % colors.length] + "22",
+                      borderBottom: "1px solid #eee",
+                    }}
+                  >
+                    <td style={{ padding: 10 }}>
+                      {new Date(m.test_date).toLocaleDateString()}
+                    </td>
+                    <td style={{ padding: 10 }}>{m.total_marks}</td>
+                    <td style={{ padding: 10 }}>{m.obtained_marks}</td>
+                    <td style={{ padding: 10 }}>{p}%</td>
+                    <td style={{ padding: 10 }}>{m.status}</td>
                   </tr>
                 );
               })}
