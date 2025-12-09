@@ -46,7 +46,6 @@ const StudentMarks = () => {
     if (user && savedMarks[user.id]) {
       setMarks(savedMarks[user.id]);
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -106,7 +105,7 @@ const StudentMarks = () => {
     "#DDA0DD",
   ];
 
-  // ⭐ GRADIENT FUNCTION
+  // Gradient function
   const getGradient = (ctx, color) => {
     const gradient = ctx.createLinearGradient(0, 0, 0, 300);
     gradient.addColorStop(0, color + "AA");
@@ -114,7 +113,6 @@ const StudentMarks = () => {
     return gradient;
   };
 
-  // ⭐ APPLY GRADIENT + ANIMATION
   const datasets = subjects.map((subject, idx) => {
     let last = 0;
 
@@ -140,22 +138,19 @@ const StudentMarks = () => {
         getGradient(ctx.chart.ctx, colors[idx % colors.length]),
       fill: true,
       tension: 0.4,
-
-      pointRadius: 6,
-      pointHoverRadius: 10,
+      pointRadius: 5,
+      pointHoverRadius: 9,
       pointBackgroundColor: colors[idx % colors.length],
-      pointHoverBackgroundColor: "#000",
     };
   });
 
   const chartData = { labels: uniqueDates, datasets };
 
-  // ⭐ ANIMATION ADDED BELOW
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     animation: {
-      duration: 1200,
+      duration: 1000,
       easing: "easeOutQuart",
     },
     plugins: {
@@ -180,10 +175,12 @@ const StudentMarks = () => {
   return (
     <div
       style={{
-        padding: "30px",
+        padding: "15px",
         fontFamily: "Arial",
         background: "#F5F6FA",
         minHeight: "100vh",
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
       <h2>Your Test Marks</h2>
@@ -244,7 +241,7 @@ const StudentMarks = () => {
 
       {message && <p style={{ color: "red" }}>{message}</p>}
 
-      {/* Stats */}
+      {/* Stats Cards */}
       {marks.length > 0 && (
         <div
           style={{
@@ -252,6 +249,7 @@ const StudentMarks = () => {
             gap: 20,
             flexWrap: "wrap",
             marginTop: 20,
+            width: "100%",
           }}
         >
           <div
@@ -262,16 +260,11 @@ const StudentMarks = () => {
               padding: 20,
               boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
               textAlign: "center",
+              width: "100%",
             }}
           >
             <h3>Overall Percentage</h3>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 700,
-                color: "#E74C3C",
-              }}
-            >
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#E74C3C" }}>
               {overallPercentage}%
             </div>
           </div>
@@ -284,16 +277,11 @@ const StudentMarks = () => {
               padding: 20,
               boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
               textAlign: "center",
+              width: "100%",
             }}
           >
             <h3>Total Tests</h3>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 700,
-                color: "#3498DB",
-              }}
-            >
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#3498DB" }}>
               {marks.length}
             </div>
           </div>
@@ -309,10 +297,11 @@ const StudentMarks = () => {
             padding: 20,
             borderRadius: 10,
             boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-            overflowX: "auto",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
-          <div style={{ minWidth: "800px", height: "350px" }}>
+          <div style={{ width: "100%", height: "350px" }}>
             <Line data={chartData} options={chartOptions} />
           </div>
         </div>
@@ -328,14 +317,13 @@ const StudentMarks = () => {
             borderRadius: 10,
             marginTop: 30,
             boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-            overflowX: "auto",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <h3
             style={{
-              borderBottom: `3px solid ${
-                colors[idx % colors.length]
-              }`,
+              borderBottom: `3px solid ${colors[idx % colors.length]}`,
               paddingBottom: 10,
               color: colors[idx % colors.length],
             }}
@@ -348,7 +336,7 @@ const StudentMarks = () => {
               width: "100%",
               borderCollapse: "collapse",
               marginTop: 10,
-              minWidth: "600px",
+              fontSize: "14px",
             }}
           >
             <thead>
@@ -372,28 +360,17 @@ const StudentMarks = () => {
                   <tr
                     key={m.id}
                     style={{
-                      background:
-                        colors[idx % colors.length] + "22",
+                      background: colors[idx % colors.length] + "22",
                       borderBottom: "1px solid #eee",
                     }}
                   >
                     <td style={{ padding: 10 }}>
-                      {new Date(
-                        m.test_date
-                      ).toLocaleDateString()}
+                      {new Date(m.test_date).toLocaleDateString()}
                     </td>
-                    <td style={{ padding: 10 }}>
-                      {m.total_marks}
-                    </td>
-                    <td style={{ padding: 10 }}>
-                      {m.obtained_marks}
-                    </td>
-                    <td style={{ padding: 10 }}>
-                      {p}%
-                    </td>
-                    <td style={{ padding: 10 }}>
-                      {m.status}
-                    </td>
+                    <td style={{ padding: 10 }}>{m.total_marks}</td>
+                    <td style={{ padding: 10 }}>{m.obtained_marks}</td>
+                    <td style={{ padding: 10 }}>{p}%</td>
+                    <td style={{ padding: 10 }}>{m.status}</td>
                   </tr>
                 );
               })}
