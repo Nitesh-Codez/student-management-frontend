@@ -8,25 +8,19 @@ const StudentAttendance = () => {
   const [month, setMonth] = useState("");
   const [filtered, setFiltered] = useState([]);
   const [percentage, setPercentage] = useState(0);
+  const [todayStatus, setTodayStatus] = useState(null);
 
   // 🔵 COLOR LOGIC
-const getCircleColor = (perc, absentCount, total) => {
-  if (total === 0) return "#f8f1e4"; // NEW MONTH → CREAM
-
-  if (perc >= 85) {
-    return "#18a539ff"; // GREEN
-  } else if (perc >= 75 && perc < 85) {
-    return "#b8ff11ff"; // YELLOW
-  } else {
+  const getCircleColor = (perc, absentCount, total) => {
+    if (total === 0) return "#f8f1e4"; // NEW MONTH → CREAM
+    if (perc >= 85) return "#18a539ff"; // GREEN
+    if (perc >= 75 && perc < 85) return "#b8ff11ff"; // YELLOW
     return "#ff0606ff"; // RED
-  }
-};
-
+  };
 
   // 📌 FETCH ALL STUDENT ATTENDANCE
   useEffect(() => {
     if (!user) return;
-
     fetch(`${API_URL}/api/attendance/${user.id}`)
       .then((res) => res.json())
       .then((data) => {
@@ -45,29 +39,32 @@ const getCircleColor = (perc, absentCount, total) => {
     setMonth(m);
   }, []);
 
-  // 📌 FILTER MONTH + CALCULATE %
+  // 📌 FILTER MONTH + CALCULATE % + TODAY STATUS
   useEffect(() => {
     if (!month) return;
 
     const [y, m] = month.split("-");
-
-    const data = attendance.filter((a) => {
+    let data = attendance.filter((a) => {
       const d = new Date(a.date);
       return d.getFullYear() === +y && d.getMonth() + 1 === +m;
     });
 
-    setFiltered(data);
+    const today = new Date();
+    let todayRecord = data.find(
+      (a) => new Date(a.date).toDateString() === today.toDateString()
+    );
 
-    const total = data.length;
-    const present = data.filter((a) => a.status === "Present").length;
-
-    if (total === 0) {
-      setPercentage(0);
-      return;
+    if (!todayRecord) {
+      todayRecord = { date: today.toISOString(), status: "Not Marked" };
+      data.push(todayRecord);
     }
 
-    const perc = ((present / total) * 100).toFixed(2);
-    setPercentage(perc);
+    setTodayStatus(todayRecord.status);
+    setFiltered(data);
+
+    const total = data.filter((a) => a.status !== "Not Marked").length;
+    const present = data.filter((a) => a.status === "Present").length;
+    setPercentage(total === 0 ? 0 : ((present / total) * 100).toFixed(2));
   }, [month, attendance]);
 
   const formatDate = (iso) => {
@@ -78,6 +75,13 @@ const getCircleColor = (perc, absentCount, total) => {
   };
 
   const absentCount = filtered.filter((a) => a.status === "Absent").length;
+
+  // LIGHT COLORS FOR TODAY'S CIRCLE
+  const getTodayCircleColor = (status) => {
+    if (status === "Present") return "#35bc47ff"; // LIGHT GREEN
+    if (status === "Absent") return "#ff0000ff";  // LIGHT RED
+    return "#d6d6d6"; // LIGHT GREY
+  };
 
   return (
     <div
@@ -90,16 +94,12 @@ const getCircleColor = (perc, absentCount, total) => {
       }}
     >
       <h2
-        style={{
-          textAlign: "center",
-          marginBottom: "20px",
-          color: "#1f3c88",
-        }}
+        style={{ textAlign: "center", marginBottom: "20px", color: "#1f3c88" }}
       >
-        See your Attendance dear Student 
+        See your Attendance dear Student
       </h2>
 
-      {/* Month */}
+      {/* Month Selector */}
       <div
         style={{
           marginBottom: "25px",
@@ -123,7 +123,7 @@ const getCircleColor = (perc, absentCount, total) => {
         />
       </div>
 
-      {/* Card */}
+      {/* Overall Card */}
       <div
         style={{
           background: "#f1f5ff",
@@ -140,7 +140,6 @@ const getCircleColor = (perc, absentCount, total) => {
           <strong>Class:</strong> {user?.class}
         </p>
 
-        {/* Circle */}
         <div
           style={{
             marginTop: "20px",
@@ -150,16 +149,13 @@ const getCircleColor = (perc, absentCount, total) => {
             alignItems: "center",
           }}
         >
+          {/* Overall Circle */}
           <div
             style={{
               width: "110px",
               height: "110px",
               borderRadius: "50%",
-              background: getCircleColor(
-                percentage,
-                absentCount,
-                filtered.length
-              ),
+              background: getCircleColor(percentage, absentCount, filtered.length),
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
@@ -172,25 +168,45 @@ const getCircleColor = (perc, absentCount, total) => {
             {filtered.length === 0 ? "0%" : `${percentage}%`}
           </div>
 
-          <div
-            style={{
-              fontSize: "18px",
-              fontWeight: "bold",
-              color: "#495057",
-            }}
-          >
-            {filtered.filter((a) => a.status === "Present").length}/
-            {filtered.length} Days Present
+          {/* Present/Total */}
+          <div style={{ fontSize: "18px", fontWeight: "bold", color: "#495057" }}>
+            {filtered.filter((a) => a.status === "Present").length}/{filtered.length} Days Present
           </div>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Today's Attendance Strip */}
+      {todayStatus && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "10px",
+            marginBottom: "15px",
+          }}
+        >
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "50%",
+              background: getTodayCircleColor(todayStatus),
+              boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+            }}
+          ></div>
+          <span style={{ fontWeight: "bold", fontSize: "16px" }}>
+            Today's Attendance: {todayStatus}
+          </span>
+        </div>
+      )}
+
+      {/* Attendance Table */}
       <div style={{ overflowX: "auto" }}>
         <table
           style={{
             width: "50%",
-            tableLayout:"fixed",
+            tableLayout: "fixed",
             borderCollapse: "collapse",
             minWidth: "600px",
             borderRadius: "10px",
@@ -204,7 +220,6 @@ const getCircleColor = (perc, absentCount, total) => {
               <th style={th}>Status</th>
             </tr>
           </thead>
-
           <tbody>
             {filtered.length === 0 ? (
               <tr>
@@ -220,8 +235,17 @@ const getCircleColor = (perc, absentCount, total) => {
                     key={i}
                     style={{
                       background:
-                        a.status === "Absent" ? "#de5b66ff" : "#d8f5c6ff",
-                      color: a.status === "Absent" ? "#721c24" : "#155724",
+                        a.status === "Absent"
+                          ? "#de5b66ff"
+                          : a.status === "Not Marked"
+                          ? "#d6d6d6ff"
+                          : "#d8f5c6ff",
+                      color:
+                        a.status === "Absent"
+                          ? "#721c24"
+                          : a.status === "Not Marked"
+                          ? "#495057"
+                          : "#155724",
                       fontWeight: "500",
                     }}
                   >

@@ -1,68 +1,104 @@
 import React, { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { FaBars, FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload } from "react-icons/fa";
+import {
+  FaBars,
+  FaUserGraduate,
+  FaMoneyBillWave,
+  FaClipboardCheck,
+  FaUpload,
+} from "react-icons/fa";
 
 const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
- const links = [
-  { title: "Manage Students", path: "manage-students", icon: <FaUserGraduate /> },
-  { title: "Manage Fees", path: "manage-fees", icon: <FaMoneyBillWave /> },
-  { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck /> },
-  { title: "View Attendance", path: "attendance-view", icon: <FaClipboardCheck /> },
-  { title: "Upload Homework", path: "upload-homework", icon: <FaUpload /> }, // ✅ fixed
-  { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
-  { title: "Reports", path: "reports", icon: <FaUpload /> },
-];
+  const links = [
+    { title: "Manage Students", path: "manage-students", icon: <FaUserGraduate /> },
+    { title: "Manage Fees", path: "manage-fees", icon: <FaMoneyBillWave /> },
+    { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck /> },
+    { title: "View Attendance", path: "attendance-view", icon: <FaClipboardCheck /> },
+    { title: "Upload Homework", path: "upload-homework", icon: <FaUpload /> },
+    { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
+    { title: "Reports", path: "reports", icon: <FaUpload /> },
+  ];
 
-
-  // Dashboard cards only show on /admin
   const showDashboard = location.pathname === "/admin";
 
   return (
     <div style={page}>
       {/* Sidebar */}
-      <div
-        style={{
-          ...sidebar,
-          width: sidebarOpen ? "220px" : "0",
-          padding: sidebarOpen ? "30px 20px" : "0",
-        }}
-      >
-        <h2 style={sidebarHeader}>Smart Students</h2>
-        <ul style={sidebarLinks}>
-          {links.map((link) => (
-            <li key={link.title}>
-              <Link to={link.path} style={sidebarLink}>
-                {link.icon} <span style={{ marginLeft: "10px" }}>{link.title}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
+<div
+  style={{
+    ...sidebar,
+    width: sidebarOpen ? "250px" : "70px", // closed: 70px, open: 250px
+    padding: sidebarOpen ? "30px 20px" : "20px 10px", // smooth padding
+  }}
+>
+  <h2 style={{ ...sidebarHeader, opacity: sidebarOpen ? 1 : 0, transition: "opacity 0.3s" }}>
+    Smart Students
+  </h2>
+  <ul style={sidebarLinks}>
+    {links.map((link) => (
+      <li key={link.title}>
+        <Link
+          to={link.path}
+          style={{
+            ...sidebarLink,
+            background: location.pathname.includes(link.path)
+              ? "rgba(255,255,255,0.25)"
+              : "transparent",
+            boxShadow: location.pathname.includes(link.path)
+              ? "0 0 10px rgba(255,255,255,0.5)"
+              : "none",
+            justifyContent: sidebarOpen ? "flex-start" : "center",
+            padding: sidebarOpen ? "12px 15px" : "12px 0",
+          }}
+        >
+          {link.icon}
+          {sidebarOpen && <span style={{ marginLeft: "12px", fontWeight: "600" }}>{link.title}</span>}
+        </Link>
+      </li>
+    ))}
+  </ul>
+</div>
+
 
       {/* Main Content */}
       <div style={main}>
-        {/* Show header & cards only on dashboard */}
+        {/* Header & Dashboard cards */}
         {showDashboard && (
           <>
             <div style={header}>
               <FaBars
-                size={25}
+                size={28}
                 color="#1f3c88"
-                style={{ cursor: "pointer", position: "absolute", left: 20, top: 20 }}
+                style={{
+                  cursor: "pointer",
+                  position: "absolute",
+                  left: 20,
+                  top: 20,
+                  transition: "transform 0.3s",
+                }}
                 onClick={() => setSidebarOpen(!sidebarOpen)}
               />
-              <h1 style={heading}>Admin Dashboard</h1>
-              <p style={welcomeText}>Welcome, Admin 👋</p>
+              <h1 style={heading}>    Hello Nitesh</h1>
+              <p style={welcomeText}>Welcome, Admin workspace👋</p>
             </div>
 
-            {/* Action Boxes */}
+            {/* Action Cards */}
             <div style={grid}>
-              {links.map((link) => (
-                <Link to={link.path} key={link.title} style={card}>
-                  <div style={iconWrapper}>{link.icon}</div>
+              {links.map((link, idx) => (
+                <Link
+                  to={link.path}
+                  key={link.title}
+                  style={{
+                    ...card,
+                    background: `linear-gradient(135deg, #1f3c88, #3959a1, #18a539, #ffcc00)`,
+                    backgroundSize: "400% 400%",
+                    animation: "gradientBG 8s ease infinite",
+                  }}
+                >
+                  <div style={{ ...iconWrapper, animation: `iconBounce 1.5s infinite` }}>{link.icon}</div>
                   <h3 style={cardTitle}>{link.title}</h3>
                 </Link>
               ))}
@@ -73,23 +109,106 @@ const AdminDashboard = () => {
         {/* Render clicked page content */}
         <Outlet />
       </div>
+
+      {/* Keyframes for animations */}
+      <style>
+        {`
+          @keyframes gradientBG {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+          }
+
+          @keyframes iconBounce {
+            0%, 100% { transform: translateY(0);}
+            50% { transform: translateY(-8px);}
+          }
+
+          /* Card hover */
+          a:hover {
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.25);
+          }
+        `}
+      </style>
     </div>
   );
 };
 
-// Styles (same as before)
-const page = { display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", background: "#f5f6fa", transition: "0.3s" };
-const sidebar = { background: "linear-gradient(180deg, #1f3c88, #3959a1)", color: "#fff", display: "flex", flexDirection: "column", overflow: "hidden", transition: "0.3s", boxShadow: "2px 0 10px rgba(0,0,0,0.1)", zIndex: 2 };
-const sidebarHeader = { fontSize: "24px", fontWeight: "700", marginBottom: "30px", textAlign: "center", textTransform: "uppercase", letterSpacing: "1px" };
+// Styles
+const page = {
+  display: "flex",
+  minHeight: "100vh",
+  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  background: "#f5f6fa",
+  transition: "0.3s",
+};
+
+const sidebar = {
+  background: "linear-gradient(180deg, #1f3c88, #3959a1)",
+  color: "#fff",
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
+  transition: "0.3s",
+  boxShadow: "2px 0 15px rgba(0,0,0,0.2)",
+  zIndex: 2,
+};
+
+const sidebarHeader = {
+  fontSize: "24px",
+  fontWeight: "700",
+  marginBottom: "30px",
+  textAlign: "center",
+  textTransform: "uppercase",
+  letterSpacing: "1px",
+  textShadow: "0 0 10px rgba(255,255,255,0.5)",
+};
+
 const sidebarLinks = { listStyle: "none", padding: 0 };
-const sidebarLink = { display: "flex", alignItems: "center", padding: "12px 15px", borderRadius: "10px", color: "#fff", marginBottom: "10px", textDecoration: "none", fontWeight: "500", transition: "0.2s" };
-const main = { flex: 1, padding: "40px", position: "relative", transition: "margin-left 0.3s" };
+const sidebarLink = {
+  display: "flex",
+  alignItems: "center",
+  padding: "12px 15px",
+  borderRadius: "10px",
+  color: "#fff",
+  marginBottom: "10px",
+  textDecoration: "none",
+  fontWeight: "500",
+  transition: "0.3s",
+  boxShadow: "0 0 0 rgba(0,0,0,0)",
+};
+
+const main = {
+  flex: 1,
+  padding: "40px",
+  position: "relative",
+  transition: "margin-left 0.3s",
+};
+
 const header = { marginBottom: "40px", textAlign: "center", position: "relative" };
-const heading = { fontSize: "36px", color: "#1f3c88", marginBottom: "10px", fontWeight: "700" };
+const heading = { fontSize: "38px", color: "#1f3c88", marginBottom: "10px", fontWeight: "700" };
 const welcomeText = { fontSize: "18px", color: "#555" };
-const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", marginTop: "30px" };
-const card = { background: "#fff", padding: "20px", borderRadius: "15px", textAlign: "center", color: "#1f3c88", textDecoration: "none", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", transition: "0.3s" };
-const cardTitle = { marginTop: "10px", fontSize: "18px", fontWeight: "600" };
-const iconWrapper = { fontSize: "32px", marginBottom: "5px" };
+
+const grid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+  gap: "25px",
+  marginTop: "30px",
+};
+
+const card = {
+  padding: "25px 20px",
+  borderRadius: "15px",
+  textAlign: "center",
+  color: "#fff",
+  textDecoration: "none",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+  transition: "0.3s",
+  cursor: "pointer",
+};
+
+const cardTitle = { marginTop: "12px", fontSize: "18px", fontWeight: "700", textShadow: "1px 1px 3px rgba(0,0,0,0.3)" };
+const iconWrapper = { fontSize: "36px", marginBottom: "10px", color: "#fff" };
 
 export default AdminDashboard;
