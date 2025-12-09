@@ -23,6 +23,7 @@ const StudentMarks = () => {
   const API_URL = process.env.REACT_APP_API_URL;
   const user = JSON.parse(localStorage.getItem("user"));
 
+  // ✅ Generate captcha function at correct position
   const generateCaptcha = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
@@ -32,19 +33,20 @@ const StudentMarks = () => {
     setCaptcha(code);
   };
 
-  // Only generate captcha once when component mounts
-  useEffect(() => {
-    generateCaptcha();
-    const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
-    if (user && savedMarks[user.id]) {
-      setMarks(savedMarks[user.id]);
-    }
-  }, []); // run only once, no [user]
+ useEffect(() => {
+  generateCaptcha();
+  const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
+  if (user && savedMarks[user.id]) {
+    setMarks(savedMarks[user.id]);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
 
   const handleCheckMarks = () => {
     if (captchaInput !== captcha) {
       setMessage("Captcha incorrect!");
-      generateCaptcha(); // generate new captcha only on wrong input
+      generateCaptcha();
       return;
     }
 
@@ -62,6 +64,7 @@ const StudentMarks = () => {
         if (res.data.success && res.data.data.length > 0) {
           setMarks(res.data.data);
           setMessage("");
+
           const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
           savedMarks[user.id] = res.data.data;
           localStorage.setItem("userMarks", JSON.stringify(savedMarks));
@@ -75,7 +78,6 @@ const StudentMarks = () => {
       .catch(() => setMessage("Something went wrong"));
   };
 
-  // Chart & table logic
   const sortedMarks = [...marks].sort((a, b) => new Date(a.test_date) - new Date(b.test_date));
   const uniqueDates = [...new Set(sortedMarks.map((m) => new Date(m.test_date).toLocaleDateString()))];
   const subjects = [...new Set(sortedMarks.map((m) => m.subject_name))];
