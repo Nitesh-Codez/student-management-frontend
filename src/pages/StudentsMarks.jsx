@@ -35,20 +35,20 @@ const StudentMarks = () => {
   const generateCaptcha = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
-    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < 5; i++)
+      code += chars[Math.floor(Math.random() * chars.length)];
     setCaptcha(code);
   };
 
- useEffect(() => {
-  generateCaptcha();
-  const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
-  if (user && savedMarks[user.id]) {
-    setMarks(savedMarks[user.id]);
-  }
+  useEffect(() => {
+    generateCaptcha();
+    const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
+    if (user && savedMarks[user.id]) {
+      setMarks(savedMarks[user.id]);
+    }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCheckMarks = () => {
     if (captchaInput !== captcha) {
@@ -71,7 +71,9 @@ const StudentMarks = () => {
           setMarks(res.data.data);
           setMessage("");
 
-          const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
+          const savedMarks = JSON.parse(
+            localStorage.getItem("userMarks")
+          ) || {};
           savedMarks[user.id] = res.data.data;
           localStorage.setItem("userMarks", JSON.stringify(savedMarks));
         } else {
@@ -85,20 +87,48 @@ const StudentMarks = () => {
     (a, b) => new Date(a.test_date) - new Date(b.test_date)
   );
 
-  const uniqueDates = [...new Set(sorted.map((m) => new Date(m.test_date).toLocaleDateString()))];
+  const uniqueDates = [
+    ...new Set(
+      sorted.map((m) =>
+        new Date(m.test_date).toLocaleDateString()
+      )
+    ),
+  ];
+
   const subjects = [...new Set(sorted.map((m) => m.subject_name))];
 
-  const colors = ["#FFD700", "#FF7F50", "#87CEEB", "#90EE90", "#FFA07A", "#DDA0DD"];
+  const colors = [
+    "#FFD700",
+    "#FF7F50",
+    "#87CEEB",
+    "#90EE90",
+    "#FFA07A",
+    "#DDA0DD",
+  ];
 
+  // ⭐ GRADIENT FUNCTION
+  const getGradient = (ctx, color) => {
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, color + "AA");
+    gradient.addColorStop(1, color + "00");
+    return gradient;
+  };
+
+  // ⭐ APPLY GRADIENT + ANIMATION
   const datasets = subjects.map((subject, idx) => {
     let last = 0;
+
     const data = uniqueDates.map((date) => {
       const mark = sorted.find(
         (m) =>
           m.subject_name === subject &&
           new Date(m.test_date).toLocaleDateString() === date
       );
-      if (mark) last = ((mark.obtained_marks / mark.total_marks) * 100).toFixed(1);
+      if (mark)
+        last = (
+          (mark.obtained_marks / mark.total_marks) *
+          100
+        ).toFixed(1);
       return last;
     });
 
@@ -106,17 +136,28 @@ const StudentMarks = () => {
       label: subject,
       data,
       borderColor: colors[idx % colors.length],
-      backgroundColor: colors[idx % colors.length] + "33",
+      backgroundColor: (ctx) =>
+        getGradient(ctx.chart.ctx, colors[idx % colors.length]),
+      fill: true,
       tension: 0.4,
-      fill: false,
-      pointRadius: 7,
+
+      pointRadius: 6,
+      pointHoverRadius: 10,
+      pointBackgroundColor: colors[idx % colors.length],
+      pointHoverBackgroundColor: "#000",
     };
   });
 
   const chartData = { labels: uniqueDates, datasets };
+
+  // ⭐ ANIMATION ADDED BELOW
   const chartOptions = {
     responsive: true,
-    maintainAspectRatio: false, // MOBILE FIX
+    maintainAspectRatio: false,
+    animation: {
+      duration: 1200,
+      easing: "easeOutQuart",
+    },
     plugins: {
       legend: { position: "top" },
       title: { display: true, text: "Overall Performance Graph" },
@@ -126,7 +167,9 @@ const StudentMarks = () => {
 
   const totalObt = marks.reduce((a, b) => a + b.obtained_marks, 0);
   const totalMarks = marks.reduce((a, b) => a + b.total_marks, 0);
-  const overallPercentage = totalMarks ? ((totalObt / totalMarks) * 100).toFixed(1) : 0;
+  const overallPercentage = totalMarks
+    ? ((totalObt / totalMarks) * 100).toFixed(1)
+    : 0;
 
   const grouped = marks.reduce((acc, m) => {
     if (!acc[m.subject_name]) acc[m.subject_name] = [];
@@ -145,11 +188,19 @@ const StudentMarks = () => {
     >
       <h2>Your Test Marks</h2>
       <p>
-        Welcome, <strong>{user?.name}</strong>! Your marks are shown below.
+        Welcome, <strong>{user?.name}</strong>! Your marks are shown
+        below.
       </p>
 
       {/* Captcha */}
-      <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 10 }}>
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
         <strong>Captcha: {captcha}</strong>
 
         <button
@@ -193,7 +244,7 @@ const StudentMarks = () => {
 
       {message && <p style={{ color: "red" }}>{message}</p>}
 
-      {/* Overall stats */}
+      {/* Stats */}
       {marks.length > 0 && (
         <div
           style={{
@@ -203,7 +254,6 @@ const StudentMarks = () => {
             marginTop: 20,
           }}
         >
-          {/* Percentage */}
           <div
             style={{
               flex: "1 1 200px",
@@ -215,12 +265,17 @@ const StudentMarks = () => {
             }}
           >
             <h3>Overall Percentage</h3>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#E74C3C" }}>
+            <div
+              style={{
+                fontSize: 32,
+                fontWeight: 700,
+                color: "#E74C3C",
+              }}
+            >
               {overallPercentage}%
             </div>
           </div>
 
-          {/* Total tests */}
           <div
             style={{
               flex: "1 1 200px",
@@ -232,14 +287,20 @@ const StudentMarks = () => {
             }}
           >
             <h3>Total Tests</h3>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#3498DB" }}>
+            <div
+              style={{
+                fontSize: 32,
+                fontWeight: 700,
+                color: "#3498DB",
+              }}
+            >
               {marks.length}
             </div>
           </div>
         </div>
       )}
 
-      {/* BIG RESPONSIVE GRAPH */}
+      {/* GRAPH */}
       {marks.length > 0 && (
         <div
           style={{
@@ -249,17 +310,15 @@ const StudentMarks = () => {
             borderRadius: 10,
             boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
             overflowX: "auto",
-
-            /* GRAPH BIG ON MOBILE */
-            minWidth: "700px",
-            height: "350px",
           }}
         >
-          <Line data={chartData} options={chartOptions} />
+          <div style={{ minWidth: "800px", height: "350px" }}>
+            <Line data={chartData} options={chartOptions} />
+          </div>
         </div>
       )}
 
-      {/* Subject Wise Table */}
+      {/* SUBJECT TABLES */}
       {Object.keys(grouped).map((subject, idx) => (
         <div
           key={subject}
@@ -269,12 +328,14 @@ const StudentMarks = () => {
             borderRadius: 10,
             marginTop: 30,
             boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-            overflowX: "auto", // FIX TABLE OVERFLOW
+            overflowX: "auto",
           }}
         >
           <h3
             style={{
-              borderBottom: `3px solid ${colors[idx % colors.length]}`,
+              borderBottom: `3px solid ${
+                colors[idx % colors.length]
+              }`,
               paddingBottom: 10,
               color: colors[idx % colors.length],
             }}
@@ -287,7 +348,7 @@ const StudentMarks = () => {
               width: "100%",
               borderCollapse: "collapse",
               marginTop: 10,
-              minWidth: "600px", // TABLE ALWAYS FITS MOBILE
+              minWidth: "600px",
             }}
           >
             <thead>
@@ -302,23 +363,37 @@ const StudentMarks = () => {
 
             <tbody>
               {grouped[subject].map((m) => {
-                const p = ((m.obtained_marks / m.total_marks) * 100).toFixed(1);
+                const p = (
+                  (m.obtained_marks / m.total_marks) *
+                  100
+                ).toFixed(1);
 
                 return (
                   <tr
                     key={m.id}
                     style={{
-                      background: colors[idx % colors.length] + "22",
+                      background:
+                        colors[idx % colors.length] + "22",
                       borderBottom: "1px solid #eee",
                     }}
                   >
                     <td style={{ padding: 10 }}>
-                      {new Date(m.test_date).toLocaleDateString()}
+                      {new Date(
+                        m.test_date
+                      ).toLocaleDateString()}
                     </td>
-                    <td style={{ padding: 10 }}>{m.total_marks}</td>
-                    <td style={{ padding: 10 }}>{m.obtained_marks}</td>
-                    <td style={{ padding: 10 }}>{p}%</td>
-                    <td style={{ padding: 10 }}>{m.status}</td>
+                    <td style={{ padding: 10 }}>
+                      {m.total_marks}
+                    </td>
+                    <td style={{ padding: 10 }}>
+                      {m.obtained_marks}
+                    </td>
+                    <td style={{ padding: 10 }}>
+                      {p}%
+                    </td>
+                    <td style={{ padding: 10 }}>
+                      {m.status}
+                    </td>
                   </tr>
                 );
               })}
