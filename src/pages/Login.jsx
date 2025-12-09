@@ -109,7 +109,7 @@ const branding = {
 };
 
 const logo = {
-  fontSize: "6vw",
+  fontSize: "10vw",
   fontWeight: "900",
   margin: "0 auto",
   letterSpacing: "0.3em",
@@ -119,9 +119,9 @@ const logo = {
 };
 
 const tagline = {
-  fontSize: "2.5vw",
+  fontSize: "3.5vw",
   marginTop: "15px",
-  color: "#ffffffaa",
+  color: "#ffffffff",
   fontWeight: "600",
   textShadow: "1px 1px 5px rgba(0,0,0,0.5)",
   fontStyle: "italic",
