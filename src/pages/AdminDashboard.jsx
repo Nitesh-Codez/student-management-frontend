@@ -16,6 +16,10 @@ const AdminDashboard = () => {
     { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck /> },
     { title: "View Attendance", path: "attendance-view", icon: <FaClipboardCheck /> },
     { title: "Upload Homework", path: "upload-homework", icon: <FaUpload /> },
+
+    // ✅ NEW FEATURE
+    { title: "Study Material", path: "study-material", icon: <FaUpload /> },
+
     { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
     { title: "Reports", path: "reports", icon: <FaUpload /> },
   ];
@@ -24,17 +28,14 @@ const AdminDashboard = () => {
 
   return (
     <div style={page}>
-      {/* Main Content */}
       <div style={main}>
-        {/* Header & Dashboard cards */}
         {showDashboard && (
           <>
             <div style={header}>
               <h1 style={heading}>Hello Nitesh</h1>
-              <p style={welcomeText}>Welcome, Admin workspace👋</p>
+              <p style={welcomeText}>Welcome, Admin workspace 👋</p>
             </div>
 
-            {/* Action Cards */}
             <div style={grid}>
               {links.map((link) => (
                 <Link
@@ -42,12 +43,20 @@ const AdminDashboard = () => {
                   key={link.title}
                   style={{
                     ...card,
-                    background: `linear-gradient(135deg, #1f3c88, #3959a1, #18a539, #ffcc00)`,
+                    background:
+                      "linear-gradient(135deg, #1f3c88, #3959a1, #18a539, #ffcc00)",
                     backgroundSize: "400% 400%",
                     animation: "gradientBG 8s ease infinite",
                   }}
                 >
-                  <div style={{ ...iconWrapper, animation: `iconBounce 1.5s infinite` }}>{link.icon}</div>
+                  <div
+                    style={{
+                      ...iconWrapper,
+                      animation: "iconBounce 1.5s infinite",
+                    }}
+                  >
+                    {link.icon}
+                  </div>
                   <h3 style={cardTitle}>{link.title}</h3>
                 </Link>
               ))}
@@ -55,11 +64,10 @@ const AdminDashboard = () => {
           </>
         )}
 
-        {/* Render clicked page content */}
+        {/* Child pages render here */}
         <Outlet />
       </div>
 
-      {/* Keyframes for animations */}
       <style>
         {`
           @keyframes gradientBG {
@@ -94,18 +102,29 @@ const page = {
 const main = {
   flex: 1,
   padding: "40px",
-  position: "relative",
 };
 
-const header = { marginBottom: "40px", textAlign: "center", position: "relative" };
-const heading = { fontSize: "38px", color: "#1f3c88", marginBottom: "10px", fontWeight: "700" };
-const welcomeText = { fontSize: "18px", color: "#555" };
+const header = {
+  marginBottom: "40px",
+  textAlign: "center",
+};
+
+const heading = {
+  fontSize: "38px",
+  color: "#1f3c88",
+  marginBottom: "10px",
+  fontWeight: "700",
+};
+
+const welcomeText = {
+  fontSize: "18px",
+  color: "#555",
+};
 
 const grid = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
   gap: "25px",
-  marginTop: "30px",
 };
 
 const card = {
@@ -116,10 +135,17 @@ const card = {
   textDecoration: "none",
   boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
   transition: "0.3s",
-  cursor: "pointer",
 };
 
-const cardTitle = { marginTop: "12px", fontSize: "18px", fontWeight: "700", textShadow: "1px 1px 3px rgba(0,0,0,0.3)" };
-const iconWrapper = { fontSize: "36px", marginBottom: "10px", color: "#fff" };
+const cardTitle = {
+  marginTop: "12px",
+  fontSize: "18px",
+  fontWeight: "700",
+};
+
+const iconWrapper = {
+  fontSize: "36px",
+  marginBottom: "10px",
+};
 
 export default AdminDashboard;

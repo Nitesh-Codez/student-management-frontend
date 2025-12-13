@@ -6,6 +6,7 @@ import StudentFees from "./StudentFees";
 import StudentsMarks from "./StudentsMarks";
 import HomeworkStudent from "./HomeworkStudent";
 import StudentProfile from "./StudentProfile";
+import StudentStudyMaterial from "./StudentStudyMaterial";
 
 // =========================
 // STYLES
@@ -143,9 +144,14 @@ const StudentDashboard = () => {
               {["profile", "fees", "attendance", "marks"].map((link) => (
                 <Link key={link} to={link} style={linkStyle}>{link.charAt(0).toUpperCase() + link.slice(1)}</Link>
               ))}
-              {["Submit Exam Form", "Generate Admit Card", "Download Syllabus", "Time Table", "Study Material", "Holiday List", "Withdrawal Request", "My Suggestions"].map((link) => (
-                <Link key={link} style={linkStyle}>{link}</Link>
-              ))}
+              <Link to="study-material" style={linkStyle}>
+  Study Material
+</Link>
+
+{["Submit Exam Form", "Generate Admit Card", "Download Syllabus", "Time Table", "Holiday List", "Withdrawal Request", "My Suggestions"].map((link) => (
+  <Link key={link} style={linkStyle}>{link}</Link>
+))}
+
             </nav>
           </>
         )}
@@ -180,6 +186,11 @@ const StudentDashboard = () => {
           <Route path="attendance" element={<StudentAttendance user={user} />} />
           <Route path="marks" element={<StudentsMarks user={user} />} />
           <Route path="homework" element={<HomeworkStudent />} />
+          <Route
+  path="study-material"
+  element={<StudentStudyMaterial user={user} />}
+/>
+
         </Routes>
       </main>
     </div>

@@ -16,6 +16,8 @@ import StudentsMarks from "./pages/StudentsMarks";
 import HomeworkStudent from "./pages/HomeworkStudent";
 import HomeworkAdmin from "./pages/HomeworkAdmin";
 import StudentProfile from "./pages/StudentProfile";
+import AdminStudyMaterial from "./pages/AdminStudyMaterial";
+
 
 function App() {
   return (
@@ -34,6 +36,7 @@ function App() {
           <Route path="add-marks" element={<AdminAddMarks />} />
           <Route path="reports" element={<div>Reports Page</div>} />
           <Route path="upload-homework" element={<HomeworkAdmin />} />
+           <Route path="study-material" element={<AdminStudyMaterial />} />
         </Route>
 
         {/* Student Routes */}
