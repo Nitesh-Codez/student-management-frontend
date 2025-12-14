@@ -7,25 +7,51 @@ const AdminStudyMaterial = () => {
   const [className, setClassName] = useState("");
   const [subject, setSubject] = useState("");
   const [chapter, setChapter] = useState("");
-  const [file, setFile] = useState(null); // file object
+  const [file, setFile] = useState(null);
   const [materials, setMaterials] = useState([]);
-
-  const classes = [
-    "L.K.G","U.K.G","1st","2nd","3rd","4th","5th",
-    "6th","7th","8th","9th","10th","11th","12th"
-  ];
-
-  const subjects = ["Maths", "Science", "English", "Hindi", "Social Science"];
+  const [classes, setClasses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
 
   const admin = JSON.parse(localStorage.getItem("user"));
+
+  // Predefined subjects for each class
+  const subjectsByClass = {
+    "1st": ["Maths", "English", "Hindi", "EVS"],
+    "2nd": ["Maths", "English", "Hindi", "EVS"],
+    "3rd": ["Maths", "English", "Hindi", "EVS"],
+    "4th": ["Maths", "English", "Hindi", "Science", "Social Science"],
+    "5th": ["Maths", "English", "Hindi", "Science", "Social Science"],
+    "6th": ["Maths", "English", "Hindi", "Science", "Social Science"],
+    "7th": ["Maths", "English", "Hindi", "Science", "Social Science"],
+    "8th": ["Maths", "English", "Hindi", "Science", "Social Science"],
+    "9th": ["Maths", "English", "Hindi", "Science", "S.S.T"],
+    "10th": ["Maths", "English", "Hindi", "Science", "S.S.T"],
+    "11th": ["Physics", "Chemistry", "Biology", "Maths", "English"],
+    "12th": ["Physics", "Chemistry", "Biology", "Maths", "English"],
+  };
 
   /* ========================
      FETCH ALL MATERIALS
   ======================== */
   const fetchMaterials = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/study-material/admin/all`);
+      const res = await axios.get(`${API_URL}/api/study-material/admin/materials`);
       if (res.data.success) setMaterials(res.data.materials);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  /* ========================
+     FETCH ALL CLASSES
+  ======================== */
+  const fetchClasses = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/students`);
+      if (res.data.success) {
+        const uniqueClasses = [...new Set(res.data.students.map(s => s.class))];
+        setClasses(uniqueClasses);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -33,7 +59,14 @@ const AdminStudyMaterial = () => {
 
   useEffect(() => {
     fetchMaterials();
+    fetchClasses();
   }, []);
+
+  useEffect(() => {
+    if (className) setSubjects(subjectsByClass[className] || []);
+    else setSubjects([]);
+    setSubject(""); // reset selected subject when class changes
+  }, [className]);
 
   /* ========================
      UPLOAD MATERIAL
@@ -48,7 +81,7 @@ const AdminStudyMaterial = () => {
     formData.append("className", className);
     formData.append("subject", subject);
     formData.append("chapter", chapter);
-    formData.append("file", file); // file object
+    formData.append("file", file);
     formData.append("adminId", admin.id);
 
     try {
@@ -88,12 +121,12 @@ const AdminStudyMaterial = () => {
       <div style={styles.form}>
         <select value={className} onChange={e => setClassName(e.target.value)}>
           <option value="">Select Class</option>
-          {classes.map(c => <option key={c}>{c}</option>)}
+          {classes.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
 
         <select value={subject} onChange={e => setSubject(e.target.value)}>
           <option value="">Select Subject</option>
-          {subjects.map(s => <option key={s}>{s}</option>)}
+          {subjects.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
         <input
@@ -102,7 +135,6 @@ const AdminStudyMaterial = () => {
           onChange={e => setChapter(e.target.value)}
         />
 
-        {/* 🔹 File Upload */}
         <input
           type="file"
           accept="application/pdf"
@@ -131,7 +163,6 @@ const AdminStudyMaterial = () => {
               <td>{m.subject}</td>
               <td>{m.chapter}</td>
               <td>
-                {/* Download / View link */}
                 <a href={m.fileUrl} target="_blank" rel="noopener noreferrer">View PDF</a>
               </td>
               <td>
@@ -148,16 +179,8 @@ const AdminStudyMaterial = () => {
 const styles = {
   page: { padding: "30px" },
   heading: { fontSize: "28px", marginBottom: "20px" },
-  form: {
-    display: "grid",
-    gap: "15px",
-    maxWidth: "400px"
-  },
-  table: {
-    width: "100%",
-    marginTop: "20px",
-    borderCollapse: "collapse"
-  }
+  form: { display: "grid", gap: "15px", maxWidth: "400px" },
+  table: { width: "100%", marginTop: "20px", borderCollapse: "collapse" }
 };
 
 export default AdminStudyMaterial;

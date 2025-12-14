@@ -54,6 +54,7 @@ const StudentAttendance = () => {
       (a) => new Date(a.date).toDateString() === today.toDateString()
     );
 
+    // If today's attendance not marked, add as "Not Marked"
     if (!todayRecord) {
       todayRecord = { date: today.toISOString(), status: "Not Marked" };
       data.push(todayRecord);
@@ -62,9 +63,12 @@ const StudentAttendance = () => {
     setTodayStatus(todayRecord.status);
     setFiltered(data);
 
-    const total = data.filter((a) => a.status !== "Not Marked").length;
-    const present = data.filter((a) => a.status === "Present").length;
-    setPercentage(total === 0 ? 0 : ((present / total) * 100).toFixed(2));
+    // ✅ Only count Present/Absent for percentage, ignore Holidays & Not Marked
+    const validDays = data.filter(
+      (a) => a.status === "Present" || a.status === "Absent"
+    ).length;
+    const presentDays = data.filter((a) => a.status === "Present").length;
+    setPercentage(validDays === 0 ? 0 : ((presentDays / validDays) * 100).toFixed(2));
   }, [month, attendance]);
 
   const formatDate = (iso) => {
@@ -80,7 +84,8 @@ const StudentAttendance = () => {
   const getTodayCircleColor = (status) => {
     if (status === "Present") return "#35bc47ff"; // LIGHT GREEN
     if (status === "Absent") return "#ff0000ff";  // LIGHT RED
-    return "#d6d6d6"; // LIGHT GREY
+    if (status === "Holiday") return "#ffd500ff"; // YELLOW for holiday
+    return "#d6d6d6"; // LIGHT GREY → Not Marked
   };
 
   return (
@@ -170,7 +175,8 @@ const StudentAttendance = () => {
 
           {/* Present/Total */}
           <div style={{ fontSize: "18px", fontWeight: "bold", color: "#495057" }}>
-            {filtered.filter((a) => a.status === "Present").length}/{filtered.length} Days Present
+            {filtered.filter((a) => a.status === "Present").length}/
+            {filtered.filter((a) => a.status === "Present" || a.status === "Absent").length} Days Present
           </div>
         </div>
       </div>
@@ -239,12 +245,16 @@ const StudentAttendance = () => {
                           ? "#de5b66ff"
                           : a.status === "Not Marked"
                           ? "#d6d6d6ff"
+                          : a.status === "Holiday"
+                          ? "#fee254ff"
                           : "#d8f5c6ff",
                       color:
                         a.status === "Absent"
                           ? "#721c24"
                           : a.status === "Not Marked"
                           ? "#495057"
+                          : a.status === "Holiday"
+                          ? "#3d3d00"
                           : "#155724",
                       fontWeight: "500",
                     }}

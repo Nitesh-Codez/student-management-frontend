@@ -107,7 +107,7 @@ const MarkAttendance = () => {
     } finally {
       setLoading(false);
     }
-  }, []); // warning-free now
+  }, []);
 
   useEffect(() => {
     fetchStudents(selectedDate);
@@ -119,7 +119,24 @@ const MarkAttendance = () => {
   const sendAttendance = async (action = "submit") => {
     setBtnDisabled(true);
 
-    const attendanceData = students.map((s) => ({
+    // Filter only selected batch
+    const batchStudents = batchType === "4pm"
+      ? students.filter(
+          (s) =>
+            s.batch === "4pm" ||
+            (!s.batch &&
+              ((!isNaN(parseInt(s.class, 10)) && parseInt(s.class, 10) <= 5) ||
+                ["LKG", "L.K.G", "UKG", "U.K.G"].includes(s.class.toUpperCase())))
+        )
+      : students.filter(
+          (s) =>
+            s.batch === "530pm" ||
+            (!s.batch &&
+              !["LKG","UKG","L.K.G","U.K.G"].includes(s.class.toUpperCase()) &&
+              parseInt(s.class, 10) >= 6)
+        );
+
+    const attendanceData = batchStudents.map((s) => ({
       studentId: s.id,
       status: attendance[s.id] || "Absent",
     }));
@@ -161,7 +178,9 @@ const MarkAttendance = () => {
   const batch530 = students.filter(
     (s) =>
       s.batch === "530pm" ||
-      (!s.batch && !["LKG","UKG","L.K.G","U.K.G"].includes(s.class.toUpperCase()) && parseInt(s.class, 10) >= 6)
+      (!s.batch &&
+        !["LKG","UKG","L.K.G","U.K.G"].includes(s.class.toUpperCase()) &&
+        parseInt(s.class, 10) >= 6)
   );
 
   const renderTable = (title, list) => (
@@ -180,6 +199,7 @@ const MarkAttendance = () => {
               <th>Class</th>
               <th>Present</th>
               <th>Absent</th>
+              <th>Holiday</th>
             </tr>
           </thead>
           <tbody>
@@ -188,7 +208,11 @@ const MarkAttendance = () => {
                 key={s.id}
                 style={{
                   backgroundColor:
-                    attendance[s.id] === "Present" ? "#e9f0e9" : "#f2b0b0",
+                    attendance[s.id] === "Present"
+                      ? "#e9f0e9"
+                      : attendance[s.id] === "Absent"
+                      ? "#f2b0b0"
+                      : "#f2f2b0",
                 }}
               >
                 <td>{s.id}</td>
@@ -209,6 +233,15 @@ const MarkAttendance = () => {
                     name={`att-${s.id}`}
                     checked={attendance[s.id] === "Absent"}
                     onChange={() => handleChange(s.id, "Absent")}
+                    disabled={!editAllowed}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="radio"
+                    name={`att-${s.id}`}
+                    checked={attendance[s.id] === "Holiday"}
+                    onChange={() => handleChange(s.id, "Holiday")}
                     disabled={!editAllowed}
                   />
                 </td>
