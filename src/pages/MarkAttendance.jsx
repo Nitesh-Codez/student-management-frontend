@@ -34,14 +34,24 @@ const MarkAttendance = () => {
     );
   }
 
-  const isEditAllowed = (dateStr) => {
-    const selected = new Date(dateStr);
-    const today = new Date();
-    const diffDays = Math.floor((today - selected) / (1000 * 60 * 60 * 24));
-    if (diffDays > 5) return false;
-    if (diffDays === 0 && today.getHours() < 16) return false;
-    return true;
-  };
+ const isEditAllowed = (dateStr) => {
+  const selected = new Date(dateStr);
+  const today = new Date();
+
+  const diffDays = Math.floor((today - selected) / (1000 * 60 * 60 * 24));
+
+  // Past days > 5 days cannot be edited
+  if (diffDays > 5) return false;
+
+  // Today logic
+  if (diffDays === 0) {
+    const day = today.getDay(); // 0 = Sunday, 6 = Saturday
+    if ((day === 0 || day === 6) && today.getHours() < 14) return false; // Weekend before 2 PM
+    if (!(day === 0 || day === 6) && today.getHours() < 16) return false; // Weekdays before 4 PM
+  }
+
+  return true;
+};
 
   const getInfoMessage = (dateStr) => {
     const selected = new Date(dateStr);
