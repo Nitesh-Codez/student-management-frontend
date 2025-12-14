@@ -27,6 +27,8 @@ const StudentMarks = () => {
   const [message, setMessage] = useState("");
   const [captcha, setCaptcha] = useState("");
   const [captchaInput, setCaptchaInput] = useState("");
+  const [activeSubjects, setActiveSubjects] = useState([]);
+
 
   const API_URL = process.env.REACT_APP_API_URL;
   const user = JSON.parse(localStorage.getItem("user"));
@@ -84,71 +86,67 @@ const StudentMarks = () => {
     (a, b) => new Date(a.test_date) - new Date(b.test_date)
   );
 
-  const uniqueDates = [
-    ...new Set(
-      sorted.map((m) =>
-        new Date(m.test_date).toLocaleDateString()
-      )
-    ),
-  ];
+ const subjects = [...new Set(sorted.map((m) => m.subject_name))];
+const colors = [
+  "#FFD700", // gold
+  "#FF7F50", // coral
+  "#87CEEB", // sky blue
+  "#90EE90", // light green
+  "#ad6e55ff", // salmon
+  "#DDA0DD", // plum
+  "#007dd1ff", // blue
+  "#e41700ff", // red
+];
 
-  const subjects = [...new Set(sorted.map((m) => m.subject_name))];
+const visibleSubjects =
+  activeSubjects.length > 0 ? activeSubjects : subjects;
 
-  const colors = [
-    "#FFD700",
-    "#FF7F50",
-    "#87CEEB",
-    "#90EE90",
-    "#FFA07A",
-    "#DDA0DD",
-  ];
+const labels = [
+  ...new Set(
+    sorted
+      .filter((m) => visibleSubjects.includes(m.subject_name))
+      .map((m) => new Date(m.test_date).toLocaleDateString())
+  ),
+];
 
-  const getGradient = (ctx, color) => {
-    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, color + "AA");
-    gradient.addColorStop(1, color + "00");
-    return gradient;
-  };
+const datasets = visibleSubjects.map((subject, idx) => ({
+  label: subject,
+  data: labels.map((date) => {
+    const mark = sorted.find(
+      (m) =>
+        m.subject_name === subject &&
+        new Date(m.test_date).toLocaleDateString() === date
+    );
+    return mark
+      ? +((mark.obtained_marks / mark.total_marks) * 100).toFixed(1)
+      : null;
+  }),
+  borderColor: colors[idx % colors.length],
+  tension: 0.4,
+  spanGaps: true,
+  pointRadius: 5,
+  pointHoverRadius: 8,
+  fill: false,
+}));
 
-  const datasets = subjects.map((subject, idx) => {
-    let last = 0;
+const chartData = { labels, datasets };
 
-    const data = uniqueDates.map((date) => {
-      const mark = sorted.find(
-        (m) =>
-          m.subject_name === subject &&
-          new Date(m.test_date).toLocaleDateString() === date
-      );
-      if (mark)
-        last = (
-          (mark.obtained_marks / mark.total_marks) *
-          100
-        ).toFixed(1);
-
-      return last;
-    });
-
-    return {
-      label: subject,
-      data,
-      borderColor: colors[idx % colors.length],
-      backgroundColor: (ctx) =>
-        getGradient(ctx.chart.ctx, colors[idx % colors.length]),
-      fill: true,
-      tension: 0.4,
-      pointRadius: 5,
-      pointHoverRadius: 9,
-      pointBackgroundColor: colors[idx % colors.length],
-    };
-  });
-
-  const chartData = { labels: uniqueDates, datasets };
 
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: "top" },
+      legend: {
+  position: "top",
+  onClick: (_, item) => {
+    const subject = item.text;
+    setActiveSubjects((prev) =>
+      prev.includes(subject)
+        ? prev.filter((s) => s !== subject)
+        : [...prev, subject]
+    );
+  },
+},
       title: { display: true, text: "Overall Performance Graph" },
     },
     scales: { y: { beginAtZero: true, max: 100 } },
@@ -174,16 +172,16 @@ const StudentMarks = () => {
         fontFamily: "Arial",
         background: "#F5F6FA",
         minHeight: "100vh",
-        width: "100vw",
+        width: "110vw",
         maxWidth: "100vw",
-        overflowX: "hidden",
+        overflowX: "",
         boxSizing: "border-box",
       }}
     >
-      <h2 style={{ padding: "10px 12px", margin: 0 }}>Your Test Marks</h2>
-      <p style={{ padding: "0 12px" }}>
+      <h2 style={{ padding: "10px 12px", margin: 15 }}>Your Test Marks</h2>
+      <h2 style={{ padding: "0 12px" }}>
         Welcome, <strong>{userRef.current?.name}</strong>!
-      </p>
+      </h2>
 
       {/* Captcha Section */}
       <div

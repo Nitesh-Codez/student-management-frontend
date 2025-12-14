@@ -8,6 +8,7 @@ const StudentAttendance = () => {
   const [month, setMonth] = useState("");
   const [filtered, setFiltered] = useState([]);
   const [percentage, setPercentage] = useState(0);
+  const [marks, setMarks] = useState(0);
   const [todayStatus, setTodayStatus] = useState(null);
 
   // 🔵 COLOR LOGIC
@@ -39,28 +40,34 @@ const StudentAttendance = () => {
     setMonth(m);
   }, []);
 
-  // 📌 FILTER MONTH + CALCULATE % + TODAY STATUS
+  // 📌 FILTER MONTH + CALCULATE % + TODAY STATUS + MARKS
   useEffect(() => {
     if (!month) return;
 
-    const [y, m] = month.split("-");
+    const [y, m] = month.split("-").map(Number);
     let data = attendance.filter((a) => {
       const d = new Date(a.date);
-      return d.getFullYear() === +y && d.getMonth() + 1 === +m;
+      return d.getFullYear() === y && d.getMonth() + 1 === m;
     });
 
     const today = new Date();
-    let todayRecord = data.find(
-      (a) => new Date(a.date).toDateString() === today.toDateString()
-    );
+    let todayRecord = null;
 
-    // If today's attendance not marked, add as "Not Marked"
-    if (!todayRecord) {
-      todayRecord = { date: today.toISOString(), status: "Not Marked" };
-      data.push(todayRecord);
+    // Only add "Not Marked" for the current month
+    if (y === today.getFullYear() && m === today.getMonth() + 1) {
+      todayRecord = data.find(
+        (a) => new Date(a.date).toDateString() === today.toDateString()
+      );
+
+      if (!todayRecord) {
+        todayRecord = { date: today.toISOString(), status: "Not Marked" };
+        data.push(todayRecord);
+      }
+      setTodayStatus(todayRecord.status);
+    } else {
+      setTodayStatus(null); // previous months → no today's status
     }
 
-    setTodayStatus(todayRecord.status);
     setFiltered(data);
 
     // ✅ Only count Present/Absent for percentage, ignore Holidays & Not Marked
@@ -68,7 +75,16 @@ const StudentAttendance = () => {
       (a) => a.status === "Present" || a.status === "Absent"
     ).length;
     const presentDays = data.filter((a) => a.status === "Present").length;
-    setPercentage(validDays === 0 ? 0 : ((presentDays / validDays) * 100).toFixed(2));
+
+    const perc = validDays === 0 ? 0 : (presentDays / validDays) * 100;
+    setPercentage(perc.toFixed(2));
+
+    // 📌 Calculate Attendance Marks
+    const calcAttendanceMarks = (perc) => {
+      if (perc <= 75) return 0;
+      return Math.ceil((perc - 75) / 5); // ceil for fractional marks
+    };
+    setMarks(calcAttendanceMarks(perc));
   }, [month, attendance]);
 
   const formatDate = (iso) => {
@@ -83,8 +99,8 @@ const StudentAttendance = () => {
   // LIGHT COLORS FOR TODAY'S CIRCLE
   const getTodayCircleColor = (status) => {
     if (status === "Present") return "#35bc47ff"; // LIGHT GREEN
-    if (status === "Absent") return "#ff0000ff";  // LIGHT RED
-    if (status === "Holiday") return "#ffd500ff"; // YELLOW for holiday
+    if (status === "Absent") return "#ff0000ff"; // LIGHT RED
+    if (status === "Holiday") return "#ffd500ff"; // YELLOW
     return "#d6d6d6"; // LIGHT GREY → Not Marked
   };
 
@@ -173,10 +189,12 @@ const StudentAttendance = () => {
             {filtered.length === 0 ? "0%" : `${percentage}%`}
           </div>
 
-          {/* Present/Total */}
+          {/* Present/Total + Marks */}
           <div style={{ fontSize: "18px", fontWeight: "bold", color: "#495057" }}>
             {filtered.filter((a) => a.status === "Present").length}/
             {filtered.filter((a) => a.status === "Present" || a.status === "Absent").length} Days Present
+            <br />
+            <strong>Attendance Marks:</strong> {marks}
           </div>
         </div>
       </div>
