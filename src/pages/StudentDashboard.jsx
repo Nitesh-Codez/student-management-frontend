@@ -7,6 +7,7 @@ import StudentsMarks from "./StudentsMarks";
 import HomeworkStudent from "./HomeworkStudent";
 import StudentProfile from "./StudentProfile";
 import StudentStudyMaterial from "./StudentStudyMaterial";
+import StudentNewMarks from "./StudentNewMarks"; // <- Import added
 
 // =========================
 // STYLES
@@ -21,7 +22,7 @@ const linkStyle = {
 };
 
 const boxStyle = (bgGradient) => ({
-  padding: "50px 25px", // taller boxes
+  padding: "50px 25px",
   background: bgGradient,
   color: "#fff",
   borderRadius: "14px",
@@ -58,14 +59,13 @@ const DashboardBoxes = ({ user, navigate }) => {
     { title: "Attendance", desc: "Check your current attendance", gradient: "linear-gradient(135deg, #1ABC9C, #16A085)", icon: <FaClipboardCheck />, path: "/student/attendance" },
     { title: "Fees Status", desc: "Pending or Paid", gradient: "linear-gradient(135deg, #E57373, #C0392B)", icon: <FaMoneyBillWave />, path: "/student/fees" },
     { title: "Test Marks", desc: "View your scores", gradient: "linear-gradient(135deg, #F39C12, #D35400)", icon: <FaChartLine />, path: "/student/marks" },
-    { title: "Your Record", desc: "Overall performance", gradient: "linear-gradient(135deg, #9B59B6, #8E44AD)", icon: <FaUser /> },
+  
     { title: "Homework", desc: "Pending assignments", gradient: "linear-gradient(135deg, #3498DB, #2980B9)", icon: <FaBook />, path: "/student/homework" },
     { title: "Feedback", desc: "Teacher's remarks", gradient: "linear-gradient(135deg, #16A085, #1ABC9C)", icon: <FaComments /> },
   ];
 
   return (
     <div>
-      {/* Welcome text seamlessly above boxes */}
       <h1 style={{
         fontSize: "32px",
         fontWeight: "700",
@@ -76,7 +76,6 @@ const DashboardBoxes = ({ user, navigate }) => {
         Welcome Back, {user.name}! 👋
       </h1>
 
-      {/* Dashboard Boxes */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -141,17 +140,13 @@ const StudentDashboard = () => {
             </div>
 
             <nav style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {["profile", "fees", "attendance", "marks"].map((link) => (
-                <Link key={link} to={link} style={linkStyle}>{link.charAt(0).toUpperCase() + link.slice(1)}</Link>
-              ))}
-              <Link to="study-material" style={linkStyle}>
-  Study Material
-</Link>
-
-{["Submit Exam Form", "Generate Admit Card", "Download Syllabus", "Time Table", "Holiday List", "Withdrawal Request", "My Suggestions"].map((link) => (
-  <Link key={link} style={linkStyle}>{link}</Link>
-))}
-
+              <Link to="profile" style={linkStyle}>Profile</Link>
+              <Link to="fees" style={linkStyle}>Fees</Link>
+              <Link to="attendance" style={linkStyle}>Attendance</Link>
+              <Link to="marks" style={linkStyle}>Test Marks</Link>
+              <Link to="exam-results" style={linkStyle}>Examination Results</Link>
+              <Link to="homework" style={linkStyle}>Homework</Link>
+              <Link to="study-material" style={linkStyle}>Study Material</Link>
             </nav>
           </>
         )}
@@ -185,12 +180,9 @@ const StudentDashboard = () => {
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
           <Route path="marks" element={<StudentsMarks user={user} />} />
+          <Route path="exam-results" element={<StudentNewMarks />} /> {/* <- New route */}
           <Route path="homework" element={<HomeworkStudent />} />
-          <Route
-  path="study-material"
-  element={<StudentStudyMaterial user={user} />}
-/>
-
+          <Route path="study-material" element={<StudentStudyMaterial user={user} />} />
         </Routes>
       </main>
     </div>

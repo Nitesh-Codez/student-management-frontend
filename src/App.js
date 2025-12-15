@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminAddMarks from "./pages/AdminAddMarks";
+import AdminAddNewMarks from "./pages/AdminAddNewMarks"; // ✅ New
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentAttendance from "./pages/StudentAttendance";
 import MarkAttendance from "./pages/MarkAttendance";
@@ -17,7 +18,6 @@ import HomeworkStudent from "./pages/HomeworkStudent";
 import HomeworkAdmin from "./pages/HomeworkAdmin";
 import StudentProfile from "./pages/StudentProfile";
 import AdminStudyMaterial from "./pages/AdminStudyMaterial";
-
 
 function App() {
   return (
@@ -34,9 +34,13 @@ function App() {
           <Route path="mark-attendance" element={<MarkAttendance />} />
           <Route path="attendance-view" element={<AttendanceView />} />
           <Route path="add-marks" element={<AdminAddMarks />} />
+
+          {/* ✅ New Route for Exam Marks */}
+          <Route path="add-exam-marks" element={<AdminAddNewMarks />} />
+
           <Route path="reports" element={<div>Reports Page</div>} />
           <Route path="upload-homework" element={<HomeworkAdmin />} />
-           <Route path="study-material" element={<AdminStudyMaterial />} />
+          <Route path="study-material" element={<AdminStudyMaterial />} />
         </Route>
 
         {/* Student Routes */}
@@ -46,7 +50,7 @@ function App() {
           <Route path="fees" element={<StudentFees />} />
           <Route path="attendance" element={<StudentAttendance />} />
 
-          {/* ✅ Test Marks Routes */}
+          {/* Test Marks Routes */}
           <Route path="marks" element={<StudentsMarks />} />
           <Route path="homework" element={<HomeworkStudent />} />
           <Route path="*" element={<div>404 - Page Not Found</div>} />

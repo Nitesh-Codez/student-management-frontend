@@ -5,6 +5,7 @@ import {
   FaMoneyBillWave,
   FaClipboardCheck,
   FaUpload,
+  FaBookOpen,
 } from "react-icons/fa";
 
 const AdminDashboard = () => {
@@ -21,6 +22,10 @@ const AdminDashboard = () => {
     { title: "Study Material", path: "study-material", icon: <FaUpload /> },
 
     { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
+
+    // ✅ NEW CARD
+    { title: "Add Exam Marks", path: "add-exam-marks", icon: <FaBookOpen /> },
+
     { title: "Reports", path: "reports", icon: <FaUpload /> },
   ];
 
