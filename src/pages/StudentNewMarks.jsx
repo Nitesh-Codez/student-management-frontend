@@ -6,6 +6,7 @@ const StudentNewMarks = () => {
   const [message, setMessage] = useState("");
   const [captcha, setCaptcha] = useState("");
   const [captchaInput, setCaptchaInput] = useState("");
+  const [timeLeft, setTimeLeft] = useState(0);
 
   const API_URL =
     process.env.REACT_APP_API_URL ||
@@ -14,6 +15,21 @@ const StudentNewMarks = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const userRef = useRef(user);
 
+  // Marks release date
+  const releaseDate = new Date("2025-12-18T14:00:00"); // 18 Dec 2025, 2 PM
+
+  // Timer setup
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const diff = releaseDate - now;
+      setTimeLeft(diff > 0 ? diff : 0);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Captcha generation
   const generateCaptcha = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
@@ -55,7 +71,6 @@ const StudentNewMarks = () => {
       .catch(() => setMessage("Something went wrong"));
   };
 
-  // Overall Summary
   const getOverall = () => {
     if (!marks.length)
       return {
@@ -108,90 +123,111 @@ const StudentNewMarks = () => {
     return "Pass";
   };
 
+  const formatTime = (ms) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours.toString().padStart(2,"0")}:${minutes.toString().padStart(2,"0")}:${seconds.toString().padStart(2,"0")}`;
+  };
+
+  const isReleased = timeLeft === 0;
+
   return (
     <div style={{ background: "#F5F6FA", minHeight: "100vh", padding: "15px", fontFamily: "Arial, sans-serif" }}>
       <h1 style={{ textAlign: "center", marginBottom: "5px", fontSize: "1.8rem" }}>Smart Student Classes</h1>
       <h2 style={{ textAlign: "center", marginBottom: "5px", fontSize: "1.2rem" }}>PRE-FINAL EXAM RESULT 2025-26</h2>
       <h3 style={{ textAlign: "center", marginBottom: "20px", fontSize: "1rem" }}>Welcome, {userRef.current?.name}</h3>
 
-      {/* CAPTCHA */}
-      <div style={{ textAlign: "center", marginBottom: "20px" }}>
-        <div style={{ marginBottom: "10px", fontSize: "1.1rem" }}>Captcha: <b>{captcha}</b></div>
-        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "10px" }}>
-          <button onClick={generateCaptcha} style={buttonStyle}>Refresh</button>
-          <input
-            value={captchaInput}
-            onChange={(e) => setCaptchaInput(e.target.value)}
-            placeholder="Enter Captcha"
-            style={inputStyle}
-          />
-          <button onClick={handleCheckMarks} style={buttonStyle}>Check Marks</button>
+      {!isReleased ? (
+        <div style={{ textAlign: "center", marginTop: "50px", fontSize: "1.2rem", fontWeight: "bold" }}>
+          📢 Results will be declared on <b>18 Dec 2025, 2:00 PM</b>
+          <div style={{ marginTop: "20px", fontSize: "1.5rem" }}>
+            Time Left: {formatTime(timeLeft)}
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* CAPTCHA */}
+          <div style={{ textAlign: "center", marginBottom: "20px" }}>
+            <div style={{ marginBottom: "10px", fontSize: "1.1rem" }}>Captcha: <b>{captcha}</b></div>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "10px" }}>
+              <button onClick={generateCaptcha} style={buttonStyle}>Refresh</button>
+              <input
+                value={captchaInput}
+                onChange={(e) => setCaptchaInput(e.target.value)}
+                placeholder="Enter Captcha"
+                style={inputStyle}
+              />
+              <button onClick={handleCheckMarks} style={buttonStyle}>Check Marks</button>
+            </div>
+          </div>
 
-      {message && <p style={{ color: "red", textAlign: "center", marginBottom: "15px" }}>{message}</p>}
+          {message && <p style={{ color: "red", textAlign: "center", marginBottom: "15px" }}>{message}</p>}
 
-      {/* MARKS TABLE */}
-      {marks.length > 0 && (
-        <div style={{ overflowX: "auto", marginBottom: "20px" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
-            <thead style={{ background: "#1f3c88", color: "#fff" }}>
-              <tr>
-                <th style={th}>Date</th>
-                <th style={th}>Subject</th>
-                <th style={th}>Theory</th>
-                <th style={th}>Viva</th>
-                <th style={{ ...th, width: "80px" }}>Attendance</th>
-                <th style={th}>Total</th>
-                <th style={th}>Obtained</th>
-                <th style={th}>%</th>
-                <th style={th}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {marks.map((m, i) => {
-                const obtained = Number(m.obtained_marks || 0);
-                const total = Number(m.total_marks || 0);
-                const percent = total ? ((obtained / total) * 100).toFixed(1) : "0.0";
-                const status = getSubjectStatus(percent);
-
-                return (
-                  <tr key={i} style={{
-                    textAlign: "center",
-                    borderBottom: "1px solid #ddd",
-                    backgroundColor:
-                      status === "Distinction" ? "#d4edda" :
-                      status === "Supplementary" ? "#fff3cd" : "#ffffff",
-                  }}>
-                    <td style={td}>{new Date(m.test_date).toLocaleDateString()}</td>
-                    <td style={td}>{m.subject}</td>
-                    <td style={td}>{m.theory_marks}</td>
-                    <td style={td}>{m.viva_marks}</td>
-                    <td style={{ ...td, width: "80px" }}>{m.attendance_marks}</td>
-                    <td style={td}>{total}</td>
-                    <td style={td}>{obtained}</td>
-                    <td style={td}>{percent}%</td>
-                    <td style={{ ...td, fontWeight: "bold" }}>{status}</td>
+          {/* MARKS TABLE */}
+          {marks.length > 0 && (
+            <div style={{ overflowX: "auto", marginBottom: "20px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
+                <thead style={{ background: "#1f3c88", color: "#fff" }}>
+                  <tr>
+                    <th style={th}>Date</th>
+                    <th style={th}>Subject</th>
+                    <th style={th}>Theory</th>
+                    <th style={th}>Viva</th>
+                    <th style={{ ...th, width: "80px" }}>Attendance</th>
+                    <th style={th}>Total</th>
+                    <th style={th}>Obtained</th>
+                    <th style={th}>%</th>
+                    <th style={th}>Status</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                </thead>
+                <tbody>
+                  {marks.map((m, i) => {
+                    const obtained = Number(m.obtained_marks || 0);
+                    const total = Number(m.total_marks || 0);
+                    const percent = total ? ((obtained / total) * 100).toFixed(1) : "0.0";
+                    const status = getSubjectStatus(percent);
 
-      {/* Overall Summary (Vertical Points) */}
-      {marks.length > 0 && (
-        <div style={{ marginTop: "10px", fontSize: "1rem", lineHeight: "1.6" }}>
-          <p><b>Total Marks:</b> {overall.total}</p>
-          <p><b>Obtained Marks:</b> {overall.obtained}</p>
-          <p><b>Percentage:</b> {overall.percent}%</p>
-          <p><b>Pass Subjects:</b> {overall.passCount}</p>
-          <p><b>Fail Subjects:</b> {overall.failCount}</p>
-          <p><b>Distinction:</b> {overall.distCount}</p>
-          <p><b>Supplementary:</b> {overall.suppCount}</p>
-          <p><b>Remarks:</b> {getRemarks(overall.percent)}</p>
-        </div>
+                    return (
+                      <tr key={i} style={{
+                        textAlign: "center",
+                        borderBottom: "1px solid #ddd",
+                        backgroundColor:
+                          status === "Distinction" ? "#d4edda" :
+                          status === "Supplementary" ? "#fff3cd" : "#ffffff",
+                      }}>
+                        <td style={td}>{new Date(m.test_date).toLocaleDateString()}</td>
+                        <td style={td}>{m.subject}</td>
+                        <td style={td}>{m.theory_marks}</td>
+                        <td style={td}>{m.viva_marks}</td>
+                        <td style={{ ...td, width: "80px" }}>{m.attendance_marks}</td>
+                        <td style={td}>{total}</td>
+                        <td style={td}>{obtained}</td>
+                        <td style={td}>{percent}%</td>
+                        <td style={{ ...td, fontWeight: "bold" }}>{status}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Overall Summary */}
+          {marks.length > 0 && (
+            <div style={{ marginTop: "10px", fontSize: "1rem", lineHeight: "1.6" }}>
+              <p><b>Total Marks:</b> {overall.total}</p>
+              <p><b>Obtained Marks:</b> {overall.obtained}</p>
+              <p><b>Percentage:</b> {overall.percent}%</p>
+              <p><b>Pass Subjects:</b> {overall.passCount}</p>
+              <p><b>Fail Subjects:</b> {overall.failCount}</p>
+              <p><b>Distinction:</b> {overall.distCount}</p>
+              <p><b>Supplementary:</b> {overall.suppCount}</p>
+              <p><b>Remarks:</b> {getRemarks(overall.percent)}</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
