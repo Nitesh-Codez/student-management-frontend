@@ -22,7 +22,7 @@ const AdminAddNewMarks = () => {
   const [globalTotal, setGlobalTotal] = useState("");
   const [message, setMessage] = useState("");
 
-  // ================= Fetch Classes =================
+  // Fetch Classes
   useEffect(() => {
     axios.get(`${API_URL}/api/new-marks/classes`)
       .then(res => {
@@ -31,7 +31,7 @@ const AdminAddNewMarks = () => {
       .catch(console.error);
   }, []);
 
-  // ================= Fetch Students + Previous Month Attendance =================
+  // Fetch Students + Previous Month Attendance
   useEffect(() => {
     if (!selectedClass) return;
 
@@ -45,7 +45,7 @@ const AdminAddNewMarks = () => {
           name: s.name,
           theory: "",
           viva: "",
-          attendance: 0, // will hold previous month
+          attendance: 0,
           obtained: 0,
         }));
 
@@ -60,9 +60,7 @@ const AdminAddNewMarks = () => {
               params: { studentId: student.studentId, month: prevMonth }
             });
             if (attRes.data.success) student.attendance = attRes.data.attendanceMarks;
-          } catch (err) {
-            console.error(err);
-          }
+          } catch (err) { console.error(err); }
           return student;
         }));
 
@@ -73,15 +71,13 @@ const AdminAddNewMarks = () => {
         }));
 
         setMarksData(list);
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
     };
 
     fetchData();
   }, [selectedClass, testDate]);
 
-  // ================= Handle Marks Change =================
+  // Handle Marks Change
   const handleChange = (i, field, value) => {
     const updated = [...marksData];
     updated[i][field] = value;
@@ -94,7 +90,7 @@ const AdminAddNewMarks = () => {
     setMarksData(updated);
   };
 
-  // ================= Save Marks =================
+  // Save Marks
   const saveMarks = async (s) => {
     if (!subject || !globalTotal) {
       alert("Subject & Total Marks required");
@@ -112,9 +108,10 @@ const AdminAddNewMarks = () => {
         date: testDate
       });
 
-      setMessage(res.data.message);
+      // Show message with student name
+      setMessage(`${s.name}: ${res.data.message}`);
     } catch {
-      setMessage("Error saving marks");
+      setMessage(`${s.name}: Error saving marks`);
     }
   };
 
@@ -161,15 +158,12 @@ const AdminAddNewMarks = () => {
                   <td>{i + 1}</td>
                   <td>{s.name}</td>
                   <td>{subject || "-"}</td>
-
                   <td><input type="number" value={s.theory} onChange={e => handleChange(i, "theory", e.target.value)} /></td>
                   <td><input type="number" value={s.viva} onChange={e => handleChange(i, "viva", e.target.value)} /></td>
                   <td>{s.attendance}</td>
                   <td>{s.obtained}</td>
                   <td>{globalTotal || "-"}</td>
-                  <td>
-                    <button onClick={() => saveMarks(s)}>Save</button>
-                  </td>
+                  <td><button onClick={() => saveMarks(s)}>Save</button></td>
                 </tr>
               ))}
             </tbody>
