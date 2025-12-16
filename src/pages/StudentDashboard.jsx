@@ -25,133 +25,106 @@ const linkStyle = {
   padding: "10px 15px",
   borderRadius: "8px",
   fontWeight: "500",
+  background: "rgba(255,255,255,0.08)",
 };
 
 /* =========================
    HEADER
 ========================= */
-const Header = ({ user, isMobile }) => (
-  <div style={{ width: "100%", position: "fixed", top: 0, left: 0, zIndex: 1000 }}>
-    {/* Top Strip */}
+const Header = ({ user }) => (
+  <div style={{ position: "fixed", top: 0, left: 0, width: "100%", zIndex: 1000 }}>
     <div
-      style={{
-        background: "#3d247aff",
-        color: "#fff",
-        padding: isMobile ? "12px 15px" : "12px 40px",
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        gap: isMobile ? "8px" : "0",
-        justifyContent: "space-between",
-        alignItems: "center",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-        textAlign: isMobile ? "center" : "left",
-      }}
-    >
-      <div style={{ fontSize: "24px", fontWeight: "700" }}>SmartZone</div>
-      <div style={{ fontSize: "16px" }}>Welcome to Smart Student's Classes</div>
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+  style={{
+    background: "#3d247aff",
+    color: "#fff",
+    padding: "12px 40px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative", // 👈 ADD THIS
+  }}
+>
+
+      <b style={{ fontSize: 22 }}>SmartZone</b>
+      <span>Welcome to Smart Student's Classes</span>
+      <div style={{ display: "flex", gap: 10, alignItems: "Left" }}>
         <img
-          src={user.photo || "/default-profile.png"}
-          alt="profile"
-          style={{
-            width: "38px",
-            height: "38px",
-            borderRadius: "50%",
-            border: "2px solid #fff",
-          }}
+          src={user.photo}
+          alt=""
+          style={{ width: 36, height: 36, borderRadius: "50%" }}
         />
-        <span>{user.name}</span>
+        {user.name}
       </div>
     </div>
 
-    {/* Second Strip */}
-    <div
-      style={{
-        background: "#645699ff",
-        color: "#fff",
-        padding: isMobile ? "8px 15px" : "10px 40px",
-        display: "flex",
-        justifyContent: isMobile ? "center" : "flex-start",
-        alignItems: "center",
-        gap: "12px",
-        boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-      }}
-    >
-      <b>Welcome back,</b> {user.name}
+    <div style={{ background: "#645699ff", color: "#fff", padding: "8px 40px" }}>
+      Welcome back, <b>{user.name}</b>
     </div>
   </div>
 );
 
 /* =========================
-   DASHBOARD BOXES
+   DASHBOARD BOXES (UNCHANGED COLORS)
 ========================= */
-const DashboardBoxes = ({ navigate, isMobile }) => {
+const DashboardBoxes = ({ navigate }) => {
   const boxes = [
     {
       title: "Attendance",
-      desc: "Check your current attendance",
       icon: <FaClipboardCheck />,
       path: "/student/attendance",
       bg: "linear-gradient(135deg,#1ABC9C,#16A085)",
     },
     {
-      title: "Fees Status",
-      desc: "View paid or pending fees",
+      title: "Fees",
       icon: <FaMoneyBillWave />,
       path: "/student/fees",
       bg: "linear-gradient(135deg,#E57373,#C0392B)",
     },
     {
-      title: "Test Marks",
-      desc: "View test scores",
+      title: "Marks",
       icon: <FaChartLine />,
       path: "/student/marks",
       bg: "linear-gradient(135deg,#F39C12,#D35400)",
     },
     {
       title: "Homework",
-      desc: "Assignments & submissions",
       icon: <FaBook />,
       path: "/student/homework",
       bg: "linear-gradient(135deg,#3498DB,#2980B9)",
     },
     {
       title: "Feedback",
-      desc: "Teacher remarks",
       icon: <FaComments />,
       bg: "linear-gradient(135deg,#16A085,#1ABC9C)",
     },
   ];
 
   return (
-    <div style={{ marginTop: "150px" }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit,minmax(280px,1fr))",
-          gap: "20px",
-        }}
-      >
-        {boxes.map((b, i) => (
-          <div
-            key={i}
-            onClick={() => b.path && navigate(b.path)}
-            style={{
-              background: b.bg,
-              color: "#fff",
-              padding: "35px 20px",
-              borderRadius: "14px",
-              textAlign: "center",
-              cursor: "pointer",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-            }}
-          >
-            <div style={{ fontSize: "34px", marginBottom: "10px" }}>{b.icon}</div>
-            <h3>{b.title}</h3>
-            <p style={{ opacity: 0.9 }}>{b.desc}</p>
-          </div>
-        ))}
-      </div>
+    <div
+      style={{
+        marginTop: 150,
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
+        gap: 20,
+      }}
+    >
+      {boxes.map((b, i) => (
+        <div
+          key={i}
+          onClick={() => b.path && navigate(b.path)}
+          style={{
+            background: b.bg,
+            color: "#fff",
+            padding: 30,
+            borderRadius: 14,
+            cursor: "pointer",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+          }}
+        >
+          <div style={{ fontSize: 32 }}>{b.icon}</div>
+          <h3>{b.title}</h3>
+        </div>
+      ))}
     </div>
   );
 };
@@ -162,66 +135,66 @@ const DashboardBoxes = ({ navigate, isMobile }) => {
 const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const resize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
-
-  useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user")) || {
-      name: "Nitesh Kushwah",
-      photo: "/default-profile.png",
-    };
-    setUser(u);
+    setUser(
+      JSON.parse(localStorage.getItem("user")) || {
+        name: "Nitesh Kushwah",
+        photo: "/default-profile.png",
+      }
+    );
   }, []);
 
   if (!user) return null;
 
   return (
-    <div style={{ display: "flex" }}>
+    <>
+      {/* OVERLAY */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            zIndex: 1100,
+          }}
+        />
+      )}
+
       {/* SIDEBAR */}
       <aside
         style={{
-          position: isMobile ? "fixed" : "relative",
-          width: sidebarOpen ? (isMobile ? "100%" : "260px") : "0",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: sidebarOpen ? "50%" : 0,
           height: "100vh",
           background: "#2C3E50",
-          color: "#fff",
-          padding: sidebarOpen ? "25px 20px" : "0",
           overflow: "hidden",
           transition: "0.3s",
           zIndex: 1200,
+          padding: sidebarOpen ? "25px" : 0,
         }}
       >
         {sidebarOpen && (
           <>
-            <h2 style={{ textAlign: "center", color: "#1ABC9C" }}>
-              Smart Student Classes
+            <h2 style={{ color: "#1ABC9C", textAlign: "center" }}>
+              Smart Student
             </h2>
 
-            <nav style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "20px" }}>
-              {[
-                ["profile", "Profile"],
-                ["fees", "Fees"],
-                ["attendance", "Attendance"],
-                ["marks", "Test Marks"],
-                ["exam-results", "Exam Results"],
-                ["homework", "Homework"],
-                ["study-material", "Study Material"],
-              ].map(([path, label]) => (
-                <Link
-                  key={path}
-                  to={path}
-                  onClick={() => setSidebarOpen(false)}
-                  style={linkStyle}
-                >
-                  {label}
-                </Link>
-              ))}
+            <nav style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <Link to="/student" onClick={() => setSidebarOpen(false)} style={linkStyle}>
+                Go to Dashboard
+              </Link>
+              <Link to="profile" onClick={() => setSidebarOpen(false)} style={linkStyle}>Profile</Link>
+              <Link to="fees" onClick={() => setSidebarOpen(false)} style={linkStyle}>Fees</Link>
+              <Link to="attendance" onClick={() => setSidebarOpen(false)} style={linkStyle}>Attendance</Link>
+              <Link to="marks" onClick={() => setSidebarOpen(false)} style={linkStyle}>Marks</Link>
+              <Link to="exam-results" onClick={() => setSidebarOpen(false)} style={linkStyle}>Exam Results</Link>
+              <Link to="homework" onClick={() => setSidebarOpen(false)} style={linkStyle}>Homework</Link>
+              <Link to="study-material" onClick={() => setSidebarOpen(false)} style={linkStyle}>Study Material</Link>
             </nav>
           </>
         )}
@@ -230,45 +203,44 @@ const StudentDashboard = () => {
       {/* MAIN */}
       <main
         style={{
-          flex: 1,
-          padding: isMobile ? "140px 15px" : "160px 40px",
-          background: "#ECF0F1",
           minHeight: "100vh",
+          background: "#ECF0F1",
+          padding: "160px 40px 40px",
         }}
       >
-        <Header user={user} isMobile={isMobile} />
+        <Header user={user} />
 
-        {/* MENU BUTTON */}
+        {/* MENU BUTTON (safe position) */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           style={{
             position: "fixed",
-            top: "185px",
-            right: "300px",
-            padding: "8px 12px",
-            fontSize: "18px",
-            borderRadius: "8px",
+            top: 170,
+            left: 20,
+            zIndex: 1300,
+            padding: "10px 14px",
+            fontSize: 18,
+            borderRadius: 8,
             border: "none",
             background: "#22a78cff",
             color: "#fff",
-            zIndex: 1300,
           }}
         >
           ☰
         </button>
 
         <Routes>
-          <Route index element={<DashboardBoxes navigate={navigate} isMobile={isMobile} />} />
+          <Route index element={<DashboardBoxes navigate={navigate} />} />
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
           <Route path="marks" element={<StudentsMarks user={user} />} />
           <Route path="exam-results" element={<StudentNewMarks />} />
           <Route path="homework" element={<HomeworkStudent />} />
-          <Route path="study-material" element={<StudentStudyMaterial user={user} />} />
+          <Route path="study-material" element={<StudentStudyMaterial />} />
         </Routes>
       </main>
-    </div>
+    </>
   );
 };
 
