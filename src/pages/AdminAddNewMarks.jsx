@@ -31,7 +31,7 @@ const AdminAddNewMarks = () => {
       .catch(console.error);
   }, []);
 
-  // Fetch Students + Previous Month Attendance
+  // Fetch Students + Attendance
   useEffect(() => {
     if (!selectedClass) return;
 
@@ -49,10 +49,9 @@ const AdminAddNewMarks = () => {
           obtained: 0,
         }));
 
-        // Previous Month Attendance
         const prev = new Date(testDate);
         prev.setMonth(prev.getMonth() - 1);
-        const prevMonth = prev.toISOString().slice(0, 7); // YYYY-MM
+        const prevMonth = prev.toISOString().slice(0, 7);
 
         list = await Promise.all(list.map(async student => {
           try {
@@ -60,26 +59,42 @@ const AdminAddNewMarks = () => {
               params: { studentId: student.studentId, month: prevMonth }
             });
             if (attRes.data.success) student.attendance = attRes.data.attendanceMarks;
-          } catch (err) { console.error(err); }
+          } catch {}
           return student;
         }));
 
-        // Update obtained marks
-        list = list.map(s => ({
-          ...s,
-          obtained: Number(s.theory || 0) + Number(s.viva || 0) + Number(s.attendance || 0)
-        }));
+        // 🔴 attendance = 0 → all marks 0
+        list = list.map(s => {
+          if (Number(s.attendance) === 0) {
+            return { ...s, theory: 0, viva: 0, obtained: 0 };
+          }
+          return {
+            ...s,
+            obtained: Number(s.theory || 0) + Number(s.viva || 0) + Number(s.attendance || 0)
+          };
+        });
 
         setMarksData(list);
-      } catch (err) { console.error(err); }
+      } catch (err) {
+        console.error(err);
+      }
     };
 
     fetchData();
   }, [selectedClass, testDate]);
 
-  // Handle Marks Change
+  // 🔴 handle change (blocked if attendance = 0)
   const handleChange = (i, field, value) => {
     const updated = [...marksData];
+
+    if (Number(updated[i].attendance) === 0) {
+      updated[i].theory = 0;
+      updated[i].viva = 0;
+      updated[i].obtained = 0;
+      setMarksData(updated);
+      return;
+    }
+
     updated[i][field] = value;
 
     const t = Number(updated[i].theory || 0);
@@ -101,14 +116,13 @@ const AdminAddNewMarks = () => {
       const res = await axios.post(`${API_URL}/api/new-marks/add`, {
         studentId: s.studentId,
         subject,
-        theoryMarks: Number(s.theory),
-        vivaMarks: Number(s.viva),
+        theoryMarks: Number(s.attendance === 0 ? 0 : s.theory),
+        vivaMarks: Number(s.attendance === 0 ? 0 : s.viva),
         attendanceMarks: Number(s.attendance),
         totalMarks: Number(globalTotal),
         date: testDate
       });
 
-      // Show message with student name
       setMessage(`${s.name}: ${res.data.message}`);
     } catch {
       setMessage(`${s.name}: Error saving marks`);
@@ -119,7 +133,6 @@ const AdminAddNewMarks = () => {
     <div className="page">
       <h2 className="title">📘 Pre-Final Examination Marks Sheet</h2>
 
-      {/* FILTERS */}
       <div className="filters">
         <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
           <option value="">Select Class</option>
@@ -135,7 +148,6 @@ const AdminAddNewMarks = () => {
         <input type="date" value={testDate} onChange={e => setTestDate(e.target.value)} />
       </div>
 
-      {/* TABLE */}
       {marksData.length > 0 && (
         <div className="tableWrap">
           <table className="marksTable">
@@ -146,26 +158,46 @@ const AdminAddNewMarks = () => {
                 <th>Subject</th>
                 <th>Theory</th>
                 <th>Viva</th>
-                <th>Attendance </th>
+                <th>Attendance</th>
                 <th>Obtained</th>
                 <th>Total</th>
                 <th>Save</th>
               </tr>
             </thead>
             <tbody>
-              {marksData.map((s, i) => (
-                <tr key={s.studentId}>
-                  <td>{i + 1}</td>
-                  <td>{s.name}</td>
-                  <td>{subject || "-"}</td>
-                  <td><input type="number" value={s.theory} onChange={e => handleChange(i, "theory", e.target.value)} /></td>
-                  <td><input type="number" value={s.viva} onChange={e => handleChange(i, "viva", e.target.value)} /></td>
-                  <td>{s.attendance}</td>
-                  <td>{s.obtained}</td>
-                  <td>{globalTotal || "-"}</td>
-                  <td><button onClick={() => saveMarks(s)}>Save</button></td>
-                </tr>
-              ))}
+              {marksData.map((s, i) => {
+                const absent = Number(s.attendance) === 0;
+
+                return (
+                  <tr key={s.studentId}>
+                    <td>{i + 1}</td>
+                    <td>{s.name}</td>
+                    <td>{subject || "-"}</td>
+                    <td>
+                      <input
+                        type="number"
+                        value={s.theory}
+                        disabled={absent}
+                        onChange={e => handleChange(i, "theory", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={s.viva}
+                        disabled={absent}
+                        onChange={e => handleChange(i, "viva", e.target.value)}
+                      />
+                    </td>
+                    <td>{s.attendance}</td>
+                    <td>{s.obtained}</td>
+                    <td>{globalTotal || "-"}</td>
+                    <td>
+                      <button onClick={() => saveMarks(s)}>Save</button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -173,6 +205,7 @@ const AdminAddNewMarks = () => {
 
       {message && <p className="msg">{message}</p>}
 
+      {/* 🔒 CSS SAME AS YOU SENT */}
       <style>{`
         .page { padding:20px; background:#f4f6f9; min-height:100vh; }
         .title { text-align:center; margin-bottom:20px; }

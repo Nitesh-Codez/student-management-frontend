@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
-import { FaClipboardCheck, FaMoneyBillWave, FaChartLine, FaBook, FaComments, FaUser } from "react-icons/fa";
+import { FaClipboardCheck, FaMoneyBillWave, FaChartLine, FaBook, FaComments } from "react-icons/fa";
 import StudentAttendance from "./StudentAttendance";
 import StudentFees from "./StudentFees";
 import StudentsMarks from "./StudentsMarks";
 import HomeworkStudent from "./HomeworkStudent";
 import StudentProfile from "./StudentProfile";
 import StudentStudyMaterial from "./StudentStudyMaterial";
-import StudentNewMarks from "./StudentNewMarks"; // <- Import added
+import StudentNewMarks from "./StudentNewMarks";
 
 // =========================
 // STYLES
@@ -21,61 +21,71 @@ const linkStyle = {
   transition: "all 0.3s",
 };
 
-const boxStyle = (bgGradient) => ({
-  padding: "50px 25px",
-  background: bgGradient,
-  color: "#fff",
-  borderRadius: "14px",
-  boxShadow: "0 12px 25px rgba(0,0,0,0.15)",
-  textAlign: "center",
-  cursor: "pointer",
-  fontSize: "18px",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  transition: "transform 0.4s ease, box-shadow 0.4s ease",
-  position: "relative",
-  overflow: "hidden",
-  borderLeft: "5px solid rgba(255,255,255,0.4)"
-});
+// =========================
+// HEADER COMPONENT (TWO STRIPS)
+// =========================
+const Header = ({ user }) => (
+  <div style={{ width: "100%", position: "fixed", top: 0, left: 0, zIndex: 1000 }}>
+    <div style={{
+      width: "100%",
+      background: "#3d247aff",
+      color: "#fff",
+      padding: "12px 40px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+    }}>
+      <div style={{ fontSize: "26px", fontWeight: "700", fontFamily: "'Poppins', sans-serif" }}>SmartZone</div>
+      <div style={{ fontSize: "22px", fontWeight: "100" }}> Welcome to Smart Student's Classes</div>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{
+          width: "42px",
+          height: "42px",
+          borderRadius: "50%",
+          overflow: "hidden",
+          border: "2px solid #fff"
+        }}>
+          <img src={user.photo || "/default-profile.png"} alt="profile" style={{ width: "100%", height: "100%" }} />
+        </div>
+        <span style={{ fontWeight: "500" }}>{user.name}</span>
+      </div>
+    </div>
 
-const boxHover = {
-  transform: "translateY(-8px)",
-  boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
-};
-
-const iconStyle = {
-  fontSize: "36px",
-  marginBottom: "12px",
-  transition: "transform 0.4s",
-};
+    <div style={{
+      width: "100%",
+      background: "#645699ff",
+      color: "#fff",
+      padding: "10px 40px",
+      display: "flex",
+      justifyContent: "flex-start",
+      alignItems: "center",
+      gap: "20px",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
+    }}>
+      <div style={{ fontWeight: "600", fontSize: "16px" }}>Welcome back,</div>
+      <div style={{ fontWeight: "700", fontSize: "18px" }}>{user.name}</div>
+      <div>
+        <img src={user.photo || "/default-profile.png"} alt="profile" style={{ width: "36px", height: "36px", borderRadius: "50%", border: "2px solid #fff" }} />
+      </div>
+    </div>
+  </div>
+);
 
 // =========================
 // DASHBOARD BOXES
 // =========================
-const DashboardBoxes = ({ user, navigate }) => {
+const DashboardBoxes = ({ navigate }) => {
   const boxes = [
-    { title: "Attendance", desc: "Check your current attendance", gradient: "linear-gradient(135deg, #1ABC9C, #16A085)", icon: <FaClipboardCheck />, path: "/student/attendance" },
-    { title: "Fees Status", desc: "Pending or Paid", gradient: "linear-gradient(135deg, #E57373, #C0392B)", icon: <FaMoneyBillWave />, path: "/student/fees" },
-    { title: "Test Marks", desc: "View your scores", gradient: "linear-gradient(135deg, #F39C12, #D35400)", icon: <FaChartLine />, path: "/student/marks" },
-  
-    { title: "Homework", desc: "Pending assignments", gradient: "linear-gradient(135deg, #3498DB, #2980B9)", icon: <FaBook />, path: "/student/homework" },
-    { title: "Feedback", desc: "Teacher's remarks", gradient: "linear-gradient(135deg, #16A085, #1ABC9C)", icon: <FaComments /> },
+    { title: "Attendance", desc: "Check your current attendance in detail", gradient: "linear-gradient(135deg, #1ABC9C, #16A085)", icon: <FaClipboardCheck />, path: "/student/attendance" },
+    { title: "Fees Status", desc: "View pending or paid fees easily", gradient: "linear-gradient(135deg, #E57373, #C0392B)", icon: <FaMoneyBillWave />, path: "/student/fees" },
+    { title: "Test Marks", desc: "View your test scores and progress", gradient: "linear-gradient(135deg, #F39C12, #D35400)", icon: <FaChartLine />, path: "/student/marks" },
+    { title: "Homework", desc: "See your pending assignments and submissions", gradient: "linear-gradient(135deg, #3498DB, #2980B9)", icon: <FaBook />, path: "/student/homework" },
+    { title: "Feedback", desc: "Check teacher remarks and comments", gradient: "linear-gradient(135deg, #16A085, #1ABC9C)", icon: <FaComments /> },
   ];
 
   return (
-    <div>
-      <h1 style={{
-        fontSize: "32px",
-        fontWeight: "700",
-        color: "#2C3E50",
-        marginBottom: "25px",
-        letterSpacing: "1px"
-      }}>
-        Welcome Back, {user.name}! 👋
-      </h1>
-
+    <div style={{ marginTop: "160px" }}>
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -84,14 +94,31 @@ const DashboardBoxes = ({ user, navigate }) => {
         {boxes.map((box, i) => (
           <div
             key={i}
-            style={boxStyle(box.gradient)}
+            style={{
+              padding: "50px 25px",
+              background: box.gradient,
+              color: "#fff",
+              borderRadius: "14px",
+              boxShadow: "0 12px 25px rgba(0,0,0,0.15)",
+              textAlign: "center",
+              cursor: "pointer",
+              fontSize: "18px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "transform 0.4s ease, box-shadow 0.4s ease",
+              position: "relative",
+              overflow: "hidden",
+              borderLeft: "5px solid rgba(255,255,255,0.4)"
+            }}
             onClick={() => box.path && navigate(box.path)}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, boxHover)}
+            onMouseEnter={(e) => Object.assign(e.currentTarget.style, { transform: "translateY(-8px)", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" })}
             onMouseLeave={(e) => Object.assign(e.currentTarget.style, { transform: "translateY(0)", boxShadow: "0 12px 25px rgba(0,0,0,0.15)" })}
           >
-            <div style={iconStyle}>{box.icon}</div>
-            <h3 style={{ marginBottom: "8px", fontWeight: "600", fontSize: "20px" }}>{box.title}</h3>
-            <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.85)" }}>{box.desc}</p>
+            <div style={{ fontSize: "36px", marginBottom: "12px" }}>{box.icon}</div>
+            <h3 style={{ marginBottom: "12px", fontWeight: "600", fontSize: "20px" }}>{box.title}</h3>
+            <p style={{ fontSize: "15px", color: "rgba(255,255,255,0.85)", lineHeight: "1.6" }}>{box.desc}</p>
           </div>
         ))}
       </div>
@@ -108,14 +135,17 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
+    const storedUser = JSON.parse(localStorage.getItem("user")) || {
+      name: "Nitesh Kushwah",
+      photo: "/default-profile.png"
+    };
     setUser(storedUser);
   }, []);
 
   if (!user) return <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>;
 
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: "'Poppins', Arial, sans-serif" }}>
+    <div style={{ display: "flex", fontFamily: "'Poppins', Arial, sans-serif" }}>
       {/* Sidebar */}
       <aside style={{
         width: sidebarOpen ? "260px" : "0",
@@ -153,34 +183,37 @@ const StudentDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main style={{ flex: 1, padding: "40px", background: "#ECF0F1", overflowY: "auto", position: "relative" }}>
+      <main style={{ flex: 1, padding: "160px 40px 40px 40px", background: "#ECF0F1", minHeight: "100vh", position: "relative" }}>
+        <Header user={user} />
+
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           style={{
-            position: "absolute",
-            top: "20px",
+            position: "fixed",
+            top: "120px",
             left: "20px",
-            padding: "10px 15px",
-            fontSize: "18px",
+            padding: "8px 12px",
+            fontSize: "16px",
             borderRadius: "6px",
             border: "none",
             background: "#1ABC9C",
             color: "#fff",
             cursor: "pointer",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.15)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             transition: "0.2s",
+            zIndex: 1100
           }}
         >
           ☰
         </button>
 
         <Routes>
-          <Route index element={<DashboardBoxes user={user} navigate={navigate} />} />
+          <Route index element={<DashboardBoxes navigate={navigate} />} />
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
           <Route path="marks" element={<StudentsMarks user={user} />} />
-          <Route path="exam-results" element={<StudentNewMarks />} /> {/* <- New route */}
+          <Route path="exam-results" element={<StudentNewMarks />} />
           <Route path="homework" element={<HomeworkStudent />} />
           <Route path="study-material" element={<StudentStudyMaterial user={user} />} />
         </Routes>

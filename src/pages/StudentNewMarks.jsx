@@ -15,21 +15,23 @@ const StudentNewMarks = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const userRef = useRef(user);
 
-  // Marks release date
-  const releaseDate = new Date("2025-12-18T14:00:00"); // 18 Dec 2025, 2 PM
-
-  // Timer setup
+  /* ================= TIMER (FIXED) ================= */
   useEffect(() => {
-    const timer = setInterval(() => {
+    const releaseDate = new Date("2025-12-17T14:00:00"); // SAME DATE
+
+    const updateTimer = () => {
       const now = new Date();
       const diff = releaseDate - now;
       setTimeLeft(diff > 0 ? diff : 0);
-    }, 1000);
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
 
     return () => clearInterval(timer);
   }, []);
 
-  // Captcha generation
+  /* ================= CAPTCHA ================= */
   const generateCaptcha = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
@@ -128,7 +130,9 @@ const StudentNewMarks = () => {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-    return `${hours.toString().padStart(2,"0")}:${minutes.toString().padStart(2,"0")}:${seconds.toString().padStart(2,"0")}`;
+    return `${hours.toString().padStart(2,"0")}:${minutes
+      .toString()
+      .padStart(2,"0")}:${seconds.toString().padStart(2,"0")}`;
   };
 
   const isReleased = timeLeft === 0;
@@ -141,7 +145,7 @@ const StudentNewMarks = () => {
 
       {!isReleased ? (
         <div style={{ textAlign: "center", marginTop: "50px", fontSize: "1.2rem", fontWeight: "bold" }}>
-          📢 Results will be declared on <b>18 Dec 2025, 2:00 PM</b>
+          📢 Results will be declared on <b>17 Dec 2025, 2:00 PM</b>
           <div style={{ marginTop: "20px", fontSize: "1.5rem" }}>
             Time Left: {formatTime(timeLeft)}
           </div>
@@ -165,7 +169,7 @@ const StudentNewMarks = () => {
 
           {message && <p style={{ color: "red", textAlign: "center", marginBottom: "15px" }}>{message}</p>}
 
-          {/* MARKS TABLE */}
+          {/* TABLE */}
           {marks.length > 0 && (
             <div style={{ overflowX: "auto", marginBottom: "20px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
@@ -214,7 +218,6 @@ const StudentNewMarks = () => {
             </div>
           )}
 
-          {/* Overall Summary */}
           {marks.length > 0 && (
             <div style={{ marginTop: "10px", fontSize: "1rem", lineHeight: "1.6" }}>
               <p><b>Total Marks:</b> {overall.total}</p>
