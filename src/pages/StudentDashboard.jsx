@@ -6,7 +6,9 @@ import {
   FaChartLine,
   FaBook,
   FaComments,
+  FaUserGraduate,
 } from "react-icons/fa";
+import { motion } from "framer-motion";
 
 import StudentAttendance from "./StudentAttendance";
 import StudentFees from "./StudentFees";
@@ -17,15 +19,16 @@ import StudentStudyMaterial from "./StudentStudyMaterial";
 import StudentNewMarks from "./StudentNewMarks";
 
 /* =========================
-   LINK STYLE
+   COMMON STYLES
 ========================= */
 const linkStyle = {
   color: "#fff",
   textDecoration: "none",
-  padding: "10px 15px",
-  borderRadius: "8px",
-  fontWeight: "500",
-  background: "rgba(255,255,255,0.08)",
+  padding: "12px 16px",
+  borderRadius: 12,
+  fontWeight: 500,
+  background: "rgba(255,255,255,0.1)",
+  transition: "0.3s",
 };
 
 /* =========================
@@ -34,96 +37,85 @@ const linkStyle = {
 const Header = ({ user }) => (
   <div style={{ position: "fixed", top: 0, left: 0, width: "100%", zIndex: 1000 }}>
     <div
-  style={{
-    background: "#3d247aff",
-    color: "#fff",
-    padding: "12px 40px",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative", // 👈 ADD THIS
-  }}
->
+      style={{
+        background: "linear-gradient(135deg,#3b1fa6,#6a5acd)",
+        color: "#fff",
+        padding: "16px 40px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        boxShadow: "0 8px 30px rgba(0,0,0,0.3)",
+      }}
+    >
+      <div>
+        <h2 style={{ margin: 0, letterSpacing: 1 }}>𝐒martZØηe</h2>
+        <small style={{ opacity: 0.9 }}>Welcome to Smart Students classes</small>
+      </div>
 
-      <b style={{ fontSize: 22 }}>SmartZone</b>
-      <span>Welcome to Smart Student's Classes</span>
-      <div style={{ display: "flex", gap: 10, alignItems: "Left" }}>
+      <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
         <img
           src={user.photo}
           alt=""
-          style={{ width: 36, height: 36, borderRadius: "50%" }}
+          style={{ width: 40, height: 40, borderRadius: "50%", border: "2px solid #fff" }}
         />
-        {user.name}
+        <b>{user.name}</b>
       </div>
     </div>
 
-    <div style={{ background: "#645699ff", color: "#fff", padding: "8px 40px" }}>
-      Welcome back, <b>{user.name}</b>
+    <div
+      style={{
+        background: "#ffffff",
+        padding: "10px 40px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+      }}
+    >
+      Welcome back, <b>{user.name}</b> 👋 Stay focused & keep learning!
     </div>
   </div>
 );
 
 /* =========================
-   DASHBOARD BOXES (UNCHANGED COLORS)
+   DASHBOARD CARDS
 ========================= */
 const DashboardBoxes = ({ navigate }) => {
   const boxes = [
-    {
-      title: "Attendance",
-      icon: <FaClipboardCheck />,
-      path: "/student/attendance",
-      bg: "linear-gradient(135deg,#1ABC9C,#16A085)",
-    },
-    {
-      title: "Fees",
-      icon: <FaMoneyBillWave />,
-      path: "/student/fees",
-      bg: "linear-gradient(135deg,#E57373,#C0392B)",
-    },
-    {
-      title: "Marks",
-      icon: <FaChartLine />,
-      path: "/student/marks",
-      bg: "linear-gradient(135deg,#F39C12,#D35400)",
-    },
-    {
-      title: "Homework",
-      icon: <FaBook />,
-      path: "/student/homework",
-      bg: "linear-gradient(135deg,#3498DB,#2980B9)",
-    },
-    {
-      title: "Feedback",
-      icon: <FaComments />,
-      bg: "linear-gradient(135deg,#16A085,#1ABC9C)",
-    },
+    { title: "Attendance", icon: <FaClipboardCheck />, path: "/student/attendance", bg: "linear-gradient(135deg,#1abc9c,#16a085)" },
+    { title: "Fees", icon: <FaMoneyBillWave />, path: "/student/fees", bg: "linear-gradient(135deg,#e74c3c,#c0392b)" },
+    { title: "Marks", icon: <FaChartLine />, path: "/student/marks", bg: "linear-gradient(135deg,#f39c12,#d35400)" },
+    { title: "Homework", icon: <FaBook />, path: "/student/homework", bg: "linear-gradient(135deg,#3498db,#2980b9)" },
+    { title: "Feedback", icon: <FaComments />, bg: "linear-gradient(135deg,#9b59b6,#8e44ad)" },
   ];
 
   return (
     <div
       style={{
-        marginTop: 150,
+        marginTop: 30,
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
-        gap: 20,
+        gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
+        gap: 26,
       }}
     >
       {boxes.map((b, i) => (
-        <div
+        <motion.div
           key={i}
+          whileHover={{ scale: 1.06, y: -6 }}
+          transition={{ type: "spring", stiffness: 300 }}
           onClick={() => b.path && navigate(b.path)}
           style={{
             background: b.bg,
             color: "#fff",
             padding: 30,
-            borderRadius: 14,
+            borderRadius: 20,
             cursor: "pointer",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+            boxShadow: "0 16px 35px rgba(0,0,0,0.25)",
           }}
         >
-          <div style={{ fontSize: 32 }}>{b.icon}</div>
-          <h3>{b.title}</h3>
-        </div>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>{b.icon}</div>
+          <h3 style={{ margin: 0 }}>{b.title}</h3>
+          <p style={{ marginTop: 8, opacity: 0.85, fontSize: 14 }}>
+            View detailed {b.title.toLowerCase()} information
+          </p>
+        </motion.div>
       ))}
     </div>
   );
@@ -150,80 +142,78 @@ const StudentDashboard = () => {
 
   return (
     <>
-      {/* OVERLAY */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.4)",
-            zIndex: 1100,
-          }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 900 }}
         />
       )}
 
       {/* SIDEBAR */}
       <aside
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: sidebarOpen ? "50%" : 0,
-          height: "100vh",
-          background: "#2C3E50",
-          overflow: "hidden",
-          transition: "0.3s",
-          zIndex: 1200,
-          padding: sidebarOpen ? "25px" : 0,
-        }}
-      >
-        {sidebarOpen && (
-          <>
-            <h2 style={{ color: "#1ABC9C", textAlign: "center" }}>
-              Smart Student
-            </h2>
+  style={{
+    position: "fixed",
+    top: sidebarOpen ? 120 : 0,   // 👈 open hone par niche
+    left: sidebarOpen ? 0 : "-300px", // 👈 fully hidden
+    width: 270,
+    height: sidebarOpen ? "calc(100vh - 90px)" : "100vh",
+    background: "linear-gradient(180deg,#2c3e50,#1a252f)",
+    transition: "all 0.35s ease",
+    zIndex: 1000,
+    padding: sidebarOpen ? 20 : 0,
+    overflow: "hidden",
+    boxShadow: sidebarOpen ? "4px 0 20px rgba(0,0,0,0.4)" : "none",
+  }}
+>
+        <h2 style={{ color: "#1abc9c", textAlign: "center", marginBottom: 30 }}>
+          <FaUserGraduate /> Student Panel
+        </h2>
 
-            <nav style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <Link to="/student" onClick={() => setSidebarOpen(false)} style={linkStyle}>
-                Go to Dashboard
+        <nav style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {["Dashboard","Profile","Fees","Attendance","Marks","Exam Results","Homework","Study Material"].map((item, idx) => {
+            const paths = ["/student","profile","fees","attendance","marks","exam-results","homework","study-material"];
+            return (
+              <Link
+                key={idx}
+                to={paths[idx]}
+                onClick={() => setSidebarOpen(false)}
+                style={linkStyle}
+                onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
+                onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+              >
+                {item}
               </Link>
-              <Link to="profile" onClick={() => setSidebarOpen(false)} style={linkStyle}>Profile</Link>
-              <Link to="fees" onClick={() => setSidebarOpen(false)} style={linkStyle}>Fees</Link>
-              <Link to="attendance" onClick={() => setSidebarOpen(false)} style={linkStyle}>Attendance</Link>
-              <Link to="marks" onClick={() => setSidebarOpen(false)} style={linkStyle}>Marks</Link>
-              <Link to="exam-results" onClick={() => setSidebarOpen(false)} style={linkStyle}>Exam Results</Link>
-              <Link to="homework" onClick={() => setSidebarOpen(false)} style={linkStyle}>Homework</Link>
-              <Link to="study-material" onClick={() => setSidebarOpen(false)} style={linkStyle}>Study Material</Link>
-            </nav>
-          </>
-        )}
+            );
+          })}
+        </nav>
       </aside>
 
-      {/* MAIN */}
+      {/* MAIN CONTENT */}
       <main
         style={{
           minHeight: "100vh",
-          background: "#ECF0F1",
-          padding: "160px 40px 40px",
+          background: "#eef1f7",
+          padding: "150px 40px 40px",
+          marginLeft: sidebarOpen ? 270 : 0,
+          transition: "0.3s",
         }}
       >
         <Header user={user} />
 
-        {/* MENU BUTTON (safe position) */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           style={{
             position: "fixed",
             top: 170,
-            left: 20,
-            zIndex: 1300,
-            padding: "10px 14px",
+            left: sidebarOpen ? 290 : 20,
+            zIndex: 1100,
+            padding: "12px 16px",
             fontSize: 18,
-            borderRadius: 8,
+            borderRadius: 12,
             border: "none",
-            background: "#22a78cff",
+            background: "linear-gradient(135deg,#6a5acd,#4b2fa3)",
             color: "#fff",
+            boxShadow: "0 8px 25px rgba(0,0,0,0.35)",
           }}
         >
           ☰
