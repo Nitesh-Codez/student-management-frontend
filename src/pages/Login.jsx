@@ -17,18 +17,35 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const { data } = await axios.post(`${API_URL}/api/auth/login`, { name, password });
+      const { data } = await axios.post(`${API_URL}/api/auth/login`, {
+        name,
+        password,
+      });
 
       if (data.success) {
         const user = data.user;
+
+        // ✅ BASIC USER INFO
         localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("studentName", user.name);
+        localStorage.setItem("userRole", user.role);
+
+        // ✅ IMPORTANT: SAVE CLASS (EXACT DB VALUE)
+        if (user.role === "student") {
+          localStorage.setItem("studentClass", user.class); // eg: "10th"
+          localStorage.setItem("studentId", user.id);
+        }
+
+        // ✅ REDIRECT
         navigate(user.role === "admin" ? "/admin" : "/student");
       } else {
         setError(data.message);
       }
     } catch (err) {
-      setError("Server Error: " + (err.response?.data?.message || err.message));
+      setError(
+        "Server Error: " +
+          (err.response?.data?.message || err.message)
+      );
     } finally {
       setLoading(false);
     }
@@ -39,14 +56,17 @@ const Login = () => {
       <div style={backgroundShapes}></div>
 
       <div style={branding}>
-        {/* SMARTZONE Title */}
-        <h1 style={logo}>SMARTZONE</h1>
-        <p style={tagline}>Empowering Students | Celebrating Classes | Inspiring Excellence</p>
+        <h1 style={logo}>𝐒MARTZØηE</h1>
+        <p style={tagline}>
+          Empowering Students | Celebrating Classes | Inspiring Excellence
+        </p>
       </div>
 
       <div style={loginCard}>
         <h2 style={loginTitle}>Login</h2>
+
         {error && <p style={errorStyle}>{error}</p>}
+
         <form onSubmit={handleLogin}>
           <label style={label}>Name</label>
           <input
@@ -56,6 +76,7 @@ const Login = () => {
             style={input}
             required
           />
+
           <label style={label}>Password</label>
           <input
             type="password"
@@ -64,6 +85,7 @@ const Login = () => {
             style={input}
             required
           />
+
           <button type="submit" style={button} disabled={loading}>
             {loading ? "Please wait..." : "Login"}
           </button>
@@ -112,25 +134,20 @@ const logo = {
   fontSize: "10vw",
   fontWeight: "900",
   margin: "0 auto",
-  letterSpacing: "0.18em", // thoda tight, smooth look
+  letterSpacing: "0.18em",
   color: "#ffffff",
   textShadow: `
     0 0 5px rgba(255,255,255,0.7),
     0 0 10px rgba(122, 255, 60, 0.5),
     0 0 20px rgba(255,204,0,0.3)
   `,
-  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  WebkitFontSmoothing: "antialiased",
-  MozOsxFontSmoothing: "grayscale",
 };
-
 
 const tagline = {
   fontSize: "4.5vw",
   marginTop: "15px",
-  color: "#ffffffff",
+  color: "#fff",
   fontWeight: "600",
-  textShadow: "1px 1px 5px rgba(0,0,0,0.5)",
   fontStyle: "italic",
 };
 
@@ -143,10 +160,8 @@ const loginCard = {
   borderRadius: "25px",
   boxShadow: "0 15px 40px rgba(0,0,0,0.5)",
   zIndex: 2,
-  position: "relative",
   marginTop: "250px",
   color: "#fff",
-  transition: "0.3s",
 };
 
 const loginTitle = {
@@ -154,15 +169,12 @@ const loginTitle = {
   fontWeight: "700",
   textAlign: "center",
   fontSize: "28px",
-  color: "#ffffff",
-  textShadow: "1px 1px 5px rgba(0,0,0,0.5)",
 };
 
 const label = {
   display: "block",
   marginBottom: "6px",
   fontWeight: "500",
-  color: "#fff",
 };
 
 const input = {
@@ -175,8 +187,6 @@ const input = {
   background: "rgba(255,255,255,0.1)",
   color: "#fff",
   outline: "none",
-  boxShadow: "inset 0 0 8px rgba(255,255,255,0.2)",
-  transition: "0.3s",
 };
 
 const button = {
@@ -189,15 +199,12 @@ const button = {
   fontSize: "17px",
   fontWeight: "700",
   cursor: "pointer",
-  transition: "all 0.3s ease",
-  boxShadow: "0 5px 15px rgba(255,204,0,0.4)",
 };
 
 const errorStyle = {
   color: "#ff4d4f",
   marginBottom: "10px",
   textAlign: "center",
-  textShadow: "0 1px 2px rgba(0,0,0,0.5)",
 };
 
 export default Login;

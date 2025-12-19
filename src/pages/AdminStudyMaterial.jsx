@@ -1,223 +1,220 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-/* =========================
-   SUBJECTS BY CLASS (OUTSIDE COMPONENT)
-========================= */
-const subjectsByClass = {
-  "1st": ["Maths", "English", "Hindi", "EVS"],
-  "2nd": ["Maths", "English", "Hindi", "EVS"],
-  "3rd": ["Maths", "English", "Hindi", "EVS"],
-  "4th": ["Maths", "English", "Hindi", "Science", "Social Science"],
-  "5th": ["Maths", "English", "Hindi", "Science", "Social Science"],
-  "6th": ["Maths", "English", "Hindi", "Science", "Social Science"],
-  "7th": ["Maths", "English", "Hindi", "Science", "Social Science"],
-  "8th": ["Maths", "English", "Hindi", "Science", "Social Science"],
-  "9th": ["Maths", "English", "Hindi", "Science", "S.S.T"],
-  "10th": ["Maths", "English", "Hindi", "Science", "S.S.T"],
-  "11th": ["Physics", "Chemistry", "Biology", "Maths", "English"],
-  "12th": ["Physics", "Chemistry", "Biology", "Maths", "English"],
-};
+const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const AdminStudyMaterial = () => {
-  const API_URL = process.env.REACT_APP_API_URL;
-
-  const [className, setClassName] = useState("");
+  const [allStudents, setAllStudents] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
-  const [chapter, setChapter] = useState("");
   const [file, setFile] = useState(null);
   const [materials, setMaterials] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [subjects, setSubjects] = useState([]);
+  const [message, setMessage] = useState("");
 
-  const admin = JSON.parse(localStorage.getItem("user"));
+  // ================= STYLES =================
+  const styles = {
+    container: {
+      maxWidth: "550px",
+      margin: "40px auto",
+      padding: "25px",
+      background: "#fff",
+      borderRadius: "15px",
+      boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+      fontFamily: "Poppins, sans-serif",
+    },
+    heading: {
+      textAlign: "center",
+      marginBottom: "20px",
+      color: "#333",
+    },
+    label: {
+      display: "block",
+      marginTop: "12px",
+      marginBottom: "5px",
+      fontWeight: "600",
+    },
+    input: {
+      width: "100%",
+      padding: "12px",
+      border: "1px solid #ccc",
+      borderRadius: "8px",
+      fontSize: "15px",
+    },
+    button: {
+      width: "100%",
+      padding: "12px",
+      background: "#4a90e2",
+      border: "none",
+      color: "white",
+      marginTop: "18px",
+      fontSize: "16px",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontWeight: "600",
+    },
+    msg: {
+      marginTop: "15px",
+      padding: "10px",
+      textAlign: "center",
+      borderRadius: "8px",
+      background: "#f0f4ff",
+      color: "#3551c9",
+      fontWeight: "600",
+    },
+    material: {
+      padding: "10px",
+      borderBottom: "1px solid #ddd",
+    },
+    link: {
+      color: "#4a90e2",
+      textDecoration: "none",
+      fontWeight: "600",
+    },
+  };
 
-  /* ========================
-     FETCH ALL MATERIALS
-  ======================== */
-  const fetchMaterials = useCallback(async () => {
-    try {
-      const res = await axios.get(
-        `${API_URL}/api/study-material/admin/materials`
-      );
-      if (res.data.success) {
-        setMaterials(res.data.materials);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [API_URL]);
-
-  /* ========================
-     FETCH ALL CLASSES
-  ======================== */
-  const fetchClasses = useCallback(async () => {
-    try {
-      const res = await axios.get(`${API_URL}/api/students`);
-      if (res.data.success) {
-        const uniqueClasses = [
-          ...new Set(res.data.students.map((s) => s.class)),
-        ];
-        setClasses(uniqueClasses);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [API_URL]);
-
-  /* ========================
-     INITIAL LOAD
-  ======================== */
+  // ================= FETCH CLASSES =================
   useEffect(() => {
-    fetchMaterials();
-    fetchClasses();
-  }, [fetchMaterials, fetchClasses]);
+    axios
+      .get(`${API_URL}/api/students`)
+      .then((res) => {
+        if (res.data.success) {
+          setAllStudents(res.data.students);
+          const uniqueClasses = [
+            ...new Set(res.data.students.map((s) => s.class)),
+          ];
+          setClasses(uniqueClasses);
+        }
+      })
+      .catch((err) => console.error(err));
+  }, []);
 
-  /* ========================
-     UPDATE SUBJECTS ON CLASS CHANGE
-  ======================== */
+  // ================= FETCH MATERIAL BY CLASS =================
   useEffect(() => {
-    if (className) {
-      setSubjects(subjectsByClass[className] || []);
-    } else {
-      setSubjects([]);
-    }
-    setSubject("");
-  }, [className]);
-
-  /* ========================
-     UPLOAD MATERIAL
-  ======================== */
-  const handleUpload = async () => {
-    if (!className || !subject || !chapter || !file) {
-      alert("All fields required");
+    if (!selectedClass) {
+      setMaterials([]);
       return;
     }
 
-    const formData = new FormData();
-    formData.append("className", className);
-    formData.append("subject", subject);
-    formData.append("chapter", chapter);
-    formData.append("file", file);
-    formData.append("adminId", admin?.id);
-
-    try {
-      await axios.post(
-        `${API_URL}/api/study-material/admin/upload`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
+    axios
+      .get(`${API_URL}/api/study-material/${selectedClass}`)
+      .then((res) => {
+        if (res.data.success) {
+          setMaterials(res.data.materials);
         }
-      );
+      })
+      .catch((err) => console.error(err));
+  }, [selectedClass]);
 
-      alert("Material Uploaded Successfully!");
-      setChapter("");
-      setFile(null);
-      fetchMaterials();
-    } catch (err) {
-      console.error(err);
-      alert("Upload Failed!");
+  // ================= UPLOAD HANDLER =================
+  const handleUpload = async () => {
+    if (!title || !subject || !selectedClass || !file) {
+      setMessage("Please fill all fields and select PDF");
+      return;
     }
-  };
-
-  /* ========================
-     DELETE MATERIAL
-  ======================== */
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this material?")) return;
 
     try {
-      await axios.delete(
-        `${API_URL}/api/study-material/admin/${id}`
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("class_name", selectedClass);
+      formData.append("subject", subject);
+      formData.append("file", file);
+
+      const res = await axios.post(
+        `${API_URL}/api/study-material/upload`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
-      fetchMaterials();
+
+      if (res.data.success) {
+        setMessage("Study material uploaded successfully!");
+        setTitle("");
+        setSubject("");
+        setFile(null);
+
+        // refresh list
+        const refreshed = await axios.get(
+          `${API_URL}/api/study-material/${selectedClass}`
+        );
+        setMaterials(refreshed.data.materials);
+      }
     } catch (err) {
       console.error(err);
-      alert("Delete Failed!");
+      setMessage("Error uploading study material");
     }
   };
 
   return (
-    <div style={styles.page}>
-      <h2 style={styles.heading}>📤 Upload Study Material</h2>
+    <div style={styles.container}>
+      <h2 style={styles.heading}>Upload Study Material</h2>
 
-      <div style={styles.form}>
-        <select value={className} onChange={(e) => setClassName(e.target.value)}>
-          <option value="">Select Class</option>
-          {classes.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+      <label style={styles.label}>Class</label>
+      <select
+        style={styles.input}
+        value={selectedClass}
+        onChange={(e) => setSelectedClass(e.target.value)}
+      >
+        <option value="">Select Class</option>
+        {classes.map((c, i) => (
+          <option key={i} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
 
-        <select value={subject} onChange={(e) => setSubject(e.target.value)}>
-          <option value="">Select Subject</option>
-          {subjects.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+      <label style={styles.label}>Title</label>
+      <input
+        style={styles.input}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Chapter / Topic name"
+      />
 
-        <input
-          placeholder="Chapter Name"
-          value={chapter}
-          onChange={(e) => setChapter(e.target.value)}
-        />
+      <label style={styles.label}>Subject</label>
+      <input
+        style={styles.input}
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
+        placeholder="Subject name"
+      />
 
-        <input
-          type="file"
-          accept="application/pdf"
-          onChange={(e) => setFile(e.target.files[0])}
-        />
+      <label style={styles.label}>PDF File</label>
+      <input
+        style={styles.input}
+        type="file"
+        accept="application/pdf"
+        onChange={(e) => setFile(e.target.files[0])}
+      />
 
-        <button onClick={handleUpload}>Upload</button>
-      </div>
+      <button style={styles.button} onClick={handleUpload}>
+        Upload Material
+      </button>
 
-      <h3 style={{ marginTop: "40px" }}>📚 Uploaded Materials</h3>
+      {message && <p style={styles.msg}>{message}</p>}
 
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th>Class</th>
-            <th>Subject</th>
-            <th>Chapter</th>
-            <th>PDF</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
+      {materials.length > 0 && (
+        <>
+          <h3 style={{ marginTop: "25px" }}>Uploaded Materials</h3>
           {materials.map((m) => (
-            <tr key={m.id}>
-              <td>{m.class}</td>
-              <td>{m.subject}</td>
-              <td>{m.chapter}</td>
-              <td>
-                <a
-                  href={m.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  View PDF
-                </a>
-              </td>
-              <td>
-                <button onClick={() => handleDelete(m.id)}>❌ Delete</button>
-              </td>
-            </tr>
+            <div key={m.id} style={styles.material}>
+              <p>
+                <strong>{m.title}</strong> ({m.subject})
+              </p>
+              <a
+                href={`${API_URL}/${m.file_path}`}
+                target="_blank"
+                rel="noreferrer"
+                style={styles.link}
+              >
+                View / Download PDF
+              </a>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </>
+      )}
     </div>
   );
-};
-
-const styles = {
-  page: { padding: "30px" },
-  heading: { fontSize: "28px", marginBottom: "20px" },
-  form: { display: "grid", gap: "15px", maxWidth: "400px" },
-  table: { width: "100%", marginTop: "20px", borderCollapse: "collapse" },
 };
 
 export default AdminStudyMaterial;
