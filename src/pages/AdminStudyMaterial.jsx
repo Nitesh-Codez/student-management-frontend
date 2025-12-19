@@ -4,7 +4,6 @@ import axios from "axios";
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const AdminStudyMaterial = () => {
-  const [allStudents, setAllStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
   const [title, setTitle] = useState("");
@@ -13,104 +12,33 @@ const AdminStudyMaterial = () => {
   const [materials, setMaterials] = useState([]);
   const [message, setMessage] = useState("");
 
-  // ================= STYLES =================
-  const styles = {
-    container: {
-      maxWidth: "550px",
-      margin: "40px auto",
-      padding: "25px",
-      background: "#fff",
-      borderRadius: "15px",
-      boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
-      fontFamily: "Poppins, sans-serif",
-    },
-    heading: {
-      textAlign: "center",
-      marginBottom: "20px",
-      color: "#333",
-    },
-    label: {
-      display: "block",
-      marginTop: "12px",
-      marginBottom: "5px",
-      fontWeight: "600",
-    },
-    input: {
-      width: "100%",
-      padding: "12px",
-      border: "1px solid #ccc",
-      borderRadius: "8px",
-      fontSize: "15px",
-    },
-    button: {
-      width: "100%",
-      padding: "12px",
-      background: "#4a90e2",
-      border: "none",
-      color: "white",
-      marginTop: "18px",
-      fontSize: "16px",
-      borderRadius: "8px",
-      cursor: "pointer",
-      fontWeight: "600",
-    },
-    msg: {
-      marginTop: "15px",
-      padding: "10px",
-      textAlign: "center",
-      borderRadius: "8px",
-      background: "#f0f4ff",
-      color: "#3551c9",
-      fontWeight: "600",
-    },
-    material: {
-      padding: "10px",
-      borderBottom: "1px solid #ddd",
-    },
-    link: {
-      color: "#4a90e2",
-      textDecoration: "none",
-      fontWeight: "600",
-    },
-  };
-
   // ================= FETCH CLASSES =================
   useEffect(() => {
-    axios
-      .get(`${API_URL}/api/students`)
-      .then((res) => {
-        if (res.data.success) {
-          setAllStudents(res.data.students);
-          const uniqueClasses = [
-            ...new Set(res.data.students.map((s) => s.class)),
-          ];
-          setClasses(uniqueClasses);
-        }
-      })
-      .catch((err) => console.error(err));
+    axios.get(`${API_URL}/api/students`).then((res) => {
+      if (res.data.success) {
+        const uniqueClasses = [
+          ...new Set(res.data.students.map((s) => s.class)),
+        ];
+        setClasses(uniqueClasses);
+      }
+    });
   }, []);
 
-  // ================= FETCH MATERIAL BY CLASS =================
+  // ================= FETCH MATERIAL =================
   useEffect(() => {
-    if (!selectedClass) {
-      setMaterials([]);
-      return;
-    }
+    if (!selectedClass) return;
 
     axios
       .get(`${API_URL}/api/study-material/${selectedClass}`)
       .then((res) => {
-        if (res.data.success) {
-          setMaterials(res.data.materials);
-        }
-      })
-      .catch((err) => console.error(err));
+        if (res.data.success) setMaterials(res.data.materials);
+      });
   }, [selectedClass]);
 
-  // ================= UPLOAD HANDLER =================
+  // ================= UPLOAD =================
   const handleUpload = async () => {
     if (!title || !subject || !selectedClass || !file) {
-      setMessage("Please fill all fields and select PDF");
+      setMessage("❌ Please fill all fields");
       return;
     }
 
@@ -119,102 +47,189 @@ const AdminStudyMaterial = () => {
       formData.append("title", title);
       formData.append("class_name", selectedClass);
       formData.append("subject", subject);
-      formData.append("file", file);
+      formData.append("file", file); // original filename goes
 
       const res = await axios.post(
         `${API_URL}/api/study-material/upload`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        formData
       );
 
       if (res.data.success) {
-        setMessage("Study material uploaded successfully!");
+        setMessage("✅ Study material uploaded successfully");
         setTitle("");
         setSubject("");
         setFile(null);
 
-        // refresh list
         const refreshed = await axios.get(
           `${API_URL}/api/study-material/${selectedClass}`
         );
         setMaterials(refreshed.data.materials);
       }
-    } catch (err) {
-      console.error(err);
-      setMessage("Error uploading study material");
+    } catch {
+      setMessage("❌ Upload failed");
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Upload Study Material</h2>
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <h2 style={styles.heading}>📁 Upload Study Material</h2>
 
-      <label style={styles.label}>Class</label>
-      <select
-        style={styles.input}
-        value={selectedClass}
-        onChange={(e) => setSelectedClass(e.target.value)}
-      >
-        <option value="">Select Class</option>
-        {classes.map((c, i) => (
-          <option key={i} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
+        <label style={styles.label}>Class</label>
+        <select
+          style={styles.input}
+          value={selectedClass}
+          onChange={(e) => setSelectedClass(e.target.value)}
+        >
+          <option value="">Select Class</option>
+          {classes.map((c, i) => (
+            <option key={i}>{c}</option>
+          ))}
+        </select>
 
-      <label style={styles.label}>Title</label>
-      <input
-        style={styles.input}
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Chapter / Topic name"
-      />
+        <label style={styles.label}>Title</label>
+        <input
+          style={styles.input}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Chapter / Topic"
+        />
 
-      <label style={styles.label}>Subject</label>
-      <input
-        style={styles.input}
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-        placeholder="Subject name"
-      />
+        <label style={styles.label}>Subject</label>
+        <input
+          style={styles.input}
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Subject name"
+        />
 
-      <label style={styles.label}>PDF File</label>
-      <input
-        style={styles.input}
-        type="file"
-        accept="application/pdf"
-        onChange={(e) => setFile(e.target.files[0])}
-      />
+        <label style={styles.label}>PDF File</label>
+        <input
+          style={styles.input}
+          type="file"
+          accept="application/pdf"
+          onChange={(e) => setFile(e.target.files[0])}
+        />
 
-      <button style={styles.button} onClick={handleUpload}>
-        Upload Material
-      </button>
+        {file && (
+          <p style={styles.fileName}>
+            📄 Selected File: <b>{file.name}</b>
+          </p>
+        )}
 
-      {message && <p style={styles.msg}>{message}</p>}
+        <button style={styles.button} onClick={handleUpload}>
+          ⬆ Upload Material
+        </button>
 
+        {message && <p style={styles.msg}>{message}</p>}
+      </div>
+
+      {/* ================= MATERIAL LIST ================= */}
       {materials.length > 0 && (
-        <>
-          <h3 style={{ marginTop: "25px" }}>Uploaded Materials</h3>
+        <div style={styles.list}>
+          <h3>📚 Uploaded Materials</h3>
+
           {materials.map((m) => (
-            <div key={m.id} style={styles.material}>
-              <p>
-                <strong>{m.title}</strong> ({m.subject})
-              </p>
+            <div key={m.id} style={styles.card}>
+              <div>
+                <b>{m.title}</b>
+                <p style={styles.subText}>
+                  {m.subject} | Class {m.class_name}
+                </p>
+              </div>
+
               <a
                 href={`${API_URL}/${m.file_path}`}
                 target="_blank"
                 rel="noreferrer"
                 style={styles.link}
               >
-                View / Download PDF
+                View / Download
               </a>
             </div>
           ))}
-        </>
+        </div>
       )}
     </div>
   );
+};
+
+// ================= STYLES =================
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#f4f6fb",
+    padding: "40px",
+    fontFamily: "Poppins, sans-serif",
+  },
+  container: {
+    maxWidth: "520px",
+    margin: "auto",
+    background: "#fff",
+    padding: "25px",
+    borderRadius: "14px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+  },
+  heading: {
+    textAlign: "center",
+    marginBottom: "20px",
+  },
+  label: {
+    marginTop: "12px",
+    fontWeight: "600",
+    display: "block",
+  },
+  input: {
+    width: "100%",
+    padding: "11px",
+    marginTop: "5px",
+    borderRadius: "8px",
+    border: "1px solid #ccc",
+  },
+  button: {
+    width: "100%",
+    marginTop: "20px",
+    padding: "12px",
+    background: "#4a90e2",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  msg: {
+    marginTop: "15px",
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  fileName: {
+    marginTop: "8px",
+    fontSize: "14px",
+    color: "#444",
+  },
+  list: {
+    maxWidth: "700px",
+    margin: "40px auto",
+  },
+  card: {
+    background: "#fff",
+    padding: "15px",
+    marginBottom: "10px",
+    borderRadius: "10px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+  },
+  subText: {
+    fontSize: "13px",
+    color: "#666",
+  },
+  link: {
+    color: "#4a90e2",
+    fontWeight: "600",
+    textDecoration: "none",
+  },
 };
 
 export default AdminStudyMaterial;
