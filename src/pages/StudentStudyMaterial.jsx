@@ -22,13 +22,15 @@ const StudentStudyMaterial = () => {
   const [error, setError] = useState("");
   const [viewFile, setViewFile] = useState(null);
 
+  // ================= FETCH MATERIALS =================
   useEffect(() => {
     if (!studentClass) {
       setError("Student class not found");
       return;
     }
     setLoading(true);
-    axios.get(`${API_URL}/api/study-material/${studentClass}`)
+    axios
+      .get(`${API_URL}/api/study-material/${studentClass}`)
       .then((res) => {
         if (res.data.success) setMaterials(res.data.materials);
         else setMaterials([]);
@@ -45,6 +47,7 @@ const StudentStudyMaterial = () => {
 
   return (
     <>
+      {/* ================= FULL SCREEN VIEW ================= */}
       {viewFile && (
         <div style={styles.viewerOverlay}>
           <button style={styles.closeBtn} onClick={() => setViewFile(null)}>
@@ -70,11 +73,15 @@ const StudentStudyMaterial = () => {
               <div key={item.id} style={styles.card}>
                 <span style={styles.fileTitle}>{item.title}</span>
                 <div style={styles.btnGroup}>
+                  {/* 👁 VIEW */}
                   <button style={styles.viewBtn} onClick={() => setViewFile(item.file_path)}>
                     👁 View
                   </button>
+
+                  {/* 📥 DOWNLOAD */}
                   <a
-                    href={`${item.file_path}?fl_attachment=true`}
+                    href={item.file_path} // Raw PDF URL
+                    download // Force download
                     target="_blank"
                     rel="noopener noreferrer"
                     style={styles.downloadBtn}
