@@ -13,78 +13,90 @@ export default function AdminPage() {
   const [subjectsByClass, setSubjectsByClass] = useState({});
   const [deadline, setDeadline] = useState("");
 
-  // Fetch classes dynamically from API
+  // ✅ Fetch classes
   useEffect(() => {
     axios
       .get(CLASSES_API_URL)
       .then((res) => {
         if (res.data.success) {
-          const fetchedClasses = res.data.classes; // array of objects
+          const fetchedClasses = res.data.classes;
           setClasses(fetchedClasses);
 
-          // Optional: map subjects for each class
           const defaultSubjects = {};
           fetchedClasses.forEach((cls) => {
-            defaultSubjects[cls.class] = ["Math", "English", "Hindi", "Science"];
+            defaultSubjects[cls.class] = [
+              "Math",
+              "English",
+              "Hindi",
+              "Science",
+            ];
           });
           setSubjectsByClass(defaultSubjects);
         }
       })
-      .catch((err) => console.error("Error fetching classes:", err));
+      .catch((err) => console.error(err));
   }, []);
 
+  // ✅ Upload assignment
   const handleSubmit = async () => {
     if (!file || !className || !taskTitle || !subject || !deadline) {
       return alert("Please fill all fields");
     }
 
+    // ✅ logged-in user
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) return alert("User not logged in");
+
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("uploader_id", 1); // Admin id
-    formData.append("uploader_role", "admin");
+
+    // 🔥 IMPORTANT — backend + DB matching names
+    formData.append("uploader_id", user.id);
+    formData.append("uploader_role", user.role);
     formData.append("task_title", taskTitle);
     formData.append("subject", subject);
-    formData.append("class_name", className);
+    formData.append("class", className);
     formData.append("deadline", deadline);
 
     try {
-      const res = await axios.post(`${API_URL}/api/assignments/admin/upload`, formData);
-      alert(res.data.success ? "Uploaded!" : res.data.message);
+      const res = await axios.post(
+        `${API_URL}/api/assignments/admin/upload`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-      // Reset form
+      alert(res.data.success ? "Assignment Uploaded!" : res.data.message);
+
+      // reset
       setFile(null);
       setTaskTitle("");
       setSubject("");
       setClassName("");
       setDeadline("");
     } catch (err) {
-      console.error("Upload error:", err);
-      alert("Upload failed");
+      console.error("Upload error:", err.response?.data || err);
+      alert(err.response?.data?.message || "Upload failed");
     }
   };
 
   return (
-    <div
-      style={{
-        padding: 40,
-        fontFamily: "Poppins, sans-serif",
-        minHeight: "100vh",
-        background: "#f5f6fa",
-      }}
-    >
-      <h2 style={{ textAlign: "center", marginBottom: 30 }}>Admin Task Upload</h2>
+    <div style={{ padding: 40, minHeight: "100vh", background: "#f5f6fa" }}>
+      <h2 style={{ textAlign: "center", marginBottom: 30 }}>
+        Admin Task Upload
+      </h2>
 
       <div style={formStyle}>
-        <label>Task Title</label>
         <input
-          type="text"
           placeholder="Task Title"
           value={taskTitle}
           onChange={(e) => setTaskTitle(e.target.value)}
           style={inputStyle}
         />
 
-        <label>Class</label>
         <select
           value={className}
           onChange={(e) => setClassName(e.target.value)}
@@ -98,7 +110,6 @@ export default function AdminPage() {
           ))}
         </select>
 
-        <label>Subject</label>
         <select
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
@@ -113,7 +124,6 @@ export default function AdminPage() {
           ))}
         </select>
 
-        <label>Deadline</label>
         <input
           type="datetime-local"
           value={deadline}
@@ -121,7 +131,6 @@ export default function AdminPage() {
           style={inputStyle}
         />
 
-        <label>File</label>
         <input
           type="file"
           onChange={(e) => setFile(e.target.files[0])}
@@ -145,25 +154,19 @@ const formStyle = {
   background: "#fff",
   padding: 30,
   borderRadius: 12,
-  boxShadow: "0 8px 25px rgba(0,0,0,0.1)",
 };
 
 const inputStyle = {
-  width: "100%",
   padding: "12px",
   borderRadius: 8,
   border: "1px solid #ccc",
-  fontSize: 15,
 };
 
 const buttonStyle = {
-  width: "100%",
   padding: "14px",
   background: "#4a90e2",
   color: "#fff",
   border: "none",
   borderRadius: 8,
-  fontSize: 16,
-  fontWeight: 600,
   cursor: "pointer",
 };
