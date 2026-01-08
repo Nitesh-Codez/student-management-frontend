@@ -18,6 +18,10 @@ import HomeworkStudent from "./pages/HomeworkStudent";
 import HomeworkAdmin from "./pages/HomeworkAdmin";
 import StudentProfile from "./pages/StudentProfile";
 import AdminStudyMaterial from "./pages/AdminStudyMaterial";
+import StudentPage from "./pages/StudentPage";
+
+// ✅ NEW PAGE
+import AdminPage from "./pages/AdminPage";
 
 function App() {
   return (
@@ -34,13 +38,13 @@ function App() {
           <Route path="mark-attendance" element={<MarkAttendance />} />
           <Route path="attendance-view" element={<AttendanceView />} />
           <Route path="add-marks" element={<AdminAddMarks />} />
-
-          {/* ✅ New Route for Exam Marks */}
           <Route path="add-exam-marks" element={<AdminAddNewMarks />} />
-
           <Route path="reports" element={<div>Reports Page</div>} />
           <Route path="upload-homework" element={<HomeworkAdmin />} />
           <Route path="study-material" element={<AdminStudyMaterial />} />
+
+          {/* ✅ NEW Route for Student Submission */}
+          <Route path="student-submission" element={<AdminPage />} />
         </Route>
 
         {/* Student Routes */}
@@ -49,10 +53,9 @@ function App() {
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees />} />
           <Route path="attendance" element={<StudentAttendance />} />
-
-          {/* Test Marks Routes */}
           <Route path="marks" element={<StudentsMarks />} />
           <Route path="homework" element={<HomeworkStudent />} />
+           <Route path="task-update" element={<StudentPage studentId={101} />} />
           <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Route>
 

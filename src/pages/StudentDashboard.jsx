@@ -17,6 +17,10 @@ import HomeworkStudent from "./HomeworkStudent";
 import StudentProfile from "./StudentProfile";
 import StudentStudyMaterial from "./StudentStudyMaterial";
 import StudentNewMarks from "./StudentNewMarks";
+import StudentPage from "./StudentPage";
+import StudentFeedback from "./StudentFeedback";
+
+const API_URL = "https://student-management-system-4-hose.onrender.com"; // upload base URL
 
 /* =========================
    COMMON STYLES
@@ -140,7 +144,7 @@ const DashboardBoxes = ({ navigate }) => {
     { title: "Fees", icon: <FaMoneyBillWave />, path: "/student/fees", bg: "linear-gradient(135deg,#e74c3c,#c0392b)" },
     { title: "Marks", icon: <FaChartLine />, path: "/student/marks", bg: "linear-gradient(135deg,#f39c12,#d35400)" },
     { title: "Homework", icon: <FaBook />, path: "/student/homework", bg: "linear-gradient(135deg,#3498db,#2980b9)" },
-    { title: "Feedback", icon: <FaComments />, bg: "linear-gradient(135deg,#9b59b6,#8e44ad)" },
+    { title: "Feedback", icon: <FaComments />, path: "/student/feedback", bg: "linear-gradient(135deg,#9b59b6,#8e44ad)" },
   ];
 
   return (
@@ -198,7 +202,7 @@ const StudentDashboard = () => {
     formData.append("studentId", user.id);
 
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/upload/student-photo`, {
+      const res = await fetch(`${API_URL}/api/study-material/upload`, { // <-- yeh URL change hua
         method: "POST",
         body: formData,
       });
@@ -206,7 +210,6 @@ const StudentDashboard = () => {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
 
-      // ✅ Update state AND localStorage
       const updatedUser = { ...user, photo: data.photoUrl };
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -242,8 +245,8 @@ const StudentDashboard = () => {
         </h2>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {["Dashboard","Profile","Fees","Attendance","Marks","Exam Results","Homework","Study Material"].map((item, i) => {
-            const paths = ["/student","profile","fees","attendance","marks","exam-results","homework","study-material"];
+          {["Dashboard","Profile","Fees","Attendance","Marks","Exam Results","Homework","Study Material","Task Updates","Feedback"].map((item, i) => {
+            const paths = ["/student","profile","fees","attendance","marks","exam-results","homework","study-material","task-update","feedback"];
             return (
               <Link key={i} to={paths[i]} onClick={() => setSidebarOpen(false)} style={linkStyle}>
                 {item}
@@ -280,6 +283,8 @@ const StudentDashboard = () => {
           <Route path="exam-results" element={<StudentNewMarks />} />
           <Route path="homework" element={<HomeworkStudent />} />
           <Route path="study-material" element={<StudentStudyMaterial />} />
+          <Route path="task-update" element={<StudentPage studentId={user.id} />} />
+          <Route path="feedback" element={<StudentFeedback studentId={user.id} />} /> {/* feedback route added */}
         </Routes>
       </main>
     </>

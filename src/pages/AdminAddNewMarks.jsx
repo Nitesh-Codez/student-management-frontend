@@ -33,55 +33,73 @@ const AdminAddNewMarks = () => {
 
   // Fetch Students + Attendance
   useEffect(() => {
-    if (!selectedClass) return;
+  if (!selectedClass) return;
 
-    const fetchData = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/api/new-marks/students/${selectedClass}`);
-        if (!res.data.success) return;
+  const fetchData = async () => {
+    try {
+      const res = await axios.get(
+        `${API_URL}/api/new-marks/students/${selectedClass}`
+      );
+      if (!res.data.success) return;
 
-        let list = res.data.students.map(s => ({
-          studentId: s.id,
-          name: s.name,
-          theory: "",
-          viva: "",
-          attendance: 0,
-          obtained: 0,
-        }));
+      let list = res.data.students.map(s => ({
+        studentId: s.id,
+        name: s.name,
+        theory: "",
+        viva: "",
+        attendance: 0,
+        obtained: 0,
+      }));
 
-        const prev = new Date(testDate);
-        prev.setMonth(prev.getMonth() - 1);
-        const prevMonth = prev.toISOString().slice(0, 7);
+      // ✅ CURRENT MONTH (based on testDate)
+      const currentMonth = testDate.slice(0, 7);
 
-        list = await Promise.all(list.map(async student => {
+      list = await Promise.all(
+        list.map(async student => {
           try {
-            const attRes = await axios.get(`${API_URL}/api/attendance/attendance-marks`, {
-              params: { studentId: student.studentId, month: prevMonth }
-            });
-            if (attRes.data.success) student.attendance = attRes.data.attendanceMarks;
-          } catch {}
-          return student;
-        }));
+            const attRes = await axios.get(
+              `${API_URL}/api/attendance/attendance-marks`,
+              {
+                params: {
+                  studentId: student.studentId,
+                  month: currentMonth
+                }
+              }
+            );
 
-        // 🔴 attendance = 0 → all marks 0
-        list = list.map(s => {
-          if (Number(s.attendance) === 0) {
-            return { ...s, theory: 0, viva: 0, obtained: 0 };
+            if (attRes.data.success) {
+              student.attendance = attRes.data.attendanceMarks;
+            }
+          } catch (err) {
+            console.log("Attendance error", err);
           }
-          return {
-            ...s,
-            obtained: Number(s.theory || 0) + Number(s.viva || 0) + Number(s.attendance || 0)
-          };
-        });
+          return student;
+        })
+      );
 
-        setMarksData(list);
-      } catch (err) {
-        console.error(err);
-      }
-    };
+      // 🔒 attendance = 0 → all marks 0
+      list = list.map(s => {
+        if (Number(s.attendance) === 0) {
+          return { ...s, theory: 0, viva: 0, obtained: 0 };
+        }
+        return {
+          ...s,
+          obtained:
+            Number(s.theory || 0) +
+            Number(s.viva || 0) +
+            Number(s.attendance || 0),
+        };
+      });
 
-    fetchData();
-  }, [selectedClass, testDate]);
+      setMarksData(list);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchData();
+}, [selectedClass, testDate]);
+
 
   // 🔴 handle change (blocked if attendance = 0)
   const handleChange = (i, field, value) => {

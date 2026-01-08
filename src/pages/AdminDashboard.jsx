@@ -6,7 +6,8 @@ import {
   FaClipboardCheck,
   FaUpload,
   FaBookOpen,
-} from "react-icons/fa";
+  FaFileUpload,
+} from "react-icons/fa"; // Added FaFileUpload for Student Submission
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -17,16 +18,13 @@ const AdminDashboard = () => {
     { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck /> },
     { title: "View Attendance", path: "attendance-view", icon: <FaClipboardCheck /> },
     { title: "Upload Homework", path: "upload-homework", icon: <FaUpload /> },
-
-    // ✅ NEW FEATURE
     { title: "Study Material", path: "study-material", icon: <FaUpload /> },
-
     { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
-
-    // ✅ NEW CARD
     { title: "Add Exam Marks", path: "add-exam-marks", icon: <FaBookOpen /> },
-
     { title: "Reports", path: "reports", icon: <FaUpload /> },
+
+    // ✅ NEW LINK: Student Submission
+    { title: "Student Submission", path: "student-submission", icon: <FaFileUpload /> },
   ];
 
   const showDashboard = location.pathname === "/admin";
