@@ -10,10 +10,19 @@ export default function StudentPage() {
   const [tasks, setTasks] = useState([]);
   const [files, setFiles] = useState({});
   const [showToast, setShowToast] = useState(false);
+  const [now, setNow] = useState(Date.now()); // 👈 real-time clock
 
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const studentClass = user.class || "";
   const studentId = user.id || "";
+
+  // ===== LIVE CLOCK (EVERY SECOND) =====
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchTasks = async () => {
     if (!studentClass || !studentId) return;
@@ -55,19 +64,42 @@ export default function StudentPage() {
     fetchTasks();
   };
 
+  // ===== DEADLINE COUNTDOWN FUNCTION =====
+  const getDeadlineStatus = (deadline) => {
+    if (!deadline) return null;
+
+    const diff = new Date(deadline).getTime() - now; // future - now
+    const abs = Math.abs(diff);
+
+    const d = Math.floor(abs / (1000 * 60 * 60 * 24));
+    const h = Math.floor((abs / (1000 * 60 * 60)) % 24);
+    const m = Math.floor((abs / (1000 * 60)) % 60);
+    const s = Math.floor((abs / 1000) % 60);
+
+    if (diff > 0) {
+      return {
+        text: `⏳ Time left: ${d}d ${h}h ${m}m ${s}s`,
+        color: diff < 3600000 ? "#f39c12" : "#27ae60" // <1 hour warning
+      };
+    } else {
+      return {
+        text: `❌ Late by: ${d}d ${h}h ${m}m ${s}s`,
+        color: "#e74c3c"
+      };
+    }
+  };
+
   return (
     <div style={pageStyle}>
-      {/* ===== PAGE HEADER ===== */}
+      {/* ===== HEADER ===== */}
       <div style={pageHeader}>
-  <h2 style={{ margin: 0, color: "#221b2e" }}>
-    Hello, <b>{user.name || "Student"}</b> 👋
-  </h2>
-  <p style={{ marginTop: 6, fontSize: 3, color: "#000000" }}>
-    Check Your Task!
-  </p>
-</div>
-
-
+        <h2 style={{ margin: 0, color: "#0a2540" }}>
+          Hello, <b>{user.name || "Student"}</b> 👋
+        </h2>
+        <p style={{ marginTop: 6, fontSize: 14, color: "#0a2540" }}>
+          Check Your Assignment
+        </p>
+      </div>
 
       {/* ===== NEW TASK TOAST ===== */}
       {showToast && (
@@ -80,54 +112,73 @@ export default function StudentPage() {
       {tasks.length === 0 ? (
         <p style={emptyStyle}>No assignments available</p>
       ) : (
-        tasks.map(task => (
-          <div key={task.id} style={taskCard}>
-            
-            {/* ===== GREEN STRIP ===== */}
-            <div style={taskHeader}>
-              {task.task_title || "Untitled Task"}
+        tasks.map(task => {
+          const deadlineInfo =
+            task.status === "NOT SUBMITTED"
+              ? getDeadlineStatus(task.deadline)
+              : null;
+
+          return (
+            <div key={task.id} style={taskCard}>
+              <div style={taskHeader}>
+                {task.task_title || "Untitled Task"}
+              </div>
+
+              <div style={taskBody}>
+                <p>
+  <b>Subject:</b>{" "}
+  <span style={{ fontSize: 18, fontWeight: "bold" }}>
+    {task.subject}
+  </span>
+</p>
+
+                <p>
+                  <b>Deadline:</b>{" "}
+                  {task.deadline
+                    ? new Date(task.deadline).toLocaleString()
+                    : "No deadline"}
+                </p>
+
+                <p>
+                  <b>Status:</b>{" "}
+                  <span style={{
+                    color: task.status === "SUBMITTED" ? "#27ae60" : "#c0392b",
+                    fontWeight: "bold"
+                  }}>
+                    {task.status}
+                  </span>
+                </p>
+
+                {deadlineInfo && (
+                  <p style={{
+                    fontWeight: "bold",
+                    color: deadlineInfo.color
+                  }}>
+                    {deadlineInfo.text}
+                  </p>
+                )}
+
+                {task.status === "NOT SUBMITTED" && (
+                  <div style={{ marginTop: 10 }}>
+                    <input
+                      type="file"
+                      onChange={e =>
+                        setFiles({ ...files, [task.id]: e.target.files[0] })
+                      }
+                    />
+                    <br />
+                    <button
+                      style={submitBtn}
+                      onClick={() => handleSubmit(task)}
+                    >
+                      Submit Assignment
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-
-            {/* ===== CONTENT ===== */}
-            <div style={taskBody}>
-              <p><b>Subject:</b> {task.subject}</p>
-              <p>
-                <b>Deadline:</b>{" "}
-                {task.deadline
-                  ? new Date(task.deadline).toLocaleString()
-                  : "No deadline"}
-              </p>
-
-              <p>
-                <b>Status:</b>{" "}
-                <span style={{
-                  color: task.status === "SUBMITTED" ? "#2ecc71" : "#e74c3c",
-                  fontWeight: "bold"
-                }}>
-                  {task.status}
-                </span>
-              </p>
-
-              {task.status === "NOT SUBMITTED" && (
-                <div style={{ marginTop: 10 }}>
-                  <input
-                    type="file"
-                    onChange={e =>
-                      setFiles({ ...files, [task.id]: e.target.files[0] })
-                    }
-                  />
-                  <br />
-                  <button
-                    style={submitBtn}
-                    onClick={() => handleSubmit(task)}
-                  >
-                    Submit Assignment
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
@@ -144,10 +195,8 @@ const pageStyle = {
 
 const pageHeader = {
   background: "#2ecc71",
-  color: "white",
   padding: 18,
   textAlign: "center",
-  fontSize: 22,
   fontWeight: "bold"
 };
 
