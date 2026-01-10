@@ -93,13 +93,18 @@ const AdminStudyMaterial = () => {
           placeholder="Chapter / Topic"
         />
 
-        <label style={styles.label}>Subject</label>
-        <input
-          style={styles.input}
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder="Subject name"
-        />
+       <label style={styles.label}>Subject</label>
+<select
+  style={styles.input}
+  value={subject}
+  onChange={(e) => setSubject(e.target.value)}
+>
+  <option value="">Select Subject</option>
+  {["Hindi", "English", "Maths", "Geography", "Civics", "History", "Science"].map((sub, i) => (
+    <option key={i} value={sub}>{sub}</option>
+  ))}
+</select>
+
 
         <label style={styles.label}>PDF File</label>
         <input
