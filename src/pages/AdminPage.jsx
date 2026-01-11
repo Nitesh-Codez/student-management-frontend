@@ -55,12 +55,20 @@ export default function AdminPage() {
         const result = {};
 
         for (let task of tasks) {
+          // ✅ class filter added in query param
           const subRes = await axios.get(
             `${API_URL}/api/assignments/admin/submissions/${encodeURIComponent(
               task
-            )}`
+            )}?class=${viewClass}`
           );
-          result[task] = subRes.data.success ? subRes.data.submissions : [];
+          // ✅ grading_status add kar rahe
+          const submissions = subRes.data.success
+            ? subRes.data.submissions.map((s) => ({
+                ...s,
+                grading_status: s.rating ? "GRADED" : "NOT GRADED",
+              }))
+            : [];
+          result[task] = submissions;
         }
 
         setTaskSubmissions(result);
@@ -108,33 +116,33 @@ export default function AdminPage() {
   };
 
   // ================= HANDLE RATING =================
- // ================= HANDLE RATING =================
-const handleRating = async (submissionId, value) => {
-  try {
-    const res = await axios.put(
-      `${API_URL}/api/assignments/rating/${submissionId}`,
-      { rating: value }
-    );
+  const handleRating = async (submissionId, value) => {
+    try {
+      const res = await axios.put(
+        `${API_URL}/api/assignments/rating/${submissionId}`,
+        { rating: value }
+      );
 
-    if (res.data.success) {
-      // ✅ Front-end me turant update
-      setTaskSubmissions((prev) => {
-        const newSubs = { ...prev };
-        for (let task in newSubs) {
-          newSubs[task] = newSubs[task].map((s) =>
-            s.id === submissionId ? { ...s, rating: value } : s
-          );
-        }
-        return newSubs;
-      });
-      alert("Rating saved!");
+      if (res.data.success) {
+        // ✅ Front-end me turant update
+        setTaskSubmissions((prev) => {
+          const newSubs = { ...prev };
+          for (let task in newSubs) {
+            newSubs[task] = newSubs[task].map((s) =>
+              s.id === submissionId
+                ? { ...s, rating: value, grading_status: "GRADED" }
+                : s
+            );
+          }
+          return newSubs;
+        });
+        alert("Rating saved!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update rating");
     }
-  } catch (err) {
-    console.error(err);
-    alert("Failed to update rating");
-  }
-};
-
+  };
 
   // ================= RENDER =================
   return (
@@ -231,6 +239,7 @@ const handleRating = async (submissionId, value) => {
                     <th style={thHeaderStyle}>Status</th>
                     <th style={thHeaderStyle}>File</th>
                     <th style={thHeaderStyle}>Rating</th>
+                    <th style={thHeaderStyle}>Grading</th> {/* ✅ Grading column */}
                   </tr>
                 </thead>
 
@@ -276,6 +285,7 @@ const handleRating = async (submissionId, value) => {
                             </span>
                           ))}
                         </td>
+                        <td style={thTdStyle}>{s.grading_status}</td> {/* ✅ Grading status */}
                       </tr>
                     );
                   })}

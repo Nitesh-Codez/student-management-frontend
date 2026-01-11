@@ -57,11 +57,32 @@ export default function StudentPage() {
     fd.append("task_title", task.task_title);
     fd.append("subject", task.subject);
 
+    const currentTime = new Date().toISOString();
+    fd.append("uploaded_at", currentTime);
+
     try {
       const res = await axios.post(SUBMIT_API, fd);
-      alert(res.data.success ? "Assignment Submitted!" : res.data.message);
-      fetchTasks();
-    } catch {
+      if (res.data.success) {
+        alert("Assignment Submitted!");
+
+        // ✅ FRONTEND STATE UPDATE FOR IMMEDIATE REFLECT
+        setTasks(prev =>
+          prev.map(t =>
+            t.id === task.id
+              ? {
+                  ...t,
+                  status: "SUBMITTED",
+                  uploaded_at: currentTime,
+                  student_file: URL.createObjectURL(file),
+                }
+              : t
+          )
+        );
+      } else {
+        alert(res.data.message);
+      }
+    } catch (err) {
+      console.error(err);
       alert("Server error");
     }
   };
@@ -70,12 +91,15 @@ export default function StudentPage() {
   const formatDateTime = (dateStr) => {
     if (!dateStr) return "-";
     const d = new Date(dateStr);
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, "0");
-    const minutes = String(d.getMinutes()).padStart(2, "0");
-    return `${day}.${month}.${year} ${hours}:${minutes}`;
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "Asia/Kolkata",
+    });
   };
 
   // ===== DURATION FORMATTER =====
