@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 // Pages
 import Login from "./pages/Login";
-import AdminDashboard from "./pages/AdminDashboard";
+import AdminDashboard, { AdminFeedback } from "./pages/AdminDashboard";
 import AdminAddMarks from "./pages/AdminAddMarks";
 import AdminAddNewMarks from "./pages/AdminAddNewMarks"; // ✅ New
 import StudentDashboard from "./pages/StudentDashboard";
@@ -45,6 +45,9 @@ function App() {
 
           {/* ✅ NEW Route for Student Submission */}
           <Route path="student-submission" element={<AdminPage />} />
+
+          {/* ✅ NEW Route for Admin Feedback */}
+          <Route path="admin-feedback" element={<AdminFeedback />} />
         </Route>
 
         {/* Student Routes */}
@@ -55,7 +58,7 @@ function App() {
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="marks" element={<StudentsMarks />} />
           <Route path="homework" element={<HomeworkStudent />} />
-           <Route path="task-update" element={<StudentPage studentId={101} />} />
+          <Route path="task-update" element={<StudentPage studentId={101} />} />
           <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Route>
 

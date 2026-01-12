@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   FaUserGraduate,
@@ -7,8 +7,83 @@ import {
   FaUpload,
   FaBookOpen,
   FaFileUpload,
-} from "react-icons/fa"; // Added FaFileUpload for Student Submission
+} from "react-icons/fa";
+import axios from "axios";
 
+// ================== ADMIN FEEDBACK COMPONENT ==================
+const AdminFeedback = () => {
+  const [feedbacks, setFeedbacks] = useState([]);
+
+  useEffect(() => {
+    axios
+      .get("/api/feedback/admin/all")
+      .then((res) => setFeedbacks(res.data.feedbacks || []))
+      .catch((err) => console.error(err));
+  }, []);
+
+  const calculatePercentage = (answers) => {
+    if (!answers || answers.length === 0) return { positive: 0, negative: 0 };
+    const positiveCount = answers.filter((a) => a.answer >= 3).length; // 3,4 = positive
+    const negativeCount = answers.length - positiveCount;
+    const positive = Math.round((positiveCount / answers.length) * 100);
+    const negative = Math.round((negativeCount / answers.length) * 100);
+    return { positive, negative };
+  };
+
+  return (
+    <div className="p-6 w-full min-h-screen">
+      <h2 className="text-3xl font-bold mb-6 text-center text-green-700">
+        All Student Feedback
+      </h2>
+      {feedbacks.length === 0 && (
+        <p className="text-center text-gray-500 text-xl">No feedback yet.</p>
+      )}
+      <div className="grid gap-6">
+        {feedbacks.map((f) => {
+          const { positive, negative } = calculatePercentage(f.mcq_answers);
+          return (
+            <div
+              key={f.id}
+              className="border-4 border-black p-6 rounded-2xl shadow-lg bg-white"
+            >
+              <h3 className="text-xl font-bold mb-2">
+                {f.name} ({f.class}) - {f.month}/{f.year}
+              </h3>
+
+              <p className="font-bold mb-1">Suggestion:</p>
+              <p className="mb-3">{f.suggestion || "N/A"}</p>
+
+              <p className="font-bold mb-1">Problem:</p>
+              <p className="mb-3">{f.problem || "N/A"}</p>
+
+              <p className="font-bold mb-1">Rating: {f.rating} / 5</p>
+
+              <p className="font-bold mt-3">MCQ Answers:</p>
+              <div className="ml-4">
+                {f.mcq_answers.map((a) => (
+                  <p key={a.question_number}>
+                    Q{a.question_number}: Option {a.answer}
+                  </p>
+                ))}
+              </div>
+
+              <p className="font-bold mt-3">
+                Positive Feedback: {positive}% | Negative Feedback: {negative}%
+              </p>
+              {negative > 0 && (
+                <p className="text-red-600 font-bold mt-1">
+                  ⚠ Check negative responses carefully
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ================== ADMIN DASHBOARD ==================
 const AdminDashboard = () => {
   const location = useLocation();
 
@@ -22,9 +97,8 @@ const AdminDashboard = () => {
     { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
     { title: "Add Exam Marks", path: "add-exam-marks", icon: <FaBookOpen /> },
     { title: "Reports", path: "reports", icon: <FaUpload /> },
-
-    // ✅ NEW LINK: Student Submission
     { title: "Student Submission", path: "student-submission", icon: <FaFileUpload /> },
+    { title: "Student Feedback", path: "admin-feedback", icon: <FaClipboardCheck /> }, // ✅ Feedback card
   ];
 
   const showDashboard = location.pathname === "/admin";
@@ -94,7 +168,7 @@ const AdminDashboard = () => {
   );
 };
 
-// Styles
+// ================== STYLES ==================
 const page = {
   display: "flex",
   minHeight: "100vh",
@@ -152,3 +226,4 @@ const iconWrapper = {
 };
 
 export default AdminDashboard;
+export { AdminFeedback };
