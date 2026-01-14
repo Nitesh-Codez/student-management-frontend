@@ -28,7 +28,7 @@ export default function AdminPage() {
           setClasses(res.data.classes);
           const map = {};
           res.data.classes.forEach((c) => {
-            map[c.class] = ["Math", "English", "Hindi", "Science"];
+            map[c.class] = ["Math", "English", "Hindi", "Science"]; // or fetch dynamically
           });
           setSubjectsByClass(map);
         }
@@ -48,27 +48,26 @@ export default function AdminPage() {
         const taskRes = await axios.get(
           `${API_URL}/api/assignments/admin/tasks/${viewClass}`
         );
-
         if (!taskRes.data.success) return;
 
-        const tasks = taskRes.data.tasks.map((t) => t.task_title);
+        const tasks = taskRes.data.tasks;
         const result = {};
 
         for (let task of tasks) {
-          // ✅ class filter added in query param
           const subRes = await axios.get(
             `${API_URL}/api/assignments/admin/submissions/${encodeURIComponent(
-              task
+              task.task_title
             )}?class=${viewClass}`
           );
-          // ✅ grading_status add kar rahe
+
           const submissions = subRes.data.success
             ? subRes.data.submissions.map((s) => ({
                 ...s,
                 grading_status: s.rating ? "GRADED" : "NOT GRADED",
               }))
             : [];
-          result[task] = submissions;
+
+          result[task.task_title] = submissions;
         }
 
         setTaskSubmissions(result);
@@ -98,9 +97,11 @@ export default function AdminPage() {
     formData.append("deadline", deadline);
 
     try {
-      const res = await axios.post(`${API_URL}/api/assignments/admin/upload`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.post(
+        `${API_URL}/api/assignments/admin/upload`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
 
       alert(res.data.success ? "Assignment Uploaded!" : res.data.message);
 
@@ -124,7 +125,6 @@ export default function AdminPage() {
       );
 
       if (res.data.success) {
-        // ✅ Front-end me turant update
         setTaskSubmissions((prev) => {
           const newSubs = { ...prev };
           for (let task in newSubs) {
@@ -239,7 +239,7 @@ export default function AdminPage() {
                     <th style={thHeaderStyle}>Status</th>
                     <th style={thHeaderStyle}>File</th>
                     <th style={thHeaderStyle}>Rating</th>
-                    <th style={thHeaderStyle}>Grading</th> {/* ✅ Grading column */}
+                    <th style={thHeaderStyle}>Grading</th>
                   </tr>
                 </thead>
 
@@ -285,7 +285,7 @@ export default function AdminPage() {
                             </span>
                           ))}
                         </td>
-                        <td style={thTdStyle}>{s.grading_status}</td> {/* ✅ Grading status */}
+                        <td style={thTdStyle}>{s.grading_status}</td>
                       </tr>
                     );
                   })}

@@ -2,71 +2,96 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 export default function AdminFeedback() {
-  const [feedbacks, setFeedbacks] = useState([]);
-
-  // Positive/negative mapping for MCQs
-  const positiveOptions = [1, 2]; // Option 1 & 2 considered positive
-  const negativeOptions = [3, 4]; // Option 3 & 4 considered negative
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // ✅ Use full URL from .env
-    axios.get(`${process.env.REACT_APP_API_URL}/api/feedback/admin/all`)
-      .then(res => {
+    // Correctly use your backend URL from .env
+    const fetchSummary = async () => {
+      try {
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/feedback/admin/summary`
+        );
+
         if (res.data.success) {
-          // Ensure mcq_answers is parsed as array
-          const parsedFeedbacks = res.data.feedbacks.map(f => ({
-            ...f,
-            mcq_answers: Array.isArray(f.mcq_answers) ? f.mcq_answers : JSON.parse(f.mcq_answers)
-          }));
-          setFeedbacks(parsedFeedbacks);
+          setSummary(res.data.summary);
+        } else {
+          setError("Failed to fetch feedback summary.");
         }
-      })
-      .catch(err => console.error("Error fetching feedback:", err));
+      } catch (err) {
+        console.error("Error fetching admin summary:", err);
+        setError("Server not reachable or invalid response.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
   }, []);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <p className="text-gray-500 text-xl">Loading feedback summary...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-100">
+        <p className="text-red-600 text-xl font-bold">{error}</p>
+      </div>
+    );
+  }
+
+  const total = summary.positive + summary.neutral + summary.negative || 1;
+  const positivePercent = ((summary.positive / total) * 100).toFixed(1);
+  const neutralPercent = ((summary.neutral / total) * 100).toFixed(1);
+  const negativePercent = ((summary.negative / total) * 100).toFixed(1);
+
   return (
-    <div className="min-h-screen p-6 bg-gray-100">
-      <h2 className="text-3xl font-bold mb-6 text-center">All Student Feedback</h2>
+    <div className="min-h-screen p-6 bg-gradient-to-r from-green-100 via-yellow-100 to-pink-100">
+      <h2 className="text-4xl font-extrabold mb-8 text-center text-green-800">
+        Faculty Feedback Summary
+      </h2>
 
-      {feedbacks.length === 0 && (
-        <p className="text-center text-gray-500">No feedback found.</p>
-      )}
+      <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-6 bg-green-200 rounded-3xl shadow-lg text-center">
+          <p className="text-2xl font-bold">✅ Positive</p>
+          <p className="text-3xl font-extrabold mt-3">{summary.positive}</p>
+          <p className="text-lg mt-1">{positivePercent}%</p>
+        </div>
 
-      {feedbacks.map(f => {
-        const total = f.mcq_answers.length || 1; // avoid divide by zero
-        const positiveCount = f.mcq_answers.filter(a => positiveOptions.includes(a.answer)).length;
-        const negativeCount = f.mcq_answers.filter(a => negativeOptions.includes(a.answer)).length;
-        const positivePercent = ((positiveCount / total) * 100).toFixed(1);
-        const negativePercent = ((negativeCount / total) * 100).toFixed(1);
+        <div className="p-6 bg-yellow-200 rounded-3xl shadow-lg text-center">
+          <p className="text-2xl font-bold">⚪ Neutral</p>
+          <p className="text-3xl font-extrabold mt-3">{summary.neutral}</p>
+          <p className="text-lg mt-1">{neutralPercent}%</p>
+        </div>
 
-        // Get question numbers for negative answers
-        const negativeQuestions = f.mcq_answers
-          .filter(a => negativeOptions.includes(a.answer))
-          .map(a => `Q${a.question_number}: Option ${a.answer}`);
+        <div className="p-6 bg-red-200 rounded-3xl shadow-lg text-center">
+          <p className="text-2xl font-bold">❌ Negative</p>
+          <p className="text-3xl font-extrabold mt-3">{summary.negative}</p>
+          <p className="text-lg mt-1">{negativePercent}%</p>
+        </div>
+      </div>
 
-        return (
-          <div key={f.id} className="border-4 border-black rounded-lg p-6 mb-6 bg-white shadow-lg">
-            <h3 className="text-xl font-bold mb-3">{f.name} ({f.class}) - {f.month}/{f.year}</h3>
-            
-            <p className="mb-2"><span className="font-bold">Suggestion:</span> {f.suggestion || "N/A"}</p>
-            <p className="mb-2"><span className="font-bold">Problem:</span> {f.problem || "N/A"}</p>
-            <p className="mb-2"><span className="font-bold">Rating:</span> {f.rating} / 5</p>
-
-            <p className="mb-2 font-bold">MCQ Analysis:</p>
-            <p className="mb-1">✅ Positive: {positiveCount} ({positivePercent}%)</p>
-            <p className="mb-2">❌ Negative: {negativeCount} ({negativePercent}%)</p>
-
-            {negativeQuestions.length > 0 && (
-              <div className="bg-red-100 border-l-4 border-red-500 p-3 rounded-md mt-2">
-                <p className="font-semibold mb-1">Negative Answers (Review):</p>
-                <ul className="list-disc list-inside">
-                  {negativeQuestions.map((q, i) => <li key={i}>{q}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
-        );
-      })}
+      <div className="mt-10 text-center">
+        {positivePercent >= 70 ? (
+          <p className="text-3xl font-bold text-green-700">
+            🌟 Overall Feedback: Excellent 🌟
+          </p>
+        ) : negativePercent >= 30 ? (
+          <p className="text-3xl font-bold text-red-700">
+            ⚠️ Overall Feedback: Needs Improvement ⚠️
+          </p>
+        ) : (
+          <p className="text-3xl font-bold text-yellow-700">
+            ⚪ Overall Feedback: Moderate
+          </p>
+        )}
+      </div>
     </div>
   );
 }

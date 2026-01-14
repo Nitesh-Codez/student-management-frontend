@@ -41,13 +41,6 @@ export default function StudentPage() {
 
   // ===== SUBMIT =====
   const handleSubmit = async (task) => {
-    if (task.status === "SUBMITTED") {
-      const confirmRes = window.confirm(
-        "You have already submitted this assignment. Do you want to submit again?"
-      );
-      if (!confirmRes) return;
-    }
-
     const file = files[task.id];
     if (!file) return alert("Select file first");
 
@@ -59,27 +52,13 @@ export default function StudentPage() {
     fd.append("class", studentClass);
     fd.append("task_title", task.task_title);
     fd.append("subject", task.subject);
-
-    const currentTime = new Date().toISOString();
-    fd.append("uploaded_at", currentTime);
+    fd.append("uploaded_at", new Date().toISOString());
 
     try {
       const res = await axios.post(SUBMIT_API, fd);
       if (res.data.success) {
         alert("Assignment Submitted!");
-
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === task.id
-              ? {
-                  ...t,
-                  status: "SUBMITTED",
-                  uploaded_at: currentTime,
-                  student_file: URL.createObjectURL(file),
-                }
-              : t
-          )
-        );
+        fetchTasks();
       }
     } catch (err) {
       console.error(err);
@@ -89,263 +68,144 @@ export default function StudentPage() {
 
   // ===== DELETE SUBMISSION =====
   const handleDeleteSubmission = async (submissionId) => {
-    const confirmRes = window.confirm(
-      "Are you sure you want to remove your submission?"
-    );
-    if (!confirmRes) return;
-
+    if (!window.confirm("Remove your submission?")) return;
     try {
-      const res = await axios.delete(`${DELETE_API}/${submissionId}`);
-      if (res.data.success) {
-        alert("Submission removed");
-
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.student_submission_id === submissionId
-              ? {
-                  ...t,
-                  status: "NOT SUBMITTED",
-                  student_file: null,
-                  uploaded_at: null,
-                  rating: null,
-                  student_submission_id: null,
-                }
-              : t
-          )
-        );
-      }
+      await axios.delete(`${DELETE_API}/${submissionId}`);
+      fetchTasks();
     } catch (err) {
-      console.error(err);
       alert("Delete failed");
     }
   };
 
-  // ===== DATE FORMATTER =====
-  const formatDateTime = (dateStr) => {
-    if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: "Asia/Kolkata",
-    });
-  };
+  // ===== HELPERS =====
+  const formatDateTime = (dateStr) =>
+    dateStr
+      ? new Date(dateStr).toLocaleString("en-IN", { hour12: false })
+      : "-";
 
-  // ===== DURATION FORMATTER =====
-  const formatDuration = (ms) => {
-    const abs = Math.abs(ms);
-    const h = Math.floor(abs / (1000 * 60 * 60));
-    const m = Math.floor((abs / (1000 * 60)) % 60);
-    return `${h}h ${m}m`;
-  };
+  const renderRating = (rating) => {
+    if (!rating)
+      return <p style={{ color: "#f39c12" }}>🕒 Grading Pending</p>;
 
-  const getLiveDeadlineText = (deadline) => {
-    if (!deadline) return null;
-    const diff = new Date(deadline).getTime() - now;
-    if (diff > 0)
-      return { text: `⏳ ${formatDuration(diff)} left`, color: "#27ae60" };
-    return { text: `⚠️ You are ${formatDuration(diff)} late`, color: "#e74c3c" };
-  };
-
-  const getSubmittedStatus = (deadline, uploadedAt) => {
-    if (!deadline || !uploadedAt) return null;
-    const diff =
-      new Date(uploadedAt).getTime() - new Date(deadline).getTime();
-    if (diff <= 0)
-      return {
-        text: `🎉 Submitted ${formatDuration(diff)} early`,
-        color: "#27ae60",
-      };
-    return {
-      text: `😢 Submitted ${formatDuration(diff)} late`,
-      color: "#e74c3c",
-    };
+    return (
+      <div>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            style={{
+              fontSize: 32,
+              color: i <= rating ? "#f1c40f" : "#ccc",
+            }}
+          >
+            ★
+          </span>
+        ))}
+      </div>
+    );
   };
 
   return (
     <div style={pageStyle}>
       <div style={pageHeader}>
-        <h2>
-          Hello, <b>{user.name || "Student"}</b> 👋
-        </h2>
+        <h2>Hello, <b>{user.name || "Student"}</b> 👋</h2>
         <p>Check Your Assignments</p>
       </div>
 
-      {tasks.length === 0 ? (
-        <p style={emptyStyle}>No assignments available</p>
-      ) : (
-        tasks.map((task) => {
-          const isSubmitted = task.status === "SUBMITTED";
-          const liveTime = !isSubmitted
-            ? getLiveDeadlineText(task.deadline)
-            : null;
-          const submittedInfo = isSubmitted
-            ? getSubmittedStatus(task.deadline, task.uploaded_at)
-            : null;
+      {tasks.map((task) => {
+        const isSubmitted = task.status === "SUBMITTED";
 
-          return (
-            <div key={task.id} style={taskCard}>
-              <div style={taskHeader}>{task.task_title}</div>
-              <div style={taskBody}>
-                <p>
-                  <b>Subject:</b> {task.subject}
-                </p>
-                <p>
-                  <b>Deadline:</b>{" "}
-                  {task.deadline
-                    ? formatDateTime(task.deadline)
-                    : "No deadline"}
-                </p>
+        return (
+          <div key={task.id} style={taskCard}>
+            <div style={taskHeader}>{task.task_title}</div>
+            <div style={taskBody}>
+              <p><b>Subject:</b> {task.subject}</p>
+              <p><b>Deadline:</b> {formatDateTime(task.deadline)}</p>
 
-                {task.task_file && (
-                  <button
-                    style={viewBtn}
-                    onClick={() => window.open(task.task_file, "_blank")}
-                  >
-                    📄 View Task
-                  </button>
-                )}
+              {/* ===== VIEW TASK (ADMIN FILE) ===== */}
+              {task.task_file && (
+                <button
+                  style={viewBtn}
+                  onClick={() => window.open(task.task_file, "_blank")}
+                >
+                  📄 View Task
+                </button>
+              )}
 
-                <p>
-                  <b>Status:</b>{" "}
-                  <span
-                    style={{
-                      fontWeight: "bold",
-                      color: isSubmitted ? "green" : "red",
-                    }}
-                  >
-                    {task.status}
-                  </span>
-                </p>
+              <p>
+                <b>Status:</b>{" "}
+                <span style={{ color: isSubmitted ? "green" : "red" }}>
+                  {task.status}
+                </span>
+              </p>
 
-                {!isSubmitted && liveTime && (
-                  <p style={{ color: liveTime.color, fontWeight: "bold" }}>
-                    {liveTime.text}
-                  </p>
-                )}
+              {isSubmitted ? (
+                <>
+                  <p><b>Submitted At:</b> {formatDateTime(task.uploaded_at)}</p>
 
-                {isSubmitted && (
-                  <>
-                    <p>
-                      <b>Submitted At:</b>{" "}
-                      {formatDateTime(task.uploaded_at)}
-                    </p>
-
-                    {task.student_file && (
-                      <button
-                        style={{ ...viewBtn, background: "#8e44ad" }}
-                        onClick={() =>
-                          window.open(task.student_file, "_blank")
-                        }
-                      >
-                        🧾 View My Submission
-                      </button>
-                    )}
-
+                  {task.student_file && (
                     <button
-                      style={deleteBtn}
+                      style={{ ...viewBtn, background: "#8e44ad" }}
                       onClick={() =>
-                        handleDeleteSubmission(task.student_submission_id)
+                        window.open(task.student_file, "_blank")
                       }
                     >
-                      🗑 Remove Submission
+                      🧾 View My Submission
                     </button>
+                  )}
 
-                    {submittedInfo && (
-                      <p
-                        style={{
-                          fontWeight: "bold",
-                          color: submittedInfo.color,
-                        }}
-                      >
-                        {submittedInfo.text}
-                      </p>
-                    )}
-                  </>
-                )}
+                  {/* ===== GRADING ===== */}
+                  {renderRating(task.rating)}
 
-                {!isSubmitted && (
-                  <>
-                    <input
-                      type="file"
-                      onChange={(e) =>
-                        setFiles({
-                          ...files,
-                          [task.id]: e.target.files[0],
-                        })
-                      }
-                    />
-                    <br />
-                    <button
-                      style={submitBtn}
-                      onClick={() => handleSubmit(task)}
-                    >
-                      Submit Assignment
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })
-      )}
+                  {/* ===== REMOVE AS LINK ===== */}
+                  <div>
+                    <p
+  onClick={() =>
+    handleDeleteSubmission(task.student_submission_id)
+  }
+  style={{
+    marginTop: "10px",
+    color: "#e74c3c",
+    fontWeight: "bold",
+    fontSize: "16px",
+    cursor: "pointer",
+    textDecoration: "underline"
+  }}
+>
+  ❌ Remove Submission
+</p>
+
+                  </div>
+</>
+) : (
+  <>
+    <input
+      type="file"
+      onChange={(e) =>
+        setFiles({ ...files, [task.id]: e.target.files[0] })
+      }
+    />
+
+    <div style={{ marginTop: "18px" }}>
+      <button style={submitBtn} onClick={() => handleSubmit(task)}>
+        Submit Assignment
+      </button>
+    </div>
+  </>
+)}
+</div>
+
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 /* ================= STYLES ================= */
-const pageStyle = {
-  minHeight: "100vh",
-  background: "#eafaf1",
-  paddingBottom: 40,
-};
-const pageHeader = {
-  background: "#2ecc71",
-  padding: 18,
-  textAlign: "center",
-  color: "#fff",
-};
-const taskCard = {
-  width: "90%",
-  maxWidth: 850,
-  margin: "25px auto",
-  background: "#fff",
-  borderRadius: 10,
-};
-const taskHeader = {
-  background: "#27ae60",
-  color: "#fff",
-  padding: 12,
-  fontWeight: "bold",
-};
+const pageStyle = { background: "#eafaf1", minHeight: "100vh" };
+const pageHeader = { background: "#2ecc71", color: "#fff", padding: 18, textAlign: "center" };
+const taskCard = { background: "#fff", margin: "25px auto", width: "90%", maxWidth: 850, borderRadius: 10 };
+const taskHeader = { background: "#27ae60", color: "#fff", padding: 12 };
 const taskBody = { padding: 16 };
-const submitBtn = {
-  marginTop: 10,
-  padding: "8px 18px",
-  background: "#27ae60",
-  color: "#fff",
-  border: "none",
-  borderRadius: 5,
-};
-const viewBtn = {
-  margin: "8px 8px 8px 0",
-  padding: "6px 14px",
-  background: "#3498db",
-  color: "#fff",
-  border: "none",
-  borderRadius: 5,
-  cursor: "pointer",
-};
-const deleteBtn = {
-  marginTop: 10,
-  padding: "6px 14px",
-  background: "#e74c3c",
-  color: "#fff",
-  border: "none",
-  borderRadius: 5,
-  cursor: "pointer",
-};
-const emptyStyle = { textAlign: "center", marginTop: 60 };
+const submitBtn = { background: "#27ae60", color: "#fff", padding: "8px 18px", border: "none" };
+const viewBtn = { background: "#3498db", color: "#fff", padding: "6px 14px", border: "none", marginRight: 8 };

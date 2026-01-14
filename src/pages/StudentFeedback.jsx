@@ -3,152 +3,154 @@ import axios from "axios";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-// ================= FEEDBACK QUESTIONS + OPTIONS =================
+// ================= QUESTIONS =================
 const questions = [
   {
     question: "How would you rate Bhaiya's behavior during this month in class?",
     options: ["Very Friendly", "Friendly", "Neutral", "Not Friendly"],
-    colors: ["#FFEEAD", "#ADE8F4", "#D3D3D3", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#F5F5F5", "#FDECEA"]
   },
   {
     question: "How well did Bhaiya explain the lessons this month?",
     options: ["Very Clearly", "Clearly", "Somewhat Clear", "Not Clear at All"],
-    colors: ["#FFEEAD", "#ADE8F4", "#FFDAB9", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#FFF8E1", "#FDECEA"]
   },
   {
     question: "Was the teaching pace suitable for you this month?",
     options: ["Perfect Pace", "Good Pace", "Moderate", "Too Slow/Fast"],
-    colors: ["#FFEEAD", "#ADE8F4", "#FFDAB9", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#FFF8E1", "#FDECEA"]
   },
   {
     question: "How much did you understand the lessons this month?",
     options: ["Completely", "Mostly", "Partially", "Did not understand"],
-    colors: ["#FFEEAD", "#ADE8F4", "#FFDAB9", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#FFF8E1", "#FDECEA"]
   },
   {
     question: "How often did Bhaiya get angry in class this month?",
     options: ["Never", "Rarely", "Sometimes", "Often"],
-    colors: ["#FFEEAD", "#ADE8F4", "#FFDAB9", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#FFF8E1", "#FDECEA"]
   },
   {
     question: "How did you feel about the overall teaching quality this month?",
     options: ["Loved it", "Liked it", "Neutral", "Did not like it"],
-    colors: ["#FFEEAD", "#ADE8F4", "#D3D3D3", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#F5F5F5", "#FDECEA"]
   },
   {
     question: "How actively did you participate in class this month?",
     options: ["Very Actively", "Actively", "Sometimes", "Rarely"],
-    colors: ["#FFEEAD", "#ADE8F4", "#FFDAB9", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#FFF8E1", "#FDECEA"]
   },
   {
     question: "How helpful were Bhaiya's homework explanations?",
     options: ["Very Helpful", "Helpful", "Somewhat Helpful", "Not Helpful"],
-    colors: ["#FFEEAD", "#ADE8F4", "#FFDAB9", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#FFF8E1", "#FDECEA"]
   },
   {
     question: "How would you rate the overall class environment this month?",
     options: ["Very Comfortable", "Comfortable", "Neutral", "Uncomfortable"],
-    colors: ["#FFEEAD", "#ADE8F4", "#D3D3D3", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#F5F5F5", "#FDECEA"]
   },
   {
     question: "Overall, how satisfied are you with this month’s teaching?",
     options: ["Very Satisfied", "Satisfied", "Neutral", "Not Satisfied"],
-    colors: ["#FFEEAD", "#ADE8F4", "#D3D3D3", "#FFB6C1"]
+    colors: ["#E8F5E9", "#E3F2FD", "#F5F5F5", "#FDECEA"]
   }
 ];
 
 export default function StudentFeedback({ studentId }) {
   const [mcqAnswers, setMcqAnswers] = useState(Array(questions.length).fill(null));
   const [suggestion, setSuggestion] = useState("");
-  const [rating, setRating] = useState(0);
   const [problem, setProblem] = useState("");
+  const [rating, setRating] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [monthLabel, setMonthLabel] = useState("");
 
   useEffect(() => {
     const now = new Date();
     const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    setMonthLabel(monthNames[prevMonth - 1]);
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    setMonthLabel(months[prevMonth - 1]);
   }, []);
 
-  const handleOption = (qIndex, optionIndex) => {
-    const newAnswers = [...mcqAnswers];
-    newAnswers[qIndex] = optionIndex + 1;
-    setMcqAnswers(newAnswers);
+  const handleOption = (q, o) => {
+    const copy = [...mcqAnswers];
+    copy[q] = o + 1;
+    setMcqAnswers(copy);
   };
 
   const handleSubmit = async () => {
-    if (mcqAnswers.includes(null)) return alert("Please answer all MCQs before submitting!");
+    if (mcqAnswers.includes(null)) {
+      return alert("Please answer all questions.");
+    }
     try {
       const now = new Date();
-      const month = now.getMonth() === 0 ? 12 : now.getMonth();
-      const year = now.getFullYear();
-
       await axios.post(`${API_URL}/api/feedback/student/submit`, {
         student_id: studentId,
-        month,
-        year,
+        month: now.getMonth() === 0 ? 12 : now.getMonth(),
+        year: now.getFullYear(),
         mcqAnswers,
         suggestion,
-        rating,
-        problem
+        problem,
+        rating
       });
-
       setSubmitted(true);
-    } catch (err) {
-      console.error(err);
-      alert("Feedback submission failed. Try again!");
+    } catch {
+      alert("Submission failed");
     }
   };
 
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-r from-purple-300 via-pink-300 to-yellow-300">
-        <h1 className="text-5xl font-extrabold text-white mb-6 animate-bounce">🎉 Thank You! 🎉</h1>
-        <p className="text-2xl font-bold text-white">Your feedback for {monthLabel} has been submitted successfully!</p>
+      <div className="min-h-screen flex items-center justify-center bg-green-50">
+        <div className="bg-white p-10 rounded-xl shadow-lg text-center">
+          <h2 className="text-3xl font-bold text-green-700 mb-3">
+            Thank You!
+          </h2>
+          <p className="text-lg">
+            Your feedback for <b>{monthLabel}</b> has been submitted.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-10 bg-gradient-to-r from-pink-50 via-yellow-50 to-green-50">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <h2 className="text-4xl font-extrabold mb-8 text-center text-green-800">Monthly Feedback ({monthLabel})</h2>
+    <div className="min-h-screen bg-slate-100 py-10">
+      <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-xl p-8">
+        <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">
+          Faculty Monthly Feedback
+        </h1>
+        <p className="text-center text-slate-600 mb-8">
+          Please answer honestly ({monthLabel})
+        </p>
 
-        {questions.map((q, idx) => {
-          const selectedIndex = mcqAnswers[idx] ? mcqAnswers[idx] - 1 : null;
-          const bgColor = selectedIndex !== null ? q.colors[selectedIndex] : "white";
-
+        {questions.map((q, i) => {
+          const sel = mcqAnswers[i] ? mcqAnswers[i] - 1 : null;
           return (
             <div
-              key={idx}
-              className={`p-6 border-4 rounded-3xl shadow-2xl transition-all duration-300 hover:shadow-3xl`}
+              key={i}
+              className="mb-6 p-6 rounded-xl border-2"
               style={{
-                backgroundColor: bgColor,
-                borderColor: idx === 0 ? "green" : "#ccc"
+                backgroundColor: sel !== null ? q.colors[sel] : "#ffffff",
+                borderColor: sel !== null ? "#4CAF50" : "#E5E7EB"
               }}
             >
-              <p className="font-extrabold text-gray-900 mb-5 text-2xl border-b-4 border-green-500 pb-2">{idx + 1}. {q.question}</p>
-              <div className="flex flex-wrap gap-4 mt-3">
-                {q.options.map((opt, optIdx) => (
+              <p className="font-semibold text-lg mb-4">
+                {i + 1}. {q.question}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {q.options.map((op, oi) => (
                   <label
-                    key={optIdx}
-                    className={`flex-1 min-w-[180px] md:min-w-[220px] flex items-center justify-center gap-3 px-6 py-4 border-2 rounded-2xl cursor-pointer font-bold text-gray-800 hover:scale-105 transition-all shadow-md`}
-                    style={{
-                      backgroundColor: selectedIndex === optIdx ? q.colors[optIdx] : "transparent",
-                      borderColor: selectedIndex === optIdx ? "#555" : "#ccc"
-                    }}
+                    key={oi}
+                    className="flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer bg-white"
                   >
                     <input
                       type="radio"
-                      name={`q${idx}`}
-                      value={optIdx + 1}
-                      checked={selectedIndex === optIdx}
-                      onChange={() => handleOption(idx, optIdx)}
-                      className="hidden"
+                      name={`q${i}`}
+                      checked={sel === oi}
+                      onChange={() => handleOption(i, oi)}
                     />
-                    {opt}
+                    {op}
                   </label>
                 ))}
               </div>
@@ -156,49 +158,48 @@ export default function StudentFeedback({ studentId }) {
           );
         })}
 
-        {/* Suggestion Box */}
-        <div>
-          <label className="font-extrabold text-gray-900 text-3xl mb-3 block">💡 Suggestion:</label>
+        {/* Suggestion */}
+        <div className="mb-6">
+          <label className="font-semibold">Suggestion (optional)</label>
           <textarea
-            className="border-2 border-gray-400 rounded-2xl p-6 w-full shadow-lg focus:outline-none focus:ring-4 focus:ring-yellow-400 resize-none text-gray-900 font-extrabold text-xl"
-            rows={5}
+            className="w-full border rounded-lg p-3 mt-2"
+            rows={4}
             value={suggestion}
             onChange={e => setSuggestion(e.target.value)}
-            placeholder="Write your suggestions to improve the class..."
           />
         </div>
 
-        {/* Problem Box */}
-        <div>
-          <label className="font-extrabold text-gray-900 text-3xl mb-3 block">⚠️ Problem:</label>
+        {/* Problem */}
+        <div className="mb-6">
+          <label className="font-semibold">Any Problem (optional)</label>
           <textarea
-            className="border-2 border-gray-400 rounded-2xl p-6 w-full shadow-lg focus:outline-none focus:ring-4 focus:ring-red-400 resize-none text-gray-900 font-extrabold text-xl"
-            rows={5}
+            className="w-full border rounded-lg p-3 mt-2"
+            rows={4}
             value={problem}
             onChange={e => setProblem(e.target.value)}
-            placeholder="Any problems or difficulties faced?"
           />
         </div>
 
         {/* Rating */}
-        <div className="mt-8">
-          <label className="font-extrabold text-gray-900 text-3xl mb-3 block">⭐ Overall Rating:</label>
-          <div className="flex gap-5">
-            {[1,2,3,4,5].map(star => (
+        <div className="mb-8">
+          <label className="font-semibold block mb-2">Overall Rating</label>
+          <div className="flex gap-2 text-3xl">
+            {[1,2,3,4,5].map(s => (
               <span
-                key={star}
-                onClick={() => setRating(star)}
-                className={`text-6xl cursor-pointer transition-transform duration-200 ${star <= rating ? "text-yellow-400 scale-125" : "text-gray-300 hover:text-yellow-300 hover:scale-110"}`}
-              >★</span>
+                key={s}
+                onClick={() => setRating(s)}
+                className={`cursor-pointer ${s <= rating ? "text-yellow-400" : "text-gray-300"}`}
+              >
+                ★
+              </span>
             ))}
           </div>
         </div>
 
-        {/* Submit */}
-        <div className="mt-10 text-center">
+        <div className="text-center">
           <button
             onClick={handleSubmit}
-            className="px-12 py-5 bg-green-500 text-white font-extrabold rounded-3xl shadow-2xl hover:bg-green-600 hover:scale-105 transition-all text-2xl"
+            className="bg-green-600 text-white px-10 py-3 rounded-lg font-semibold hover:bg-green-700"
           >
             Submit Feedback
           </button>
