@@ -10,17 +10,10 @@ const DELETE_API = `${API_URL}/api/assignments`;
 export default function StudentPage() {
   const [tasks, setTasks] = useState([]);
   const [files, setFiles] = useState({});
-  const [now, setNow] = useState(Date.now());
 
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const studentClass = user.class || "";
   const studentId = user.id || "";
-
-  // ===== LIVE CLOCK =====
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // ===== FETCH TASKS =====
   const fetchTasks = async () => {
@@ -38,6 +31,17 @@ export default function StudentPage() {
   useEffect(() => {
     fetchTasks();
   }, [studentClass, studentId]);
+
+  // ===== PROGRESS CALCULATION =====
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(
+    (t) => t.status === "SUBMITTED"
+  ).length;
+
+  const progressPercent =
+    totalTasks === 0
+      ? 0
+      : Math.round((completedTasks / totalTasks) * 100);
 
   // ===== SUBMIT =====
   const handleSubmit = async (task) => {
@@ -61,7 +65,6 @@ export default function StudentPage() {
         fetchTasks();
       }
     } catch (err) {
-      console.error(err);
       alert("Server error");
     }
   };
@@ -72,7 +75,7 @@ export default function StudentPage() {
     try {
       await axios.delete(`${DELETE_API}/${submissionId}`);
       fetchTasks();
-    } catch (err) {
+    } catch {
       alert("Delete failed");
     }
   };
@@ -93,7 +96,7 @@ export default function StudentPage() {
           <span
             key={i}
             style={{
-              fontSize: 32,
+              fontSize: 34,
               color: i <= rating ? "#f1c40f" : "#ccc",
             }}
           >
@@ -106,11 +109,32 @@ export default function StudentPage() {
 
   return (
     <div style={pageStyle}>
+      {/* ===== HEADER ===== */}
       <div style={pageHeader}>
         <h2>Hello, <b>{user.name || "Student"}</b> 👋</h2>
         <p>Check Your Assignments</p>
       </div>
 
+      {/* ===== PROGRESS BAR ===== */}
+      <div style={progressWrapper}>
+        <div style={progressInfo}>
+          Task Progress : {progressPercent}%
+          {progressPercent === 100 && " ✅ Work Done"}
+        </div>
+
+        <div style={progressBarBg}>
+          <div
+            style={{
+              ...progressBarFill,
+              width: `${progressPercent}%`,
+            }}
+          >
+            {progressPercent}%
+          </div>
+        </div>
+      </div>
+
+      {/* ===== TASK LIST ===== */}
       {tasks.map((task) => {
         const isSubmitted = task.status === "SUBMITTED";
 
@@ -121,7 +145,6 @@ export default function StudentPage() {
               <p><b>Subject:</b> {task.subject}</p>
               <p><b>Deadline:</b> {formatDateTime(task.deadline)}</p>
 
-              {/* ===== VIEW TASK (ADMIN FILE) ===== */}
               {task.task_file && (
                 <button
                   style={viewBtn}
@@ -145,55 +168,50 @@ export default function StudentPage() {
                   {task.student_file && (
                     <button
                       style={{ ...viewBtn, background: "#8e44ad" }}
-                      onClick={() =>
-                        window.open(task.student_file, "_blank")
-                      }
+                      onClick={() => window.open(task.student_file, "_blank")}
                     >
                       🧾 View My Submission
                     </button>
                   )}
 
-                  {/* ===== GRADING ===== */}
                   {renderRating(task.rating)}
 
-                  {/* ===== REMOVE AS LINK ===== */}
-                  <div>
-                    <p
-  onClick={() =>
-    handleDeleteSubmission(task.student_submission_id)
-  }
-  style={{
-    marginTop: "10px",
-    color: "#e74c3c",
-    fontWeight: "bold",
-    fontSize: "16px",
-    cursor: "pointer",
-    textDecoration: "underline"
-  }}
->
-  ❌ Remove Submission
-</p>
+                  <p
+                    onClick={() =>
+                      handleDeleteSubmission(task.student_submission_id)
+                    }
+                    style={{
+                      marginTop: 12,
+                      color: "#e74c3c",
+                      fontWeight: "bold",
+                      fontSize: 18,
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    ❌ Remove Submission
+                  </p>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    onChange={(e) =>
+                      setFiles({ ...files, [task.id]: e.target.files[0] })
+                    }
+                  />
 
+                  <div style={{ marginTop: 20 }}>
+                    <button
+                      style={submitBtn}
+                      onClick={() => handleSubmit(task)}
+                    >
+                      Submit Assignment
+                    </button>
                   </div>
-</>
-) : (
-  <>
-    <input
-      type="file"
-      onChange={(e) =>
-        setFiles({ ...files, [task.id]: e.target.files[0] })
-      }
-    />
-
-    <div style={{ marginTop: "18px" }}>
-      <button style={submitBtn} onClick={() => handleSubmit(task)}>
-        Submit Assignment
-      </button>
-    </div>
-  </>
-)}
-</div>
-
+                </>
+              )}
+            </div>
           </div>
         );
       })}
@@ -203,9 +221,71 @@ export default function StudentPage() {
 
 /* ================= STYLES ================= */
 const pageStyle = { background: "#eafaf1", minHeight: "100vh" };
-const pageHeader = { background: "#2ecc71", color: "#fff", padding: 18, textAlign: "center" };
-const taskCard = { background: "#fff", margin: "25px auto", width: "90%", maxWidth: 850, borderRadius: 10 };
-const taskHeader = { background: "#27ae60", color: "#fff", padding: 12 };
+const pageHeader = {
+  background: "#2ecc71",
+  color: "#fff",
+  padding: 18,
+  textAlign: "center",
+};
+
+const progressWrapper = {
+  width: "90%",
+  maxWidth: 850,
+  margin: "20px auto",
+};
+
+const progressInfo = {
+  marginBottom: 6,
+  fontWeight: "bold",
+};
+
+const progressBarBg = {
+  width: "100%",
+  height: 26,
+  background: "#dfe6e9",
+  borderRadius: 20,
+  overflow: "hidden",
+};
+
+const progressBarFill = {
+  height: "100%",
+  background: "linear-gradient(90deg, #0003b1, #2b058c)",
+  color: "#fff",
+  textAlign: "center",
+  fontWeight: "bold",
+  lineHeight: "26px",
+  transition: "width 0.4s ease",
+};
+
+const taskCard = {
+  background: "#fff",
+  margin: "25px auto",
+  width: "90%",
+  maxWidth: 850,
+  borderRadius: 10,
+};
+
+const taskHeader = {
+  background: "#27ae60",
+  color: "#fff",
+  padding: 12,
+};
+
 const taskBody = { padding: 16 };
-const submitBtn = { background: "#27ae60", color: "#fff", padding: "8px 18px", border: "none" };
-const viewBtn = { background: "#3498db", color: "#fff", padding: "6px 14px", border: "none", marginRight: 8 };
+
+const submitBtn = {
+  background: "#27ae60",
+  color: "#fff",
+  padding: "8px 22px",
+  border: "none",
+  borderRadius: 5,
+};
+
+const viewBtn = {
+  background: "#3498db",
+  color: "#fff",
+  padding: "6px 14px",
+  border: "none",
+  marginRight: 8,
+  borderRadius: 5,
+};
