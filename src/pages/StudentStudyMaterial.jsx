@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  FaFilePdf, FaEye, FaDownload, FaTimes, 
-  FaBookOpen, FaSearch, FaArrowRight, FaShapes 
+  FaFilePdf, FaDownload, FaTimes, 
+  FaSearch, FaArrowRight, FaShapes 
 } from "react-icons/fa";
+
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 

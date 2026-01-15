@@ -3,8 +3,9 @@ import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom"
 import {
   FaClipboardCheck, FaMoneyBillWave, FaChartLine, FaBook,
   FaComments, FaUserGraduate, FaHome, FaUserAlt,
-  FaBookOpen, FaLayerGroup, FaBars, FaTimes, FaBell, FaFire, FaExclamationTriangle
+  FaBookOpen, FaLayerGroup, FaBars, FaTimes, FaFire, FaExclamationTriangle
 } from "react-icons/fa";
+
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 

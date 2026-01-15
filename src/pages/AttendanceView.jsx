@@ -8,31 +8,37 @@ export default function AttendanceView() {
   const [date, setDate] = useState("");
 
   // Backend API URL
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
+  const API_URL =
+    process.env.REACT_APP_API_URL || "http://localhost:3000";
 
-  // Fetch today's attendance % on component mount
   useEffect(() => {
-    fetchAttendance();
-  }, []);
+    const fetchAttendance = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(
+          `${API_URL}/api/attendance/today-percent`
+        );
 
-  const fetchAttendance = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get(`${API_URL}/api/attendance/today-percent`);
-      if (res.data.success) {
-        setStudents(res.data.students);
-        setDate(res.data.date);
+        if (res.data.success) {
+          setStudents(res.data.students);
+          setDate(res.data.date);
+        }
+      } catch (err) {
+        console.error("Error fetching attendance:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching attendance:", err);
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchAttendance();
+  }, [API_URL]);
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Attendance Percentage</h1>
+      <h1 className="text-2xl font-bold mb-4">
+        Attendance Percentage
+      </h1>
+
       <p className="mb-4 font-medium">Date: {date}</p>
 
       {loading ? (
@@ -49,21 +55,35 @@ export default function AttendanceView() {
                 <th className="border px-4 py-2">Percentage</th>
               </tr>
             </thead>
+
             <tbody>
               {students.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-4">
+                  <td
+                    colSpan={5}
+                    className="text-center py-4"
+                  >
                     No data found
                   </td>
                 </tr>
               ) : (
                 students.map((student) => (
                   <tr key={student.studentId}>
-                    <td className="border px-4 py-2">{student.studentId}</td>
-                    <td className="border px-4 py-2">{student.name}</td>
-                    <td className="border px-4 py-2">{student.present}</td>
-                    <td className="border px-4 py-2">{student.total}</td>
-                    <td className="border px-4 py-2">{student.percentage}%</td>
+                    <td className="border px-4 py-2">
+                      {student.studentId}
+                    </td>
+                    <td className="border px-4 py-2">
+                      {student.name}
+                    </td>
+                    <td className="border px-4 py-2">
+                      {student.present}
+                    </td>
+                    <td className="border px-4 py-2">
+                      {student.total}
+                    </td>
+                    <td className="border px-4 py-2">
+                      {student.percentage}%
+                    </td>
                   </tr>
                 ))
               )}

@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
-  FaBookOpen, FaFileUpload, FaBars, FaTimes, FaHome, FaStar,
+  FaBookOpen, FaFileUpload, FaBars, FaTimes, FaStar,
   FaChartPie, FaChevronRight, FaSignOutAlt, FaBell, FaSearch
 } from "react-icons/fa";
+
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
