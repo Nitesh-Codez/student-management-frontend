@@ -3,14 +3,15 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
   FaBookOpen, FaFileUpload, FaBars, FaTimes, FaStar,
-  FaChartPie, FaChevronRight, FaSignOutAlt, FaBell, FaSearch
+  FaChartPie, FaChevronRight, FaSignOutAlt, FaBell, FaSearch,
+  FaMoon, FaSun, FaUserCog
 } from "react-icons/fa";
 
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
-// ================== 1. FULL-SCREEN FEEDBACK ANALYTICS ==================
-const AdminFeedback = () => {
+// ================== 1. FEEDBACK COMPONENT ==================
+const AdminFeedback = ({ darkMode }) => {
   const [feedbacks, setFeedbacks] = useState([]);
 
   useEffect(() => {
@@ -19,14 +20,16 @@ const AdminFeedback = () => {
       .catch((err) => console.error(err));
   }, []);
 
+  const theme = darkMode ? fStyles.dark : fStyles.light;
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={fStyles.container}>
-      <div style={fStyles.gridHeader}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{...fStyles.container, ...theme.bg}}>
+      <div style={{...fStyles.gridHeader, ...theme.header}}>
         <div style={fStyles.heroStats}>
-          <div style={fStyles.statCircle}>94% <small>CSAT</small></div>
+          <div style={fStyles.statCircle}>94% <small style={{fontSize:'10px'}}>CSAT</small></div>
           <div>
-            <h2 style={{margin: 0, fontSize: '28px'}}>Faculty Intelligence</h2>
-            <p style={{margin: 0, opacity: 0.7}}>Analyzing {feedbacks.length} student submissions</p>
+            <h2 style={{margin: 0, fontSize: '24px', color: darkMode ? '#fff' : '#1e293b'}}>Faculty Intelligence</h2>
+            <p style={{margin: 0, opacity: 0.7, color: darkMode ? '#94a3b8' : '#64748b'}}>Insights from {feedbacks.length} student submissions</p>
           </div>
         </div>
       </div>
@@ -35,38 +38,36 @@ const AdminFeedback = () => {
         <table style={fStyles.table}>
           <thead>
             <tr>
-              <th style={fStyles.th}>Entity</th>
-              <th style={fStyles.th}>Happiness Index</th>
-              <th style={fStyles.th}>Performance Notes</th>
-              <th style={fStyles.th}>Rating</th>
-              <th style={fStyles.th}>Action</th>
+              <th style={{...fStyles.th, ...theme.th}}>Entity</th>
+              <th style={{...fStyles.th, ...theme.th}}>Happiness Index</th>
+              <th style={{...fStyles.th, ...theme.th}}>Notes</th>
+              <th style={{...fStyles.th, ...theme.th}}>Rating</th>
+              <th style={{...fStyles.th, ...theme.th}}>Action</th>
             </tr>
           </thead>
           <tbody>
             {feedbacks.map((f) => {
               const score = Math.round((f.mcq_answers?.filter(a => a.answer >= 3).length / f.mcq_answers?.length) * 100) || 0;
               return (
-                <tr key={f.id} style={fStyles.tr}>
+                <tr key={f.id} style={{borderBottom: `1px solid ${darkMode ? '#334155' : '#f1f5f9'}`}}>
                   <td style={fStyles.td}>
                     <div style={fStyles.userCell}>
-                      <div style={fStyles.miniAvatar}>{f.name[0]}</div>
+                      <div style={fStyles.miniAvatar}>{f.name ? f.name[0] : "S"}</div>
                       <div>
-                        <div style={{fontWeight: '700'}}>{f.name}</div>
-                        <div style={{fontSize: '11px', color: '#64748b'}}>Class {f.class}</div>
+                        <div style={{fontWeight: '700', color: darkMode ? '#e2e8f0' : '#334155'}}>{f.name}</div>
+                        <div style={{fontSize: '11px', color: '#94a3b8'}}>Class {f.class}</div>
                       </div>
                     </div>
                   </td>
                   <td style={fStyles.td}>
                     <div style={fStyles.pBarTrack}><div style={fStyles.pBarFill(score)} /></div>
-                    <span style={{fontSize: '10px'}}>{score}% Positive</span>
+                    <span style={{fontSize: '11px', color: '#10b981', fontWeight: 'bold'}}>{score}% Positive</span>
                   </td>
                   <td style={fStyles.td}>
-                    <div style={fStyles.noteBox}>
-                      <strong>Advise:</strong> {f.suggestion || "N/A"}
-                    </div>
+                    <div style={{...fStyles.noteBox, background: darkMode ? '#0f172a' : '#f8fafc', borderColor: darkMode ? '#334155' : '#e2e8f0', color: darkMode ? '#94a3b8' : '#475569'}}>{f.suggestion || "N/A"}</div>
                   </td>
                   <td style={fStyles.td}><span style={fStyles.ratingBadge(f.rating)}>{f.rating} ★</span></td>
-                  <td style={fStyles.td}><button style={fStyles.viewBtn}>Deep Audit</button></td>
+                  <td style={fStyles.td}><button style={fStyles.viewBtn}>Audit</button></td>
                 </tr>
               );
             })}
@@ -77,12 +78,20 @@ const AdminFeedback = () => {
   );
 };
 
-// ================== 2. BIG MANAGEMENT DASHBOARD (ZERO PADDING) ==================
+// ================== 2. MAIN DASHBOARD ==================
 const AdminDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const isHome = location.pathname === "/admin";
+
+  // Mock User Data with Avatar
+  const user = { 
+    name: "Nitesh Kumar", 
+    role: "System Administrator",
+    avatar: "https://ui-avatars.com/api/?name=Nitesh+Kumar&background=6366f1&color=fff" // Replace with real URL
+  };
 
   const sidebarLinks = [
     { title: "Academic Grades", path: "add-marks", icon: <FaBookOpen /> },
@@ -92,23 +101,25 @@ const AdminDashboard = () => {
   ];
 
   const coreActions = [
-    { title: "Student Management", path: "manage-students", icon: <FaUserGraduate />, color: "#4F46E5" },
-    { title: "Revenue Center", path: "manage-fees", icon: <FaMoneyBillWave />, color: "#10B981" },
-    { title: "Student Appreciations", path: "admin-feedback", icon: <FaStar />, color: "#F59E0B" },
-    { title: "Work Submissions", path: "student-submission", icon: <FaUpload />, color: "#EC4899" },
+    { title: "Students", sub: "Profiles & Records", path: "manage-students", icon: <FaUserGraduate />, color: "#4F46E5" },
+    { title: "Revenue", sub: "Fee Management", path: "manage-fees", icon: <FaMoneyBillWave />, color: "#10B981" },
+    { title: "Appraisal", sub: "Faculty Feedback", path: "admin-feedback", icon: <FaStar />, color: "#F59E0B" },
+    { title: "Submissions", sub: "Student Workloads", path: "student-submission", icon: <FaUpload />, color: "#EC4899" },
   ];
 
   return (
-    <div style={dStyles.viewPort}>
-      {/* SIDEBAR OVERLAY DRAWER */}
+    <div style={{...dStyles.viewPort, background: darkMode ? '#0f172a' : '#f1f5f9'}}>
       <AnimatePresence>
         {isSidebarOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} style={dStyles.backdrop} />
-            <motion.aside initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ type: "just" }} style={dStyles.drawer}>
+            <motion.aside initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} style={dStyles.drawer}>
               <div style={dStyles.drawerTop}>
-                <h3>Workspace</h3>
-                <FaTimes onClick={() => setSidebarOpen(false)} style={{cursor:'pointer'}} />
+                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                    <div style={{width:'30px', height:'30px', background:'#6366f1', borderRadius:'6px'}}></div>
+                    <h3 style={{margin:0, letterSpacing:'1px'}}>CORE ENGINE</h3>
+                </div>
+                <FaTimes onClick={() => setSidebarOpen(false)} style={{cursor:'pointer', opacity:0.6}} />
               </div>
               <div style={dStyles.drawerLinks}>
                 {sidebarLinks.map(l => (
@@ -123,55 +134,63 @@ const AdminDashboard = () => {
         )}
       </AnimatePresence>
 
-      {/* HEADER (FLOATING) */}
-      <header style={dStyles.header}>
+      {/* --- PREMIUM HEADER --- */}
+      <header style={{...dStyles.header, background: darkMode ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.9)', borderColor: darkMode ? '#334155' : '#e2e8f0'}}>
         <div style={dStyles.hLeft}>
           <button onClick={() => setSidebarOpen(true)} style={dStyles.burger}><FaBars /></button>
-          <div style={dStyles.searchBar}><FaSearch color="#94a3b8"/><input placeholder="Search records..." /></div>
+          <div style={{...dStyles.searchBar, background: darkMode ? '#0f172a' : '#f1f5f9'}}>
+            <FaSearch color="#64748b" size={14} />
+            <input style={{...dStyles.searchInput, color: darkMode ? '#fff' : '#1e293b'}} placeholder="Global Search..." />
+          </div>
         </div>
+
         <div style={dStyles.hRight}>
-          <Link to="mark-attendance" style={dStyles.attendanceBtn}><FaClipboardCheck /> Daily Attendance</Link>
-          <div style={dStyles.notif}><FaBell /></div>
-          <div style={dStyles.profile}>NK</div>
+          {/* THEME SWITCHER */}
+          <button onClick={() => setDarkMode(!darkMode)} style={{...dStyles.themeToggle, background: darkMode ? '#334155' : '#e2e8f0'}}>
+             {darkMode ? <FaSun color="#fbbf24" /> : <FaMoon color="#6366f1" />}
+          </button>
+
+          <Link to="mark-attendance" style={dStyles.attendanceBtn}><FaClipboardCheck /> Attendance</Link>
+          
+          <div style={dStyles.profileGroup}>
+            <div style={dStyles.profileInfo}>
+                <span style={{...dStyles.profileName, color: darkMode ? '#fff' : '#1e293b'}}>{user.name}</span>
+                <span style={dStyles.profileRole}>{user.role}</span>
+            </div>
+            <div style={dStyles.avatarWrapper}>
+                <img src={user.avatar} alt="Profile" style={dStyles.profileImg} />
+                <div style={dStyles.onlineStatus}></div>
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* MAIN FULL-SCREEN CONTENT */}
       <div style={dStyles.canvas}>
         {isHome ? (
           <div style={dStyles.homeGrid}>
             <section style={dStyles.heroBanner}>
-              <h1>Command Center</h1>
-              <p>Hello Nitesh, your management ecosystem is performing optimally.</p>
+              <h1 style={{color: darkMode ? '#fff' : '#1e293b', fontSize: '32px', marginBottom:'5px'}}>Control Center</h1>
+              <p style={{color: '#94a3b8', fontSize:'15px'}}>System Overview & Strategic Operations</p>
             </section>
 
             <div style={dStyles.actionGrid}>
               {coreActions.map((act, i) => (
-                <Link to={act.path} key={i} style={{...dStyles.actionCard, background: act.color}}>
+                <Link to={act.path} key={i} style={{...dStyles.actionCard, background: darkMode ? `linear-gradient(135deg, ${act.color}, #1e293b)` : act.color}}>
                   <div style={dStyles.cardIcon}>{act.icon}</div>
                   <div style={dStyles.cardInfo}>
-                    <h3>{act.title}</h3>
-                    <p>Execute operational tasks</p>
+                    <h3 style={{margin:0, fontSize:'18px'}}>{act.title}</h3>
+                    <p style={{margin:0, fontSize:'12px', opacity:0.8}}>{act.sub}</p>
                   </div>
                   <FaChevronRight size={14} />
                 </Link>
               ))}
             </div>
-
-            <div style={dStyles.bottomWidgets}>
-              <div style={dStyles.widget}>
-                <h4>Average Attendance</h4>
-                <h2>92.4%</h2>
-              </div>
-              <div style={dStyles.widget}>
-                <h4>Pending Tasks</h4>
-                <h2>08</h2>
-              </div>
-            </div>
           </div>
         ) : (
-          <div style={dStyles.outletWrapper}>
-             <Outlet />
+          <div style={{...dStyles.outletWrapper, background: darkMode ? '#0f172a' : '#fff'}}>
+             <AdminFeedback darkMode={darkMode} />
+             {/* If you use actual Outlet, pass props via context or just use darkMode state */}
+             <Outlet context={[darkMode]} />
           </div>
         )}
       </div>
@@ -179,53 +198,62 @@ const AdminDashboard = () => {
   );
 };
 
-// ================== ENTERPRISE CSS (ZERO PADDING) ==================
+// ================== CSS OBJECTS ==================
 const dStyles = {
-  viewPort: { height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', background: '#0f172a', color: '#f8fafc', overflow: 'hidden' },
-  backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', zIndex: 99 },
-  drawer: { position: 'fixed', left: 0, top: 0, bottom: 0, width: '320px', background: '#1e293b', zIndex: 100, padding: '40px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #334155' },
-  drawerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '50px' },
-  drawerLinks: { display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 },
-  dLink: { color: '#94a3b8', textDecoration: 'none', padding: '15px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '15px', transition: '0.2s' },
-  logout: { background: '#ef4444', color: '#fff', border: 'none', padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' },
+  viewPort: { height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: '"Inter", sans-serif', transition: 'all 0.3s ease' },
+  backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 99 },
+  drawer: { position: 'fixed', left: 0, top: 0, bottom: 0, width: '280px', background: '#1e293b', zIndex: 100, padding: '30px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #334155', boxShadow: '20px 0 50px rgba(0,0,0,0.3)' },
+  drawerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', color: '#fff' },
+  drawerLinks: { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 },
+  dLink: { color: '#94a3b8', textDecoration: 'none', padding: '12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px', transition: '0.2s' },
+  logout: { background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', padding: '12px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' },
   
-  header: { height: '80px', background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(15px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 30px', borderBottom: '1px solid #334155', position: 'sticky', top: 0, zIndex: 10 },
-  hLeft: { display: 'flex', alignItems: 'center', gap: '30px' },
-  burger: { background: '#334155', border: 'none', color: '#fff', padding: '12px', borderRadius: '10px', cursor: 'pointer' },
-  searchBar: { background: '#1e293b', padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', width: '300px' },
+  header: { height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 30px', borderBottom: '1px solid', position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(10px)' },
+  hLeft: { display: 'flex', alignItems: 'center', gap: '25px' },
+  burger: { background: '#6366f1', border: 'none', color: '#fff', padding: '10px', borderRadius: '8px', cursor: 'pointer', display: 'flex', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)' },
+  searchBar: { padding: '10px 15px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', width: '320px', border: '1px solid rgba(100, 116, 139, 0.2)' },
+  searchInput: { background: 'none', border: 'none', outline: 'none', fontSize: '14px', width: '100%' },
   
-  hRight: { display: 'flex', alignItems: 'center', gap: '25px' },
-  attendanceBtn: { background: '#6366f1', color: '#fff', textDecoration: 'none', padding: '12px 20px', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' },
-  profile: { width: '45px', height: '45px', background: '#6366f1', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
+  hRight: { display: 'flex', alignItems: 'center', gap: '20px' },
+  themeToggle: { border: 'none', width: '40px', height: '40px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.3s' },
+  attendanceBtn: { background: '#6366f1', color: '#fff', textDecoration: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)' },
   
-  canvas: { flex: 1, overflowY: 'auto', padding: '0' }, // ZERO PADDING
-  homeGrid: { padding: '50px', maxWidth: '1400px', margin: '0 auto' },
-  heroBanner: { marginBottom: '50px' },
-  actionGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '40px' },
-  actionCard: { padding: '40px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '25px', textDecoration: 'none', color: '#fff', transition: '0.3s transform' },
-  cardIcon: { fontSize: '30px', background: 'rgba(255,255,255,0.15)', padding: '20px', borderRadius: '20px' },
+  profileGroup: { display: 'flex', alignItems: 'center', gap: '15px', paddingLeft: '20px', borderLeft: '1px solid rgba(100, 116, 139, 0.2)' },
+  profileInfo: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' },
+  profileName: { fontSize: '15px', fontWeight: '700' },
+  profileRole: { fontSize: '11px', color: '#6366f1', fontWeight: '600', textTransform: 'uppercase' },
+  avatarWrapper: { position: 'relative' },
+  profileImg: { width: '45px', height: '45px', borderRadius: '14px', objectFit: 'cover', border: '2px solid #6366f1' },
+  onlineStatus: { position: 'absolute', bottom: -2, right: -2, width: '12px', height: '12px', background: '#10b981', borderRadius: '50%', border: '2px solid #fff' },
+  
+  canvas: { flex: 1, overflowY: 'auto' },
+  homeGrid: { padding: '50px', maxWidth: '1300px', margin: '0 auto' },
+  heroBanner: { marginBottom: '40px' },
+  actionGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px' },
+  actionCard: { padding: '35px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '20px', textDecoration: 'none', color: '#fff', transition: 'transform 0.3s ease', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' },
+  cardIcon: { fontSize: '28px', background: 'rgba(255,255,255,0.2)', padding: '18px', borderRadius: '18px' },
   cardInfo: { flex: 1 },
-  bottomWidgets: { display: 'flex', gap: '20px' },
-  widget: { flex: 1, background: '#1e293b', padding: '30px', borderRadius: '24px', border: '1px solid #334155' },
-  outletWrapper: { height: '100%', width: '100%', background: '#f8fafc', color: '#1e293b' }
+  outletWrapper: { height: '100%', width: '100%', transition: '0.3s' }
 };
 
 const fStyles = {
-  container: { height: '100%', display: 'flex', flexDirection: 'column', background: '#fff' },
-  gridHeader: { background: '#f1f5f9', padding: '40px', borderBottom: '1px solid #e2e8f0' },
-  heroStats: { display: 'flex', alignItems: 'center', gap: '30px' },
-  statCircle: { width: '80px', height: '80px', border: '5px solid #6366f1', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '20px' },
-  scrollBody: { flex: 1, overflowY: 'auto', padding: '20px' },
+  container: { height: '100%', display: 'flex', flexDirection: 'column' },
+  light: { bg: {background: '#fff'}, header: {background: '#f8fafc'}, th: {background: '#f1f5f9', color: '#64748b'} },
+  dark: { bg: {background: '#0f172a'}, header: {background: '#1e293b'}, th: {background: '#1e293b', color: '#94a3b8'} },
+  gridHeader: { padding: '40px', borderBottom: '1px solid rgba(100, 116, 139, 0.1)' },
+  heroStats: { display: 'flex', alignItems: 'center', gap: '25px' },
+  statCircle: { width: '75px', height: '75px', border: '5px solid #6366f1', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#6366f1', fontSize: '20px' },
+  scrollBody: { flex: 1, overflowY: 'auto', padding: '30px 40px' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  th: { textAlign: 'left', padding: '20px', background: '#f8fafc', color: '#64748b', fontSize: '12px', textTransform: 'uppercase' },
-  td: { padding: '20px', borderBottom: '1px solid #f1f5f9' },
-  userCell: { display: 'flex', alignItems: 'center', gap: '15px' },
-  miniAvatar: { width: '35px', height: '35px', background: '#e0e7ff', color: '#6366f1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
-  pBarTrack: { width: '100px', height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' },
+  th: { textAlign: 'left', padding: '18px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' },
+  td: { padding: '18px' },
+  userCell: { display: 'flex', alignItems: 'center', gap: '12px' },
+  miniAvatar: { width: '35px', height: '35px', background: '#6366f1', color: '#fff', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
+  pBarTrack: { width: '100px', height: '6px', background: 'rgba(100, 116, 139, 0.1)', borderRadius: '10px', overflow: 'hidden', marginBottom: '5px' },
   pBarFill: (p) => ({ width: `${p}%`, height: '100%', background: '#10b981' }),
-  noteBox: { background: '#f8fafc', padding: '10px', borderRadius: '8px', fontSize: '12px', border: '1px solid #e2e8f0' },
-  ratingBadge: (r) => ({ padding: '5px 15px', borderRadius: '20px', background: r >= 4 ? '#dcfce7' : '#fee2e2', color: r >= 4 ? '#166534' : '#991b1b', fontWeight: 'bold' }),
-  viewBtn: { padding: '8px 15px', border: '1px solid #6366f1', color: '#6366f1', background: 'none', borderRadius: '8px', cursor: 'pointer' }
+  noteBox: { padding: '10px 15px', borderRadius: '10px', fontSize: '13px', border: '1px solid', lineHeight: '1.4' },
+  ratingBadge: (r) => ({ padding: '5px 12px', borderRadius: '8px', background: r >= 4 ? '#dcfce7' : '#fee2e2', color: r >= 4 ? '#166534' : '#991b1b', fontWeight: 'bold', fontSize: '12px' }),
+  viewBtn: { padding: '8px 16px', border: '1px solid #6366f1', color: '#6366f1', background: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }
 };
 
 export default AdminDashboard;
