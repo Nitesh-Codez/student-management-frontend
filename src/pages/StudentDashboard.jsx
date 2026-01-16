@@ -133,7 +133,10 @@ const StudentDashboard = () => {
         const taskRes = await axios.get(`${API_URL}/api/assignments/class/${storedUser.class}/${storedUser.id}`);
         if (taskRes.data.success) setPendingTasks(taskRes.data.assignments.filter(t => t.status !== "SUBMITTED").length);
 
-        const feeRes = await axios.get(`${API_URL}/api/fees/${storedUser.id}`);
+        const feeRes = await axios.get(
+  `${API_URL}/api/fees/student/${storedUser.id}`
+);
+
         if (feeRes.data.success) {
           const feesData = feeRes.data.fees;
           if (feesData.length > 0) {

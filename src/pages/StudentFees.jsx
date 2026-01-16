@@ -21,7 +21,8 @@ const StudentFees = ({ user }) => {
 
     const fetchFees = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/fees/${user.id}`);
+        const res = await axios.get(`${API_URL}/api/fees/student/${user.id}`);    
+
         if (res.data.success) {
           const feesData = res.data.fees;
           setFees(feesData);
