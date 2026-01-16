@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import AdminDashboard, { AdminFeedback } from "./pages/AdminDashboard";
 import AdminAddMarks from "./pages/AdminAddMarks";
-import AdminAddNewMarks from "./pages/AdminAddNewMarks"; // ✅ New
+import AdminAddNewMarks from "./pages/AdminAddNewMarks"; 
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentAttendance from "./pages/StudentAttendance";
 import MarkAttendance from "./pages/MarkAttendance";
@@ -19,9 +19,9 @@ import HomeworkAdmin from "./pages/HomeworkAdmin";
 import StudentProfile from "./pages/StudentProfile";
 import AdminStudyMaterial from "./pages/AdminStudyMaterial";
 import StudentPage from "./pages/StudentPage";
-
-// ✅ NEW PAGE
-import AdminPage from "./pages/AdminPage";
+import AdminPage from "./pages/AdminPage"; // Student submission
+import AdminChat from "./pages/AdminChat"; // Admin chat
+import StudentChat from "./pages/StudentChat"; // Student chat
 
 function App() {
   return (
@@ -42,12 +42,11 @@ function App() {
           <Route path="reports" element={<div>Reports Page</div>} />
           <Route path="upload-homework" element={<HomeworkAdmin />} />
           <Route path="study-material" element={<AdminStudyMaterial />} />
-
-          {/* ✅ NEW Route for Student Submission */}
           <Route path="student-submission" element={<AdminPage />} />
-
-          {/* ✅ NEW Route for Admin Feedback */}
           <Route path="admin-feedback" element={<AdminFeedback />} />
+
+          {/* Admin Chat */}
+          <Route path="admin-chat" element={<AdminChat />} />
         </Route>
 
         {/* Student Routes */}
@@ -59,6 +58,10 @@ function App() {
           <Route path="marks" element={<StudentsMarks />} />
           <Route path="homework" element={<HomeworkStudent />} />
           <Route path="task-update" element={<StudentPage studentId={101} />} />
+
+          {/* Student Chat */}
+          <Route path="student-chat" element={<StudentChat />} />
+
           <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Route>
 

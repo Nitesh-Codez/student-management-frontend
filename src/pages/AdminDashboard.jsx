@@ -1,228 +1,270 @@
 import React, { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  FaUserGraduate,
-  FaMoneyBillWave,
-  FaClipboardCheck,
-  FaUpload,
-  FaBookOpen,
-  FaFileUpload,
+  FaUserGraduate,
+  FaMoneyBillWave,
+  FaClipboardCheck,
+  FaUpload,
+  FaBookOpen,
+  FaFileUpload,
+  FaStar,
+  FaExclamationTriangle,
+  FaComments, // Chat icon
 } from "react-icons/fa";
 import axios from "axios";
+import AdminChat from "./AdminChat"; // Chat component
 
 // ================== ADMIN FEEDBACK COMPONENT ==================
 const AdminFeedback = () => {
-  const [feedbacks, setFeedbacks] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
 
-  useEffect(() => {
-    axios
-      .get("/api/feedback/admin/all")
-      .then((res) => setFeedbacks(res.data.feedbacks || []))
-      .catch((err) => console.error(err));
-  }, []);
+  useEffect(() => {
+    axios
+      .get("/api/feedback/admin/all")
+      .then((res) => setFeedbacks(res.data.feedbacks || []))
+      .catch((err) => console.error(err));
+  }, []);
 
-  const calculatePercentage = (answers) => {
-    if (!answers || answers.length === 0) return { positive: 0, negative: 0 };
-    const positiveCount = answers.filter((a) => a.answer >= 3).length; // 3,4 = positive
-    const negativeCount = answers.length - positiveCount;
-    const positive = Math.round((positiveCount / answers.length) * 100);
-    const negative = Math.round((negativeCount / answers.length) * 100);
-    return { positive, negative };
-  };
+  const calculatePercentage = (answers) => {
+    if (!answers || answers.length === 0) return { positive: 0, negative: 0 };
+    const positiveCount = answers.filter((a) => a.answer >= 3).length;
+    const positive = Math.round((positiveCount / answers.length) * 100);
+    const negative = 100 - positive;
+    return { positive, negative };
+  };
 
-  return (
-    <div className="p-6 w-full min-h-screen">
-      <h2 className="text-3xl font-bold mb-6 text-center text-green-700">
-        All Student Feedback
-      </h2>
-      {feedbacks.length === 0 && (
-        <p className="text-center text-gray-500 text-xl">No feedback yet.</p>
-      )}
-      <div className="grid gap-6">
-        {feedbacks.map((f) => {
-          const { positive, negative } = calculatePercentage(f.mcq_answers);
-          return (
-            <div
-              key={f.id}
-              className="border-4 border-black p-6 rounded-2xl shadow-lg bg-white"
-            >
-              <h3 className="text-xl font-bold mb-2">
-                {f.name} ({f.class}) - {f.month}/{f.year}
-              </h3>
+  return (
+    <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+      <div className="max-w-6xl mx-auto">
+        <header className="mb-10 text-center">
+          <h2 className="text-4xl font-extrabold text-gray-800 tracking-tight">
+            Student <span className="text-indigo-600">Feedback</span> Insights
+          </h2>
+          <p className="text-gray-500 mt-2">Monitor student satisfaction and suggestions</p>
+        </header>
 
-              <p className="font-bold mb-1">Suggestion:</p>
-              <p className="mb-3">{f.suggestion || "N/A"}</p>
+        {feedbacks.length === 0 ? (
+          <div className="bg-white p-10 rounded-3xl shadow-sm text-center border border-gray-100">
+            <p className="text-gray-400 text-xl font-medium">No feedback entries found yet.</p>
+          </div>
+        ) : (
+          <div className="grid gap-8 grid-cols-1 md:grid-cols-2">
+            {feedbacks.map((f) => {
+              const { positive, negative } = calculatePercentage(f.mcq_answers);
+              return (
+                <div
+                  key={f.id}
+                  className="bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 border border-gray-100 flex flex-col"
+                >
+                  {/* Header Bar */}
+                  <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
+                    <span className="font-bold uppercase tracking-wider text-xs">
+                      Class {f.class}
+                    </span>
+                    <span className="text-xs bg-indigo-500 px-2 py-1 rounded-full">
+                      {f.month}/{f.year}
+                    </span>
+                  </div>
 
-              <p className="font-bold mb-1">Problem:</p>
-              <p className="mb-3">{f.problem || "N/A"}</p>
+                  <div className="p-6 flex-grow">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-xl font-bold text-gray-800">{f.name}</h3>
+                      <div className="flex items-center text-yellow-500">
+                        <FaStar className="mr-1" />
+                        <span className="font-bold text-gray-700">{f.rating}/5</span>
+                      </div>
+                    </div>
 
-              <p className="font-bold mb-1">Rating: {f.rating} / 5</p>
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 p-3 rounded-xl border-l-4 border-blue-400">
+                        <p className="text-xs font-bold text-blue-600 uppercase mb-1 italic">Suggestion</p>
+                        <p className="text-gray-700 text-sm leading-relaxed">
+                          "{f.suggestion || "No suggestions provided"}"
+                        </p>
+                      </div>
 
-              <p className="font-bold mt-3">MCQ Answers:</p>
-              <div className="ml-4">
-                {f.mcq_answers.map((a) => (
-                  <p key={a.question_number}>
-                    Q{a.question_number}: Option {a.answer}
-                  </p>
-                ))}
-              </div>
+                      <div className="bg-red-50 p-3 rounded-xl border-l-4 border-red-400">
+                        <p className="text-xs font-bold text-red-600 uppercase mb-1 italic">Problem</p>
+                        <p className="text-gray-700 text-sm leading-relaxed">
+                          "{f.problem || "No problems reported"}"
+                        </p>
+                      </div>
+                    </div>
 
-              <p className="font-bold mt-3">
-                Positive Feedback: {positive}% | Negative Feedback: {negative}%
-              </p>
-              {negative > 0 && (
-                <p className="text-red-600 font-bold mt-1">
-                  ⚠ Check negative responses carefully
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+                    {/* Stats Section */}
+                    <div className="mt-6">
+                      <div className="flex justify-between text-xs font-bold mb-2">
+                        <span className="text-green-600 uppercase italic">Positive {positive}%</span>
+                        <span className="text-red-500 uppercase italic">Negative {negative}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2.5 flex overflow-hidden">
+                        <div style={{ width: `${positive}%` }} className="bg-green-500 h-full shadow-inner"></div>
+                        <div style={{ width: `${negative}%` }} className="bg-red-500 h-full shadow-inner"></div>
+                      </div>
+                    </div>
+
+                    {negative > 30 && (
+                      <div className="mt-4 flex items-center bg-red-600 text-white p-2 rounded-lg animate-pulse">
+                        <FaExclamationTriangle className="mr-2" />
+                        <span className="text-xs font-bold uppercase italic tracking-tighter">
+                          Needs Immediate Attention
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 // ================== ADMIN DASHBOARD ==================
 const AdminDashboard = () => {
-  const location = useLocation();
+  const location = useLocation();
 
-  const links = [
-    { title: "Manage Students", path: "manage-students", icon: <FaUserGraduate /> },
-    { title: "Manage Fees", path: "manage-fees", icon: <FaMoneyBillWave /> },
-    { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck /> },
-    { title: "View Attendance", path: "attendance-view", icon: <FaClipboardCheck /> },
-    { title: "Upload Homework", path: "upload-homework", icon: <FaUpload /> },
-    { title: "Study Material", path: "study-material", icon: <FaUpload /> },
-    { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
-    { title: "Add Exam Marks", path: "add-exam-marks", icon: <FaBookOpen /> },
-    { title: "Reports", path: "reports", icon: <FaUpload /> },
-    { title: "Student Submission", path: "student-submission", icon: <FaFileUpload /> },
-    { title: "Student Feedback", path: "admin-feedback", icon: <FaClipboardCheck /> }, // ✅ Feedback card
-  ];
+  const links = [
+    { title: "Manage Students", path: "manage-students", icon: <FaUserGraduate /> },
+    { title: "Manage Fees", path: "manage-fees", icon: <FaMoneyBillWave /> },
+    { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck /> },
+    { title: "View Attendance", path: "attendance-view", icon: <FaClipboardCheck /> },
+    { title: "Upload Homework", path: "upload-homework", icon: <FaUpload /> },
+    { title: "Study Material", path: "study-material", icon: <FaUpload /> },
+    { title: "Add Marks", path: "add-marks", icon: <FaUpload /> },
+    { title: "Add Exam Marks", path: "add-exam-marks", icon: <FaBookOpen /> },
+    { title: "Reports", path: "reports", icon: <FaUpload /> },
+    { title: "Student Submission", path: "student-submission", icon: <FaFileUpload /> },
+    { title: "Student Feedback", path: "admin-feedback", icon: <FaStar /> },
+    { title: "Student Chat", path: "admin-chat", icon: <FaComments /> }, // <-- added chat
+  ];
 
-  const showDashboard = location.pathname === "/admin";
+  const showDashboard = location.pathname === "/admin";
 
-  return (
-    <div style={page}>
-      <div style={main}>
-        {showDashboard && (
-          <>
-            <div style={header}>
-              <h1 style={heading}>Hello Nitesh</h1>
-              <p style={welcomeText}>Welcome, Admin workspace 👋</p>
-            </div>
+  return (
+    <div style={page}>
+      <div style={main}>
+        {showDashboard && (
+          <div style={container}>
+            <div style={header}>
+              <h1 style={heading}>Hello Nitesh</h1>
+              <p style={welcomeText}>Admin Management Workspace Overview 👋</p>
+            </div>
 
-            <div style={grid}>
-              {links.map((link) => (
-                <Link
-                  to={link.path}
-                  key={link.title}
-                  style={{
-                    ...card,
-                    background:
-                      "linear-gradient(135deg, #1f3c88, #3959a1, #18a539, #ffcc00)",
-                    backgroundSize: "400% 400%",
-                    animation: "gradientBG 8s ease infinite",
-                  }}
-                >
-                  <div
-                    style={{
-                      ...iconWrapper,
-                      animation: "iconBounce 1.5s infinite",
-                    }}
-                  >
-                    {link.icon}
-                  </div>
-                  <h3 style={cardTitle}>{link.title}</h3>
-                </Link>
-              ))}
-            </div>
-          </>
-        )}
+            <div style={grid}>
+              {links.map((link) => (
+                <Link to={link.path} key={link.title} style={cardStyle}>
+                  <div style={iconBox}>{link.icon}</div>
+                  <h3 style={cardTitleStyle}>{link.title}</h3>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+        <Outlet /> {/* Nested route content */}
+      </div>
 
-        {/* Child pages render here */}
-        <Outlet />
-      </div>
-
-      <style>
-        {`
-          @keyframes gradientBG {
-            0% {background-position: 0% 50%;}
-            50% {background-position: 100% 50%;}
-            100% {background-position: 0% 50%;}
-          }
-
-          @keyframes iconBounce {
-            0%, 100% { transform: translateY(0);}
-            50% { transform: translateY(-8px);}
-          }
-
-          a:hover {
-            transform: translateY(-8px) scale(1.05);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.25);
-          }
-        `}
-      </style>
-    </div>
-  );
+      <style>
+        {`
+          @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          
+          a:hover div {
+            transform: scale(1.1) rotate(5deg);
+            color: #ffcc00 !important;
+          }
+          
+          a:active {
+            transform: scale(0.95);
+          }
+        `}
+      </style>
+    </div>
+  );
 };
 
-// ================== STYLES ==================
+// ================== MODERN STYLES ==================
 const page = {
-  display: "flex",
-  minHeight: "100vh",
-  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  background: "#f5f6fa",
+  minHeight: "100vh",
+  fontFamily: "'Inter', sans-serif",
+  background: "linear-gradient(to bottom right, #f8f9fc, #eef2f7)",
 };
 
 const main = {
-  flex: 1,
-  padding: "40px",
+  padding: "20px",
+  maxWidth: "1400px",
+  margin: "0 auto",
+};
+
+const container = {
+  animation: "slideUp 0.5s ease-out forwards",
 };
 
 const header = {
-  marginBottom: "40px",
-  textAlign: "center",
+  marginBottom: "50px",
+  textAlign: "left",
+  paddingLeft: "10px",
+  borderLeft: "6px solid #1a237e",
 };
 
 const heading = {
-  fontSize: "38px",
-  color: "#1f3c88",
-  marginBottom: "10px",
-  fontWeight: "700",
+  fontSize: "42px",
+  color: "#1a237e",
+  margin: "0",
+  fontWeight: "800",
+  letterSpacing: "-1px",
 };
 
 const welcomeText = {
-  fontSize: "18px",
-  color: "#555",
+  fontSize: "18px",
+  color: "#64748b",
+  marginTop: "5px",
 };
 
 const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-  gap: "25px",
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+  gap: "20px",
 };
 
-const card = {
-  padding: "25px 20px",
-  borderRadius: "15px",
-  textAlign: "center",
-  color: "#fff",
-  textDecoration: "none",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-  transition: "0.3s",
+const cardStyle = {
+  background: "#ffffff",
+  padding: "30px 20px",
+  borderRadius: "24px",
+  textAlign: "center",
+  color: "#1e293b",
+  textDecoration: "none",
+  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)",
+  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  border: "1px solid #f1f5f9",
 };
 
-const cardTitle = {
-  marginTop: "12px",
-  fontSize: "18px",
-  fontWeight: "700",
+const iconBox = {
+  fontSize: "40px",
+  color: "#1a237e",
+  marginBottom: "15px",
+  transition: "all 0.3s ease",
+  background: "#f0f2ff",
+  width: "80px",
+  height: "80px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "20px",
 };
 
-const iconWrapper = {
-  fontSize: "36px",
-  marginBottom: "10px",
+const cardTitleStyle = {
+  fontSize: "16px",
+  fontWeight: "700",
+  margin: "0",
+  color: "#334155",
 };
 
 export default AdminDashboard;

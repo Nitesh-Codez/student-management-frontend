@@ -5,7 +5,6 @@ import {
   FaComments, FaUserGraduate, FaHome, FaUserAlt,
   FaBookOpen, FaLayerGroup, FaBars, FaTimes, FaFire, FaExclamationTriangle
 } from "react-icons/fa";
-
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
@@ -19,6 +18,7 @@ import StudentStudyMaterial from "./StudentStudyMaterial";
 import StudentNewMarks from "./StudentNewMarks";
 import StudentPage from "./StudentPage";
 import StudentFeedback from "./StudentFeedback";
+import StudentChat from "./StudentChat";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
@@ -97,7 +97,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid }) => {
 };
 
 /* =========================
-   MAIN STUDENT DASHBOARD
+   STUDENT DASHBOARD
 ========================= */
 const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -110,7 +110,6 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Sidebar Menu Items - SARE OPTIONS YAHAN HAIN
   const menuItems = [
     { name: "Dashboard", path: "/student", icon: <FaHome /> },
     { name: "Profile", path: "profile", icon: <FaUserAlt /> },
@@ -122,21 +121,22 @@ const StudentDashboard = () => {
     { name: "Study Material", path: "study-material", icon: <FaBookOpen /> },
     { name: "Task Updates", path: "task-update", icon: <FaFire /> },
     { name: "Feedback", path: "feedback", icon: <FaComments /> },
+    { name: "Chat", path: "chat", icon: <FaComments /> },
+
   ];
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user")) || { id: 101, name: "Student", class: "10th" };
     setUser(storedUser);
-    
+
     const fetchData = async () => {
       try {
+        // Pending tasks
         const taskRes = await axios.get(`${API_URL}/api/assignments/class/${storedUser.class}/${storedUser.id}`);
         if (taskRes.data.success) setPendingTasks(taskRes.data.assignments.filter(t => t.status !== "SUBMITTED").length);
 
-        const feeRes = await axios.get(
-  `${API_URL}/api/fees/student/${storedUser.id}`
-);
-
+        // Fee check
+        const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
         if (feeRes.data.success) {
           const feesData = feeRes.data.fees;
           if (feesData.length > 0) {
@@ -146,8 +146,18 @@ const StudentDashboard = () => {
           const paidThisMonth = feesData.some(f => new Date(f.payment_date).getMonth() === new Date().getMonth());
           if (!paidThisMonth) { setIsFeeUnpaid(true); setShowFeePopup(true); }
         }
+
+        // Profile photo fetch
+        try {
+          const photoRes = await axios.get(`${API_URL}/api/students/${storedUser.id}/profile-photo`);
+          if (photoRes.data.success && photoRes.data.user?.profile_photo) {
+            setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
+          }
+        } catch (err) { console.log("Photo fetch error:", err); }
+
       } catch (err) { console.error(err); }
     };
+
     fetchData();
   }, []);
 
@@ -156,7 +166,6 @@ const StudentDashboard = () => {
   return (
     <div style={masterWrapper}>
       <Header user={user} pendingCount={pendingTasks} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-      
       <FeePopup isOpen={showFeePopup} onClose={() => setShowFeePopup(false)} amount={dynamicFeeAmount} />
 
       <AnimatePresence>
@@ -197,6 +206,7 @@ const StudentDashboard = () => {
           <Route path="study-material" element={<StudentStudyMaterial />} />
           <Route path="task-update" element={<StudentPage studentId={user.id} />} />
           <Route path="feedback" element={<StudentFeedback studentId={user.id} />} />
+          <Route path="chat" element={<StudentChat user={user} />} />
         </Routes>
       </main>
     </div>
@@ -204,7 +214,7 @@ const StudentDashboard = () => {
 };
 
 /* =========================
-   STYLES & HEADER
+   HEADER COMPONENT
 ========================= */
 const Header = ({ user, pendingCount, toggleSidebar }) => {
   const [showAlert, setShowAlert] = useState(false);
@@ -229,6 +239,7 @@ const Header = ({ user, pendingCount, toggleSidebar }) => {
           </div>
         </div>
       </header>
+
       <AnimatePresence>
         {showAlert && (
           <motion.div initial={{ y: -100, x: "-50%" }} animate={{ y: 100, x: "-50%" }} exit={{ y: -100, x: "-50%" }} style={floatingAlert}>
@@ -242,9 +253,12 @@ const Header = ({ user, pendingCount, toggleSidebar }) => {
   );
 };
 
+/* =========================
+   STYLES
+========================= */
 const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
 const headerWrapper = { position: "fixed", top: 20, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center", padding: "0 20px" };
-const headerContent = { width: "100%", maxWidth: "1200px", background: "rgba(255, 255, 255, 0.8)", backdropFilter: "blur(20px)", borderRadius: "24px", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" };
+const headerContent = { width: "100%", maxWidth: "1200px", background: "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)", borderRadius: "24px", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" };
 const headerLeft = { display: "flex", alignItems: "center", gap: 20 };
 const iconBtn = { cursor: "pointer", fontSize: 20, color: "#6366f1", background: "#f1f5f9", padding: "10px", borderRadius: "12px", display: "flex" };
 const brandLogo = { margin: 0, fontSize: 22, fontWeight: 900, background: theme.gradients.primary, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };

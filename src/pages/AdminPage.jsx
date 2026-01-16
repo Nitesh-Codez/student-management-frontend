@@ -15,7 +15,14 @@ export default function AdminPage() {
   const [subjectsByClass, setSubjectsByClass] = useState({});
   const [isUploading, setIsUploading] = useState(false);
 
+  // New state for profile photo
+  const [students, setStudents] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+
   useEffect(() => {
+    // Fetch classes for assignments
     axios.get(`${API_URL}/api/new-marks/classes`)
       .then((res) => {
         if (res.data.success) {
@@ -27,8 +34,16 @@ export default function AdminPage() {
           setSubjectsByClass(map);
         }
       }).catch(err => console.error(err));
+
+    // Fetch all students for profile photo section
+    axios.get(`${API_URL}/api/students`)
+      .then(res => {
+        if (res.data.success) setStudents(res.data.students);
+      })
+      .catch(err => console.error(err));
   }, []);
 
+  // ASSIGNMENTS CODE REMAINS SAME
   useEffect(() => {
     if (!viewClass) { setTaskSubmissions({}); return; }
     const fetchAll = async () => {
@@ -67,21 +82,40 @@ export default function AdminPage() {
   };
 
   const handleRating = async (submissionId, value) => {
+  try {
+    const res = await axios.put(`${API_URL}/api/assignments/rating/${submissionId}`, { rating: value });
+    if (res.data.success) {
+      setTaskSubmissions(prev => {
+        const newSubs = { ...prev };
+        for (let task in newSubs) {
+          newSubs[task] = newSubs[task].map(s => s.id === submissionId ? { ...s, rating: value, grading_status: "GRADED" } : s);
+        }
+        return newSubs;
+      });
+    }
+  } catch (err) { console.error(err); }
+};
+
+  // NEW: Upload student profile photo
+  const handlePhotoUpload = async () => {
+    if (!selectedStudent || !photoFile) return alert("Select a student and photo!");
+    setIsPhotoUploading(true);
+    const formData = new FormData();
+    formData.append("photo", photoFile);
+
     try {
-      const res = await axios.put(`${API_URL}/api/assignments/rating/${submissionId}`, { rating: value });
+      const res = await axios.post(`${API_URL}/api/students/${selectedStudent}/profile-photo`, formData);
       if (res.data.success) {
-        setTaskSubmissions(prev => {
-          const newSubs = { ...prev };
-          for (let task in newSubs) {
-            newSubs[task] = newSubs[task].map(s => s.id === submissionId ? { ...s, rating: value, grading_status: "GRADED" } : s);
-          }
-          return newSubs;
-        });
-      }
-    } catch (err) { console.error(err); }
+        alert("Photo uploaded!");
+        // Update student locally
+        setStudents(prev => prev.map(s => s.id === parseInt(selectedStudent) ? { ...s, profile_photo: res.data.profile_photo } : s));
+        setPhotoFile(null);
+      } else alert("Upload failed");
+    } catch (err) {
+      alert("Server error");
+    } finally { setIsPhotoUploading(false); }
   };
 
-  // Helper to format date nicely
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
     const d = new Date(dateStr);
@@ -133,6 +167,39 @@ export default function AdminPage() {
             <button onClick={handleSubmit} style={ui.btnPrimary} disabled={isUploading}>
               {isUploading ? "Processing..." : "Deploy Now"}
             </button>
+          </div>
+        </div>
+
+        {/* PROFILE PHOTO SECTION */}
+        <div style={ui.card}>
+          <div style={ui.cardHeader}>
+            <h2 style={ui.cardTitle}>Upload Student Profile Photo</h2>
+          </div>
+          <div style={ui.formGroup}>
+            <label style={ui.label}>Select Student</label>
+            <select style={ui.input} value={selectedStudent} onChange={(e)=>setSelectedStudent(e.target.value)}>
+              <option value="">Select</option>
+              {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.class})</option>)}
+            </select>
+
+            <label style={ui.label}>Choose Photo</label>
+            <input type="file" onChange={(e)=>setPhotoFile(e.target.files[0])} style={ui.fileInput} />
+
+            <button onClick={handlePhotoUpload} style={ui.btnPrimary} disabled={isPhotoUploading}>
+              {isPhotoUploading ? "Uploading..." : "Upload Photo"}
+            </button>
+
+            {selectedStudent && (
+              <div style={{marginTop:15}}>
+                {students.find(s => s.id === parseInt(selectedStudent))?.profile_photo ? (
+                  <img 
+                    src={students.find(s => s.id === parseInt(selectedStudent)).profile_photo} 
+                    alt="Profile" 
+                    style={{width:100, height:100, borderRadius:'50%', objectFit:'cover', border:'2px solid #4F46E5'}}
+                  />
+                ) : <p style={{color:'#6B7280'}}>No photo uploaded yet</p>}
+              </div>
+            )}
           </div>
         </div>
 
@@ -201,6 +268,7 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+
       </div>
     </div>
   );
