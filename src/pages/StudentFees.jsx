@@ -7,8 +7,6 @@ const StudentFees = ({ user }) => {
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [showMonths, setShowMonths] = useState(true);
   const [isCurrentMonthUnpaid, setIsCurrentMonthUnpaid] = useState(false);
-  
-  // NEW: Dynamic Fee Amount State
   const [dynamicFee, setDynamicFee] = useState("0");
 
   const MY_UPI_ID = "9302122613@ybl";
@@ -20,6 +18,7 @@ const StudentFees = ({ user }) => {
 
   useEffect(() => {
     if (!user) return;
+
     const fetchFees = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/fees/${user.id}`);
@@ -27,15 +26,10 @@ const StudentFees = ({ user }) => {
           const feesData = res.data.fees;
           setFees(feesData);
 
-          // --- LOGIC: AUTO-FETCH PREVIOUS MONTH AMOUNT ---
-          if (feesData.length > 0) {
-            // Sabse latest payment nikalne ke liye date wise sort karein
-            const sortedFees = [...feesData].sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
-            const latestAmount = sortedFees[0].amount;
-            setDynamicFee(latestAmount); // Pichli baar jitna bhara tha, wahi set ho jayega
-          } else {
-            setDynamicFee("500"); // Agar pehli baar hai toh default 500
-          }
+          const sortedFees = [...feesData].sort(
+            (a, b) => new Date(b.payment_date) - new Date(a.payment_date)
+          );
+          setDynamicFee(sortedFees[0]?.amount || "500");
 
           const today = new Date();
           const currentMonth = today.getMonth();
@@ -45,18 +39,19 @@ const StudentFees = ({ user }) => {
             const fd = new Date(f.payment_date);
             return fd.getMonth() === currentMonth && fd.getFullYear() === currentYear;
           });
-          
+
           setIsCurrentMonthUnpaid(!hasPaidCurrentMonth);
         }
-      } catch (err) { console.log("Error fetching fees:", err); }
+      } catch (err) {
+        console.log("Error fetching fees:", err);
+      }
     };
+
     fetchFees();
   }, [user, API_URL]);
 
   const handlePayment = () => {
-    // Ab yahan dynamicFee use hogi
     const upiUrl = `upi://pay?pa=${MY_UPI_ID}&pn=SmartZone&am=${dynamicFee}&cu=INR&tn=Fees_${months[new Date().getMonth()]}`;
-    
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     if (isMobile) {
@@ -66,8 +61,11 @@ const StudentFees = ({ user }) => {
     }
   };
 
-  const formatDate = (d) => new Date(d).toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
+  const formatDate = (d) =>
+    new Date(d).toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
+
   const formatTime = (t) => {
+    if (!t) return "--:--";
     const [h, m] = t.split(":");
     const d = new Date();
     d.setHours(h, m);
@@ -87,8 +85,6 @@ const StudentFees = ({ user }) => {
 
   return (
     <div style={styles.page}>
-      
-      {/* FEE PAYMENT NOTICE BANNER */}
       {isCurrentMonthUnpaid && (
         <div className="fee-notice-banner">
           <div style={styles.noticeContent}>
@@ -100,11 +96,12 @@ const StudentFees = ({ user }) => {
               </p>
             </div>
           </div>
-          <button onClick={handlePayment} style={styles.payNowBtn}>Pay ₹{dynamicFee} Now</button>
+          <button type="button" onClick={handlePayment} style={styles.payNowBtn}>
+            Pay ₹{dynamicFee} Now
+          </button>
         </div>
       )}
 
-      {/* Dynamic Header */}
       <div style={styles.headerContainer}>
         <div style={styles.headerGlow}></div>
         <h2 style={styles.heading}>
@@ -115,7 +112,6 @@ const StudentFees = ({ user }) => {
         </p>
       </div>
 
-      {/* Month Selector */}
       {showMonths ? (
         <div style={styles.gridContainer}>
           {months.map((m, i) => (
@@ -131,7 +127,7 @@ const StudentFees = ({ user }) => {
       ) : (
         <div style={styles.detailContainer}>
           <div style={styles.actionRow}>
-            <button onClick={() => setShowMonths(true)} className="back-btn-modern">
+            <button type="button" onClick={() => setShowMonths(true)} className="back-btn-modern">
               <span style={{ marginRight: "8px" }}>←</span> Back to Months
             </button>
           </div>
@@ -155,7 +151,7 @@ const StudentFees = ({ user }) => {
                   </thead>
                   <tbody>
                     {filteredFees.map((f) => (
-                      <tr key={f.id} className="table-row-modern">
+                      <tr key={f.id || Math.random()} className="table-row-modern">
                         <td data-label="DATE">{formatDate(f.payment_date)}</td>
                         <td data-label="TIME">{formatTime(f.payment_time)}</td>
                         <td data-label="AMOUNT" style={styles.amountText}>₹ {f.amount}</td>
@@ -177,7 +173,7 @@ const StudentFees = ({ user }) => {
       <style>
         {`
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-          
+
           .fee-notice-banner {
             background: linear-gradient(90deg, #ff4b2b, #ff416c);
             border-radius: 16px;
