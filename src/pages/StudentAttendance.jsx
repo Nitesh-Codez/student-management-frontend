@@ -11,15 +11,22 @@ const StudentAttendance = () => {
   const [marks, setMarks] = useState(0);
   const [todayStatus, setTodayStatus] = useState(null);
 
-  // 🔵 COLOR LOGIC
-  const getCircleColor = (perc, absentCount, total) => {
-    if (total === 0) return "#f8f1e4"; // NEW MONTH → CREAM
-    if (perc >= 85) return "#18a539ff"; // GREEN
-    if (perc >= 75 && perc < 85) return "#b8ff11ff"; // YELLOW
-    return "#ff0606ff"; // RED
+  // 🔵 COLORS
+  const colors = {
+    present: "#28a745",
+    absent: "#dc3545",
+    holiday: "#ffc107",
+    notMarked: "#6c757d",
+    bgCard: "#ffffff",
+    primary: "#1f3c88"
   };
 
-  // 📌 FETCH ALL STUDENT ATTENDANCE
+  const getPercentageColor = (perc) => {
+    if (perc >= 85) return colors.present;
+    if (perc >= 75) return colors.holiday;
+    return colors.absent;
+  };
+
   useEffect(() => {
     if (!user) return;
     fetch(`${API_URL}/api/attendance/${user.id}`)
@@ -30,20 +37,13 @@ const StudentAttendance = () => {
       .catch((err) => console.log("Fetch error:", err));
   }, [user, API_URL]);
 
-  // 📌 AUTO SET CURRENT MONTH
   useEffect(() => {
     const today = new Date();
-    const m = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}`;
-    setMonth(m);
+    setMonth(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
   }, []);
 
-  // 📌 FILTER MONTH + CALCULATE % + TODAY STATUS + MARKS
   useEffect(() => {
     if (!month) return;
-
     const [y, m] = month.split("-").map(Number);
     let data = attendance.filter((a) => {
       const d = new Date(a.date);
@@ -51,254 +51,177 @@ const StudentAttendance = () => {
     });
 
     const today = new Date();
-    let todayRecord = null;
-
-    // Only add "Not Marked" for the current month
     if (y === today.getFullYear() && m === today.getMonth() + 1) {
-      todayRecord = data.find(
-        (a) => new Date(a.date).toDateString() === today.toDateString()
-      );
-
+      let todayRecord = data.find((a) => new Date(a.date).toDateString() === today.toDateString());
       if (!todayRecord) {
         todayRecord = { date: today.toISOString(), status: "Not Marked" };
         data.push(todayRecord);
       }
       setTodayStatus(todayRecord.status);
     } else {
-      setTodayStatus(null); // previous months → no today's status
+      setTodayStatus(null);
     }
 
     setFiltered(data);
 
-    // ✅ Only count Present/Absent for percentage, ignore Holidays & Not Marked
-    const validDays = data.filter(
-      (a) => a.status === "Present" || a.status === "Absent"
-    ).length;
+    const validDays = data.filter((a) => a.status === "Present" || a.status === "Absent").length;
     const presentDays = data.filter((a) => a.status === "Present").length;
-
     const perc = validDays === 0 ? 0 : (presentDays / validDays) * 100;
-    setPercentage(perc.toFixed(2));
-
-    // 📌 Calculate Attendance Marks
-    const calcAttendanceMarks = (perc) => {
-      if (perc <= 75) return 0;
-      return Math.ceil((perc - 75) / 5); // ceil for fractional marks
-    };
-    setMarks(calcAttendanceMarks(perc));
+    setPercentage(perc.toFixed(1));
+    setMarks(perc <= 75 ? 0 : Math.ceil((perc - 75) / 5));
   }, [month, attendance]);
 
   const formatDate = (iso) => {
-    const d = new Date(iso);
-    return `${String(d.getDate()).padStart(2, "0")}/${String(
-      d.getMonth() + 1
-    ).padStart(2, "0")}/${d.getFullYear()}`;
-  };
-
-  const absentCount = filtered.filter((a) => a.status === "Absent").length;
-
-  // LIGHT COLORS FOR TODAY'S CIRCLE
-  const getTodayCircleColor = (status) => {
-    if (status === "Present") return "#35bc47ff"; // LIGHT GREEN
-    if (status === "Absent") return "#ff0000ff"; // LIGHT RED
-    if (status === "Holiday") return "#ffd500ff"; // YELLOW
-    return "#d6d6d6"; // LIGHT GREY → Not Marked
+    return new Date(iso).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: "900px",
-        margin: "0 auto",
-        padding: "20px",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <h2
-        style={{ textAlign: "center", marginBottom: "20px", color: "#1f3c88" }}
-      >
-        See your Attendance dear Student
-      </h2>
+    <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", padding: "20px", fontFamily: "'Segoe UI', Roboto, sans-serif" }}>
+      <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+        
+        {/* Updated Header */}
+        <div style={{ textAlign: "center", marginBottom: "30px" }}>
+          <h1 style={{ color: colors.primary, marginBottom: "5px", fontWeight: "800" }}>Check Your Attendance</h1>
+          <p style={{ color: "#444", fontSize: "18px", fontWeight: "500" }}>
+            Welcome, <span style={{ color: colors.primary, borderBottom: `2px solid ${colors.primary}` }}>{user?.name || "Student"}</span>
+          </p>
+        </div>
 
-      {/* Month Selector */}
-      <div
-        style={{
-          marginBottom: "25px",
-          display: "flex",
-          gap: "15px",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <label style={{ fontWeight: "bold" }}>Current Month:</label>
-        <input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            fontSize: "16px",
-            borderRadius: "6px",
-            border: "1px solid #ced4da",
-          }}
-        />
-      </div>
-
-      {/* Overall Card */}
-      <div
-        style={{
-          background: "#f1f5ff",
-          padding: "20px",
-          borderRadius: "10px",
-          marginBottom: "25px",
-          boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-        }}
-      >
-        <p>
-          <strong>Name:</strong> {user?.name}
-        </p>
-        <p>
-          <strong>Class:</strong> {user?.class}
-        </p>
-
-        <div
-          style={{
-            marginTop: "20px",
-            display: "flex",
-            gap: "25px",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          {/* Overall Circle */}
-          <div
-            style={{
-              width: "110px",
-              height: "110px",
-              borderRadius: "50%",
-              background: getCircleColor(percentage, absentCount, filtered.length),
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              color: "#fff",
-              fontWeight: "bold",
-              fontSize: "22px",
-              boxShadow: "0 0 15px rgba(0,0,0,0.2)",
-            }}
-          >
-            {filtered.length === 0 ? "0%" : `${percentage}%`}
-          </div>
-
-          {/* Present/Total + Marks */}
-          <div style={{ fontSize: "18px", fontWeight: "bold", color: "#495057" }}>
-            {filtered.filter((a) => a.status === "Present").length}/
-            {filtered.filter((a) => a.status === "Present" || a.status === "Absent").length} Days Present
-            <br />
-            <strong>Attendance Marks:</strong> {marks}
+        {/* Controls */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "25px" }}>
+          <div style={{ background: "#fff", padding: "10px 20px", borderRadius: "50px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontWeight: "600", color: "#444" }}>Select Month:</span>
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              style={{ border: "none", outline: "none", fontSize: "16px", cursor: "pointer", color: colors.primary, fontWeight: "bold" }}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Today's Attendance Strip */}
-      {todayStatus && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: "10px",
-            marginBottom: "15px",
-          }}
-        >
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "50%",
-              background: getTodayCircleColor(todayStatus),
-              boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-            }}
-          ></div>
-          <span style={{ fontWeight: "bold", fontSize: "16px" }}>
-            Today's Attendance: {todayStatus}
-          </span>
+        {/* Top Summary Card */}
+        <div style={{ background: colors.primary, borderRadius: "20px", padding: "30px", color: "#fff", boxShadow: "0 10px 20px rgba(31, 60, 136, 0.2)", display: "flex", flexWrap: "wrap", justifyContent: "space-around", alignItems: "center", marginBottom: "30px", position: "relative", overflow: "hidden" }}>
+          <div style={{ zIndex: 1 }}>
+            <h3 style={{ margin: "0 0 10px 0", fontSize: "24px" }}>{user?.name}</h3>
+            <p style={{ opacity: 0.8, margin: 0 }}>Class: {user?.class}</p>
+            <div style={{ marginTop: "20px", background: "rgba(255,255,255,0.2)", padding: "10px 20px", borderRadius: "10px", display: "inline-block" }}>
+              <span style={{ fontSize: "14px" }}>Attendance Marks: </span>
+              <span style={{ fontSize: "20px", fontWeight: "bold" }}>{marks}</span>
+            </div>
+          </div>
+
+          {/* Thick Perimeter Circle */}
+          <div style={{ 
+            position: "relative", 
+            width: "130px", 
+            height: "130px", 
+            background: "transparent", 
+            borderRadius: "50%", 
+            display: "flex", 
+            justifyContent: "center", 
+            alignItems: "center", 
+            border: `8px solid ${getPercentageColor(percentage)}`, // Made Border Thicker (8px)
+            boxShadow: `inset 0 0 10px rgba(0,0,0,0.1), 0 0 15px ${getPercentageColor(percentage)}44` // Subtle Glow
+          }}>
+            <div style={{ textAlign: "center" }}>
+              <span style={{ fontSize: "28px", fontWeight: "900" }}>{percentage}%</span>
+              <br />
+              <span style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: "bold" }}>Overall</span>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* Attendance Table */}
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "50%",
-            tableLayout: "fixed",
-            borderCollapse: "collapse",
-            minWidth: "600px",
-            borderRadius: "10px",
-            overflow: "hidden",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-          }}
-        >
-          <thead>
-            <tr style={{ background: "#1f3c88", color: "#fff" }}>
-              <th style={th}>Date</th>
-              <th style={th}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
+        {/* Stats Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px", marginBottom: "30px" }}>
+          <div style={statBox}>
+            <span style={{ color: colors.present, fontSize: "24px", fontWeight: "bold" }}>{filtered.filter(a => a.status === "Present").length}</span>
+            <small style={{ color: "#666", fontWeight: "600" }}>Present</small>
+          </div>
+          <div style={statBox}>
+            <span style={{ color: colors.absent, fontSize: "24px", fontWeight: "bold" }}>{filtered.filter(a => a.status === "Absent").length}</span>
+            <small style={{ color: "#666", fontWeight: "600" }}>Absent</small>
+          </div>
+          <div style={statBox}>
+            <span style={{ color: colors.holiday, fontSize: "24px", fontWeight: "bold" }}>{filtered.filter(a => a.status === "Holiday").length}</span>
+            <small style={{ color: "#666", fontWeight: "600" }}>Holidays</small>
+          </div>
+          <div style={statBox}>
+            <span style={{ color: colors.notMarked, fontSize: "24px", fontWeight: "bold" }}>{todayStatus || "N/A"}</span>
+            <small style={{ color: "#666", fontWeight: "600" }}>Today</small>
+          </div>
+        </div>
+
+        {/* List View */}
+        <div style={{ background: "#fff", borderRadius: "20px", padding: "20px", boxShadow: "0 5px 15px rgba(0,0,0,0.05)" }}>
+          <h4 style={{ margin: "0 0 20px 0", color: "#333", fontSize: "18px" }}>Daily Attendance Log</h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {filtered.length === 0 ? (
-              <tr>
-                <td colSpan="2" style={{ textAlign: "center", padding: "20px" }}>
-                  No attendance records found.
-                </td>
-              </tr>
+              <p style={{ textAlign: "center", padding: "20px", color: "#999" }}>No records for this month.</p>
             ) : (
               [...filtered]
-                .sort((a, b) => new Date(a.date) - new Date(b.date))
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
                 .map((a, i) => (
-                  <tr
-                    key={i}
-                    style={{
-                      background:
-                        a.status === "Absent"
-                          ? "#de5b66ff"
-                          : a.status === "Not Marked"
-                          ? "#d6d6d6ff"
-                          : a.status === "Holiday"
-                          ? "#fee254ff"
-                          : "#d8f5c6ff",
-                      color:
-                        a.status === "Absent"
-                          ? "#721c24"
-                          : a.status === "Not Marked"
-                          ? "#495057"
-                          : a.status === "Holiday"
-                          ? "#3d3d00"
-                          : "#155724",
-                      fontWeight: "500",
-                    }}
-                  >
-                    <td style={td}>{formatDate(a.date)}</td>
-                    <td style={td}>{a.status}</td>
-                  </tr>
+                  <div key={i} style={{ ...listItem, borderLeft: `6px solid ${getStatusColor(a.status, colors)}` }}>
+                    <div>
+                      <div style={{ fontWeight: "bold", color: "#333", fontSize: "16px" }}>{formatDate(a.date)}</div>
+                      <small style={{ color: "#888" }}>{new Date(a.date).toLocaleDateString('en-US', { weekday: 'long' })}</small>
+                    </div>
+                    <div style={{ ...statusBadge, backgroundColor: getStatusColor(a.status, colors) + "15", color: getStatusColor(a.status, colors) }}>
+                      {a.status}
+                    </div>
+                  </div>
                 ))
             )}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-const th = {
-  padding: "15px",
-  border: "1px solid #ddd",
-  textAlign: "center",
+// Helper Functions & Styles
+const getStatusColor = (status, colors) => {
+  switch (status) {
+    case "Present": return colors.present;
+    case "Absent": return colors.absent;
+    case "Holiday": return colors.holiday;
+    default: return colors.notMarked;
+  }
 };
 
-const td = {
-  padding: "10px",
-  border: "1px solid #866868ff",
+const statBox = {
+  background: "#fff",
+  padding: "15px",
+  borderRadius: "15px",
   textAlign: "center",
+  display: "flex",
+  flexDirection: "column",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+  border: "1px solid #eee"
+};
+
+const listItem = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "15px 20px",
+  background: "#fdfdfd",
+  borderRadius: "12px",
+  transition: "0.3s",
+  border: "1px solid #f0f0f0"
+};
+
+const statusBadge = {
+  padding: "6px 14px",
+  borderRadius: "20px",
+  fontSize: "12px",
+  fontWeight: "bold",
+  textTransform: "uppercase"
 };
 
 export default StudentAttendance;
