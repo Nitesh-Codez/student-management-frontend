@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 
 const AdminFees = () => {
@@ -6,9 +6,8 @@ const AdminFees = () => {
 
   const [students, setStudents] = useState([]);
   const [fees, setFees] = useState([]);
-
-  const [monthFilter, setMonthFilter] = useState("");
-  const [filteredFees, setFilteredFees] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [form, setForm] = useState({
     id: "",
@@ -16,407 +15,202 @@ const AdminFees = () => {
     student_name: "",
     class_name: "",
     amount: "",
-    payment_date: "",
-    payment_time: "",
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
     status: "On Time",
   });
 
-  const [showForm, setShowForm] = useState(false);
-  const [showRecords, setShowRecords] = useState(false);
-  const [showSeeRecordBtn, setShowSeeRecordBtn] = useState(false);
-  const [hideMonths, setHideMonths] = useState(false); // 🔥 NEW — HIDE MONTH BUTTONS
+  const [hideMonths, setHideMonths] = useState(false);
 
-  // LOAD STUDENTS + FEES
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const studentsRes = await axios.get(`${API_URL}/api/students`);
-        if (studentsRes.data.success) setStudents(studentsRes.data.students);
-
-        const feesRes = await axios.get(`${API_URL}/api/fees`);
-        if (feesRes.data.success) setFees(feesRes.data.fees);
-      } catch (err) {
-        console.log("Error fetching data:", err);
-      }
-    };
-
-    fetchData();
-  }, [API_URL]);
-
-  // LOAD MONTH DATA
-  const loadMonth = (monthNumber) => {
-    const currentYear = new Date().getFullYear();
-    const month = String(monthNumber).padStart(2, "0");
-
-    const filtered = fees.filter((f) =>
-      f.payment_date.startsWith(`${currentYear}-${month}`)
-    );
-
-    setMonthFilter(`${currentYear}-${month}`);
-    setFilteredFees(filtered);
-
-    setShowForm(true);
-    setShowSeeRecordBtn(true);
-    setShowRecords(false);
-
-    setHideMonths(true); // 🔥 HIDE MONTH BUTTONS AFTER CLICK
+  const fetchData = async () => {
+    try {
+      const [stRes, feeRes] = await Promise.all([
+        axios.get(`${API_URL}/api/students`),
+        axios.get(`${API_URL}/api/fees`)
+      ]);
+      if (stRes.data.success) setStudents(stRes.data.students);
+      if (feeRes.data.success) setFees(feeRes.data.fees);
+    } catch (err) { console.error("Error:", err); }
   };
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  useEffect(() => { fetchData(); }, [API_URL]);
+
+  // Date Formatting Function: 2024-01-15 -> 15 Jan 2024
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const filteredFees = useMemo(() => {
+    return fees.filter((f) => {
+      const m = f.payment_date.split("-")[1];
+      const matchesMonth = m === selectedMonth;
+      const matchesSearch = f.student_name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesMonth && matchesSearch;
+    });
+  }, [fees, selectedMonth, searchTerm]);
+
+  const totalMonthlyAmount = filteredFees.reduce((sum, f) => sum + Number(f.amount), 0);
+
+  const loadMonth = (m) => {
+    setSelectedMonth(String(m).padStart(2, "0"));
+    setHideMonths(true);
+  };
 
   const handleStudentSelect = (e) => {
-    const value = Number(e.target.value);
-    const s = students.find((st) => st.id === value);
-
-    setForm({
-      ...form,
-      student_id: value,
-      student_name: s?.name,
-      class_name: s?.class,
-    });
-  };
-
-  const isDuplicateEntry = () => {
-    if (!form.student_id || !form.payment_date) return false;
-
-    const [year, month] = form.payment_date.split("-");
-
-    return fees.some(
-      (f) =>
-        f.student_id === Number(form.student_id) &&
-        f.payment_date.startsWith(`${year}-${month}`) &&
-        f.id !== form.id
-    );
+    const s = students.find((st) => st.id === Number(e.target.value));
+    setForm({ ...form, student_id: s?.id || "", student_name: s?.name || "", class_name: s?.class || "" });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (isDuplicateEntry()) {
-      alert("This student already has a fee record for this month!");
-      return;
-    }
-
     try {
-      let res;
-
       if (form.id) {
-        res = await axios.put(`${API_URL}/api/fees/${form.id}`, form);
+        await axios.put(`${API_URL}/api/fees/${form.id}`, form);
       } else {
-        res = await axios.post(`${API_URL}/api/fees`, form);
+        await axios.post(`${API_URL}/api/fees`, form);
       }
-
-      if (res.data.success) alert(res.data.message);
-
-      setForm({
-        id: "",
-        student_id: "",
-        student_name: "",
-        class_name: "",
-        amount: "",
-        payment_date: "",
-        payment_time: "",
-        status: "On Time",
-      });
-
-      const feesRes = await axios.get(`${API_URL}/api/fees`);
-      if (feesRes.data.success) {
-        setFees(feesRes.data.fees);
-
-        const [year, month] = monthFilter.split("-");
-        setFilteredFees(
-          feesRes.data.fees.filter((f) =>
-            f.payment_date.startsWith(`${year}-${month}`)
-          )
-        );
-      }
-    } catch (err) {
-      console.log("Error submitting fee:", err);
-    }
-  };
-
-  const handleEdit = (fee) => {
-    setForm({ ...fee });
-    setShowForm(true);
+      setForm({ ...form, id: "", amount: "" });
+      fetchData();
+      alert("Saved Successfully!");
+    } catch (err) { alert("Error saving"); }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete?")) return;
-
-    try {
-      const res = await axios.delete(`${API_URL}/api/fees/${id}`);
-
-      if (res.data.success) {
-        alert(res.data.message);
-
-        const feesRes = await axios.get(`${API_URL}/api/fees`);
-        if (feesRes.data.success) {
-          setFees(feesRes.data.fees);
-
-          const [year, month] = monthFilter.split("-");
-          setFilteredFees(
-            feesRes.data.fees.filter((f) =>
-              f.payment_date.startsWith(`${year}-${month}`)
-            )
-          );
-        }
-      }
-    } catch (err) {
-      console.log("Error deleting fee:", err);
+    if (window.confirm("Are you sure you want to delete this record?")) {
+      try {
+        await axios.delete(`${API_URL}/api/fees/${id}`);
+        fetchData();
+      } catch (err) { alert("Delete failed"); }
     }
   };
 
-  const formatDate = (d) =>
-    new Date(d).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-
-  const formatTime = (t) => {
-    const [h, m] = t.split(":");
-    const temp = new Date();
-    temp.setHours(h, m);
-    return temp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
-
   return (
-    <div style={{ padding: "10px" }}>
-      <h2 style={{ textAlign: "center", color: "#1f3c88" }}>Admin - Fees</h2>
-
-     {/* MONTH SELECTION SECTION */}
-{!hideMonths && (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column", // vertical alignment
-      justifyContent: "center", // vertically center
-      alignItems: "center", // horizontally center
-      gap: "24px", // space between heading and buttons
-      height: "100vh", // full page height
-      width: "100%", // full width
-      padding: "20px",
-      boxSizing: "border-box",
-      background: "#f5f5f5", // optional background
-    }}
-  >
-    {/* Heading */}
-    <h2 style={{ 
-      fontSize: "24px", 
-      marginBottom: "20px", 
-      color: "#1f3c88",
-      textAlign: "center"
-    }}>
-      Select the Month for Fee
-    </h2>
-
-    {/* Month Buttons */}
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-        width: "100%",
-        maxWidth: "250px",
-      }}
-    >
-      {[
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-      ].map((m, index) => (
-        <button
-          key={index}
-          onClick={() => loadMonth(index + 1)}
-          style={{
-            padding: "16px 28px", // longer & bigger buttons
-            background: "#1f3c88",
-            color: "#fff",
-            borderRadius: "8px",
-            border: "none",
-            fontSize: "18px",
-            width: "100%", // full width of parent div
-          }}
-        >
-          {m}
-        </button>
-      ))}
-    </div>
-  </div>
-)}
-
-      {/* SEE RECORDS BUTTON */}
-
-
-      {/* FORM */}
-{showForm && (
-  <form
-    onSubmit={handleSubmit}
-    style={{
-      maxWidth: "500px",
-      margin: "15px auto",
-      display: "flex",
-      flexDirection: "column",
-      gap: "12px",
-    }}
-  >
-    <select
-      name="student_id"
-      value={form.student_id}
-      onChange={handleStudentSelect}
-      required
-      style={{ padding: "12px" }}
-    >
-      <option value="">Select Student</option>
-      {students.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.name} - {s.class}
-        </option>
-      ))}
-    </select>
-
-    <input
-      type="number"
-      name="amount"
-      placeholder="Amount"
-      value={form.amount}
-      onChange={handleChange}
-      required
-      style={{ padding: "12px" }}
-    />
-
-    <input
-      type="date"
-      name="payment_date"
-      value={form.payment_date}
-      onChange={handleChange}
-      required
-      style={{ padding: "12px" }}
-    />
-
-    <input
-      type="time"
-      name="payment_time"
-      value={form.payment_time}
-      onChange={handleChange}
-      required
-      style={{ padding: "12px" }}
-    />
-
-    <select
-      name="status"
-      value={form.status}
-      onChange={handleChange}
-      style={{ padding: "12px" }}
-    >
-      <option value="On Time">On Time</option>
-      <option value="Late">Late</option>
-      <option value="Early">Early</option>
-    </select>
-
-    <button
-      type="submit"
-      style={{
-        padding: "12px",
-        background: "#1f3c88",
-        color: "#fff",
-        borderRadius: "6px",
-      }}
-    >
-      {form.id ? "Update Fee" : "Add Fee"}
-    </button>
-  </form>
-)}
-{/* SEE RECORD LINK – PROFESSIONAL TOGGLE */}
-{showSeeRecordBtn && (
-  <div style={{ marginTop: "35px", textAlign: "center" }}>
-    <p
-      onClick={() => setShowRecords(!showRecords)}   // 🔥 Toggle
-      style={{
-        fontSize: "18px",
-        color: showRecords ? "#e74c3c" : "#1f3c88",
-        textDecoration: "underline",
-        cursor: "pointer",
-        fontWeight: "600",
-        transition: "0.3s",
-      }}
-      onMouseEnter={(e) => (e.target.style.color = "#0d2a6b")}
-      onMouseLeave={(e) =>
-        (e.target.style.color = showRecords ? "#e74c3c" : "#1f3c88")
-      }
-    >
-      {showRecords ? "Hide Fee Records ↑" : "View Fee Records →"}
-    </p>
-  </div>
-)}
-      {/* RECORD TABLE */}
-      {showRecords && (
-        <div style={{ overflowX: "auto", marginTop: "20px" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead style={{ background: "#3959a1", color: "#fff" }}>
-              <tr>
-                <th style={{ padding: "10px" }}>Date</th>
-                <th style={{ padding: "10px" }}>Time</th>
-                <th style={{ padding: "10px" }}>Student</th>
-                <th style={{ padding: "10px" }}>Class</th>
-                <th style={{ padding: "10px" }}>Amount</th>
-                <th style={{ padding: "10px" }}>Status</th>
-                <th style={{ padding: "10px" }}>Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredFees.map((f) => (
-                <tr key={f.id}>
-                  <td style={{ padding: "8px" }}>{formatDate(f.payment_date)}</td>
-                  <td style={{ padding: "8px" }}>{formatTime(f.payment_time)}</td>
-                  <td style={{ padding: "8px" }}>{f.student_name}</td>
-                  <td style={{ padding: "8px" }}>{f.class_name}</td>
-                  <td style={{ padding: "8px" }}>₹ {f.amount}</td>
-                  <td style={{ padding: "8px" }}>{f.status}</td>
-
-                  <td style={{ padding: "8px" }}>
-                    <button onClick={() => handleEdit(f)}>Edit</button>
-
-                    <button
-                      onClick={() => handleDelete(f.id)}
-                      style={{
-                        marginLeft: "8px",
-                        background: "red",
-                        color: "#fff",
-                        border: "none",
-                        padding: "5px 8px",
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-
-              {filteredFees.length === 0 && (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: "center", padding: "20px" }}>
-                    No Records Found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+    <div style={{ backgroundColor: "#f4f6f9", minHeight: "100vh", padding: "15px", fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ width: "100%", margin: "0 auto" }}>
+        
+        {/* Full-Width Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#1a237e', padding: '15px 25px', borderRadius: '10px', color: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ margin: 0, fontSize: '24px' }}>🏫 Admin Fee Portal</h2>
+          {hideMonths && (
+            <button onClick={() => {setHideMonths(false); setSelectedMonth("");}} style={whiteBtn}>Change Month</button>
+          )}
         </div>
-      )}
+
+        {!hideMonths && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '15px' }}>
+            {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => (
+              <button key={i} onClick={() => loadMonth(i + 1)} style={monthCard}> {m} </button>
+            ))}
+          </div>
+        )}
+
+        {hideMonths && (
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+            
+            {/* Sticky Form Section */}
+            <div style={{ ...cardStyle, width: '350px', position: 'sticky', top: '20px' }}>
+              <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>{form.id ? "✏️ Edit Fee" : "➕ Add Fee"}</h3>
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <label style={labelStyle}>Student Name</label>
+                <select value={form.student_id} onChange={handleStudentSelect} required style={inputStyle}>
+                  <option value="">Select Student</option>
+                  {students.map((s) => <option key={s.id} value={s.id}>{s.name} (Cl: {s.class})</option>)}
+                </select>
+
+                <label style={labelStyle}>Amount (₹)</label>
+                <input type="number" value={form.amount} onChange={(e)=>setForm({...form, amount: e.target.value})} placeholder="Enter Amount" required style={inputStyle} />
+
+                <label style={labelStyle}>Payment Date</label>
+                <input type="date" value={form.payment_date} onChange={(e)=>setForm({...form, payment_date: e.target.value})} style={inputStyle} />
+
+                <label style={labelStyle}>Status</label>
+                <select value={form.status} onChange={(e)=>setForm({...form, status: e.target.value})} style={inputStyle}>
+                  <option>On Time</option>
+                  <option>Late</option>
+                  <option>Early</option>
+                </select>
+
+                <button type="submit" style={primaryBtn}>{form.id ? "Update Record" : "Save Record"}</button>
+                {form.id && <button type="button" onClick={() => setForm({...form, id: ""})} style={{...primaryBtn, backgroundColor: '#666'}}>Cancel Edit</button>}
+              </form>
+            </div>
+
+            {/* Main Data Section */}
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                <div style={{ ...cardStyle, flex: 1, background: 'linear-gradient(135deg, #1a237e 0%, #3949ab 100%)', color: 'white' }}>
+                  <small>Collection of Month</small>
+                  <h2 style={{ margin: '5px 0 0 0' }}>₹{totalMonthlyAmount.toLocaleString('en-IN')}</h2>
+                </div>
+                <div style={{ ...cardStyle, flex: 2, display: 'flex', alignItems: 'center' }}>
+                  <span style={{ marginRight: '10px' }}>🔍</span>
+                  <input 
+                    type="text" 
+                    placeholder="Search by student name..." 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)} 
+                    style={{ ...inputStyle, border: 'none', fontSize: '16px' }} 
+                  />
+                </div>
+              </div>
+
+              <div style={{ ...cardStyle, padding: '0px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #eee' }}>
+                    <tr style={{ textAlign: 'left' }}>
+                      <th style={thStyle}>Date</th>
+                      <th style={thStyle}>Student Details</th>
+                      <th style={thStyle}>Amount</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFees.map((f) => (
+                      <tr key={f.id} style={trStyle}>
+                        <td style={tdStyle}>{formatDate(f.payment_date)}</td>
+                        <td style={tdStyle}>
+                          <div style={{ fontWeight: '600', color: '#333' }}>{f.student_name}</div>
+                          <div style={{ fontSize: '12px', color: '#777' }}>Class: {f.class_name}</div>
+                        </td>
+                        <td style={tdStyle}><strong>₹{f.amount}</strong></td>
+                        <td style={tdStyle}>
+                          <span style={{ ...badge, backgroundColor: f.status === 'On Time' ? '#e8f5e9' : '#fff3e0', color: f.status === 'On Time' ? '#2e7d32' : '#ef6c00' }}>
+                            {f.status}
+                          </span>
+                        </td>
+                        <td style={tdStyle}>
+                          <button onClick={() => setForm(f)} style={actionBtn}>Edit</button>
+                          <button onClick={() => handleDelete(f.id)} style={{ ...actionBtn, color: '#d32f2f' }}>Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {filteredFees.length === 0 && <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>No fee records found for this filter.</div>}
+              </div>
+            </div>
+
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
+// --- Modern Styles ---
+const cardStyle = { backgroundColor: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' };
+const inputStyle = { padding: '12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', width: '100%', boxSizing: 'border-box', outline: 'none' };
+const labelStyle = { fontSize: '12px', fontWeight: 'bold', color: '#555', marginBottom: '5px', display: 'block' };
+const monthCard = { padding: '25px', borderRadius: '12px', border: 'none', backgroundColor: 'white', color: '#1a237e', fontWeight: '600', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', fontSize: '16px', transition: 'all 0.3s ease' };
+const primaryBtn = { backgroundColor: '#1a237e', color: 'white', padding: '14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
+const whiteBtn = { backgroundColor: 'white', color: '#1a237e', padding: '8px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' };
+const actionBtn = { background: 'none', border: 'none', color: '#1a237e', cursor: 'pointer', fontWeight: '600', marginRight: '10px', fontSize: '13px' };
+const thStyle = { padding: '15px', fontSize: '13px', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' };
+const tdStyle = { padding: '15px', borderBottom: '1px solid #f1f1f1' };
+const trStyle = { transition: 'background 0.2s' };
+const badge = { padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' };
 
 export default AdminFees;
