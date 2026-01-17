@@ -51,16 +51,26 @@ const StudentFees = ({ user }) => {
     fetchFees();
   }, [user, API_URL]);
 
-  const handlePayment = () => {
-    const upiUrl = `upi://pay?pa=${MY_UPI_ID}&pn=SmartZone&am=${dynamicFee}&cu=INR&tn=Fees_${months[new Date().getMonth()]}`;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const handlePayment = async () => {
+  try {
+    const res = await axios.post(`${API_URL}/api/fees/phonepe/pay`, {
+      student_id: user.id,
+      student_name: user.name,
+      class_name: user.class_name,
+      amount: Number(dynamicFee)
+    });
 
-    if (isMobile) {
-      window.location.href = upiUrl;
+    if (res.data.success && res.data.redirectUrl) {
+      window.open(res.data.redirectUrl, "_blank"); // Opens PhonePe sandbox page
     } else {
-      alert("Please open this on your mobile to pay directly via PhonePe/GPay.");
+      alert("Payment initiation failed. Try again later.");
     }
-  };
+  } catch (err) {
+    console.error("Payment error:", err);
+    alert("Payment failed. Check console for details.");
+  }
+};
+
 
   const formatDate = (d) =>
     new Date(d).toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });

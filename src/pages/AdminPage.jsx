@@ -15,35 +15,30 @@ export default function AdminPage() {
   const [subjectsByClass, setSubjectsByClass] = useState({});
   const [isUploading, setIsUploading] = useState(false);
 
-  // New state for profile photo
+  // Profile photo states
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [photoFile, setPhotoFile] = useState(null);
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
 
   useEffect(() => {
-    // Fetch classes for assignments
+    // Fetch classes
     axios.get(`${API_URL}/api/new-marks/classes`)
-      .then((res) => {
+      .then(res => {
         if (res.data.success) {
           setClasses(res.data.classes);
           const map = {};
-          res.data.classes.forEach((c) => {
-            map[c.class] = ["Math", "English", "Hindi", "Science"];
-          });
+          res.data.classes.forEach(c => { map[c.class] = ["Math","English","Hindi","Science"]; });
           setSubjectsByClass(map);
         }
       }).catch(err => console.error(err));
 
-    // Fetch all students for profile photo section
+    // Fetch students
     axios.get(`${API_URL}/api/students`)
-      .then(res => {
-        if (res.data.success) setStudents(res.data.students);
-      })
+      .then(res => { if (res.data.success) setStudents(res.data.students); })
       .catch(err => console.error(err));
   }, []);
 
-  // ASSIGNMENTS CODE REMAINS SAME
   useEffect(() => {
     if (!viewClass) { setTaskSubmissions({}); return; }
     const fetchAll = async () => {
@@ -82,21 +77,20 @@ export default function AdminPage() {
   };
 
   const handleRating = async (submissionId, value) => {
-  try {
-    const res = await axios.put(`${API_URL}/api/assignments/rating/${submissionId}`, { rating: value });
-    if (res.data.success) {
-      setTaskSubmissions(prev => {
-        const newSubs = { ...prev };
-        for (let task in newSubs) {
-          newSubs[task] = newSubs[task].map(s => s.id === submissionId ? { ...s, rating: value, grading_status: "GRADED" } : s);
-        }
-        return newSubs;
-      });
-    }
-  } catch (err) { console.error(err); }
-};
+    try {
+      const res = await axios.put(`${API_URL}/api/assignments/rating/${submissionId}`, { rating: value });
+      if (res.data.success) {
+        setTaskSubmissions(prev => {
+          const newSubs = { ...prev };
+          for (let task in newSubs) {
+            newSubs[task] = newSubs[task].map(s => s.id === submissionId ? { ...s, rating: value, grading_status: "GRADED" } : s);
+          }
+          return newSubs;
+        });
+      }
+    } catch (err) { console.error(err); }
+  };
 
-  // NEW: Upload student profile photo
   const handlePhotoUpload = async () => {
     if (!selectedStudent || !photoFile) return alert("Select a student and photo!");
     setIsPhotoUploading(true);
@@ -107,8 +101,8 @@ export default function AdminPage() {
       const res = await axios.post(`${API_URL}/api/students/${selectedStudent}/profile-photo`, formData);
       if (res.data.success) {
         alert("Photo uploaded!");
-        // Update student locally
-        setStudents(prev => prev.map(s => s.id === parseInt(selectedStudent) ? { ...s, profile_photo: res.data.profile_photo } : s));
+        const studentIdNum = parseInt(selectedStudent);
+        setStudents(prev => prev.map(s => s.id === studentIdNum ? { ...s, profile_photo: res.data.profile_photo } : s));
         setPhotoFile(null);
       } else alert("Upload failed");
     } catch (err) {
@@ -126,32 +120,30 @@ export default function AdminPage() {
     <div style={ui.pageWrapper}>
       <div style={ui.header}>
         <div style={ui.headerInner}>
-          <h1 style={ui.title}>Assignments  <span style={{fontWeight:'300'}}>Center</span></h1>
+          <h1 style={ui.title}>Assignments <span style={{fontWeight:'300'}}>Center</span></h1>
           <div style={ui.badge}>Assignment Management</div>
         </div>
       </div>
 
       <div style={ui.mainGrid}>
-        {/* FORM SECTION */}
+        {/* Add Task */}
         <div style={ui.card}>
-          <div style={ui.cardHeader}>
-            <h2 style={ui.cardTitle}>Add Task</h2>
-          </div>
+          <div style={ui.cardHeader}><h2 style={ui.cardTitle}>Add Task</h2></div>
           <div style={ui.formGroup}>
             <label style={ui.label}>Assignment Title</label>
-            <input style={ui.input} placeholder="Project Name" value={taskTitle} onChange={(e)=>setTaskTitle(e.target.value)} />
-            
+            <input style={ui.input} placeholder="Project Name" value={taskTitle} onChange={e=>setTaskTitle(e.target.value)} />
+
             <div style={{display:'flex', gap:10}}>
               <div style={{flex:1}}>
                 <label style={ui.label}>Class</label>
-                <select style={ui.input} value={uploadClass} onChange={(e)=>setUploadClass(e.target.value)}>
+                <select style={ui.input} value={uploadClass} onChange={e=>setUploadClass(e.target.value)}>
                   <option value="">Select</option>
                   {classes.map(c => <option key={c.class} value={c.class}>{c.class}</option>)}
                 </select>
               </div>
               <div style={{flex:1}}>
                 <label style={ui.label}>Subject</label>
-                <select style={ui.input} value={subject} onChange={(e)=>setSubject(e.target.value)} disabled={!uploadClass}>
+                <select style={ui.input} value={subject} onChange={e=>setSubject(e.target.value)} disabled={!uploadClass}>
                   <option value="">Select</option>
                   {subjectsByClass[uploadClass]?.map((s,i) => <option key={i} value={s}>{s}</option>)}
                 </select>
@@ -159,10 +151,10 @@ export default function AdminPage() {
             </div>
 
             <label style={ui.label}>Deadline</label>
-            <input type="datetime-local" style={ui.input} value={deadline} onChange={(e)=>setDeadline(e.target.value)} />
+            <input type="datetime-local" style={ui.input} value={deadline} onChange={e=>setDeadline(e.target.value)} />
 
             <label style={ui.label}>Attach Resource</label>
-            <input type="file" onChange={(e)=>setFile(e.target.files[0])} style={ui.fileInput} />
+            <input type="file" onChange={e=>setFile(e.target.files[0])} style={ui.fileInput} />
 
             <button onClick={handleSubmit} style={ui.btnPrimary} disabled={isUploading}>
               {isUploading ? "Processing..." : "Deploy Now"}
@@ -170,20 +162,18 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* PROFILE PHOTO SECTION */}
+        {/* Profile Photo */}
         <div style={ui.card}>
-          <div style={ui.cardHeader}>
-            <h2 style={ui.cardTitle}>Upload Student Profile Photo</h2>
-          </div>
+          <div style={ui.cardHeader}><h2 style={ui.cardTitle}>Upload Student Profile Photo</h2></div>
           <div style={ui.formGroup}>
             <label style={ui.label}>Select Student</label>
-            <select style={ui.input} value={selectedStudent} onChange={(e)=>setSelectedStudent(e.target.value)}>
+            <select style={ui.input} value={selectedStudent} onChange={e=>setSelectedStudent(e.target.value)}>
               <option value="">Select</option>
               {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.class})</option>)}
             </select>
 
             <label style={ui.label}>Choose Photo</label>
-            <input type="file" onChange={(e)=>setPhotoFile(e.target.files[0])} style={ui.fileInput} />
+            <input type="file" onChange={e=>setPhotoFile(e.target.files[0])} style={ui.fileInput} />
 
             <button onClick={handlePhotoUpload} style={ui.btnPrimary} disabled={isPhotoUploading}>
               {isPhotoUploading ? "Uploading..." : "Upload Photo"}
@@ -192,22 +182,19 @@ export default function AdminPage() {
             {selectedStudent && (
               <div style={{marginTop:15}}>
                 {students.find(s => s.id === parseInt(selectedStudent))?.profile_photo ? (
-                  <img 
-                    src={students.find(s => s.id === parseInt(selectedStudent)).profile_photo} 
-                    alt="Profile" 
-                    style={{width:100, height:100, borderRadius:'50%', objectFit:'cover', border:'2px solid #4F46E5'}}
-                  />
+                  <img src={students.find(s => s.id === parseInt(selectedStudent)).profile_photo} alt="Profile" 
+                    style={{width:100,height:100,borderRadius:'50%',objectFit:'cover',border:'2px solid #4F46E5'}} />
                 ) : <p style={{color:'#6B7280'}}>No photo uploaded yet</p>}
               </div>
             )}
           </div>
         </div>
 
-        {/* LIST SECTION */}
+        {/* Live Submissions */}
         <div style={ui.card}>
           <div style={ui.flexBetween}>
             <h2 style={ui.cardTitle}>Live Submissions</h2>
-            <select style={ui.miniSelect} value={viewClass} onChange={(e)=>setViewClass(e.target.value)}>
+            <select style={ui.miniSelect} value={viewClass} onChange={e=>setViewClass(e.target.value)}>
               <option value="">All Classes</option>
               {classes.map(c => <option key={c.class} value={c.class}>{c.class}</option>)}
             </select>
@@ -220,7 +207,7 @@ export default function AdminPage() {
               Object.entries(taskSubmissions).map(([task, subs]) => (
                 <div key={task} style={ui.taskGroup}>
                   <div style={ui.taskHeader}>{task}</div>
-                  {subs.length === 0 ? <p style={ui.noData}>No submissions yet.</p> : (
+                  {subs.length===0 ? <p style={ui.noData}>No submissions yet.</p> : (
                     <div style={{overflowX:'auto'}}>
                       <table style={ui.table}>
                         <thead>
@@ -238,18 +225,14 @@ export default function AdminPage() {
                             const isLate = s.deadline && new Date(s.uploaded_at) > new Date(s.deadline);
                             return (
                               <tr key={s.id} style={ui.tr}>
-                                <td style={{...ui.td, fontWeight:'600'}}>{s.student_name}</td>
+                                <td style={{...ui.td,fontWeight:'600'}}>{s.student_name}</td>
                                 <td style={ui.td}>{formatDate(s.uploaded_at)}</td>
                                 <td style={ui.td}>{formatDate(s.deadline)}</td>
+                                <td style={ui.td}><span style={isLate?ui.tagLate:ui.tagOnTime}>{isLate?"Late":"On Time"}</span></td>
                                 <td style={ui.td}>
-                                  <span style={isLate ? ui.tagLate : ui.tagOnTime}>
-                                    {isLate ? "Late" : "On Time"}
-                                  </span>
-                                </td>
-                                <td style={ui.td}>
-                                  <div style={{display:'flex', gap:2}}>
-                                    {[1,2,3,4,5].map(i => (
-                                      <span key={i} onClick={()=>handleRating(s.id, i)} style={{cursor:'pointer', color: s.rating >= i ? '#F59E0B' : '#E5E7EB', fontSize:18}}>★</span>
+                                  <div style={{display:'flex',gap:2}}>
+                                    {[1,2,3,4,5].map(i=>(
+                                      <span key={i} onClick={()=>handleRating(s.id,i)} style={{cursor:'pointer',color: s.rating>=i?'#F59E0B':'#E5E7EB',fontSize:18}}>★</span>
                                     ))}
                                   </div>
                                 </td>
