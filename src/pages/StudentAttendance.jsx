@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 const StudentAttendance = () => {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -11,14 +11,15 @@ const StudentAttendance = () => {
   const [marks, setMarks] = useState(0);
   const [todayStatus, setTodayStatus] = useState(null);
 
-  // 🔵 COLORS
+  // 🔵 PREMIUM COLOR PALETTE
   const colors = {
-    present: "#28a745",
-    absent: "#dc3545",
-    holiday: "#ffc107",
-    notMarked: "#6c757d",
-    bgCard: "#ffffff",
-    primary: "#1f3c88"
+   present: "#28a745",  // <--- Ye raha aapka Green color code
+  absent: "#dc3545",
+  holiday: "#ffc107", // Amber
+    notMarked: "#94a3b8", 
+    primary: "#0f172a", // Navy Blue (Big Company Style)
+    accent: "#3b82f6",  // Royal Blue
+    bg: "#ffffff"
   };
 
   const getPercentageColor = (perc) => {
@@ -80,111 +81,235 @@ const StudentAttendance = () => {
   };
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#f8f9fa", padding: "20px", fontFamily: "'Segoe UI', Roboto, sans-serif" }}>
-      <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-        
-        {/* Updated Header */}
-        <div style={{ textAlign: "center", marginBottom: "30px" }}>
-          <h1 style={{ color: colors.primary, marginBottom: "5px", fontWeight: "800" }}>Check Your Attendance</h1>
-          <p style={{ color: "#444", fontSize: "18px", fontWeight: "500" }}>
-            Welcome, <span style={{ color: colors.primary, borderBottom: `2px solid ${colors.primary}` }}>{user?.name || "Student"}</span>
-          </p>
+    <div style={pageWrapper}>
+      {/* --- 1. MINIMALIST HEADER --- */}
+      <div style={headerSection}>
+        <div>
+          <h1 style={mainTitle}>Attendance Analytics</h1>
+          <p style={subTitle}>Tracking performance for <span style={{color: colors.accent, fontWeight: '700'}}>{user?.name}</span></p>
         </div>
-
-        {/* Controls */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: "25px" }}>
-          <div style={{ background: "#fff", padding: "10px 20px", borderRadius: "50px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontWeight: "600", color: "#444" }}>Select Month:</span>
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              style={{ border: "none", outline: "none", fontSize: "16px", cursor: "pointer", color: colors.primary, fontWeight: "bold" }}
-            />
-          </div>
-        </div>
-
-        {/* Top Summary Card */}
-        <div style={{ background: colors.primary, borderRadius: "20px", padding: "30px", color: "#fff", boxShadow: "0 10px 20px rgba(31, 60, 136, 0.2)", display: "flex", flexWrap: "wrap", justifyContent: "space-around", alignItems: "center", marginBottom: "30px", position: "relative", overflow: "hidden" }}>
-          <div style={{ zIndex: 1 }}>
-            <h3 style={{ margin: "0 0 10px 0", fontSize: "24px" }}>{user?.name}</h3>
-            <p style={{ opacity: 0.8, margin: 0 }}>Class: {user?.class}</p>
-            <div style={{ marginTop: "20px", background: "rgba(255,255,255,0.2)", padding: "10px 20px", borderRadius: "10px", display: "inline-block" }}>
-              <span style={{ fontSize: "14px" }}>Attendance Marks: </span>
-              <span style={{ fontSize: "20px", fontWeight: "bold" }}>{marks}</span>
-            </div>
-          </div>
-
-          {/* Thick Perimeter Circle */}
-          <div style={{ 
-            position: "relative", 
-            width: "130px", 
-            height: "130px", 
-            background: "transparent", 
-            borderRadius: "50%", 
-            display: "flex", 
-            justifyContent: "center", 
-            alignItems: "center", 
-            border: `8px solid ${getPercentageColor(percentage)}`, // Made Border Thicker (8px)
-            boxShadow: `inset 0 0 10px rgba(0,0,0,0.1), 0 0 15px ${getPercentageColor(percentage)}44` // Subtle Glow
-          }}>
-            <div style={{ textAlign: "center" }}>
-              <span style={{ fontSize: "28px", fontWeight: "900" }}>{percentage}%</span>
-              <br />
-              <span style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: "bold" }}>Overall</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px", marginBottom: "30px" }}>
-          <div style={statBox}>
-            <span style={{ color: colors.present, fontSize: "24px", fontWeight: "bold" }}>{filtered.filter(a => a.status === "Present").length}</span>
-            <small style={{ color: "#666", fontWeight: "600" }}>Present</small>
-          </div>
-          <div style={statBox}>
-            <span style={{ color: colors.absent, fontSize: "24px", fontWeight: "bold" }}>{filtered.filter(a => a.status === "Absent").length}</span>
-            <small style={{ color: "#666", fontWeight: "600" }}>Absent</small>
-          </div>
-          <div style={statBox}>
-            <span style={{ color: colors.holiday, fontSize: "24px", fontWeight: "bold" }}>{filtered.filter(a => a.status === "Holiday").length}</span>
-            <small style={{ color: "#666", fontWeight: "600" }}>Holidays</small>
-          </div>
-          <div style={statBox}>
-            <span style={{ color: colors.notMarked, fontSize: "24px", fontWeight: "bold" }}>{todayStatus || "N/A"}</span>
-            <small style={{ color: "#666", fontWeight: "600" }}>Today</small>
-          </div>
-        </div>
-
-        {/* List View */}
-        <div style={{ background: "#fff", borderRadius: "20px", padding: "20px", boxShadow: "0 5px 15px rgba(0,0,0,0.05)" }}>
-          <h4 style={{ margin: "0 0 20px 0", color: "#333", fontSize: "18px" }}>Daily Attendance Log</h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {filtered.length === 0 ? (
-              <p style={{ textAlign: "center", padding: "20px", color: "#999" }}>No records for this month.</p>
-            ) : (
-              [...filtered]
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .map((a, i) => (
-                  <div key={i} style={{ ...listItem, borderLeft: `6px solid ${getStatusColor(a.status, colors)}` }}>
-                    <div>
-                      <div style={{ fontWeight: "bold", color: "#333", fontSize: "16px" }}>{formatDate(a.date)}</div>
-                      <small style={{ color: "#888" }}>{new Date(a.date).toLocaleDateString('en-US', { weekday: 'long' })}</small>
-                    </div>
-                    <div style={{ ...statusBadge, backgroundColor: getStatusColor(a.status, colors) + "15", color: getStatusColor(a.status, colors) }}>
-                      {a.status}
-                    </div>
-                  </div>
-                ))
-            )}
-          </div>
+        <div style={monthPickerWrapper}>
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            style={monthInput}
+          />
         </div>
       </div>
+
+      {/* --- 2. HERO SUMMARY (Edge-to-Edge feel) --- */}
+      <div style={heroCard}>
+        <div style={heroText}>
+          <div style={classBadge}>Batch: {user?.class || "N/A"}</div>
+          <h2 style={{fontSize: '32px', margin: '10px 0 5px 0'}}>{percentage}%</h2>
+          <p style={{opacity: 0.7, fontSize: '14px', margin: 0}}>Total Monthly Attendance</p>
+          <div style={marksTag}>
+            Attendance Marks: <span style={{fontWeight: '800'}}>{marks}</span>
+          </div>
+        </div>
+        
+        {/* Progress Ring */}
+        <div style={{
+          width: "110px", height: "110px", borderRadius: "50%",
+          border: `10px solid ${getPercentageColor(percentage)}`,
+          display: "flex", justifyContent: "center", alignItems: "center",
+          boxShadow: `0 0 20px ${getPercentageColor(percentage)}44`,
+          background: 'rgba(255,255,255,0.05)'
+        }}>
+          <span style={{fontSize: '20px', fontWeight: '800'}}>{marks}Marks</span>
+        </div>
+      </div>
+
+      {/* --- 3. QUICK STATS BAR --- */}
+      <div style={statsRow}>
+        <div style={statBox}>
+          <span style={{...statNum, color: colors.present}}>{filtered.filter(a => a.status === "Present").length}</span>
+          <span style={statLabel}>Present</span>
+        </div>
+        <div style={statBox}>
+          <span style={{...statNum, color: colors.absent}}>{filtered.filter(a => a.status === "Absent").length}</span>
+          <span style={statLabel}>Absent</span>
+        </div>
+        <div style={statBox}>
+          <span style={{...statNum, color: colors.holiday}}>{filtered.filter(a => a.status === "Holiday").length}</span>
+          <span style={statLabel}>Holidays</span>
+        </div>
+      </div>
+
+      {/* --- 4. DATA LOG (Full Edge-to-Edge) --- */}
+      <div style={logContainer}>
+        <div style={logHeader}>
+          <h3 style={{margin: 0, fontSize: '16px', fontWeight: '700'}}>Recent Activity</h3>
+          <span style={{fontSize: '12px', color: colors.accent}}>Today: {todayStatus || "Pending"}</span>
+        </div>
+        
+        <div style={listWrapper}>
+          {filtered.length === 0 ? (
+            <div style={emptyState}>No records discovered for this period.</div>
+          ) : (
+            [...filtered]
+              .sort((a, b) => new Date(b.date) - new Date(a.date))
+              .map((a, i) => (
+                <div key={i} style={attendanceItem}>
+                  <div style={dateSection}>
+                    <div style={dateText}>{formatDate(a.date)}</div>
+                    <div style={dayText}>{new Date(a.date).toLocaleDateString('en-US', { weekday: 'long' })}</div>
+                  </div>
+                  <div style={{
+                    ...statusPill,
+                    backgroundColor: getStatusColor(a.status, colors) + "15",
+                    color: getStatusColor(a.status, colors),
+                    border: `1px solid ${getStatusColor(a.status, colors)}33`
+                  }}>
+                    {a.status}
+                  </div>
+                </div>
+              ))
+          )}
+        </div>
+      </div>
+
+      <style>{`
+        body { margin: 0; background: #fff; }
+        * { box-sizing: border-box; }
+      `}</style>
     </div>
   );
 };
 
-// Helper Functions & Styles
+// --- STYLING (The "Wow" Factor) ---
+
+const pageWrapper = {
+  minHeight: "100vh",
+  width: "100vw",
+  background: "#fff",
+  padding: "0 0 50px 0",
+  fontFamily: "'Inter', sans-serif",
+  color: "#0f172a"
+};
+
+const headerSection = {
+  padding: "40px 30px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-end",
+  borderBottom: "1px solid #f1f5f9"
+};
+
+const mainTitle = { fontSize: "24px", fontWeight: "800", margin: 0, letterSpacing: "-0.5px" };
+const subTitle = { fontSize: "14px", color: "#64748b", margin: "5px 0 0 0" };
+
+const monthPickerWrapper = {
+  background: "#f1f5f9",
+  padding: "8px 15px",
+  borderRadius: "12px",
+  border: "1px solid #e2e8f0"
+};
+
+const monthInput = {
+  border: "none",
+  background: "transparent",
+  fontWeight: "700",
+  fontSize: "14px",
+  color: "#0f172a",
+  outline: "none"
+};
+
+const heroCard = {
+  margin: "30px",
+  background: "#0f172a",
+  borderRadius: "24px",
+  padding: "40px",
+  color: "#fff",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  boxShadow: "0 20px 40px rgba(15, 23, 42, 0.2)"
+};
+
+const heroText = { display: "flex", flexDirection: "column" };
+
+const classBadge = {
+  background: "rgba(255,255,255,0.1)",
+  padding: "4px 12px",
+  borderRadius: "8px",
+  fontSize: "11px",
+  textTransform: "uppercase",
+  letterSpacing: "1px",
+  width: "fit-content"
+};
+
+const marksTag = {
+  marginTop: "15px",
+  fontSize: "13px",
+  background: "#3b82f6",
+  padding: "6px 12px",
+  borderRadius: "30px",
+  width: "fit-content"
+};
+
+const statsRow = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr",
+  gap: "1px",
+  background: "#f1f5f9",
+  margin: "0 30px 40px 30px",
+  borderRadius: "20px",
+  overflow: "hidden",
+  border: "1px solid #f1f5f9"
+};
+
+const statBox = {
+  background: "#fff",
+  padding: "20px",
+  textAlign: "center",
+  display: "flex",
+  flexDirection: "column",
+  gap: "5px"
+};
+
+const statNum = { fontSize: "20px", fontWeight: "800" };
+const statLabel = { fontSize: "11px", color: "#64748b", textTransform: "uppercase", fontWeight: "600" };
+
+const logContainer = { padding: "0 30px" };
+const logHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: "20px"
+};
+
+const listWrapper = { display: "flex", flexDirection: "column", gap: "12px" };
+
+const attendanceItem = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "15px 0",
+  borderBottom: "1px solid #f1f5f9"
+};
+
+const dateSection = { display: "flex", flexDirection: "column" };
+const dateText = { fontSize: "15px", fontWeight: "700", color: "#1e293b" };
+const dayText = { fontSize: "12px", color: "#94a3b8" };
+
+const statusPill = {
+  padding: "6px 16px",
+  borderRadius: "10px",
+  fontSize: "11px",
+  fontWeight: "800",
+  textTransform: "uppercase"
+};
+
+const emptyState = {
+  textAlign: "center",
+  padding: "40px",
+  color: "#94a3b8",
+  fontSize: "14px",
+  fontStyle: "italic"
+};
+
 const getStatusColor = (status, colors) => {
   switch (status) {
     case "Present": return colors.present;
@@ -192,36 +317,6 @@ const getStatusColor = (status, colors) => {
     case "Holiday": return colors.holiday;
     default: return colors.notMarked;
   }
-};
-
-const statBox = {
-  background: "#fff",
-  padding: "15px",
-  borderRadius: "15px",
-  textAlign: "center",
-  display: "flex",
-  flexDirection: "column",
-  boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-  border: "1px solid #eee"
-};
-
-const listItem = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "15px 20px",
-  background: "#fdfdfd",
-  borderRadius: "12px",
-  transition: "0.3s",
-  border: "1px solid #f0f0f0"
-};
-
-const statusBadge = {
-  padding: "6px 14px",
-  borderRadius: "20px",
-  fontSize: "12px",
-  fontWeight: "bold",
-  textTransform: "uppercase"
 };
 
 export default StudentAttendance;
