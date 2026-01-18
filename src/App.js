@@ -31,6 +31,9 @@ function App() {
     <Router>
       <Routes>
         {/* Public Route */}
+        <Route path="/terms" element={<Terms />} />
+<Route path="/privacy" element={<Privacy />} />
+<Route path="/prefund_policy" element={<Refund />} />
         <Route path="/" element={<Login />} />
 
         {/* Admin Routes */}
@@ -51,9 +54,7 @@ function App() {
           {/* Admin Chat */}
           <Route path="admin-chat" element={<AdminChat />} />
         </Route>
-<Route path="/terms" element={<Terms />} />
-<Route path="/privacy" element={<Privacy />} />
-<Route path="/prefund_policy" element={<Refund />} />
+
         {/* Student Routes */}
         <Route path="/student/*" element={<StudentDashboard />}>
           <Route index element={<div>Welcome Student</div>} />
