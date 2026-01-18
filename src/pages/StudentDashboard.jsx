@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   FaClipboardCheck, FaMoneyBillWave, FaChartLine, FaBook,
   FaComments, FaUserGraduate, FaHome, FaUserAlt,
-  FaBookOpen, FaLayerGroup, FaBars, FaTimes, FaFire, FaExclamationTriangle,
-  FaSignOutAlt, FaRocket, FaBell, FaIdCard, FaGraduationCap, FaChevronRight, FaCheckCircle
+  FaBookOpen, FaBars, FaTimes, FaExclamationTriangle,
+  FaSignOutAlt, FaRocket, FaBell, FaIdCard, FaGraduationCap, FaChevronRight, FaTasks
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
@@ -13,7 +13,6 @@ import axios from "axios";
 import StudentAttendance from "./StudentAttendance";
 import StudentFees from "./StudentFees";
 import StudentsMarks from "./StudentsMarks";
-import HomeworkStudent from "./HomeworkStudent";
 import StudentProfile from "./StudentProfile";
 import StudentStudyMaterial from "./StudentStudyMaterial";
 import StudentNewMarks from "./StudentNewMarks";
@@ -36,7 +35,7 @@ const theme = {
 };
 
 /* =========================
-   FEATURE: PHOTO MODAL
+   PHOTO MODAL
 ========================= */
 const PhotoModal = ({ isOpen, user, onClose }) => (
   <AnimatePresence>
@@ -66,12 +65,11 @@ const PhotoModal = ({ isOpen, user, onClose }) => (
 );
 
 /* =========================
-   FEE MODAL
+   FEE POPUP
 ========================= */
 const FeePopup = ({ isOpen, onClose, amount }) => {
-  const MY_UPI_ID = "9302122613@ybl";
   const handlePayNow = () => {
-    const upiUrl = `upi://pay?pa=${MY_UPI_ID}&pn=SmartZone&am=${amount}&cu=INR&tn=MonthlyFees`;
+    const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartZone&am=${amount}&cu=INR&tn=MonthlyFees`;
     if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
       window.location.href = upiUrl;
     } else {
@@ -87,7 +85,7 @@ const FeePopup = ({ isOpen, onClose, amount }) => {
             <div style={feeLeftAccent}><FaExclamationTriangle fontSize="30px" /></div>
             <div style={feeRightContent}>
                 <h3 style={{margin: 0, color: '#1e293b'}}>Payment Reminder</h3>
-                <p style={{fontSize: '13px', color: '#64748b', margin: '8px 0'}}>Your monthly tuition fee is pending. Please pay to keep services active.</p>
+                <p style={{fontSize: '13px', color: '#64748b', margin: '8px 0'}}>Monthly tuition fee is pending.</p>
                 <div style={feeAmountBox}>
                     <span>Amount Due:</span>
                     <span style={{fontSize: '18px', fontWeight: '900', color: '#ef4444'}}>₹{amount}</span>
@@ -105,52 +103,44 @@ const FeePopup = ({ isOpen, onClose, amount }) => {
 };
 
 /* =========================
-   NOTIFICATION DROPDOWN (TASK ADDED)
+   NOTIFICATION DROPDOWN
 ========================= */
 const NotificationDropdown = ({ isOpen, pendingTasks, isFeeUnpaid, navigate, onClose }) => {
     if (!isOpen) return null;
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={notiDropdownStyle}>
-            <div style={notiHeader}>Live Notifications</div>
+            <div style={notiHeader}>Notifications</div>
             <div style={notiBody}>
-                {/* Pending Tasks Notification */}
                 {pendingTasks > 0 && (
                     <div style={notiItem} onClick={() => { navigate('task-update'); onClose(); }}>
-                        <div style={{...notiIconCircle, background: '#fee2e2', color: '#ef4444'}}><FaCheckCircle /></div>
+                        <div style={{...notiIconCircle, background: '#fee2e2', color: '#ef4444'}}><FaTasks /></div>
                         <div style={notiTextContainer}>
                             <span style={notiItemTitle}>Pending Tasks</span>
-                            <span style={notiItemSub}>You have {pendingTasks} task updates pending</span>
+                            <span style={notiItemSub}>You have {pendingTasks} tasks to complete</span>
                         </div>
                         <FaChevronRight fontSize="10px" color="#cbd5e1" />
                     </div>
                 )}
-                
-                {/* Fee Notification */}
                 {isFeeUnpaid && (
                     <div style={notiItem} onClick={() => { navigate('fees'); onClose(); }}>
                         <div style={{...notiIconCircle, background: '#fef3c7', color: '#f59e0b'}}><FaMoneyBillWave /></div>
                         <div style={notiTextContainer}>
                             <span style={notiItemTitle}>Fees Unpaid</span>
-                            <span style={notiItemSub}>Your monthly payment is due</span>
+                            <span style={notiItemSub}>Monthly fee payment is due</span>
                         </div>
                         <FaChevronRight fontSize="10px" color="#cbd5e1" />
                     </div>
                 )}
-
-                {/* Academic Record */}
                 <div style={notiItem} onClick={() => { navigate('marks'); onClose(); }}>
                     <div style={{...notiIconCircle, background: '#dcfce7', color: '#10b981'}}><FaChartLine /></div>
                     <div style={notiTextContainer}>
-                        <span style={notiItemTitle}>Marks Updated</span>
+                        <span style={notiItemTitle}>Academic Check</span>
                         <span style={notiItemSub}>Check your latest exam results</span>
                     </div>
                     <FaChevronRight fontSize="10px" color="#cbd5e1" />
                 </div>
-
                 {pendingTasks === 0 && !isFeeUnpaid && (
-                    <div style={{padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px'}}>
-                        No new alerts. All caught up!
-                    </div>
+                    <div style={{padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px'}}>No new alerts.</div>
                 )}
             </div>
         </motion.div>
@@ -158,9 +148,9 @@ const NotificationDropdown = ({ isOpen, pendingTasks, isFeeUnpaid, navigate, onC
 };
 
 /* =========================
-   DASHBOARD HOME VIEW
+   DASHBOARD HOME
 ========================= */
-const DashboardHome = ({ navigate, isFeeUnpaid, user, pendingTasks }) => {
+const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
   const [greeting, setGreeting] = useState("");
   useEffect(() => {
     const hour = new Date().getHours();
@@ -171,11 +161,11 @@ const DashboardHome = ({ navigate, isFeeUnpaid, user, pendingTasks }) => {
 
   const cards = [
     { title: "Attendance", icon: <FaClipboardCheck />, path: "attendance", grad: theme.gradients.success },
-    { title: "Task Update", icon: <FaCheckCircle />, path: "task-update", grad: theme.gradients.danger, badgeCount: pendingTasks },
     { title: "Fees", icon: <FaMoneyBillWave />, path: "fees", grad: theme.gradients.warning, showNotice: isFeeUnpaid },
     { title: "Marks", icon: <FaChartLine />, path: "marks", grad: theme.gradients.info },
-    { title: "Homework", icon: <FaBook />, path: "homework", grad: theme.gradients.primary },
+    { title: "Tasks", icon: <FaTasks />, path: "task-update", grad: theme.gradients.primary, count: pendingTasks },
     { title: "Study Vault", icon: <FaBookOpen />, path: "study-material", grad: theme.gradients.dark },
+    { title: "Feedback", icon: <FaComments />, path: "feedback", grad: theme.gradients.purple },
   ];
 
   return (
@@ -183,19 +173,19 @@ const DashboardHome = ({ navigate, isFeeUnpaid, user, pendingTasks }) => {
       <div style={welcomeHeader}>
           <div>
             <h2 style={{ margin: 0, fontSize: '24px' }}>{greeting}, {user?.name?.split(" ")[0]}! ✨</h2>
-            <p style={{ color: "#64748b", fontSize: '14px' }}>Welcome back to your dashboard.</p>
+            <p style={{ color: "#64748b", fontSize: '14px' }}>Check your tasks and academic progress.</p>
           </div>
           <div style={rocketIcon}><FaRocket /></div>
       </div>
       <div style={cardGrid}>
         {cards.map((c, i) => (
           <motion.div key={i} whileHover={{ y: -10, scale: 1.02 }} onClick={() => navigate(c.path)} style={{ ...cardBase, background: c.grad }}>
-            {c.showNotice && <div style={miniNoticeBadge}>DUE</div>}
-            {c.badgeCount > 0 && <div style={miniNoticeBadge}>{c.badgeCount} NEW</div>}
+            {c.showNotice && <div style={miniNoticeBadge}>PAYMENT DUE</div>}
+            {c.count > 0 && <div style={miniNoticeBadge}>{c.count} PENDING</div>}
             <div style={cardIconBox}>{c.icon}</div>
             <div style={cardBodyStyle}>
               <h3 style={cardMainTitle}>{c.title}</h3>
-              <span style={cardLinkText}>Explore →</span>
+              <span style={cardLinkText}>View Details →</span>
             </div>
           </motion.div>
         ))}
@@ -225,26 +215,24 @@ const StudentDashboard = () => {
 
     const fetchData = async () => {
       try {
-        // Fetch Tasks
+        // Task Check (StudentPage Logic)
         const taskRes = await axios.get(`${API_URL}/api/assignments/class/${storedUser.class}/${storedUser.id}`);
         if (taskRes.data.success) {
-            const count = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED").length;
-            setPendingTasks(count);
+           const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED").length;
+           setPendingTasks(pending);
         }
 
-        // Fetch Fees
         const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
         if (feeRes.data.success) {
           const feesData = feeRes.data.fees;
           if (feesData.length > 0) {
              const sorted = [...feesData].sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
-             setDynamicFeeAmount(sorted[sorted.length-1].amount || "500");
+             setDynamicFeeAmount(sorted[0]?.amount || "500");
           }
           const paidThisMonth = feesData.some(f => new Date(f.payment_date).getMonth() === new Date().getMonth());
           if (!paidThisMonth) { setIsFeeUnpaid(true); setShowFeePopup(true); }
         }
 
-        // Fetch Profile Photo
         const photoRes = await axios.get(`${API_URL}/api/students/${storedUser.id}/profile-photo`);
         if (photoRes.data.success && photoRes.data.user?.profile_photo) {
           setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
@@ -277,17 +265,16 @@ const StudentDashboard = () => {
             <motion.aside initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} style={sideDrawer}>
               <div style={drawerHeader}>
                 <div style={drawerLogo}><FaUserGraduate /></div>
-                <h4 style={{ color: "white", margin: 0 }}>SmartZone</h4>
+                <h4 style={{ color: "white", margin: 0 }}>SmartZone Student</h4>
               </div>
               <nav style={drawerNav}>
                 {[
                   { name: "Dashboard", path: "/student", icon: <FaHome /> },
                   { name: "Profile", path: "profile", icon: <FaUserAlt /> },
-                  { name: "Task Update", path: "task-update", icon: <FaCheckCircle /> },
+                  { name: "My Tasks", path: "task-update", icon: <FaTasks /> },
                   { name: "Fees", path: "fees", icon: <FaMoneyBillWave /> },
                   { name: "Attendance", path: "attendance", icon: <FaClipboardCheck /> },
                   { name: "Marks", path: "marks", icon: <FaChartLine /> },
-                  { name: "Homework", path: "homework", icon: <FaBook /> },
                   { name: "Study Material", path: "study-material", icon: <FaBookOpen /> },
                   { name: "Chat", path: "chat", icon: <FaComments /> },
                 ].map((item, idx) => (
@@ -310,13 +297,12 @@ const StudentDashboard = () => {
 
       <main style={mainBody}>
         <Routes>
-          <Route index element={<DashboardHome navigate={navigate} isFeeUnpaid={isFeeUnpaid} user={user} pendingTasks={pendingTasks} />} />
+          <Route index element={<DashboardHome navigate={navigate} isFeeUnpaid={isFeeUnpaid} pendingTasks={pendingTasks} user={user} />} />
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
           <Route path="marks" element={<StudentsMarks user={user} />} />
           <Route path="exam-results" element={<StudentNewMarks />} />
-          <Route path="homework" element={<HomeworkStudent />} />
           <Route path="study-material" element={<StudentStudyMaterial />} />
           <Route path="task-update" element={<StudentPage studentId={user.id} />} />
           <Route path="feedback" element={<StudentFeedback studentId={user.id} />} />
@@ -326,7 +312,7 @@ const StudentDashboard = () => {
 
       <div style={mobileBar}>
          <div onClick={() => navigate('/student')}><FaHome /></div>
-         <div onClick={() => navigate('task-update')}><FaCheckCircle /></div>
+         <div onClick={() => navigate('chat')}><FaComments /></div>
          <div onClick={() => setIsPhotoOpen(true)}><FaUserAlt /></div>
          <div onClick={() => setSidebarOpen(true)}><FaBars /></div>
       </div>
@@ -339,43 +325,42 @@ const StudentDashboard = () => {
 ========================= */
 const Header = ({ user, pendingCount, isFeeUnpaid, toggleSidebar, onPhotoClick, navigate }) => {
   const [showNoti, setShowNoti] = useState(false);
-  // Total alerts = 1 for pending tasks + 1 for unpaid fees
-  const notiTotalCount = (pendingCount > 0 ? 1 : 0) + (isFeeUnpaid ? 1 : 0);
+  const notiTotal = pendingCount + (isFeeUnpaid ? 1 : 0);
 
   return (
-    <header style={headerWrapper}>
-      <div style={headerContent}>
-        <div style={headerLeft}>
-          <div style={iconBtnStyle} onClick={toggleSidebar}><FaBars /></div>
-          <h1 style={brandLogo}>𝐒mart𝐙one</h1>
-        </div>
-        <div style={headerRight}>
-           <div style={notiBox} onClick={() => setShowNoti(!showNoti)}>
-              <FaBell />
-              {notiTotalCount > 0 && <span style={redBadge}>{notiTotalCount}</span>}
-              <NotificationDropdown 
-                  isOpen={showNoti} 
-                  pendingTasks={pendingCount} 
-                  isFeeUnpaid={isFeeUnpaid} 
-                  navigate={navigate} 
-                  onClose={() => setShowNoti(false)}
-              />
-           </div>
-          <div style={profileTrigger} onClick={onPhotoClick}>
-            <div style={profileInfo}>
-              <span style={roleText}>Class {user.class}</span>
-              <span style={userNameText}>{user.name?.split(" ")[0]}</span>
+      <header style={headerWrapper}>
+        <div style={headerContent}>
+          <div style={headerLeft}>
+            <div style={iconBtnStyle} onClick={toggleSidebar}><FaBars /></div>
+            <h1 style={brandLogo}>𝐒mart𝐙one</h1>
+          </div>
+          <div style={headerRight}>
+             <div style={notiBox} onClick={() => setShowNoti(!showNoti)}>
+                <FaBell />
+                {notiTotal > 0 && <span style={redBadge}>{notiTotal}</span>}
+                <NotificationDropdown 
+                    isOpen={showNoti} 
+                    pendingTasks={pendingCount} 
+                    isFeeUnpaid={isFeeUnpaid} 
+                    navigate={navigate} 
+                    onClose={() => setShowNoti(false)}
+                />
+             </div>
+            <div style={profileTrigger} onClick={onPhotoClick}>
+              <div style={profileInfo}>
+                <span style={roleText}>Class {user.class}</span>
+                <span style={userNameText}>{user.name?.split(" ")[0]}</span>
+              </div>
+              <img src={user.photo || "/default-profile.png"} style={headerAvatar} alt="user" />
             </div>
-            <img src={user.photo || "/default-profile.png"} style={headerAvatar} alt="user" />
           </div>
         </div>
-      </div>
-    </header>
+      </header>
   );
 };
 
 /* =========================
-   STYLING (PRO)
+   STYLING (SAME AS ORIGINAL)
 ========================= */
 const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
 const headerWrapper = { position: "fixed", top: 20, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center", padding: "0 20px" };
