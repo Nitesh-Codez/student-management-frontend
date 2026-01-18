@@ -22,6 +22,9 @@ import StudentPage from "./pages/StudentPage";
 import AdminPage from "./pages/AdminPage"; // Student submission
 import AdminChat from "./pages/AdminChat"; // Admin chat
 import StudentChat from "./pages/StudentChat"; // Student chat
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Refund from "./pages/Refund";
 
 function App() {
   return (
@@ -48,7 +51,9 @@ function App() {
           {/* Admin Chat */}
           <Route path="admin-chat" element={<AdminChat />} />
         </Route>
-
+<Route path="/terms" element={<Terms />} />
+<Route path="/privacy" element={<Privacy />} />
+<Route path="/prefund_policy" element={<Refund />} />
         {/* Student Routes */}
         <Route path="/student/*" element={<StudentDashboard />}>
           <Route index element={<div>Welcome Student</div>} />
