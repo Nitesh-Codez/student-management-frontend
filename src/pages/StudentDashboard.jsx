@@ -41,7 +41,31 @@ const quotes = [
   "Your education is a dress rehearsal for a life that is yours to lead.",
   "Believe you can and you're halfway there.",
   "The beautiful thing about learning is that no one can take it away from you.",
-  "Hard work beats talent when talent doesn't work hard."
+  "Hard work beats talent when talent doesn't work hard.",
+  "Dream big, start small, but most importantly, start.",
+  "Every expert was once a beginner.",
+  "The harder you work for something, the greater you’ll feel when you achieve it.",
+  "Mistakes are proof that you are trying, keep going.",
+  "Push yourself, because no one else is going to do it for you.",
+  "Consistency is what transforms average into excellence.",
+  "Learning is a treasure that will follow its owner everywhere.",
+  "Your effort today shapes the person you’ll become tomorrow.",
+  "Stay focused, stay humble, and trust your journey.",
+  "Opportunities don’t happen, you create them."
+];
+
+// 🔥 AUTO CHANGING STUDY IMAGES
+const studyImages = [
+  "https://images.unsplash.com/photo-1523580846011-d3a5bc25702b",
+  "https://mekreview.com/wp-content/uploads/2019/05/teenage-students-in-high-school-hall-talking-PB585ER-1.jpg",
+  "https://tse1.mm.bing.net/th/id/OIP.gqiK28Dtq3SXtx6HwsjlQgHaDt?rs=1&pid=ImgDetMain&o=7&rm=3",
+  "https://www.pinkvilla.com/english/images/2023/04/944963614_shutterstock_695057260_1280*720.jpg",
+  "https://images.unsplash.com/photo-1503676260728-1c00da094a0b",
+  "https://thumbs.dreamstime.com/z/child-writes-success-depends-you-portrait-little-boy-text-isolated-white-background-77462448.jpg",
+  "https://images.unsplash.com/photo-1513258496099-48168024aec0",
+  "https://img.freepik.com/premium-vector/best-studenteditable-text-effect_606736-748.jpg",
+  "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6",
+  "https://images.unsplash.com/photo-1509062522246-3755977927d7",
 ];
 
 /* =========================
@@ -154,6 +178,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
   const [greeting, setGreeting] = useState("");
   const [randomQuote, setRandomQuote] = useState("");
   const [showTaskAlert, setShowTaskAlert] = useState(pendingTasks > 0);
+  const [imgIndex, setImgIndex] = useState(0);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -162,6 +187,13 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
     else setGreeting("Good Evening");
     setRandomQuote(quotes[Math.floor(Math.random() * quotes.length)]);
   }, []);
+  useEffect(() => {
+  const interval = setInterval(() => {
+    setImgIndex(prev => (prev + 1) % studyImages.length);
+  }, 4000);
+
+  return () => clearInterval(interval);
+}, []);
 
   const cards = [
     { title: "Attendance", icon: <FaClipboardCheck />, path: "attendance", grad: theme.gradients.success, sub: "Check Records" },
@@ -191,19 +223,40 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
         )}
       </AnimatePresence>
 
-      <div style={modernWelcome}>
+      <div
+  style={{
+    ...modernWelcome,
+    backgroundImage: `linear-gradient(
+      rgba(0,0,0,0.55),
+      rgba(0,0,0,0.55)
+    ), url(${studyImages[imgIndex]})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    color: "#fff",
+  }}
+>
+
         <div style={{ zIndex: 2, flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: '26px', fontWeight: 900 }}>{greeting}, {user?.name?.split(" ")[0]}!</h2>
             <div style={quoteContainer}>
                 <FaQuoteLeft style={{fontSize: '10px', color: '#6366f1', marginBottom: '5px'}} />
                 <p style={quoteTextStyle}>{randomQuote}</p>
             </div>
-            <div style={statusPillRow}>
-                <span style={statusPill}><FaStar color="#f59e0b"/> Pro Student</span>
-                <span style={statusPill}><FaCalendarAlt color="#6366f1"/> Class {user.class}</span>
-            </div>
+           <div style={statusPillRow}>
+  <span style={statusPill}>
+    <FaStar color="#62ff00" style={{ fontWeight: 'bold' }} /> 
+    <span style={{ color: '#000000', marginLeft: '6px' }}>Pro Student</span>
+  </span>
+
+  <span style={statusPill}>
+    <FaCalendarAlt color="#0c0fc7" /> 
+    <span style={{ color: '#000000', marginLeft: '6px' }}>Class {user.class}</span>
+  </span>
+</div>
+
         </div>
-        <div style={rocketCircle}><FaRocket /></div>
+        
+
       </div>
 
       <div style={cardGrid}>
@@ -421,13 +474,25 @@ const iconBtnStyle = { cursor: "pointer", color: "#6366f1", background: "#f1f5f9
 const notiModalContainer = { width: '100%', maxWidth: '380px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
 const notiItemStyle = { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' };
 const notiIconCircle = { width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' };
+const imageBox = {
+  width: '70px',
+  height: '70px',
+  borderRadius: '16px',
+  overflow: 'hidden',
+  border: '2px solid #6366f1',
+};
+
+const studyImg = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+};
 
 const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px 20px', borderRadius: '18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e', overflow: 'hidden' };
 const alertIconBox = { width: '30px', height: '30px', background: '#fef3c7', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const modernWelcome = { position: 'relative', background: '#fff', padding: '25px', borderRadius: '30px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.02)', border: '1px solid #e2e8f0' };
+const modernWelcome = { position: 'relative', background: '#fff', padding: '30px', borderRadius: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 14px 15px rgba(255, 255, 255, 0.02)', border: '1px solid #e2e8f0' };
 const quoteContainer = { marginTop: '10px' };
-const quoteTextStyle = { margin: 0, fontSize: '13px', color: '#64748b', fontStyle: 'italic', lineHeight: '1.4' };
-const rocketCircle = { width: '65px', height: '65px', background: '#f1f5f9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', color: '#6366f1', marginLeft: '15px' };
+const quoteTextStyle = { margin: 0, fontSize: '13px', color: '#ffffff', fontStyle: 'italic', lineHeight: '1.4' };
 const statusPillRow = { display: 'flex', gap: '8px', marginTop: '15px' };
 const statusPill = { background: '#f8fafc', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '5px' };
 const cardGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 15 };
