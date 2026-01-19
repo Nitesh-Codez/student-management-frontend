@@ -13,7 +13,7 @@ import {
   FaChartBar,
   FaArrowRight
 } from "react-icons/fa";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import axios from "axios";
 
 // ================== ADMIN FEEDBACK COMPONENT ==================
@@ -22,8 +22,9 @@ const AdminFeedback = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const API = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
     axios
-      .get("/api/feedback/admin/all")
+      .get(`${API}/api/feedback/admin/all`)
       .then((res) => {
         setFeedbacks(res.data.feedbacks || []);
         setLoading(false);
@@ -46,11 +47,7 @@ const AdminFeedback = () => {
 
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-6xl mx-auto"
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto">
         <header className="mb-10 text-center">
           <h2 className="text-4xl font-extrabold text-gray-800 tracking-tight">
             Student <span className="text-indigo-600">Feedback</span> Insights
@@ -71,7 +68,7 @@ const AdminFeedback = () => {
               return (
                 <motion.div
                   whileHover={{ y: -5 }}
-                  key={f.id}
+                  key={f._id || f.id}
                   className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col"
                 >
                   <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 text-white flex justify-between items-center">
@@ -176,15 +173,15 @@ const AdminDashboard = () => {
             </header>
 
             <div style={grid}>
-              {links.map((link, idx) => (
+              {links.map((link) => (
                 <Link to={link.path} key={link.title} style={cardStyle}>
-                  <div style={{...iconBox, background: `${link.color}15`, color: link.color}}>
+                  <div style={{ ...iconBox, background: `${link.color}15`, color: link.color }}>
                     {link.icon}
                   </div>
                   <div style={cardContent}>
                     <h3 style={cardTitleStyle}>{link.title}</h3>
                     <div className="arrow-icon" style={arrowStyle}>
-                        <FaArrowRight size={12} />
+                      <FaArrowRight size={12} />
                     </div>
                   </div>
                 </Link>
@@ -192,7 +189,7 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
-        <Outlet />
+        <Outlet /> {/* This will render AdminFeedback or other nested routes */}
       </div>
 
       <style>
@@ -204,7 +201,7 @@ const AdminDashboard = () => {
           
           .admin-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
             border-color: #e2e8f0;
           }
 
@@ -219,118 +216,20 @@ const AdminDashboard = () => {
 };
 
 // ================== MODERN STYLES ==================
-const page = {
-  minHeight: "100vh",
-  fontFamily: "'Plus Jakarta Sans', sans-serif",
-  background: "#fcfdfe",
-};
-
-const main = {
-  padding: "40px 20px",
-  maxWidth: "1300px",
-  margin: "0 auto",
-};
-
-const container = {
-  animation: "slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-};
-
-const header = {
-  marginBottom: "60px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-end",
-  paddingBottom: "20px",
-  borderBottom: "1px solid #f1f5f9"
-};
-
-const heading = {
-  fontSize: "48px",
-  color: "#0f172a",
-  margin: "0",
-  fontWeight: "800",
-  letterSpacing: "-2px",
-};
-
-const welcomeText = {
-  fontSize: "18px",
-  color: "#64748b",
-  marginTop: "8px",
-  fontWeight: "500"
-};
-
-const statusBadge = {
-    background: "#f1f5f9",
-    padding: "8px 16px",
-    borderRadius: "100px",
-    fontSize: "13px",
-    fontWeight: "700",
-    color: "#475569",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px"
-};
-
-const dot = {
-    width: "8px",
-    height: "8px",
-    background: "#10b981",
-    borderRadius: "50%",
-    boxShadow: "0 0 0 4px #10b98120"
-};
-
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-  gap: "24px",
-};
-
-const cardStyle = {
-  background: "#ffffff",
-  padding: "24px",
-  borderRadius: "28px",
-  textDecoration: "none",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-  transition: "all 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
-  display: "flex",
-  alignItems: "center",
-  gap: "20px",
-  border: "1px solid #f1f5f9",
-  className: "admin-card" // Reference for hover animation
-};
-
-const iconBox = {
-  fontSize: "24px",
-  width: "60px",
-  height: "60px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: "18px",
-  flexShrink: 0,
-};
-
-const cardContent = {
-    flex: 1,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-};
-
-const cardTitleStyle = {
-  fontSize: "15px",
-  fontWeight: "700",
-  margin: "0",
-  color: "#1e293b",
-  lineHeight: "1.2"
-};
-
-const arrowStyle = {
-    opacity: 0,
-    transform: "translateX(-10px)",
-    transition: "all 0.3s ease",
-    color: "#6366f1"
-};
+const page = { minHeight: "100vh", fontFamily: "'Plus Jakarta Sans', sans-serif", background: "#fcfdfe" };
+const main = { padding: "40px 20px", maxWidth: "1300px", margin: "0 auto" };
+const container = { animation: "slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards" };
+const header = { marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", paddingBottom: "20px", borderBottom: "1px solid #f1f5f9" };
+const heading = { fontSize: "48px", color: "#0f172a", margin: 0, fontWeight: "800", letterSpacing: "-2px" };
+const welcomeText = { fontSize: "18px", color: "#64748b", marginTop: "8px", fontWeight: "500" };
+const statusBadge = { background: "#f1f5f9", padding: "8px 16px", borderRadius: "100px", fontSize: "13px", fontWeight: "700", color: "#475569", display: "flex", alignItems: "center", gap: "8px" };
+const dot = { width: "8px", height: "8px", background: "#10b981", borderRadius: "50%", boxShadow: "0 0 0 4px #10b98120" };
+const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "24px" };
+const cardStyle = { background: "#ffffff", padding: "24px", borderRadius: "28px", textDecoration: "none", boxShadow: "0 1px 3px rgba(0,0,0,0.02)", transition: "all 0.4s cubic-bezier(0.16, 1, 0.3, 1)", display: "flex", alignItems: "center", gap: "20px", border: "1px solid #f1f5f9", className: "admin-card" };
+const iconBox = { fontSize: "24px", width: "60px", height: "60px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "18px", flexShrink: 0 };
+const cardContent = { flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" };
+const cardTitleStyle = { fontSize: "15px", fontWeight: "700", margin: 0, color: "#1e293b", lineHeight: "1.2" };
+const arrowStyle = { opacity: 0, transform: "translateX(-10px)", transition: "all 0.3s ease", color: "#6366f1" };
 
 export default AdminDashboard;
 export { AdminFeedback };

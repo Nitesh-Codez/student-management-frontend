@@ -56,25 +56,46 @@ export default function AdminPage() {
     fetchAll();
   }, [viewClass]);
 
-  const handleSubmit = async () => {
-    if (!file || !uploadClass || !taskTitle || !subject || !deadline) return alert("All fields are required!");
-    setIsUploading(true);
-    const user = JSON.parse(localStorage.getItem("user"));
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("uploader_id", user?.id);
-    formData.append("task_title", taskTitle);
-    formData.append("subject", subject);
-    formData.append("class", uploadClass);
-    formData.append("deadline", deadline);
+const handleSubmit = async () => {
+  if (!file || !uploadClass || !taskTitle || !subject || !deadline) {
+    return alert("All fields are required!");
+  }
 
-    try {
-      const res = await axios.post(`${API_URL}/api/assignments/admin/upload`, formData);
-      alert(res.data.success ? "Assignment Uploaded!" : "Upload Failed");
-      setFile(null); setTaskTitle("");
-    } catch (err) { alert("Server error."); }
-    finally { setIsUploading(false); }
-  };
+  setIsUploading(true);
+  const user = JSON.parse(localStorage.getItem("user"));
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("uploader_id", user?.id);
+  formData.append("uploader_role", "admin"); // add this
+  formData.append("task_title", taskTitle);
+  formData.append("subject", subject);
+  formData.append("class", uploadClass);
+  formData.append("deadline", new Date(deadline).toISOString()); // convert to ISO
+
+  // Debug logs
+  for (let pair of formData.entries()) {
+    console.log(pair[0], pair[1]);
+  }
+
+  try {
+    const res = await axios.post(`${API_URL}/api/assignments/admin/upload`, formData);
+    alert(res.data.success ? "Assignment Uploaded!" : "Upload Failed");
+
+    // reset fields
+    setFile(null);
+    setTaskTitle("");
+    setSubject("");
+    setUploadClass("");
+    setDeadline("");
+  } catch (err) {
+    console.error(err.response?.data || err);
+    alert("Server error. Check console for details.");
+  } finally {
+    setIsUploading(false);
+  }
+};
+
+
 
   const handleRating = async (submissionId, value) => {
     try {
