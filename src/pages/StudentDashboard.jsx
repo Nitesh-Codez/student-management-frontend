@@ -223,18 +223,9 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
         )}
       </AnimatePresence>
 
-      <div
-  style={{
-    ...modernWelcome,
-    backgroundImage: `linear-gradient(
-      rgba(0,0,0,0.55),
-      rgba(0,0,0,0.55)
-    ), url(${studyImages[imgIndex]})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    color: "#fff",
-  }}
->
+ <div 
+ style={modernWelcomeStyle(studyImages[imgIndex])}>
+
 
         <div style={{ zIndex: 2, flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: '26px', fontWeight: 900 }}>{greeting}, {user?.name?.split(" ")[0]}!</h2>
@@ -490,22 +481,28 @@ const studyImg = {
 
 const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px 20px', borderRadius: '18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e', overflow: 'hidden' };
 const alertIconBox = { width: '30px', height: '30px', background: '#fef3c7', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const modernWelcome = { 
-  position: 'relative', 
-  background: '#fff', 
-  padding: '40px 30px', // top-bottom padding badha diya
-  minHeight: '300px',    // min height add kiya
-  borderRadius: '15px', 
-  marginBottom: '20px', 
-  display: 'flex', 
-  justifyContent: 'space-between', 
-  alignItems: 'flex-start', // agar content top aligned chahiye
-  boxShadow: '0 14px 25px rgba(0,0,0,0.1)', // thoda shadow bhi strong
+const modernWelcomeStyle = (img) => ({
+  position: 'relative',
+  width: '100%',
+  minHeight: '450px',
+  padding: '30px 20px',
+  borderRadius: '20px',
+  marginBottom: '20px',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'flex-end',
+  alignItems: 'flex-start',
+  boxShadow: '0 14px 25px rgba(0,0,0,0.1)',
   border: '1px solid #e2e8f0',
   color: '#fff',
+  backgroundImage: `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url(${img})`,
   backgroundSize: 'cover',
-  backgroundPosition: 'center'
-};
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat'
+});
+
+
+
 const quoteContainer = { marginTop: '10px' };
 const quoteTextStyle = { margin: 0, fontSize: '13px', color: '#ffffff', fontStyle: 'italic', lineHeight: '1.4' };
 const statusPillRow = { display: 'flex', gap: '8px', marginTop: '15px' };
@@ -516,7 +513,7 @@ const cardTopRow = { display: 'flex', justifyContent: 'space-between', alignItem
 const iconCircle = { width: '45px', height: '45px', background: 'rgba(255,255,255,0.2)', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
 const cardMainTitle = { margin: '0', fontSize: '18px', fontWeight: '800' };
 const cardBottomBody = { display: 'flex', flexDirection: 'column', gap: '2px' };
-const mainBody = { padding: "110px 15px 120px", maxWidth: "1100px", margin: "0 auto" };
+const mainBody = { padding: "110px 1px 20px", maxWidth: "1100px", margin: "0 auto" };
 const miniNoticeBadge = { position: "absolute", top: "15px", right: "15px", background: "#fff", color: "#ef4444", padding: "4px 8px", borderRadius: "8px", fontSize: "9px", fontWeight: "900" };
 const sideDrawer = { position: "fixed", top: 0, left: 0, bottom: 0, width: 260, background: "#0f172a", zIndex: 2001, padding: "30px 20px" };
 const sideOverlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(5px)", zIndex: 2000 };
