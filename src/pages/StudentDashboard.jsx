@@ -190,7 +190,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
   useEffect(() => {
   const interval = setInterval(() => {
     setImgIndex(prev => (prev + 1) % studyImages.length);
-  }, 4000);
+  }, 9000);
 
   return () => clearInterval(interval);
 }, []);
@@ -490,7 +490,22 @@ const studyImg = {
 
 const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px 20px', borderRadius: '18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e', overflow: 'hidden' };
 const alertIconBox = { width: '30px', height: '30px', background: '#fef3c7', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const modernWelcome = { position: 'relative', background: '#fff', padding: '30px', borderRadius: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 14px 15px rgba(255, 255, 255, 0.02)', border: '1px solid #e2e8f0' };
+const modernWelcome = { 
+  position: 'relative', 
+  background: '#fff', 
+  padding: '40px 30px', // top-bottom padding badha diya
+  minHeight: '300px',    // min height add kiya
+  borderRadius: '15px', 
+  marginBottom: '20px', 
+  display: 'flex', 
+  justifyContent: 'space-between', 
+  alignItems: 'flex-start', // agar content top aligned chahiye
+  boxShadow: '0 14px 25px rgba(0,0,0,0.1)', // thoda shadow bhi strong
+  border: '1px solid #e2e8f0',
+  color: '#fff',
+  backgroundSize: 'cover',
+  backgroundPosition: 'center'
+};
 const quoteContainer = { marginTop: '10px' };
 const quoteTextStyle = { margin: 0, fontSize: '13px', color: '#ffffff', fontStyle: 'italic', lineHeight: '1.4' };
 const statusPillRow = { display: 'flex', gap: '8px', marginTop: '15px' };
