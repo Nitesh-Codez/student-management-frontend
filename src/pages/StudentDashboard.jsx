@@ -17,7 +17,6 @@ import StudentFees from "./StudentFees";
 import StudentsMarks from "./StudentsMarks";
 import StudentProfile from "./StudentProfile";
 import StudentStudyMaterial from "./StudentStudyMaterial";
-import StudentNewMarks from "./StudentNewMarks";
 import StudentPage from "./StudentPage";
 import StudentFeedback from "./StudentFeedback";
 import StudentChat from "./StudentChat";
@@ -44,32 +43,19 @@ const quotes = [
   "Hard work beats talent when talent doesn't work hard.",
   "Dream big, start small, but most importantly, start.",
   "Every expert was once a beginner.",
-  "The harder you work for something, the greater you’ll feel when you achieve it.",
   "Mistakes are proof that you are trying, keep going.",
   "Push yourself, because no one else is going to do it for you.",
-  "Consistency is what transforms average into excellence.",
-  "Learning is a treasure that will follow its owner everywhere.",
-  "Your effort today shapes the person you’ll become tomorrow.",
-  "Stay focused, stay humble, and trust your journey.",
-  "Opportunities don’t happen, you create them."
 ];
 
-// 🔥 AUTO CHANGING STUDY IMAGES
 const studyImages = [
   "https://images.unsplash.com/photo-1523580846011-d3a5bc25702b",
   "https://mekreview.com/wp-content/uploads/2019/05/teenage-students-in-high-school-hall-talking-PB585ER-1.jpg",
-  "https://tse1.mm.bing.net/th/id/OIP.gqiK28Dtq3SXtx6HwsjlQgHaDt?rs=1&pid=ImgDetMain&o=7&rm=3",
-  "https://www.pinkvilla.com/english/images/2023/04/944963614_shutterstock_695057260_1280*720.jpg",
   "https://images.unsplash.com/photo-1503676260728-1c00da094a0b",
-  "https://thumbs.dreamstime.com/z/child-writes-success-depends-you-portrait-little-boy-text-isolated-white-background-77462448.jpg",
-  "https://images.unsplash.com/photo-1513258496099-48168024aec0",
-  "https://img.freepik.com/premium-vector/best-studenteditable-text-effect_606736-748.jpg",
-  "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6",
   "https://images.unsplash.com/photo-1509062522246-3755977927d7",
 ];
 
 /* =========================
-   NEW: NOTIFICATION MODAL
+   UI COMPONENTS (MODALS)
 ========================= */
 const NotificationModal = ({ isOpen, onClose, notifications, navigate }) => (
   <AnimatePresence>
@@ -77,14 +63,14 @@ const NotificationModal = ({ isOpen, onClose, notifications, navigate }) => (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={overlayStyle} onClick={onClose}>
         <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} style={notiModalContainer} onClick={(e) => e.stopPropagation()}>
           <div style={modalTopBar}>
-            <span style={{ fontWeight: 'bold', fontSize: '18px' }}>Pending Updates</span>
+            <span style={{ fontWeight: 'bold', fontSize: '18px' }}>Updates & Alerts</span>
             <FaTimes onClick={onClose} style={{ cursor: 'pointer' }} />
           </div>
           <div style={{ padding: '15px', maxHeight: '400px', overflowY: 'auto' }}>
             {notifications.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
                 <FaCheckCircle fontSize="40px" style={{ marginBottom: '10px', color: '#10b981' }} />
-                <p>Every Details is up to date!</p>
+                <p>Everything is up to date!</p>
               </div>
             ) : (
               notifications.map((n, i) => (
@@ -99,16 +85,13 @@ const NotificationModal = ({ isOpen, onClose, notifications, navigate }) => (
               ))
             )}
           </div>
-          <button onClick={onClose} style={{ ...modalDoneBtn, borderRadius: '0 0 25px 25px' }}>Close</button>
+          <button onClick={onClose} style={modalDoneBtn}>Close</button>
         </motion.div>
       </motion.div>
     )}
   </AnimatePresence>
 );
 
-/* =========================
-   UI COMPONENTS
-========================= */
 const PhotoModal = ({ isOpen, user, onClose }) => (
   <AnimatePresence>
     {isOpen && (
@@ -126,7 +109,7 @@ const PhotoModal = ({ isOpen, user, onClose }) => (
                    <span style={infoBadge}><FaIdCard /> ID: {user.id}</span>
                    <span style={infoBadge}><FaGraduationCap /> Class: {user.class}</span>
                 </div>
-                <p style={modalQuotes}>"Knowledge is power. Information is liberating. Education is the premise of progress."</p>
+                <p style={modalQuotes}>"Education is the premise of progress, in every society, in every family."</p>
                 <button onClick={onClose} style={modalDoneBtn}>Close View</button>
             </div>
           </div>
@@ -160,7 +143,7 @@ const FeePopup = ({ isOpen, onClose, amount }) => {
                     <span style={{fontSize: '18px', fontWeight: '900', color: '#ef4444'}}>₹{amount}</span>
                 </div>
                 <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
-                    <button onClick={handlePayNow} style={feePayBtnNew}>Pay via UPI</button>
+                    <button onClick={handlePayNow} style={feePayBtnNew}>Pay Now</button>
                     <button onClick={onClose} style={feeLaterBtn}>Later</button>
                 </div>
             </div>
@@ -177,8 +160,9 @@ const FeePopup = ({ isOpen, onClose, amount }) => {
 const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
   const [greeting, setGreeting] = useState("");
   const [randomQuote, setRandomQuote] = useState("");
-  const [showTaskAlert, setShowTaskAlert] = useState(pendingTasks > 0);
   const [imgIndex, setImgIndex] = useState(0);
+  const [showTaskAlert, setShowTaskAlert] = useState(true);
+
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -186,84 +170,66 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
     else if (hour < 17) setGreeting("Good Afternoon");
     else setGreeting("Good Evening");
     setRandomQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+    
+    const interval = setInterval(() => {
+      setImgIndex(prev => (prev + 1) % studyImages.length);
+    }, 8000);
+    return () => clearInterval(interval);
   }, []);
-  useEffect(() => {
-  const interval = setInterval(() => {
-    setImgIndex(prev => (prev + 1) % studyImages.length);
-  }, 9000);
-
-  return () => clearInterval(interval);
-}, []);
 
   const cards = [
-    { title: "Attendance", icon: <FaClipboardCheck />, path: "attendance", grad: theme.gradients.success, sub: "Check Records" },
-    { title: "Fees", icon: <FaMoneyBillWave />, path: "fees", grad: theme.gradients.warning, showNotice: isFeeUnpaid, sub: "Finance Hub" },
-    { title: "Marks", icon: <FaChartLine />, path: "marks", grad: theme.gradients.info, sub: "Analytics" },
+    { title: "Attendance", icon: <FaClipboardCheck />, path: "attendance", grad: theme.gradients.success, sub: "Daily Records" },
+    { title: "Fees", icon: <FaMoneyBillWave />, path: "fees", grad: theme.gradients.warning, showNotice: isFeeUnpaid, sub: "Finance Status" },
+    { title: "Marks", icon: <FaChartLine />, path: "marks", grad: theme.gradients.info, sub: "Performance" },
     { title: "Tasks", icon: <FaTasks />, path: "task-update", grad: theme.gradients.primary, count: pendingTasks, sub: "Assignments" },
-    { title: "Study Vault", icon: <FaBookOpen />, path: "study-material", grad: theme.gradients.dark, sub: "E-Books/Notes" },
-    { title: "Feedback", icon: <FaComments />, path: "feedback", grad: theme.gradients.purple, sub: "Tell us more" },
+    { title: "Study Lab", icon: <FaBookOpen />, path: "study-material", grad: theme.gradients.dark, sub: "Library" },
+    { title: "Connect", icon: <FaComments />, path: "chat", grad: theme.gradients.purple, sub: "Messages" },
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-      <AnimatePresence>
-        {showTaskAlert && pendingTasks > 0 && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }} 
-            animate={{ height: 'auto', opacity: 1 }} 
-            exit={{ height: 0, opacity: 0 }}
-            style={taskAlertBar}
-          >
-            <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-              <div style={alertIconBox}><FaTasks /></div>
-              <span style={{fontSize: '13px', fontWeight: '600'}}>You have {pendingTasks} pending tasks!</span>
-            </div>
-            <FaTimes style={{cursor: 'pointer', opacity: 0.7}} onClick={() => setShowTaskAlert(false)} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
- <div 
- style={modernWelcomeStyle(studyImages[imgIndex])}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      {pendingTasks > 0 && showTaskAlert && (
+  <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} style={taskAlertBar}>
+    <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+      <div style={{ width: '30px', height: '30px', background: '#fef3c7', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <FaTasks />
+      </div>
+      <span style={{fontSize: '14px', fontWeight: '600'}}>You have {pendingTasks} tasks pending!</span>
+    </div>
+    <button onClick={() => setShowTaskAlert(false)} style={alertActionBtn}>
+      <FaTimes size={6} />
+    </button>
+  </motion.div>
+)}
 
 
-        <div style={{ zIndex: 2, flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: '26px', fontWeight: 900 }}>{greeting}, {user?.name?.split(" ")[0]}!</h2>
+
+      <div style={modernWelcomeStyle(studyImages[imgIndex])}>
+        <div style={{ zIndex: 2 }}>
+            <h2 style={{ margin: 0, fontSize: '28px', fontWeight: 900 }}>{greeting}, {user?.name?.split(" ")[0]}!</h2>
             <div style={quoteContainer}>
-                <FaQuoteLeft style={{fontSize: '10px', color: '#6366f1', marginBottom: '5px'}} />
+                <FaQuoteLeft style={{fontSize: '12px', color: '#fff', opacity: 0.8, marginBottom: '5px'}} />
                 <p style={quoteTextStyle}>{randomQuote}</p>
             </div>
-           <div style={statusPillRow}>
-  <span style={statusPill}>
-    <FaStar color="#62ff00" style={{ fontWeight: 'bold' }} /> 
-    <span style={{ color: '#000000', marginLeft: '6px' }}>Pro Student</span>
-  </span>
-
-  <span style={statusPill}>
-    <FaCalendarAlt color="#0c0fc7" /> 
-    <span style={{ color: '#000000', marginLeft: '6px' }}>Class {user.class}</span>
-  </span>
-</div>
-
+            <div style={statusPillRow}>
+              <span style={statusPill}><FaStar color="#f59e0b" /> Pro Learner</span>
+              <span style={statusPill}><FaCalendarAlt /> Class {user.class}</span>
+            </div>
         </div>
-        
-
       </div>
 
       <div style={cardGrid}>
         {cards.map((c, i) => (
-          <motion.div key={i} whileHover={{ y: -8, scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => navigate(c.path)} style={{ ...cardBase, background: c.grad }}>
-            {c.showNotice && <div style={miniNoticeBadge}>PAYMENT DUE</div>}
-            {c.count > 0 && <div style={miniNoticeBadge}>{c.count} PENDING</div>}
-            
+          <motion.div key={i} whileTap={{ scale: 0.95 }} onClick={() => navigate(c.path)} style={{ ...cardBase, background: c.grad }}>
+            {c.showNotice && <div style={miniNoticeBadge}>DUE</div>}
+            {c.count > 0 && <div style={miniNoticeBadge}>{c.count} NEW</div>}
             <div style={cardTopRow}>
                 <div style={iconCircle}>{c.icon}</div>
                 <FaChevronRight style={{opacity: 0.5}} />
             </div>
-
             <div style={cardBottomBody}>
               <h3 style={cardMainTitle}>{c.title}</h3>
-              <p style={{margin: 0, fontSize: '11px', opacity: 0.8}}>{c.sub}</p>
+              <p style={{margin: 0, fontSize: '11px', opacity: 0.9}}>{c.sub}</p>
             </div>
           </motion.div>
         ))}
@@ -290,56 +256,40 @@ const StudentDashboard = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user")) || { id: 101, name: "Student", class: "10th" };
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    if(!storedUser) { navigate("/"); return; }
     setUser(storedUser);
 
     const fetchData = async () => {
       try {
         let activeNotis = [];
 
-        // 1. Photo Fetch Logic Fix
+        // 1. Profile Photo
         const photoRes = await axios.get(`${API_URL}/api/students/${storedUser.id}/profile-photo`);
-        let currentPhoto = "/default-profile.png";
         if (photoRes.data.success && photoRes.data.user?.profile_photo) {
-          currentPhoto = photoRes.data.user.profile_photo;
-          setUser(prev => ({ ...prev, photo: currentPhoto }));
+          setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
         }
 
-        // 2. Fetch Tasks
+        // 2. Pending Tasks Notification
         const taskRes = await axios.get(`${API_URL}/api/assignments/class/${storedUser.class}/${storedUser.id}`);
         if (taskRes.data.success) {
-           const count = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED").length;
-           setPendingTasks(count);
-           if (count > 0) {
-             activeNotis.push({ title: "Tasks Pending", desc: `You have ${count} assignments left.`, icon: <FaTasks />, path: "task-update", color: '#6366f1' });
+           const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED");
+           setPendingTasks(pending.length);
+           if (pending.length > 0) {
+             activeNotis.push({ title: "Assignments", desc: `${pending.length} tasks are pending submission.`, icon: <FaTasks />, path: "task-update", color: theme.gradients.primary });
            }
         }
 
-        // 3. Fetch Fees
+        // 3. Fees Notification
         const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
         if (feeRes.data.success) {
           const feesData = feeRes.data.fees;
-          if (feesData.length > 0) {
-              const sorted = [...feesData].sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
-              setDynamicFeeAmount(sorted[0]?.amount || "500");
-          }
           const paidThisMonth = feesData.some(f => new Date(f.payment_date).getMonth() === new Date().getMonth());
           if (!paidThisMonth) { 
             setIsFeeUnpaid(true); 
             setShowFeePopup(true); 
-            activeNotis.push({ title: "Fees Pending", desc: "This month's fee is due.", icon: <FaMoneyBillWave />, path: "fees", color: '#f59e0b' });
+            activeNotis.push({ title: "Fee Due", desc: "Your monthly fee is pending.", icon: <FaMoneyBillWave />, path: "fees", color: theme.gradients.warning });
           }
-        }
-
-        // 4. Fetch Marks & "Seen" logic
-        const marksRes = await axios.get(`${API_URL}/api/marks/student/${storedUser.id}`);
-        if(marksRes.data.success) {
-            const currentMarksCount = marksRes.data.marks.length;
-            const lastSeenMarks = localStorage.getItem(`lastMarksCount_${storedUser.id}`) || 0;
-            
-            if (currentMarksCount > parseInt(lastSeenMarks)) {
-              activeNotis.push({ title: "New Marks", desc: "Your gradebook has been updated.", icon: <FaChartLine />, path: "marks", color: '#10b981' });
-            }
         }
 
         setNotifications(activeNotis);
@@ -347,18 +297,6 @@ const StudentDashboard = () => {
     };
     fetchData();
   }, []);
-
-  // Update marks 'seen' status when visiting marks page
-  useEffect(() => {
-    if (location.pathname.includes('marks') && user) {
-       axios.get(`${API_URL}/api/marks/student/${user.id}`).then(res => {
-         if(res.data.success) {
-           localStorage.setItem(`lastMarksCount_${user.id}`, res.data.marks.length);
-           setNotifications(prev => prev.filter(n => n.path !== 'marks'));
-         }
-       });
-    }
-  }, [location.pathname, user]);
 
   if (!user) return null;
 
@@ -382,16 +320,11 @@ const StudentDashboard = () => {
         </div>
       </header>
 
-      <NotificationModal 
-        isOpen={isNotiOpen} 
-        onClose={() => setIsNotiOpen(false)} 
-        notifications={notifications} 
-        navigate={navigate} 
-      />
-      
+      <NotificationModal isOpen={isNotiOpen} onClose={() => setIsNotiOpen(false)} notifications={notifications} navigate={navigate} />
       <FeePopup isOpen={showFeePopup} onClose={() => setShowFeePopup(false)} amount={dynamicFeeAmount} />
       <PhotoModal isOpen={isPhotoOpen} user={user} onClose={() => setIsPhotoOpen(false)} />
 
+      {/* Sidebar Drawer */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -399,25 +332,23 @@ const StudentDashboard = () => {
             <motion.aside initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} style={sideDrawer}>
               <div style={drawerHeader}>
                 <div style={drawerLogo}><FaUserGraduate /></div>
-                <h4 style={{ color: "white", margin: 0 }}>SmartZone Portal</h4>
+                <h4 style={{ color: "white", margin: 0 }}>SmartZone</h4>
               </div>
               <nav style={drawerNav}>
                 {[
-                  { name: "Terminal", path: "/student", icon: <FaHome /> },
-                  { name: "Profile", path: "profile", icon: <FaUserAlt /> },
+                  { name: "Dashboard", path: "/student", icon: <FaHome /> },
+                  { name: "My Profile", path: "profile", icon: <FaUserAlt /> },
                   { name: "Assignments", path: "task-update", icon: <FaTasks /> },
-                  { name: "Accounts", path: "fees", icon: <FaMoneyBillWave /> },
-                  { name: "Attendance", path: "attendance", icon: <FaClipboardCheck /> },
-                  { name: "Gradebook", path: "marks", icon: <FaChartLine /> },
-                  { name: "Study Lab", path: "study-material", icon: <FaBookOpen /> },
-                  { name: "Connect", path: "chat", icon: <FaComments /> },
+                  { name: "Fees/Records", path: "fees", icon: <FaMoneyBillWave /> },
+                  { name: "My Marks", path: "marks", icon: <FaChartLine /> },
+                  { name: "Connect Chat", path: "chat", icon: <FaComments /> },
                 ].map((item, idx) => (
                   <Link key={idx} to={item.path} onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes(item.path))}>
                     {item.icon} {item.name}
                   </Link>
                 ))}
-                <div style={logoutBtnStyle} onClick={() => {localStorage.clear(); window.location.reload();}}>
-                   <FaSignOutAlt /> Terminate Session
+                <div style={logoutBtnStyle} onClick={() => {localStorage.clear(); window.location.href="/";}}>
+                    <FaSignOutAlt /> Logout
                 </div>
               </nav>
             </motion.aside>
@@ -439,6 +370,7 @@ const StudentDashboard = () => {
         </Routes>
       </main>
 
+      {/* Bottom Nav for Mobile */}
       <div style={mobileBar}>
          <div onClick={() => navigate('/student')}><FaHome /></div>
          <div onClick={() => navigate('chat')}><FaComments /></div>
@@ -450,98 +382,79 @@ const StudentDashboard = () => {
 };
 
 /* =========================
-   STYLING
+   STYLING (PROPER VIEW)
 ========================= */
-const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", color: "#1e293b" };
+const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
 const headerWrapper = { position: "fixed", top: 15, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center", padding: "0 15px" };
-const headerContent = { width: "100%", maxWidth: "1100px", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(15px)", borderRadius: "20px", padding: "8px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", border: "1px solid rgba(255,255,255,0.3)" };
+const headerContent = { width: "100%", maxWidth: "1100px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", borderRadius: "20px", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" };
 const brandLogo = { margin: 0, fontSize: 20, fontWeight: 900, background: theme.gradients.primary, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
-const headerAvatar = { width: 38, height: 38, borderRadius: "12px", border: "2px solid #6366f1", objectFit: "cover" };
-const headerRight = { display: "flex", alignItems: "center", gap: 12 };
-const headerLeft = { display: "flex", alignItems: "center", gap: 12 };
-const iconBtnStyle = { cursor: "pointer", color: "#6366f1", background: "#f1f5f9", padding: "10px", borderRadius: "10px" };
-
-// NOTIFICATION MODAL STYLES
-const notiModalContainer = { width: '100%', maxWidth: '380px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
-const notiItemStyle = { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' };
-const notiIconCircle = { width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' };
-const imageBox = {
-  width: '70px',
-  height: '70px',
-  borderRadius: '16px',
-  overflow: 'hidden',
-  border: '2px solid #6366f1',
-};
-
-const studyImg = {
-  width: '100%',
-  height: '100%',
-  objectFit: 'cover',
-};
-
-const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px 20px', borderRadius: '18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e', overflow: 'hidden' };
-const alertIconBox = { width: '30px', height: '30px', background: '#fef3c7', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
+const headerAvatar = { width: 38, height: 38, borderRadius: "12px", objectFit: "cover", border: "2px solid #6366f1" };
+const mainBody = { padding: "110px 20px 100px", maxWidth: "1100px", margin: "0 auto" };
+const notiBox = { position: 'relative', fontSize: '22px', color: '#64748b', cursor: 'pointer', display: 'flex' };
+const redBadge = { position: 'absolute', top: -5, right: -5, background: '#ef4444', color: 'white', fontSize: '10px', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid white' };
 const modernWelcomeStyle = (img) => ({
   position: 'relative',
-  width: '100%',
-  minHeight: '450px',
-  padding: '30px 20px',
-  borderRadius: '20px',
-  marginBottom: '20px',
+  width: '80%',              // full width ke bajaye thoda kam
+  maxWidth: '1100px',        // optional, large screens ke liye
+  margin: '0 auto',          // center align
+  minHeight: '220px',
+  padding: '30px',
+  borderRadius: '24px',
+  marginBottom: '25px',
   display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'flex-end',
-  alignItems: 'flex-start',
-  boxShadow: '0 14px 25px rgba(0,0,0,0.1)',
-  border: '1px solid #e2e8f0',
+  alignItems: 'center',
   color: '#fff',
-  backgroundImage: `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url(${img})`,
+  backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`,
   backgroundSize: 'cover',
-  backgroundPosition: 'center',
-  backgroundRepeat: 'no-repeat'
+  backgroundPosition: 'center center', // image center me
+  overflow: 'hidden',       // ✅ extra part cut ho jaye
+  boxShadow: '0 15px 35px rgba(0,0,0,0.15)'
 });
 
-
-
-const quoteContainer = { marginTop: '10px' };
-const quoteTextStyle = { margin: 0, fontSize: '13px', color: '#ffffff', fontStyle: 'italic', lineHeight: '1.4' };
-const statusPillRow = { display: 'flex', gap: '8px', marginTop: '15px' };
-const statusPill = { background: '#f8fafc', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '5px' };
-const cardGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 15 };
-const cardBase = { position: "relative", borderRadius: "24px", padding: "20px", color: "#fff", cursor: "pointer", minHeight: "160px", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: '0 10px 20px rgba(0,0,0,0.1)' };
-const cardTopRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' };
+const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '5px 10px', borderRadius: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e' };
+const alertActionBtn = { background: '#92400e', color: 'white', border: 'none', padding: '2px 6px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' };
+const quoteTextStyle = { fontSize: '14px', fontStyle: 'italic', maxWidth: '80%', margin: '5px 0' };
+const statusPillRow = { display: 'flex', gap: '10px', marginTop: '15px' };
+const statusPill = { background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' };
+const cardGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px" };
+const cardBase = { position: "relative", borderRadius: "24px", padding: "20px", color: "#fff", cursor: "pointer", minHeight: "150px", display: "flex", flexDirection: "column", justifyContent: "space-between" };
+const cardTopRow = { display: 'flex', justifyContent: 'space-between' };
 const iconCircle = { width: '45px', height: '45px', background: 'rgba(255,255,255,0.2)', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
-const cardMainTitle = { margin: '0', fontSize: '18px', fontWeight: '800' };
-const cardBottomBody = { display: 'flex', flexDirection: 'column', gap: '2px' };
-const mainBody = { padding: "110px 1px 20px", maxWidth: "1100px", margin: "0 auto" };
-const miniNoticeBadge = { position: "absolute", top: "15px", right: "15px", background: "#fff", color: "#ef4444", padding: "4px 8px", borderRadius: "8px", fontSize: "9px", fontWeight: "900" };
+const cardMainTitle = { margin: '0', fontSize: '18px', fontWeight: '700' };
+const cardBottomBody = { display: 'flex', flexDirection: 'column' };
+const miniNoticeBadge = { position: "absolute", top: "15px", right: "15px", background: "#fff", color: "#ef4444", padding: "3px 8px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" };
 const sideDrawer = { position: "fixed", top: 0, left: 0, bottom: 0, width: 260, background: "#0f172a", zIndex: 2001, padding: "30px 20px" };
-const sideOverlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(5px)", zIndex: 2000 };
-const drawerHeader = { display: "flex", alignItems: "center", gap: 12, marginBottom: 35 };
-const drawerLogo = { width: 40, height: 40, background: theme.gradients.primary, borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: 'white' };
-const drawerNav = { display: "flex", flexDirection: "column", gap: 8 };
-const drawerLinkStyle = (active) => ({ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: "14px", textDecoration: "none", color: active ? "white" : "#94a3b8", background: active ? "#6366f1" : "transparent", fontWeight: 600, fontSize: '14px' });
-const logoutBtnStyle = { marginTop: '30px', padding: '14px 18px', color: '#f87171', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' };
-const mobileBar = { position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: '#0f172a', padding: '12px 30px', borderRadius: '40px', display: 'flex', gap: '35px', color: 'white', fontSize: '20px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' };
-const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)", zIndex: 5000, display: "flex", alignItems: "center", justifyContent: "center", padding: '20px' };
-const bigRectContainer = { width: '100%', maxWidth: '400px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
-const modalTopBar = { background: '#f8fafc', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' };
+const sideOverlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", zIndex: 2000 };
+const drawerHeader = { display: "flex", alignItems: "center", gap: 12, marginBottom: 40 };
+const drawerLogo = { width: 40, height: 40, background: theme.gradients.primary, borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", color: 'white' };
+const drawerNav = { display: "flex", flexDirection: "column", gap: 10 };
+const drawerLinkStyle = (active) => ({ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: "14px", textDecoration: "none", color: active ? "white" : "#94a3b8", background: active ? "#6366f1" : "transparent", fontWeight: 600 });
+const logoutBtnStyle = { marginTop: '30px', padding: '14px 18px', color: '#f87171', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' };
+const mobileBar = { position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: '#0f172a', padding: '12px 35px', borderRadius: '40px', display: 'flex', gap: '35px', color: 'white', fontSize: '22px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.3)' };
+const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 5000, display: "flex", alignItems: "center", justifyContent: "center", padding: '20px' };
+const notiModalContainer = { width: '100%', maxWidth: '380px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
+const modalTopBar = { background: '#f8fafc', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
+const notiItemStyle = { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' };
+const notiIconCircle = { width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' };
+const bigRectContainer = { width: '100%', maxWidth: '380px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
 const modalMainContent = { padding: '25px', textAlign: 'center' };
-const bigRectPhoto = { width: '140px', height: '140px', borderRadius: '20px', objectFit: 'cover', marginBottom: '15px', border: '3px solid #6366f1' };
+const bigRectPhoto = { width: '120px', height: '120px', borderRadius: '20px', objectFit: 'cover', marginBottom: '15px', border: '3px solid #6366f1' };
 const modalDetails = { textAlign: 'center' };
-const badgeRow = { display: 'flex', justifyContent: 'center', gap: '8px', margin: '12px 0' };
-const infoBadge = { background: '#f1f5f9', padding: '5px 10px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold', color: '#6366f1', display: 'flex', alignItems: 'center', gap: '5px' };
-const modalQuotes = { fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', margin: '15px 0' };
-const modalDoneBtn = { width: '100%', padding: '12px', border: 'none', background: theme.gradients.primary, color: 'white', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' };
-const feeModalOverlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000, padding: '20px' };
-const feeRectCard = { display: 'flex', width: '100%', maxWidth: '450px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
-const feeLeftAccent = { width: '70px', background: theme.gradients.danger, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' };
-const feeRightContent = { flex: 1, padding: '25px' };
-const feeAmountBox = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#fff1f2', borderRadius: '12px' };
-const feePayBtnNew = { flex: 1, padding: '10px', border: 'none', borderRadius: '10px', background: '#1e293b', color: '#fff', fontWeight: 'bold' };
-const feeLaterBtn = { padding: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', background: 'transparent' };
-const notiBox = { position: 'relative', fontSize: '20px', color: '#94a3b8', cursor: 'pointer', padding: '5px' };
-const redBadge = { position: 'absolute', top: 0, right: 0, background: '#ef4444', color: 'white', fontSize: '9px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid white' };
-const profileTrigger = { cursor: 'pointer' };
+const badgeRow = { display: 'flex', justifyContent: 'center', gap: '8px', margin: '15px 0' };
+const infoBadge = { background: '#f1f5f9', padding: '5px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', color: '#6366f1' };
+const modalQuotes = { fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', marginBottom: '20px' };
+const modalDoneBtn = { width: '100%', padding: '15px', border: 'none', background: theme.gradients.primary, color: 'white', fontWeight: 'bold', cursor: 'pointer' };
+const feeModalOverlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 };
+const feeRectCard = { display: 'flex', width: '90%', maxWidth: '400px', background: '#fff', borderRadius: '20px', overflow: 'hidden' };
+const feeLeftAccent = { width: '60px', background: theme.gradients.danger, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' };
+const feeRightContent = { flex: 1, padding: '20px' };
+const feeAmountBox = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#fff1f2', borderRadius: '10px', marginTop: '10px' };
+const feePayBtnNew = { flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: '#1e293b', color: '#fff', fontWeight: 'bold' };
+const feeLaterBtn = { padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'transparent' };
+const quoteContainer = { marginTop: '10px' };
+const headerLeft = { display: "flex", alignItems: "center", gap: 12 };
+const headerRight = { display: "flex", alignItems: "center", gap: 15 };
+const iconBtnStyle = { cursor: "pointer", color: "#6366f1", fontSize: "20px" };
+const profileTrigger = { cursor: "pointer", display: "flex" };
 
 export default StudentDashboard;
