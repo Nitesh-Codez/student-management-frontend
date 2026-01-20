@@ -14,10 +14,17 @@ export default function StudentPage() {
   const [uploadingId, setUploadingId] = useState(null);
   const [focusedTask, setFocusedTask] = useState(null);
   const [expandedSubject, setExpandedSubject] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const studentClass = user.class || "";
   const studentId = user.id || "";
+
+  // Update time every second for live countdown
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchTasks = async () => {
     if (!studentClass || !studentId) return;
@@ -30,16 +37,13 @@ export default function StudentPage() {
 
   useEffect(() => { fetchTasks(); }, [studentClass, studentId]);
 
-  // 📈 Calculation Logic (Fixed to 20 Marks Scale)
   const pendingTasks = tasks.filter((t) => t.status !== "SUBMITTED");
   const completedTasksList = tasks.filter((t) => t.status === "SUBMITTED");
-  const progressPercent = tasks.length === 0 ? 0 : Math.round((completedTasksList.length / tasks.length) * 100);
-
-  // New Logic: Overall Grade out of 20 based on Average Rating
+  
   const ratedTasks = completedTasksList.filter(t => t.rating);
   const totalStars = ratedTasks.reduce((acc, curr) => acc + curr.rating, 0);
   const avgStars = ratedTasks.length > 0 ? totalStars / ratedTasks.length : 0;
-  const overallScoreOutof20 = (avgStars * 4).toFixed(1); // Star 5 = 20 Marks, Star 4 = 16 Marks
+  const overallScoreOutof20 = (avgStars * 4).toFixed(1);
 
   const groupedCompleted = completedTasksList.reduce((acc, task) => {
     if (!acc[task.subject]) acc[task.subject] = [];
@@ -50,6 +54,14 @@ export default function StudentPage() {
   const handleSubmit = async (task) => {
     const file = files[task.id];
     if (!file) return alert("Select a file first!");
+    
+    // Final check before submission
+    const deadline = new Date(task.deadline);
+    const diffMs = currentTime - deadline;
+    if (diffMs > 3 * 24 * 60 * 60 * 1000) {
+      return alert("Late submission window closed (Max 3 days allowed).");
+    }
+
     setUploadingId(task.id);
     const fd = new FormData();
     fd.append("file", file);
@@ -77,15 +89,36 @@ export default function StudentPage() {
   };
 
   const formatDateTime = (dateStr) =>
-    dateStr ? new Date(dateStr).toLocaleString("en-IN", { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : "-";
+    dateStr
+      ? new Date(dateStr).toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "-";
 
   const renderTaskCard = (task, isFull = false) => {
     const isSubmitted = task.status === "SUBMITTED";
+    const deadline = new Date(task.deadline);
+    const diffMs = deadline - currentTime;
+    const isOverdue = diffMs < 0;
+    const absDiff = Math.abs(diffMs);
+
+    // Calculate time parts
+    const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((absDiff / (1000 * 60 * 60)) % 24);
+    const mins = Math.floor((absDiff / (1000 * 60)) % 60);
+    const secs = Math.floor((absDiff / 1000) % 60);
+
+    // Strict Rule: 3 Days Late check
+    const isExpired = isOverdue && days >= 3;
+
     return (
       <div key={task.id} style={isFull ? fullViewCard : taskCard(isSubmitted)}>
         <div style={cardHeader}>
           <div style={subjectPill}>{task.subject}</div>
-          <div style={statusBadge(isSubmitted)}>{isSubmitted ? "COMPLETED" : "PENDING"}</div>
+          <div style={statusBadge(isSubmitted)}>{isSubmitted ? "COMPLETED" : isExpired ? "EXPIRED" : "PENDING"}</div>
         </div>
 
         <h3 style={taskTitleText}>{task.task_title}</h3>
@@ -95,11 +128,35 @@ export default function StudentPage() {
                 <span style={infoLabel}>DEADLINE</span>
                 <span style={infoValue}>{formatDateTime(task.deadline)}</span>
             </div>
+            
+            {!isSubmitted && (
+               <div style={infoItem}>
+                 <span style={infoLabel}>{isOverdue ? "TIME OVERDUE" : "TIME LEFT"}</span>
+                 <span style={{...infoValue, color: isOverdue ? '#ff4141' : '#00ff88', fontFamily: 'monospace', fontSize: '14px'}}>
+                   {days}d {hours}h {mins}m {secs}s {isOverdue ? "LATE" : ""}
+                 </span>
+               </div>
+            )}
+
             {isSubmitted && (
-                <div style={infoItem}>
-                    <span style={infoLabel}>SUBMITTED ON</span>
-                    <span style={infoValue}>{formatDateTime(task.uploaded_at)}</span>
-                </div>
+              <div style={infoItem}>
+                <span style={infoLabel}>SUBMITTED ON</span>
+                <span style={infoValue}>
+                  {formatDateTime(task.student_uploaded_at)}
+                  {(() => {
+                    const subDate = new Date(task.student_uploaded_at);
+                    const subDiff = deadline - subDate;
+                    const subAbs = Math.abs(subDiff);
+                    const d = Math.floor(subAbs / 86400000);
+                    const h = Math.floor((subAbs % 86400000) / 3600000);
+                    return (
+                      <span style={{ color: subDiff > 0 ? "#2fff00" : "#ff4141", marginLeft: "8px", fontSize: "12px", fontWeight: 700 }}>
+                        ({d}d {h}h {subDiff > 0 ? "early" : "late"})
+                      </span>
+                    );
+                  })()}
+                </span>
+              </div>
             )}
         </div>
 
@@ -137,19 +194,27 @@ export default function StudentPage() {
                 </div>
             ) : (
               <div style={uploadZone}>
-                 <label style={uploadLabelStyle}>
-                    <input type="file" style={{display: 'none'}} onChange={(e) => setFiles({ ...files, [task.id]: e.target.files[0] })} />
-                    <div style={customUploadBtn}>
-                        {files[task.id] ? `📎 ${files[task.id].name.substring(0,20)}...` : "Select Assignment File"}
-                    </div>
-                 </label>
-                 <button 
-                    style={uploadingId === task.id ? btnDisabled : btnSubmit} 
-                    disabled={uploadingId === task.id}
-                    onClick={() => handleSubmit(task)}
-                 >
-                    {uploadingId === task.id ? "UPLOADING..." : "SUBMIT NOW"}
-                 </button>
+                 {isExpired ? (
+                   <div style={{...customUploadBtn, borderColor: '#ffffff', color: '#ff4141',fontSize:"20px", cursor: 'not-allowed'}}>
+                     ❌ Sorry , Now Submission Closed (It's Too Late)
+                   </div>
+                 ) : (
+                   <>
+                    <label style={uploadLabelStyle}>
+                        <input type="file" style={{display: 'none'}} onChange={(e) => setFiles({ ...files, [task.id]: e.target.files[0] })} />
+                        <div style={customUploadBtn}>
+                            {files[task.id] ? `📎 ${files[task.id].name.substring(0,20)}...` : "Select Assignment File"}
+                        </div>
+                    </label>
+                    <button 
+                        style={uploadingId === task.id ? btnDisabled : btnSubmit} 
+                        disabled={uploadingId === task.id}
+                        onClick={() => handleSubmit(task)}
+                    >
+                        {uploadingId === task.id ? "UPLOADING..." : isOverdue ? "SUBMIT LATE" : "SUBMIT NOW"}
+                    </button>
+                   </>
+                 )}
               </div>
             )}
         </div>
@@ -164,14 +229,14 @@ export default function StudentPage() {
             <div style={avatarBox}>{user.name?.charAt(0)}<div style={onlineDot} /></div>
             <div style={{ flex: 1 }}>
                 <h2 style={userName}>Hello, {user.name?.split(' ')[0]} ✨</h2>
-                <p style={userMeta}>Class {studentClass} • Current Performance: {overallScoreOutof20}/20</p>
+                <p style={userMeta}>Class {studentClass} • Score: {overallScoreOutof20}/20</p>
             </div>
         </div>
 
         <div style={progressCard}>
             <div style={progressTextRow}>
-                <span style={progressLabel}>OVERALL GRADE (20 points )</span>
-                <span style={progressPercentText}>{overallScoreOutof20}</span>
+                <span style={progressLabel}>OVERALL PERFORMANCE</span>
+                <span style={progressPercentText}>{overallScoreOutof20}/20</span>
             </div>
             <div style={progressBarBg}>
                 <div style={{...progressBarFill, width: `${(overallScoreOutof20/20)*100}%`}}><div style={shimmerEffect} /></div>
@@ -197,7 +262,7 @@ export default function StudentPage() {
           <>
             {pendingTasks.length > 0 && (
               <div style={sectionBlock}>
-                <h4 style={sectionTitle}><FaClock /> ACTION REQUIRED</h4>
+                <h4 style={sectionTitle}><FaClock /> LIVE ASSIGNMENTS</h4>
                 {pendingTasks.map(task => renderTaskCard(task))}
               </div>
             )}
@@ -229,7 +294,7 @@ export default function StudentPage() {
   );
 }
 
-/* ================= STYLES ================= */
+// STYLES
 const pageContainer = { background: "#0f172a", minHeight: "100vh", width: "100vw", color: "#fff", paddingBottom: "40px", overflowX: "hidden", fontFamily: "'Segoe UI', sans-serif" };
 const headerStyle = { padding: "40px 25px", background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.05)" };
 const headerTopRow = { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' };
@@ -284,7 +349,6 @@ const loaderWrapper = { textAlign: "center", padding: "100px 0" };
 const loaderSpinner = { width: "30px", height: "30px", border: "3px solid rgba(255,255,255,0.1)", borderTopColor: "#6366f1", borderRadius: "50%", margin: "0 auto 10px", animation: "spin 1s linear infinite" };
 const emptyBox = { textAlign: 'center', padding: '100px 0', opacity: 0.3 };
 
-// Animations
 if (typeof document !== 'undefined') {
   const styleSheet = document.createElement("style");
   styleSheet.innerText = `
