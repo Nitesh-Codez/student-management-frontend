@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 
 const StudentAttendance = () => {
   const user = JSON.parse(localStorage.getItem("user"));
-  const API_URL = process.env.REACT_APP_API_URL;
+  const API_URL = "https://student-management-system-4-hose.onrender.com";
 
   const [attendance, setAttendance] = useState([]);
   const [month, setMonth] = useState("");
@@ -11,15 +11,16 @@ const StudentAttendance = () => {
   const [marks, setMarks] = useState(0);
   const [todayStatus, setTodayStatus] = useState(null);
 
-  // 🔵 PREMIUM COLOR PALETTE
   const colors = {
-   present: "#28a745",  // <--- Ye raha aapka Green color code
-  absent: "#dc3545",
-  holiday: "#ffc107", // Amber
-    notMarked: "#94a3b8", 
-    primary: "#0f172a", // Navy Blue (Big Company Style)
-    accent: "#3b82f6",  // Royal Blue
-    bg: "#ffffff"
+    present: "#28a745",
+    absent: "#dc3545",
+    holiday: "#ffc107",
+    notMarked: "#94a3b8",
+    primary: "#0f172a",
+    accent: "#3b82f6",
+    bg: "#ffffff",
+    lightRed: "#ffcece", // Absent row ke liye
+    todayHighlight: "#b9d3f1" // Today's highlight
   };
 
   const getPercentageColor = (perc) => {
@@ -52,11 +53,17 @@ const StudentAttendance = () => {
     });
 
     const today = new Date();
+    const todayStr = today.toDateString();
+
+    let todayRecord = data.find((a) => new Date(a.date).toDateString() === todayStr);
+    
     if (y === today.getFullYear() && m === today.getMonth() + 1) {
-      let todayRecord = data.find((a) => new Date(a.date).toDateString() === today.toDateString());
       if (!todayRecord) {
-        todayRecord = { date: today.toISOString(), status: "Not Marked" };
+        todayRecord = { date: today.toISOString(), status: "Not Marked", isToday: true };
         data.push(todayRecord);
+      } else {
+        // Tagging the existing record as today
+        data = data.map(rec => new Date(rec.date).toDateString() === todayStr ? {...rec, isToday: true} : rec);
       }
       setTodayStatus(todayRecord.status);
     } else {
@@ -82,7 +89,7 @@ const StudentAttendance = () => {
 
   return (
     <div style={pageWrapper}>
-      {/* --- 1. MINIMALIST HEADER --- */}
+      {/* --- 1. HEADER --- */}
       <div style={headerSection}>
         <div>
           <h1 style={mainTitle}>Attendance Analytics</h1>
@@ -98,7 +105,7 @@ const StudentAttendance = () => {
         </div>
       </div>
 
-      {/* --- 2. HERO SUMMARY (Edge-to-Edge feel) --- */}
+      {/* --- 2. HERO SUMMARY --- */}
       <div style={heroCard}>
         <div style={heroText}>
           <div style={classBadge}>Batch: {user?.class || "N/A"}</div>
@@ -109,7 +116,6 @@ const StudentAttendance = () => {
           </div>
         </div>
         
-        {/* Progress Ring */}
         <div style={{
           width: "110px", height: "110px", borderRadius: "50%",
           border: `10px solid ${getPercentageColor(percentage)}`,
@@ -121,7 +127,7 @@ const StudentAttendance = () => {
         </div>
       </div>
 
-      {/* --- 3. QUICK STATS BAR --- */}
+      {/* --- 3. QUICK STATS --- */}
       <div style={statsRow}>
         <div style={statBox}>
           <span style={{...statNum, color: colors.present}}>{filtered.filter(a => a.status === "Present").length}</span>
@@ -137,11 +143,13 @@ const StudentAttendance = () => {
         </div>
       </div>
 
-      {/* --- 4. DATA LOG (Full Edge-to-Edge) --- */}
+      {/* --- 4. DATA LOG --- */}
       <div style={logContainer}>
         <div style={logHeader}>
           <h3 style={{margin: 0, fontSize: '16px', fontWeight: '700'}}>Recent Activity</h3>
-          <span style={{fontSize: '12px', color: colors.accent}}>Today: {todayStatus || "Pending"}</span>
+          <span style={{fontSize: '12px', color: colors.accent, fontWeight: 'bold'}}>
+             {todayStatus === "Present" ? "✅ Marked for Today" : todayStatus === "Absent" ? "❌ Absent Today" : "⏳ Today Pending"}
+          </span>
         </div>
         
         <div style={listWrapper}>
@@ -150,165 +158,70 @@ const StudentAttendance = () => {
           ) : (
             [...filtered]
               .sort((a, b) => new Date(b.date) - new Date(a.date))
-              .map((a, i) => (
-                <div key={i} style={attendanceItem}>
-                  <div style={dateSection}>
-                    <div style={dateText}>{formatDate(a.date)}</div>
-                    <div style={dayText}>{new Date(a.date).toLocaleDateString('en-US', { weekday: 'long' })}</div>
-                  </div>
-                  <div style={{
-                    ...statusPill,
-                    backgroundColor: getStatusColor(a.status, colors) + "15",
-                    color: getStatusColor(a.status, colors),
-                    border: `1px solid ${getStatusColor(a.status, colors)}33`
+              .map((a, i) => {
+                const isAbsent = a.status === "Absent";
+                const isToday = a.isToday;
+
+                return (
+                  <div key={i} style={{
+                    ...attendanceItem,
+                    backgroundColor: isToday ? colors.todayHighlight : (isAbsent ? colors.lightRed : "transparent"),
+                    borderLeft: isToday ? `6px solid ${colors.accent}` : (isAbsent ? `6px solid ${colors.absent}` : "none"),
+                    padding: "15px",
+                    borderRadius: "12px",
+                    boxShadow: isToday ? "0 4px 12px rgba(59, 130, 246, 0.1)" : "none",
+                    marginBottom: "8px"
                   }}>
-                    {a.status}
+                    <div style={dateSection}>
+                      <div style={{...dateText, color: isToday ? colors.accent : "#1e293b"}}>
+                        {formatDate(a.date)} {isToday && "(Today)"}
+                      </div>
+                      <div style={dayText}>{new Date(a.date).toLocaleDateString('en-US', { weekday: 'long' })}</div>
+                    </div>
+                    <div style={{
+                      ...statusPill,
+                      backgroundColor: getStatusColor(a.status, colors) + (isToday ? "33" : "15"),
+                      color: getStatusColor(a.status, colors),
+                      border: `1px solid ${getStatusColor(a.status, colors)}33`,
+                      transform: isToday ? "scale(1.1)" : "none"
+                    }}>
+                      {a.status}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
           )}
         </div>
       </div>
-
-      <style>{`
-        body { margin: 0; background: #fff; }
-        * { box-sizing: border-box; }
-      `}</style>
     </div>
   );
 };
 
-// --- STYLING (The "Wow" Factor) ---
+// --- STYLES ---
 
-const pageWrapper = {
-  minHeight: "100vh",
-  width: "100vw",
-  background: "#fff",
-  padding: "0 0 50px 0",
-  fontFamily: "'Inter', sans-serif",
-  color: "#0f172a"
-};
-
-const headerSection = {
-  padding: "40px 30px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-end",
-  borderBottom: "1px solid #f1f5f9"
-};
-
-const mainTitle = { fontSize: "24px", fontWeight: "800", margin: 0, letterSpacing: "-0.5px" };
-const subTitle = { fontSize: "14px", color: "#64748b", margin: "5px 0 0 0" };
-
-const monthPickerWrapper = {
-  background: "#f1f5f9",
-  padding: "8px 15px",
-  borderRadius: "12px",
-  border: "1px solid #e2e8f0"
-};
-
-const monthInput = {
-  border: "none",
-  background: "transparent",
-  fontWeight: "700",
-  fontSize: "14px",
-  color: "#0f172a",
-  outline: "none"
-};
-
-const heroCard = {
-  margin: "30px",
-  background: "#0f172a",
-  borderRadius: "24px",
-  padding: "40px",
-  color: "#fff",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  boxShadow: "0 20px 40px rgba(15, 23, 42, 0.2)"
-};
-
+const pageWrapper = { minHeight: "100vh", width: "100%", background: "#fff", paddingBottom: "100px", fontFamily: "'Inter', sans-serif" };
+const headerSection = { padding: "40px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f1f5f9" };
+const mainTitle = { fontSize: "22px", fontWeight: "900", margin: 0 };
+const subTitle = { fontSize: "13px", color: "#64748b", margin: "4px 0 0 0" };
+const monthPickerWrapper = { background: "#f8fafc", padding: "8px 12px", borderRadius: "10px", border: "1px solid #e2e8f0" };
+const monthInput = { border: "none", background: "transparent", fontWeight: "bold", outline: "none", cursor: "pointer" };
+const heroCard = { margin: "20px", background: "#0f172a", borderRadius: "24px", padding: "30px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" };
 const heroText = { display: "flex", flexDirection: "column" };
-
-const classBadge = {
-  background: "rgba(255,255,255,0.1)",
-  padding: "4px 12px",
-  borderRadius: "8px",
-  fontSize: "11px",
-  textTransform: "uppercase",
-  letterSpacing: "1px",
-  width: "fit-content"
-};
-
-const marksTag = {
-  marginTop: "15px",
-  fontSize: "13px",
-  background: "#3b82f6",
-  padding: "6px 12px",
-  borderRadius: "30px",
-  width: "fit-content"
-};
-
-const statsRow = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr",
-  gap: "1px",
-  background: "#f1f5f9",
-  margin: "0 30px 40px 30px",
-  borderRadius: "20px",
-  overflow: "hidden",
-  border: "1px solid #f1f5f9"
-};
-
-const statBox = {
-  background: "#fff",
-  padding: "20px",
-  textAlign: "center",
-  display: "flex",
-  flexDirection: "column",
-  gap: "5px"
-};
-
-const statNum = { fontSize: "20px", fontWeight: "800" };
-const statLabel = { fontSize: "11px", color: "#64748b", textTransform: "uppercase", fontWeight: "600" };
-
-const logContainer = { padding: "0 30px" };
-const logHeader = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: "20px"
-};
-
-const listWrapper = { display: "flex", flexDirection: "column", gap: "12px" };
-
-const attendanceItem = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "15px 0",
-  borderBottom: "1px solid #f1f5f9"
-};
-
+const classBadge = { background: "rgba(255,255,255,0.1)", padding: "4px 10px", borderRadius: "6px", fontSize: "10px", textTransform: "uppercase" };
+const marksTag = { marginTop: "12px", fontSize: "12px", background: "#3b82f6", padding: "5px 12px", borderRadius: "20px", width: "fit-content" };
+const statsRow = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", margin: "0 20px 30px" };
+const statBox = { background: "#fff", padding: "15px", textAlign: "center", borderRadius: "16px", border: "1px solid #f1f5f9", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" };
+const statNum = { fontSize: "18px", fontWeight: "900", display: "block" };
+const statLabel = { fontSize: "10px", color: "#64748b", fontWeight: "700", textTransform: "uppercase" };
+const logContainer = { padding: "0 20px" };
+const logHeader = { display: "flex", justifyContent: "space-between", marginBottom: "15px" };
+const listWrapper = { display: "flex", flexDirection: "column" };
+const attendanceItem = { display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.3s ease" };
 const dateSection = { display: "flex", flexDirection: "column" };
-const dateText = { fontSize: "15px", fontWeight: "700", color: "#1e293b" };
-const dayText = { fontSize: "12px", color: "#94a3b8" };
-
-const statusPill = {
-  padding: "6px 16px",
-  borderRadius: "10px",
-  fontSize: "11px",
-  fontWeight: "800",
-  textTransform: "uppercase"
-};
-
-const emptyState = {
-  textAlign: "center",
-  padding: "40px",
-  color: "#94a3b8",
-  fontSize: "14px",
-  fontStyle: "italic"
-};
+const dateText = { fontSize: "14px", fontWeight: "800" };
+const dayText = { fontSize: "11px", color: "#94a3b8" };
+const statusPill = { padding: "6px 12px", borderRadius: "8px", fontSize: "10px", fontWeight: "900" };
+const emptyState = { textAlign: "center", padding: "50px", color: "#cbd5e1", fontStyle: "italic" };
 
 const getStatusColor = (status, colors) => {
   switch (status) {
