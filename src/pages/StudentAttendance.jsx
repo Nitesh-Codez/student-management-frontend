@@ -87,11 +87,21 @@ const StudentAttendance = () => {
     });
   };
 
+  // Circular Progress Logic
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
   return (
     <div style={pageWrapper}>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { overflow-x: hidden; width: 100%; -webkit-font-smoothing: antialiased; }
+        .progress-ring__circle {
+          transition: stroke-dashoffset 0.8s ease-in-out;
+          transform: rotate(-90deg);
+          transform-origin: 50% 50%;
+        }
       `}</style>
 
       {/* --- REFINED HEADER --- */}
@@ -99,7 +109,7 @@ const StudentAttendance = () => {
         <div style={{display: 'flex', flexDirection: 'column'}}>
           <span style={headerTag}>SMART STUDENTS CLASSES </span>
           <h1 style={mainTitle}>Attendance</h1>
-          <p style={subTitle}>Tracking: <span style={{fontWeight: '700', color: colors.primary}}>{user?.name}</span></p>
+          <p style={subTitle}>Tracking Attendance for <span style={{fontWeight: '700', color: colors.primary}}>{user?.name}</span></p>
         </div>
         <div style={monthPickerWrapper}>
           <input
@@ -111,7 +121,7 @@ const StudentAttendance = () => {
         </div>
       </div>
 
-      {/* --- HERO SECTION --- */}
+      {/* --- HERO SECTION WITH LIVE FILLING CIRCLE --- */}
       <div style={heroCard}>
         <div style={heroText}>
           <div style={classBadge}>Batch: {user?.class || "N/A"}</div>
@@ -119,16 +129,37 @@ const StudentAttendance = () => {
           <div style={marksLabelLine}>Monthly Attendance Score</div>
         </div>
         
-        {/* Circle with "Marks" text */}
-        <div style={{
-          width: "100px", height: "100px", borderRadius: "50%",
-          border: `6px solid ${getPercentageColor(percentage)}`,
-          display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
-          background: "rgba(255,255,255,0.08)",
-          boxShadow: `0 0 20px ${getPercentageColor(percentage)}33`,
-        }}>
-          <span style={{fontSize: '24px', fontWeight: '900', lineHeight: '1'}}>{marks}</span>
-          <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', marginTop: '2px', opacity: 0.9}}>Marks</span>
+        {/* Animated Circular Progress */}
+        <div style={{ position: "relative", width: "110px", height: "110px", display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <svg width="110" height="110">
+            {/* Background Circle */}
+            <circle
+              stroke="rgba(255,255,255,0.1)"
+              strokeWidth="8"
+              fill="transparent"
+              r={radius}
+              cx="55"
+              cy="55"
+            />
+            {/* Live Filling Circle */}
+            <circle
+              className="progress-ring__circle"
+              stroke={getPercentageColor(percentage)}
+              strokeWidth="8"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              fill="transparent"
+              r={radius}
+              cx="55"
+              cy="55"
+            />
+          </svg>
+          {/* Marks in Center */}
+          <div style={{ position: "absolute", textAlign: "center", display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '24px', fontWeight: '900', color: '#fff', lineHeight: '1' }}>{marks}</span>
+            <span style={{ fontSize: '9px', fontWeight: '700', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Marks</span>
+          </div>
         </div>
       </div>
 
@@ -211,7 +242,7 @@ const pageWrapper = { width: "100%", minHeight: "100vh", background: "#fff", pad
 
 const headerSection = { padding: "35px 20px 25px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", width: "100%", borderBottom: "1px solid #f1f5f9" };
 const headerTag = {
-  background: "linear-gradient(135deg, #0f172a 0%, #334155 100%)", // Dark Premium Gradient
+  background: "linear-gradient(135deg, #0f172a 0%, #334155 100%)",
   color: "#ffffff",
   padding: "6px 15px",
   borderRadius: "12px",
@@ -222,11 +253,12 @@ const headerTag = {
   display: "inline-block",
   whiteSpace: "nowrap" ,
   marginBottom: "10px",
-  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.2)", // Subtle shadow for 'pop' effect
+  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.2)",
   textTransform: "uppercase",
-  borderLeft: "4px solid #3b82f6" // Blue accent line
-};const mainTitle = { fontSize: "28px", fontWeight: "900", margin: 0, color: "#0f172a", lineHeight: '1' };
-const subTitle = { fontSize: "13px", color: "#64748b", marginTop: "6px" };
+  borderLeft: "4px solid #3b82f6"
+};
+const mainTitle = { fontSize: "28px", fontWeight: "900", margin: 0, color: "#0f172a", lineHeight: '1' };
+const subTitle = { fontSize: "20px", color: "#000000", marginTop: "6px" };
 
 const monthPickerWrapper = { background: "#f8fafc", padding: "10px 12px", borderRadius: "12px", border: "1px solid #e2e8f0" };
 const monthInput = { border: "none", background: "transparent", fontWeight: "800", outline: "none", fontSize: "13px", color: "#0f172a", cursor: "pointer" };
