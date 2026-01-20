@@ -154,7 +154,7 @@ const FeePopup = ({ isOpen, onClose, amount }) => {
 /* =========================
    DASHBOARD HOME
 ========================= */
-const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending, user }) => {
+const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending, user, hasNewMarks }) => {
   const [greeting, setGreeting] = useState("");
   const [randomQuote, setRandomQuote] = useState("");
   const [imgIndex, setImgIndex] = useState(0);
@@ -176,7 +176,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
   const cards = [
     { title: "Attendance", icon: <FaClipboardCheck />, path: "attendance", grad: theme.gradients.success, sub: "Daily Records" },
     { title: "Fees", icon: <FaMoneyBillWave />, path: "fees", grad: theme.gradients.warning, showNotice: isFeeUnpaid, sub: "Finance Status" },
-    { title: "Marks", icon: <FaChartLine />, path: "marks", grad: theme.gradients.info, sub: "Performance" },
+    { title: "Marks", icon: <FaChartLine />, path: "marks", grad: theme.gradients.info, showNotice: hasNewMarks, sub: "Performance" },
     { title: "Tasks", icon: <FaTasks />, path: "task-update", grad: theme.gradients.primary, count: pendingTasks, sub: "Assignments" },
     { title: "Study Lab", icon: <FaBookOpen />, path: "study-material", grad: theme.gradients.dark, sub: "Library" },
     { title: "Feedback", icon: <FaStar />, path: "feedback", grad: theme.gradients.purple, showNotice: isFeedbackPending, sub: "Monthly Review" },
@@ -215,7 +215,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
       <div style={cardGrid}>
         {cards.map((c, i) => (
           <motion.div key={i} whileTap={{ scale: 0.95 }} onClick={() => navigate(c.path)} style={{ ...cardBase, background: c.grad }}>
-            {c.showNotice && <div style={miniNoticeBadge}>PENDING</div>}
+            {c.showNotice && <div style={miniNoticeBadge}>CHECK NOW</div>}
             {c.count > 0 && <div style={miniNoticeBadge}>{c.count} NEW</div>}
             <div style={cardTopRow}>
                 <div style={iconCircle}>{c.icon}</div>
@@ -241,6 +241,7 @@ const StudentDashboard = () => {
   const [pendingTasks, setPendingTasks] = useState(0);
   const [isFeeUnpaid, setIsFeeUnpaid] = useState(false);
   const [isFeedbackPending, setIsFeedbackPending] = useState(false);
+  const [hasNewMarks, setHasNewMarks] = useState(false);
   const [showFeePopup, setShowFeePopup] = useState(false);
   const [dynamicFeeAmount, setDynamicFeeAmount] = useState("500");
   const [isPhotoOpen, setIsPhotoOpen] = useState(false);
@@ -259,7 +260,7 @@ const StudentDashboard = () => {
       try {
         let activeNotis = [];
         const today = new Date();
-        const currentMonth = today.getMonth() === 0 ? 12 : today.getMonth(); // Logic for target month
+        const currentMonth = today.getMonth() === 0 ? 12 : today.getMonth(); 
         const currentYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
 
         // 1. Profile Photo
@@ -324,9 +325,33 @@ const StudentDashboard = () => {
               path: "fees", 
               color: theme.gradients.warning 
             });
-          } else {
-            setIsFeeUnpaid(false);
-            setShowFeePopup(false);
+          }
+        }
+
+        // 5. NEW MARKS NOTIFICATION LOGIC (Matching your StudentMarks.js)
+        const marksRes = await axios.post(`${API_URL}/api/marks/check`, {
+          studentId: storedUser.id,
+          studentName: storedUser.name,
+        });
+        
+        if (marksRes.data.success && marksRes.data.data.length > 0) {
+          const savedMarksData = JSON.parse(localStorage.getItem("userMarks")) || {};
+          const localMarks = savedMarksData[storedUser.id] || [];
+          const fetchedData = marksRes.data.data;
+          
+          const currentIds = localMarks.map((m) => m.id);
+          const newEntries = fetchedData.filter((m) => !currentIds.includes(m.id));
+
+          if (newEntries.length > 0 && localMarks.length > 0) {
+            setHasNewMarks(true);
+            const subjects = [...new Set(newEntries.map((m) => m.subject_name))].join(", ");
+            activeNotis.push({
+              title: "Check your New Marks of test",
+              desc: `New marks uploaded for: ${subjects}. Check now!`,
+              icon: <FaChartLine />,
+              path: "marks",
+              color: theme.gradients.info
+            });
           }
         }
 
@@ -398,7 +423,7 @@ const StudentDashboard = () => {
 
       <main style={mainBody}>
         <Routes>
-          <Route index element={<DashboardHome navigate={navigate} isFeeUnpaid={isFeeUnpaid} isFeedbackPending={isFeedbackPending} pendingTasks={pendingTasks} user={user} />} />
+          <Route index element={<DashboardHome navigate={navigate} isFeeUnpaid={isFeeUnpaid} isFeedbackPending={isFeedbackPending} pendingTasks={pendingTasks} user={user} hasNewMarks={hasNewMarks} />} />
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
@@ -421,7 +446,7 @@ const StudentDashboard = () => {
 };
 
 /* =========================
-   STYLES (UNCHANGED)
+   STYLES (RETAINED)
 ========================= */
 const modernWelcomeStyle = (img) => ({
   position: 'relative', width: '100%', maxWidth: '1100px', margin: '0 auto', minHeight: '220px', padding: '1px',borderRadius: '24px', marginBottom: '25px', display: 'flex', alignItems: 'center', color: '#fff', backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)'
