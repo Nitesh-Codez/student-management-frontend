@@ -312,7 +312,7 @@ if (feeRes.data.success) {
 
     activeNotis.push({ 
       title: "Fees Pending", 
-      desc: "Aapki is mahine ki fees abhi tak jama nahi hui hai.", 
+      desc: "Your Fee have'nt Deposit Yet!.", 
       icon: <FaMoneyBillWave />, 
       path: "fees", 
       color: theme.gradients.warning 
@@ -373,7 +373,9 @@ if (feeRes.data.success) {
                   { name: "My Profile", path: "profile", icon: <FaUserAlt /> },
                   { name: "Assignments", path: "task-update", icon: <FaTasks /> },
                   { name: "Fees/Records", path: "fees", icon: <FaMoneyBillWave /> },
+                  { name: "Feedback", path: "feedback", icon: <FaStar /> },
                   { name: "My Marks", path: "marks", icon: <FaChartLine /> },
+
                   { name: "Connect Chat", path: "chat", icon: <FaComments /> },
                 ].map((item, idx) => (
                   <Link key={idx} to={item.path} onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes(item.path))}>

@@ -1,432 +1,225 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  FaArrowRight,
-  FaArrowLeft,
-  FaCheck,
-  FaStar,
-  FaPaperPlane,
-  FaCommentAlt,
-  FaExclamationTriangle,
-} from "react-icons/fa";
+import { FaCheckCircle, FaStar, FaPaperPlane, FaLock } from "react-icons/fa";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const questions = [
-  { question: "How would you rate Bhaiya's behavior this month?", options: ["Very Friendly", "Friendly", "Neutral", "Not Friendly"] },
-  { question: "Clarity of lesson explanations?", options: ["Crystal Clear", "Mostly Clear", "Somewhat", "Not Clear"] },
-  { question: "Suitability of the teaching pace?", options: ["Perfect", "Good", "Moderate", "Too Fast/Slow"] },
-  { question: "Your level of understanding?", options: ["Complete", "Most of it", "Partial", "Very Little"] },
-  { question: "Frequency of anger in class?", options: ["Never", "Rarely", "Sometimes", "Often"] },
-  { question: "Overall teaching quality?", options: ["Excellent", "Good", "Average", "Poor"] },
-  { question: "Your active participation?", options: ["Very Active", "Active", "Passive", "Quiet"] },
-  { question: "Homework explanation helpfulness?", options: ["Very Helpful", "Helpful", "Decent", "Not Helpful"] },
-  { question: "Classroom environment comfort?", options: ["Very Comfortable", "Good", "Neutral", "Uncomfortable"] },
-  { question: "Overall satisfaction for the month?", options: ["Super Satisfied", "Satisfied", "Neutral", "Unsatisfied"] },
+  { question: "How was Bhaiya's behavior?", options: ["Excellent", "Good", "Neutral", "Angry"] },
+  { question: "Teaching Clarity?", options: ["Crystal Clear", "Clear", "Average", "Confusing"] },
+  { question: "Pace of teaching?", options: ["Perfect", "Good", "Fast", "Slow"] },
+  { question: "Did you understand everything?", options: ["100%", "Mostly", "Half", "Nothing"] },
+  { question: "Classroom environment?", options: ["Very Happy", "Quiet", "Noisy", "Boring"] },
+  { question: "Study material quality?", options: ["Best", "Good", "Average", "Poor"] },
+  { question: "Doubt solving speed?", options: ["Instant", "Quick", "Slow", "Never"] },
+  { question: "Punctuality?", options: ["Always on time", "Mostly", "Late", "Very Late"] },
+  { question: "Homework pressure?", options: ["Manageable", "Good", "Heavy", "Too Much"] },
+  { question: "Overall happiness?", options: ["Very Satisfied", "Satisfied", "OK", "Not Good"] },
 ];
 
 export default function StudentFeedback({ studentId }) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [mcqAnswers, setMcqAnswers] = useState(Array(questions.length).fill(null));
+  const [mcqAnswers, setMcqAnswers] = useState(Array(10).fill(null));
   const [suggestion, setSuggestion] = useState("");
   const [problem, setProblem] = useState("");
   const [rating, setRating] = useState(0);
   const [submitted, setSubmitted] = useState(false);
-  const [monthLabel, setMonthLabel] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [targetDate, setTargetDate] = useState({ month: "", num: 0, year: 0 });
 
   useEffect(() => {
-    const months = [
-      "January","February","March","April","May","June",
-      "July","August","September","October","November","December"
-    ];
-    const d = new Date();
-    setMonthLabel(months[d.getMonth()]);
-  }, []);
+    const checkAndSetDate = async () => {
+      const months = ["December","January","February","March","April","May","June","July","August","September","October","November","December"];
+      const d = new Date();
+      let mIdx = d.getMonth(); 
+      let year = d.getFullYear();
+      
+      let displayMonth = mIdx === 0 ? months[0] : months[mIdx];
+      let submitMonth = mIdx === 0 ? 12 : mIdx;
+      let submitYear = mIdx === 0 ? year - 1 : year;
 
-  /* ---------------- MCQ OPTION ---------------- */
-  const handleOption = (index) => {
-    const updated = [...mcqAnswers];
-    updated[currentStep] = index + 1;
-    setMcqAnswers(updated);
-  };
+      setTargetDate({ month: displayMonth, num: submitMonth, year: submitYear });
 
-  /* ---------------- SUBMIT ---------------- */
+      try {
+        const res = await axios.get(`${API_URL}/api/feedback/student/${studentId}`);
+        const alreadyDone = res.data.feedbacks?.some(f => f.month === submitMonth && f.year === submitYear);
+        if (alreadyDone) setSubmitted(true);
+      } catch (err) {
+        console.error("Check Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkAndSetDate();
+  }, [studentId]);
+
   const handleSubmit = async () => {
     try {
-      if (!studentId) {
-        alert("Student ID missing");
-        return;
-      }
-
-      const now = new Date();
-
-      const res = await axios.post(
-        `${API_URL}/api/feedback/student/submit`,
-        {
-          student_id: studentId,
-          month: now.getMonth() + 1,
-          year: now.getFullYear(),
-          mcqAnswers,
-          suggestion,
-          problem,
-          rating,
-        }
-      );
-
-      console.log("Feedback submitted:", res.data);
+      await axios.post(`${API_URL}/api/feedback/student/submit`, {
+        student_id: studentId,
+        month: targetDate.num,
+        year: targetDate.year,
+        mcqAnswers,
+        suggestion,
+        problem,
+        rating
+      });
       setSubmitted(true);
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-      alert("Submit failed. Check console.");
+    } catch (err) { 
+      alert(err.response?.data?.error || "Failed to submit"); 
     }
   };
 
-  if (submitted) return <SuccessScreen month={monthLabel} />;
+  if (loading) return <div style={outerWrapper}><div className="loader"></div></div>;
 
-  const isMCQ = currentStep < questions.length;
+  // Render Submitted View (Edge-to-Edge Dark)
+  if (submitted) return (
+    <div style={outerWrapper}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={successCard}>
+        <FaCheckCircle style={{ fontSize: '70px', color: '#10b981', marginBottom: '20px' }} />
+        <h1 style={{ fontSize: '28px', marginBottom: '10px' }}>Submitted!</h1>
+        <p style={{ color: '#94a3b8', fontSize: '16px', marginBottom: '30px' }}>
+          Thank you for your <b>{targetDate.month}</b> feedback. Your responses help us improve.
+        </p>
+        <div style={lockBadge}>
+          <FaLock style={{ fontSize: '12px' }} /> ACCESS LOCKED UNTIL NEXT MONTH
+        </div>
+      </motion.div>
+    </div>
+  );
 
+  // Render Question View (Edge-to-Edge Dark)
   return (
-    <div style={pageWrapper}>
-      <div style={blob1} />
-      <div style={blob2} />
+    <div style={outerWrapper}>
+      <div style={containerStyle}>
+        <div style={headerSection}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '20px', color: '#60a5fa' }}>Monthly Feedback</h2>
+            <p style={{ margin: 0, fontSize: '14px', color: '#94a3b8' }}>{targetDate.month} {targetDate.year}</p>
+          </div>
+          <div style={stepCounter}>{currentStep < 10 ? `${currentStep + 1} / 10` : "Final"}</div>
+        </div>
 
-      <div style={mainContainer}>
-        {/* HEADER */}
-        <div style={headerNav}>
-          <div style={stepIndicator}>
-            Question {currentStep + 1} of {questions.length + 1}
-          </div>
-          <div style={progressContainer}>
-            <motion.div
-              style={progressFill}
-              animate={{
-                width: `${((currentStep + 1) / (questions.length + 1)) * 100}%`,
-              }}
-            />
-          </div>
+        <div style={progressContainer}>
+           <div style={{ ...progressFill, width: `${(currentStep / 10) * 100}%` }} />
         </div>
 
         <AnimatePresence mode="wait">
-          {isMCQ ? (
-            <motion.div
-              key={currentStep}
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -20, opacity: 0 }}
-              style={questionSection}
+          {currentStep < 10 ? (
+            <motion.div 
+              key={currentStep} 
+              initial={{ x: 30, opacity: 0 }} 
+              animate={{ x: 0, opacity: 1 }} 
+              exit={{ x: -30, opacity: 0 }}
+              style={{ minHeight: '320px' }}
             >
-              <h2 style={questionTitle}>{questions[currentStep].question}</h2>
-
-              <div style={optionsContainer}>
-                {questions[currentStep].options.map((opt, i) => (
-                  <motion.button
-                    key={i}
-                    onClick={() => handleOption(i)}
-                    whileHover={{ scale: 1.02 }}
-                    style={optionBtn(mcqAnswers[currentStep] === i + 1)}
-                  >
-                    <span style={optionNum}>{i + 1}</span>
-                    <span style={optionLabel}>{opt}</span>
-                    {mcqAnswers[currentStep] === i + 1 && <FaCheck />}
-                  </motion.button>
-                ))}
-              </div>
+              <p style={qText}>{questions[currentStep].question}</p>
+              {questions[currentStep].options.map((opt, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => {
+                    const newAns = [...mcqAnswers]; 
+                    newAns[currentStep] = i+1;
+                    setMcqAnswers(newAns);
+                    setTimeout(() => setCurrentStep(currentStep + 1), 250);
+                  }} 
+                  style={optBtn(mcqAnswers[currentStep] === i+1)}
+                >
+                  <span style={optCircle(mcqAnswers[currentStep] === i+1)}>{i+1}</span>
+                  {opt}
+                </button>
+              ))}
             </motion.div>
           ) : (
-            /* ---------- FINAL STEP ---------- */
-            <motion.div
-              key="final"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              style={finalSection}
-            >
-              <h2 style={questionTitle}>Final Details</h2>
-
-              <div style={inputGroup}>
-                <label style={fieldLabel}><FaCommentAlt /> Suggestion</label>
-                <textarea
-                  style={textInput}
-                  value={suggestion}
-                  onChange={(e) => setSuggestion(e.target.value)}
-                />
-              </div>
-
-              <div style={inputGroup}>
-                <label style={fieldLabel}><FaExclamationTriangle /> Problems</label>
-                <textarea
-                  style={textInput}
-                  value={problem}
-                  onChange={(e) => setProblem(e.target.value)}
-                />
-              </div>
-
-              <div style={ratingWrapper}>
-                <label style={fieldLabel}>Overall Rating</label>
-                <div style={starBox}>
-                  {[1,2,3,4,5].map((s) => (
-                    <FaStar
-                      key={s}
-                      onClick={() => setRating(s)}
-                      style={starIcon(s <= rating)}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={finalBox}>
+              <h3 style={{ marginBottom: '20px', color: '#60a5fa' }}>Just one more thing...</h3>
+              
+              <label style={labelStyle}>Any suggestions for us?</label>
+              <textarea placeholder="Your thoughts..." onChange={e => setSuggestion(e.target.value)} style={inputStyle} />
+              
+              <label style={labelStyle}>Any problems you're facing?</label>
+              <textarea placeholder="Report an issue..." onChange={e => setProblem(e.target.value)} style={inputStyle} />
+              
+              <div style={ratingSection}>
+                <p style={{ margin: '0 0 15px 0', fontWeight: '600', color: '#f8fafc' }}>Overall Experience</p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  {[1,2,3,4,5].map(s => (
+                    <FaStar 
+                      key={s} 
+                      onClick={() => setRating(s)} 
+                      color={s <= rating ? "#f59e0b" : "#334155"} 
+                      style={{ cursor:'pointer', fontSize: 38, transition: '0.3s' }} 
                     />
                   ))}
                 </div>
               </div>
-
-              <button
-                onClick={handleSubmit}
-                disabled={mcqAnswers.includes(null) || rating === 0}
-                style={submitBtn(mcqAnswers.includes(null) || rating === 0)}
+              
+              <button 
+                onClick={handleSubmit} 
+                disabled={rating === 0}
+                style={{ ...submitBtn, opacity: rating === 0 ? 0.5 : 1 }}
               >
-                Submit Feedback <FaPaperPlane />
+                <FaPaperPlane style={{ marginRight: '10px' }} /> Submit Feedback
               </button>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* FOOTER */}
-        <div style={footerNav}>
-          <button
-            disabled={currentStep === 0}
-            onClick={() => setCurrentStep((p) => p - 1)}
-            style={navBtn}
-          >
-            <FaArrowLeft /> Previous
-          </button>
-
-          {isMCQ && mcqAnswers[currentStep] !== null && (
-            <button
-              onClick={() => setCurrentStep((p) => p + 1)}
-              style={navBtn}
-            >
-              Next <FaArrowRight />
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );
 }
 
-/* ---------- SUCCESS ---------- */
-const SuccessScreen = ({ month }) => (
-  <div style={successOverlay}>
-    <motion.div animate={{ scale: 1 }} style={successCard}>
-      <div style={checkCircle}><FaCheck /></div>
-      <h2>Feedback Received</h2>
-      <p>Your review for <b>{month}</b> submitted successfully.</p>
-      <button style={primaryBtn} onClick={() => window.location.reload()}>
-        Done
-      </button>
-    </motion.div>
-  </div>
-);
-/* ================= STYLES ================= */
-
-const pageWrapper = {
-  minHeight: "100vh",
-  background: "#0f172a",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "20px",
-  overflow: "hidden",
-  position: "relative",
-  fontFamily: "Inter, sans-serif",
+// ================= STYLES =================
+const outerWrapper = { 
+  background: '#0f172a', // Same Dark Background Edge-to-Edge
+  minHeight: '100vh', 
+  width: '100%', 
+  display: 'flex', 
+  alignItems: 'center', 
+  justifyContent: 'center',
+  padding: '15px',
+  boxSizing: 'border-box',
+  fontFamily: "'Inter', sans-serif"
 };
 
-const blob1 = {
-  position: "absolute",
-  top: "-10%",
-  left: "-10%",
-  width: "40%",
-  height: "40%",
-  background:
-    "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)",
+const containerStyle = { 
+  background: '#1e293b', 
+  padding: '35px 25px', 
+  borderRadius: '28px', 
+  color: '#fff', 
+  width: '100%', 
+  maxWidth: '460px', 
+  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+  border: '1px solid #334155'
 };
 
-const blob2 = {
-  position: "absolute",
-  bottom: "-10%",
-  right: "-10%",
-  width: "50%",
-  height: "50%",
-  background:
-    "radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%)",
-};
+const headerSection = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '25px' };
+const stepCounter = { background: '#0f172a', padding: '5px 12px', borderRadius: '10px', fontSize: '13px', color: '#94a3b8', border: '1px solid #334155' };
 
-const mainContainer = {
-  width: "100%",
-  maxWidth: "600px",
-  background: "rgba(255,255,255,0.03)",
-  backdropFilter: "blur(20px)",
-  borderRadius: "32px",
-  padding: "40px",
-  border: "1px solid rgba(255,255,255,0.1)",
-  zIndex: 10,
-};
+const progressContainer = { width: '100%', height: '8px', background: '#334155', borderRadius: '10px', marginBottom: '35px', overflow: 'hidden' };
+const progressFill = { height: '100%', background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)', transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)' };
 
-const headerNav = { marginBottom: 40 };
+const qText = { fontSize: '22px', fontWeight: '700', marginBottom: '30px', lineHeight: '1.3', color: '#f8fafc' };
 
-const stepIndicator = {
-  color: "#94a3b8",
-  fontSize: 14,
-  fontWeight: 600,
-  marginBottom: 12,
-};
-
-const progressContainer = {
-  width: "100%",
-  height: 4,
-  background: "rgba(255,255,255,0.1)",
-  borderRadius: 10,
-};
-
-const progressFill = {
-  height: "100%",
-  background: "linear-gradient(90deg, #6366f1, #a855f7)",
-  borderRadius: 10,
-};
-
-const questionSection = { minHeight: "350px" };
-
-const questionTitle = {
-  color: "#fff",
-  fontSize: 24,
-  fontWeight: 700,
-  marginBottom: 30,
-};
-
-const optionsContainer = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 12,
-};
-
-const optionBtn = (active) => ({
-  display: "flex",
-  alignItems: "center",
-  padding: "18px 24px",
-  borderRadius: "16px",
-  border: active ? "1px solid #6366f1" : "1px solid rgba(255,255,255,0.1)",
-  background: active
-    ? "rgba(99,102,241,0.2)"
-    : "rgba(255,255,255,0.05)",
-  color: "#fff",
-  cursor: "pointer",
+const optBtn = (active) => ({ 
+  display: 'flex', alignItems: 'center', width: '100%', padding: '16px', margin: '14px 0', 
+  borderRadius: '16px', background: active ? 'rgba(59, 130, 246, 0.1)' : '#0f172a', 
+  color: active ? '#60a5fa' : '#cbd5e1', border: active ? '2px solid #3b82f6' : '1px solid #334155', 
+  cursor: 'pointer', textAlign: 'left', fontSize: '16px', transition: '0.2s all', fontWeight: active ? '600' : '400'
 });
 
-const optionNum = {
-  marginRight: 12,
-  fontWeight: 700,
-  color: "#94a3b8",
-};
-
-const optionLabel = { flex: 1 };
-
-const footerNav = {
-  display: "flex",
-  justifyContent: "space-between",
-  marginTop: 30,
-};
-
-const navBtn = {
-  background: "none",
-  border: "none",
-  color: "#94a3b8",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-};
-
-const finalSection = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 20,
-};
-
-const inputGroup = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-};
-
-const fieldLabel = {
-  color: "#94a3b8",
-  fontSize: 14,
-  fontWeight: 600,
-};
-
-const textInput = {
-  background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 12,
-  padding: 15,
-  color: "#fff",
-  minHeight: 80,
-};
-
-const ratingWrapper = { textAlign: "center" };
-
-const starBox = {
-  display: "flex",
-  justifyContent: "center",
-  gap: 10,
-};
-
-const starIcon = (active) => ({
-  fontSize: 32,
-  cursor: "pointer",
-  color: active ? "#f59e0b" : "rgba(255,255,255,0.2)",
+const optCircle = (active) => ({
+  width: '28px', height: '28px', borderRadius: '50%', background: active ? '#3b82f6' : '#1e293b',
+  color: active ? '#fff' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  marginRight: '15px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #334155'
 });
 
-const submitBtn = (disabled) => ({
-  padding: 18,
-  borderRadius: 16,
-  border: "none",
-  background: disabled
-    ? "#334155"
-    : "linear-gradient(135deg,#6366f1,#a855f7)",
-  color: "#fff",
-  cursor: disabled ? "not-allowed" : "pointer",
-});
+const labelStyle = { fontSize: '14px', color: '#94a3b8', marginBottom: '8px', display: 'block', fontWeight: '500' };
+const inputStyle = { width: '100%', padding: '14px', borderRadius: '12px', background: '#0f172a', color: '#fff', marginBottom: '22px', border: '1px solid #334155', outline: 'none', resize: 'none' };
+const ratingSection = { margin: '10px 0 30px 0', textAlign: 'center', background: '#0f172a', padding: '25px', borderRadius: '20px', border: '1px solid #334155' };
+const submitBtn = { background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', padding: '20px', width: '100%', border: 'none', borderRadius: '16px', color: '#fff', fontWeight: 'bold', fontSize: '17px', cursor: 'pointer', boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)' };
 
-const successOverlay = {
-  position: "fixed",
-  inset: 0,
-  background: "#0f172a",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const successCard = {
-  background: "rgba(255,255,255,0.03)",
-  padding: 40,
-  borderRadius: 24,
-  textAlign: "center",
-};
-
-const checkCircle = {
-  width: 80,
-  height: 80,
-  borderRadius: "50%",
-  background: "rgba(16,185,129,0.1)",
-  color: "#10b981",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  margin: "0 auto 20px",
-  fontSize: 32,
-};
-
-const primaryBtn = {
-  padding: "12px 40px",
-  borderRadius: 12,
-  border: "none",
-  background: "#6366f1",
-  color: "#fff",
-  cursor: "pointer",
-};
+const successCard = { textAlign: 'center', color: '#fff', maxWidth: '400px', padding: '20px' };
+const lockBadge = { marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '10px', background: '#1e293b', padding: '10px 20px', borderRadius: '12px', fontSize: '12px', color: '#64748b', border: '1px solid #334155', letterSpacing: '1px' };
+const finalBox = { display: 'flex', flexDirection: 'column' };

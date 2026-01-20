@@ -1,206 +1,126 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { motion } from "framer-motion";
 
-export default function AdminDashboard() {
+export default function AdminFeedback() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchFeedbacks = async () => {
+    const fetch = async () => {
       try {
-        let API = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
-        API = API.replace(/\/$/, "");
-        const res = await axios.get(`${API}/api/feedback/admin/all`);
-        setFeedbacks(res.data || []);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to fetch feedbacks.");
-      } finally {
-        setLoading(false);
-      }
+        const res = await axios.get("https://student-management-system-4-hose.onrender.com/api/feedback/admin/all");
+        // Backend se data aane ke baad console check karein: console.log(res.data.feedbacks);
+        setFeedbacks(res.data.feedbacks || []);
+      } catch (err) { console.error("Error fetching feedback:", err); }
+      setLoading(false);
     };
-    fetchFeedbacks();
+    fetch();
   }, []);
 
-  const getTypeStyle = (type) => {
-    switch (type?.toLowerCase()) {
-      case 'complaint': return { bg: "#fee2e2", text: "#ef4444" };
-      case 'suggestion': return { bg: "#fef3c7", text: "#f59e0b" };
-      default: return { bg: "#dcfce7", text: "#10b981" };
-    }
+  // Calculation Logic: 1-2 = Positive, 3-4 = Negative
+  const calcSentiment = (mcq) => {
+    if (!mcq || mcq.length === 0) return { pos: 0, neg: 0 };
+    
+    // Yahan 'answer' key check kar rahe hain jo controller se aa rahi hai
+    const posCount = mcq.filter(item => item.answer <= 2).length;
+    const negCount = mcq.length - posCount;
+    
+    const posPercent = Math.round((posCount / mcq.length) * 100);
+    const negPercent = 100 - posPercent;
+    
+    return { pos: posPercent, neg: negPercent };
   };
 
-  if (loading) return (
-    <div style={styles.center}>
-      <div style={styles.loader}></div>
-      <p style={{marginTop: 15, color: "#94a3b8"}}>Loading Feedbacks...</p>
-    </div>
-  );
+  const grouped = feedbacks.reduce((acc, f) => {
+    const months = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const key = `${months[f.month]} ${f.year}`;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(f);
+    return acc;
+  }, {});
+
+  if (loading) return <div style={center}>Loading Analytics Data...</div>;
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Feeter</h1>
-          <p style={styles.subtitle}>Manage and review student responses</p>
-        </div>
-        <div style={styles.statsBadge}>
-          Total: {feedbacks.length}
-        </div>
-      </header>
-
-      {error && <div style={styles.errorCard}>{error}</div>}
-
-      {feedbacks.length === 0 ? (
-        <div style={styles.noDataCard}>
-          <span style={{fontSize: 40}}>Empty</span>
-          <p>No feedbacks received yet.</p>
-        </div>
+    <div style={container}>
+      <h1 style={title}>System Feedback Analytics</h1>
+      
+      {Object.keys(grouped).length === 0 ? (
+        <div style={center}>No feedback records found.</div>
       ) : (
-        <div style={styles.grid}>
-          {feedbacks.map((f) => {
-            const theme = getTypeStyle(f.type);
-            return (
-              <div key={f._id} style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <div style={styles.avatar}>
-                    {f.studentName?.charAt(0).toUpperCase() || "S"}
-                  </div>
-                  <div style={{flex: 1}}>
-                    <h3 style={styles.studentName}>{f.studentName || "Anonymous Student"}</h3>
-                    <span style={{...styles.badge, backgroundColor: theme.bg, color: theme.text}}>
-                      {f.type || "Feedback"}
-                    </span>
-                  </div>
-                </div>
-                <div style={styles.cardBody}>
-                  <p style={styles.comment}>"{f.comment}"</p>
-                </div>
-                <div style={styles.cardFooter}>
-                  <span style={styles.date}>{new Date().toLocaleDateString()}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        Object.keys(grouped).map(monthKey => (
+          <div key={monthKey} style={monthSection}>
+            <h2 style={monthTitle}>{monthKey}</h2>
+            <div style={grid}>
+              {grouped[monthKey].map(f => {
+                const { pos, neg } = calcSentiment(f.mcq_answers);
+                return (
+                  <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} key={f.id} style={card}>
+                    <div style={cardTop}>
+                      <span style={name}>{f.name}</span>
+                      <span style={badge}>Class {f.class}</span>
+                    </div>
+                    
+                    <div style={ratingBox}>
+                      {"⭐".repeat(f.rating)}
+                      <span style={{fontSize: '12px', color: '#64748b', marginLeft: '8px'}}>({f.rating}/5)</span>
+                    </div>
+
+                    <div style={commentBox}>
+                      <p style={textStyle}><b>Issue:</b> {f.problem || "None"}</p>
+                      <p style={textStyle}><b>Suggest:</b> {f.suggestion || "None"}</p>
+                    </div>
+
+                    {/* Stats Section */}
+                    <div style={statsContainer}>
+                      <div style={statHeader}>
+                        <span style={{color: '#10b981'}}>Positive: {pos}%</span>
+                        <span style={{color: '#f87171'}}>Negative: {neg}%</span>
+                      </div>
+                      
+                      {/* Double Progress Bar */}
+                      <div style={multiBarBg}>
+                        <div style={{...posBar, width: `${pos}%`}} />
+                        <div style={{...negBar, width: `${neg}%`}} />
+                      </div>
+                      
+                      <p style={footerNote}>Based on 10 Question Analysis</p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        ))
       )}
     </div>
   );
 }
 
-/* ================= STYLES ================= */
-const styles = {
-  container: {
-    padding: "40px 5%",
-    background: "#0f172a",
-    minHeight: "100vh",
-    fontFamily: "'Inter', sans-serif",
-    color: "#f8fafc"
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "40px",
-    borderBottom: "1px solid #1e293b",
-    paddingBottom: "20px"
-  },
-  title: {
-    fontSize: "32px",
-    fontWeight: "800",
-    margin: 0,
-    background: "linear-gradient(to right, #60a5fa, #a855f7)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent"
-  },
-  subtitle: { color: "#94a3b8", margin: "5px 0 0 0", fontSize: "14px" },
-  statsBadge: {
-    background: "#1e293b",
-    padding: "8px 20px",
-    borderRadius: "12px",
-    border: "1px solid #334155",
-    fontWeight: "600",
-    color: "#60a5fa"
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-    gap: "25px"
-  },
-  card: {
-    background: "#1e293b",
-    borderRadius: "20px",
-    padding: "24px",
-    border: "1px solid #334155",
-    transition: "transform 0.2s, box-shadow 0.2s",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between"
-  },
-  cardHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-    marginBottom: "15px"
-  },
-  avatar: {
-    width: "45px",
-    height: "45px",
-    borderRadius: "12px",
-    background: "#334155",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "18px",
-    fontWeight: "bold",
-    color: "#60a5fa"
-  },
-  studentName: { fontSize: "17px", margin: 0, fontWeight: "600", color: "#f1f5f9" },
-  badge: {
-    fontSize: "11px",
-    padding: "3px 10px",
-    borderRadius: "20px",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    marginTop: "5px",
-    display: "inline-block"
-  },
-  cardBody: {
-    margin: "15px 0",
-    minHeight: "60px"
-  },
-  comment: {
-    fontSize: "15px",
-    lineHeight: "1.6",
-    color: "#cbd5e1",
-    fontStyle: "italic",
-    margin: 0
-  },
-  cardFooter: {
-    borderTop: "1px solid #334155",
-    paddingTop: "15px",
-    marginTop: "10px",
-    display: "flex",
-    justifyContent: "flex-end"
-  },
-  date: { fontSize: "12px", color: "#64748b" },
-  center: { 
-    height: "100vh", 
-    display: "flex", 
-    flexDirection: "column", 
-    justifyContent: "center", 
-    alignItems: "center",
-    background: "#0f172a" 
-  },
-  loader: {
-    border: "4px solid #1e293b",
-    borderTop: "4px solid #60a5fa",
-    borderRadius: "50%",
-    width: "40px",
-    height: "40px",
-    animation: "spin 1s linear infinite",
-  },
-  errorCard: { background: "#7f1d1d", color: "#fecaca", padding: "15px", borderRadius: "10px", marginBottom: "20px" },
-  noDataCard: { textAlign: "center", padding: "100px", color: "#475569" }
-};
+// ================= STYLES =================
+const container = { padding: "40px 20px", background: "#0f172a", minHeight: "100vh", color: "#f8fafc" };
+const title = { fontSize: "28px", fontWeight: "900", color: "#60a5fa", marginBottom: "30px", textAlign: 'center' };
+const monthSection = { marginBottom: "50px" };
+const monthTitle = { borderLeft: "4px solid #6366f1", paddingLeft: "15px", color: "#fff", fontSize: "20px", marginBottom: "20px" };
+const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px" };
+
+const card = { background: "#1e293b", borderRadius: "18px", padding: "20px", border: "1px solid #334155", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" };
+const cardTop = { display: "flex", justifyContent: "space-between", alignItems: 'center', marginBottom: "12px" };
+const name = { fontWeight: "700", color: "#f8fafc", fontSize: '16px' };
+const badge = { background: "rgba(99, 102, 241, 0.2)", color: "#818cf8", padding: "4px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: 'bold' };
+const ratingBox = { marginBottom: "15px" };
+
+const commentBox = { background: "#0f172a", padding: "12px", borderRadius: "10px", marginBottom: "20px" };
+const textStyle = { fontSize: "13px", color: "#94a3b8", margin: "4px 0", lineHeight: '1.4' };
+
+const statsContainer = { marginTop: "10px" };
+const statHeader = { display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "800", marginBottom: "8px" };
+
+// Progress Bar Style
+const multiBarBg = { height: "10px", background: "#334155", borderRadius: "20px", display: "flex", overflow: "hidden" };
+const posBar = { height: "100%", background: "#10b981", transition: "width 0.5s ease-in-out" };
+const negBar = { height: "100%", background: "#f87171", transition: "width 0.5s ease-in-out" };
+
+const footerNote = { fontSize: "10px", color: "#475569", marginTop: "8px", textAlign: 'center', fontStyle: 'italic' };
+const center = { textAlign: "center", padding: "100px", color: "#94a3b8", fontSize: '18px' };
