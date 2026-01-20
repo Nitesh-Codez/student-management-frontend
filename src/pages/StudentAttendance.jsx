@@ -19,8 +19,10 @@ const StudentAttendance = () => {
     primary: "#0f172a",
     accent: "#3b82f6",
     bg: "#ffffff",
-    lightRed: "#ffcece", // Absent row ke liye
-    todayHighlight: "#b9d3f1" // Today's highlight
+    lightRed: "#ffcccc",   
+    lightGreen: "#95ffb1", 
+    lightYellow: "#fff5b6",
+    todayDefault: "#d1e8ff" 
   };
 
   const getPercentageColor = (perc) => {
@@ -54,7 +56,6 @@ const StudentAttendance = () => {
 
     const today = new Date();
     const todayStr = today.toDateString();
-
     let todayRecord = data.find((a) => new Date(a.date).toDateString() === todayStr);
     
     if (y === today.getFullYear() && m === today.getMonth() + 1) {
@@ -62,7 +63,6 @@ const StudentAttendance = () => {
         todayRecord = { date: today.toISOString(), status: "Not Marked", isToday: true };
         data.push(todayRecord);
       } else {
-        // Tagging the existing record as today
         data = data.map(rec => new Date(rec.date).toDateString() === todayStr ? {...rec, isToday: true} : rec);
       }
       setTodayStatus(todayRecord.status);
@@ -71,10 +71,10 @@ const StudentAttendance = () => {
     }
 
     setFiltered(data);
-
     const validDays = data.filter((a) => a.status === "Present" || a.status === "Absent").length;
     const presentDays = data.filter((a) => a.status === "Present").length;
     const perc = validDays === 0 ? 0 : (presentDays / validDays) * 100;
+    
     setPercentage(perc.toFixed(1));
     setMarks(perc <= 75 ? 0 : Math.ceil((perc - 75) / 5));
   }, [month, attendance]);
@@ -89,11 +89,17 @@ const StudentAttendance = () => {
 
   return (
     <div style={pageWrapper}>
-      {/* --- 1. HEADER --- */}
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { overflow-x: hidden; width: 100%; -webkit-font-smoothing: antialiased; }
+      `}</style>
+
+      {/* --- REFINED HEADER --- */}
       <div style={headerSection}>
-        <div>
-          <h1 style={mainTitle}>Attendance Analytics</h1>
-          <p style={subTitle}>Tracking performance for <span style={{color: colors.accent, fontWeight: '700'}}>{user?.name}</span></p>
+        <div style={{display: 'flex', flexDirection: 'column'}}>
+          <span style={headerTag}>SMART STUDENTS CLASSES </span>
+          <h1 style={mainTitle}>Attendance</h1>
+          <p style={subTitle}>Tracking: <span style={{fontWeight: '700', color: colors.primary}}>{user?.name}</span></p>
         </div>
         <div style={monthPickerWrapper}>
           <input
@@ -105,35 +111,34 @@ const StudentAttendance = () => {
         </div>
       </div>
 
-      {/* --- 2. HERO SUMMARY --- */}
+      {/* --- HERO SECTION --- */}
       <div style={heroCard}>
         <div style={heroText}>
           <div style={classBadge}>Batch: {user?.class || "N/A"}</div>
-          <h2 style={{fontSize: '32px', margin: '10px 0 5px 0'}}>{percentage}%</h2>
-          <p style={{opacity: 0.7, fontSize: '14px', margin: 0}}>Total Monthly Attendance</p>
-          <div style={marksTag}>
-            Attendance Marks: <span style={{fontWeight: '800'}}>{marks}</span>
-          </div>
+          <h2 style={{fontSize: '38px', margin: '12px 0 4px 0', fontWeight: '900', letterSpacing: '-1px'}}>{percentage}%</h2>
+          <div style={marksLabelLine}>Monthly Attendance Score</div>
         </div>
         
+        {/* Circle with "Marks" text */}
         <div style={{
-          width: "110px", height: "110px", borderRadius: "50%",
-          border: `10px solid ${getPercentageColor(percentage)}`,
-          display: "flex", justifyContent: "center", alignItems: "center",
-          boxShadow: `0 0 20px ${getPercentageColor(percentage)}44`,
-          background: 'rgba(255,255,255,0.05)'
+          width: "100px", height: "100px", borderRadius: "50%",
+          border: `6px solid ${getPercentageColor(percentage)}`,
+          display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+          background: "rgba(255,255,255,0.08)",
+          boxShadow: `0 0 20px ${getPercentageColor(percentage)}33`,
         }}>
-          <span style={{fontSize: '20px', fontWeight: '800'}}>{marks}Marks</span>
+          <span style={{fontSize: '24px', fontWeight: '900', lineHeight: '1'}}>{marks}</span>
+          <span style={{fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', marginTop: '2px', opacity: 0.9}}>Marks</span>
         </div>
       </div>
 
-      {/* --- 3. QUICK STATS --- */}
+      {/* --- STATS ROW --- */}
       <div style={statsRow}>
         <div style={statBox}>
           <span style={{...statNum, color: colors.present}}>{filtered.filter(a => a.status === "Present").length}</span>
           <span style={statLabel}>Present</span>
         </div>
-        <div style={statBox}>
+        <div style={{...statBox, borderLeft: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9'}}>
           <span style={{...statNum, color: colors.absent}}>{filtered.filter(a => a.status === "Absent").length}</span>
           <span style={statLabel}>Absent</span>
         </div>
@@ -143,47 +148,51 @@ const StudentAttendance = () => {
         </div>
       </div>
 
-      {/* --- 4. DATA LOG --- */}
+      {/* --- LOG SECTION --- */}
       <div style={logContainer}>
         <div style={logHeader}>
-          <h3 style={{margin: 0, fontSize: '16px', fontWeight: '700'}}>Recent Activity</h3>
-          <span style={{fontSize: '12px', color: colors.accent, fontWeight: 'bold'}}>
-             {todayStatus === "Present" ? "✅ Marked for Today" : todayStatus === "Absent" ? "❌ Absent Today" : "⏳ Today Pending"}
-          </span>
+          <h3 style={{fontSize: '13px', fontWeight: '900', letterSpacing: '0.5px', color: '#475569'}}>RECENT ACTIVITY</h3>
+          <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
+             <div style={{width: '6px', height: '6px', borderRadius: '50%', background: todayStatus === "Present" ? colors.present : colors.accent}}></div>
+             <span style={{fontSize: '11px', color: colors.accent, fontWeight: '800'}}>
+                {todayStatus === "Not Marked" ? "STATUS PENDING" : todayStatus?.toUpperCase()}
+             </span>
+          </div>
         </div>
         
         <div style={listWrapper}>
           {filtered.length === 0 ? (
-            <div style={emptyState}>No records discovered for this period.</div>
+            <div style={emptyState}>No attendance records for this month.</div>
           ) : (
             [...filtered]
               .sort((a, b) => new Date(b.date) - new Date(a.date))
               .map((a, i) => {
                 const isAbsent = a.status === "Absent";
+                const isPresent = a.status === "Present";
+                const isHoliday = a.status === "Holiday";
                 const isToday = a.isToday;
 
+                let rowBg = "transparent";
+                let leftBorder = "none";
+
+                if (isHoliday) { rowBg = colors.lightYellow; leftBorder = `6px solid ${colors.holiday}`; }
+                else if (isToday) {
+                    rowBg = isPresent ? colors.lightGreen : (isAbsent ? colors.lightRed : colors.todayDefault);
+                    leftBorder = `6px solid ${isPresent ? colors.present : (isAbsent ? colors.absent : colors.accent)}`;
+                } else if (isAbsent) { rowBg = colors.lightRed; leftBorder = `6px solid ${colors.absent}`; }
+
                 return (
-                  <div key={i} style={{
-                    ...attendanceItem,
-                    backgroundColor: isToday ? colors.todayHighlight : (isAbsent ? colors.lightRed : "transparent"),
-                    borderLeft: isToday ? `6px solid ${colors.accent}` : (isAbsent ? `6px solid ${colors.absent}` : "none"),
-                    padding: "15px",
-                    borderRadius: "12px",
-                    boxShadow: isToday ? "0 4px 12px rgba(59, 130, 246, 0.1)" : "none",
-                    marginBottom: "8px"
-                  }}>
+                  <div key={i} style={{ ...attendanceItem, backgroundColor: rowBg, borderLeft: leftBorder }}>
                     <div style={dateSection}>
-                      <div style={{...dateText, color: isToday ? colors.accent : "#1e293b"}}>
-                        {formatDate(a.date)} {isToday && "(Today)"}
+                      <div style={{...dateText, color: "#1e293b"}}>
+                        {formatDate(a.date)} {isToday && <span style={{color: colors.accent, fontSize: '10px', marginLeft: '4px'}}>• TODAY</span>}
                       </div>
                       <div style={dayText}>{new Date(a.date).toLocaleDateString('en-US', { weekday: 'long' })}</div>
                     </div>
                     <div style={{
                       ...statusPill,
-                      backgroundColor: getStatusColor(a.status, colors) + (isToday ? "33" : "15"),
+                      backgroundColor: getStatusColor(a.status, colors) + "22",
                       color: getStatusColor(a.status, colors),
-                      border: `1px solid ${getStatusColor(a.status, colors)}33`,
-                      transform: isToday ? "scale(1.1)" : "none"
                     }}>
                       {a.status}
                     </div>
@@ -198,30 +207,49 @@ const StudentAttendance = () => {
 };
 
 // --- STYLES ---
+const pageWrapper = { width: "100%", minHeight: "100vh", background: "#fff", paddingBottom: "60px", overflowX: "hidden" };
 
-const pageWrapper = { minHeight: "100vh", width: "100%", background: "#fff", paddingBottom: "100px", fontFamily: "'Inter', sans-serif" };
-const headerSection = { padding: "40px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f1f5f9" };
-const mainTitle = { fontSize: "22px", fontWeight: "900", margin: 0 };
-const subTitle = { fontSize: "13px", color: "#64748b", margin: "4px 0 0 0" };
-const monthPickerWrapper = { background: "#f8fafc", padding: "8px 12px", borderRadius: "10px", border: "1px solid #e2e8f0" };
-const monthInput = { border: "none", background: "transparent", fontWeight: "bold", outline: "none", cursor: "pointer" };
-const heroCard = { margin: "20px", background: "#0f172a", borderRadius: "24px", padding: "30px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" };
-const heroText = { display: "flex", flexDirection: "column" };
-const classBadge = { background: "rgba(255,255,255,0.1)", padding: "4px 10px", borderRadius: "6px", fontSize: "10px", textTransform: "uppercase" };
-const marksTag = { marginTop: "12px", fontSize: "12px", background: "#3b82f6", padding: "5px 12px", borderRadius: "20px", width: "fit-content" };
-const statsRow = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", margin: "0 20px 30px" };
-const statBox = { background: "#fff", padding: "15px", textAlign: "center", borderRadius: "16px", border: "1px solid #f1f5f9", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" };
-const statNum = { fontSize: "18px", fontWeight: "900", display: "block" };
-const statLabel = { fontSize: "10px", color: "#64748b", fontWeight: "700", textTransform: "uppercase" };
-const logContainer = { padding: "0 20px" };
-const logHeader = { display: "flex", justifyContent: "space-between", marginBottom: "15px" };
-const listWrapper = { display: "flex", flexDirection: "column" };
-const attendanceItem = { display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.3s ease" };
+const headerSection = { padding: "35px 20px 25px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", width: "100%", borderBottom: "1px solid #f1f5f9" };
+const headerTag = {
+  background: "linear-gradient(135deg, #0f172a 0%, #334155 100%)", // Dark Premium Gradient
+  color: "#ffffff",
+  padding: "6px 15px",
+  borderRadius: "12px",
+  fontSize: "16px",
+  fontWeight: "900",
+  width: "fit-content",
+  letterSpacing: "2px",
+  display: "inline-block",
+  whiteSpace: "nowrap" ,
+  marginBottom: "10px",
+  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.2)", // Subtle shadow for 'pop' effect
+  textTransform: "uppercase",
+  borderLeft: "4px solid #3b82f6" // Blue accent line
+};const mainTitle = { fontSize: "28px", fontWeight: "900", margin: 0, color: "#0f172a", lineHeight: '1' };
+const subTitle = { fontSize: "13px", color: "#64748b", marginTop: "6px" };
+
+const monthPickerWrapper = { background: "#f8fafc", padding: "10px 12px", borderRadius: "12px", border: "1px solid #e2e8f0" };
+const monthInput = { border: "none", background: "transparent", fontWeight: "800", outline: "none", fontSize: "13px", color: "#0f172a", cursor: "pointer" };
+
+const heroCard = { width: "100%", background: "#0f172a", padding: "35px 25px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" };
+const heroText = { display: "flex", flexDirection: "column", flex: 1 };
+const classBadge = { background: "rgba(255,255,255,0.1)", padding: "5px 10px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", width: "fit-content" };
+const marksLabelLine = { fontSize: "18px", color: "#5eff00", fontWeight: "500" };
+
+const statsRow = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", width: "100%", background: "#fff", borderBottom: "1px solid #f1f5f9" };
+const statBox = { padding: "22px 10px", textAlign: "center" };
+const statNum = { fontSize: "22px", fontWeight: "900", display: "block" };
+const statLabel = { fontSize: "10px", color: "#64748b", fontWeight: "800", textTransform: "uppercase", marginTop: '4px' };
+
+const logContainer = { width: "100%" };
+const logHeader = { padding: "20px", background: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: 'center', borderBottom: "1px solid #e2e8f0" };
+const listWrapper = { display: "flex", flexDirection: "column", width: "100%" };
+const attendanceItem = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: "1px solid #f1f5f9", width: "100%", transition: 'background 0.3s' };
 const dateSection = { display: "flex", flexDirection: "column" };
-const dateText = { fontSize: "14px", fontWeight: "800" };
-const dayText = { fontSize: "11px", color: "#94a3b8" };
-const statusPill = { padding: "6px 12px", borderRadius: "8px", fontSize: "10px", fontWeight: "900" };
-const emptyState = { textAlign: "center", padding: "50px", color: "#cbd5e1", fontStyle: "italic" };
+const dateText = { fontSize: "16px", fontWeight: "800", letterSpacing: '-0.2px' };
+const dayText = { fontSize: "12px", color: "#94a3b8", fontWeight: '500' };
+const statusPill = { padding: "7px 14px", borderRadius: "10px", fontSize: "11px", fontWeight: "900", textTransform: "uppercase", letterSpacing: '0.3px' };
+const emptyState = { textAlign: "center", padding: "60px 20px", color: "#cbd5e1", fontWeight: '600', fontSize: '14px' };
 
 const getStatusColor = (status, colors) => {
   switch (status) {
