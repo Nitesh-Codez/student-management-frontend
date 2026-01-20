@@ -154,7 +154,7 @@ const FeePopup = ({ isOpen, onClose, amount }) => {
 /* =========================
    DASHBOARD HOME
 ========================= */
-const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
+const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending, user }) => {
   const [greeting, setGreeting] = useState("");
   const [randomQuote, setRandomQuote] = useState("");
   const [imgIndex, setImgIndex] = useState(0);
@@ -179,7 +179,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
     { title: "Marks", icon: <FaChartLine />, path: "marks", grad: theme.gradients.info, sub: "Performance" },
     { title: "Tasks", icon: <FaTasks />, path: "task-update", grad: theme.gradients.primary, count: pendingTasks, sub: "Assignments" },
     { title: "Study Lab", icon: <FaBookOpen />, path: "study-material", grad: theme.gradients.dark, sub: "Library" },
-    { title: "Connect", icon: <FaComments />, path: "chat", grad: theme.gradients.purple, sub: "Messages" },
+    { title: "Feedback", icon: <FaStar />, path: "feedback", grad: theme.gradients.purple, showNotice: isFeedbackPending, sub: "Monthly Review" },
   ];
 
   return (
@@ -215,7 +215,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, user }) => {
       <div style={cardGrid}>
         {cards.map((c, i) => (
           <motion.div key={i} whileTap={{ scale: 0.95 }} onClick={() => navigate(c.path)} style={{ ...cardBase, background: c.grad }}>
-            {c.showNotice && <div style={miniNoticeBadge}>DUE</div>}
+            {c.showNotice && <div style={miniNoticeBadge}>PENDING</div>}
             {c.count > 0 && <div style={miniNoticeBadge}>{c.count} NEW</div>}
             <div style={cardTopRow}>
                 <div style={iconCircle}>{c.icon}</div>
@@ -240,6 +240,7 @@ const StudentDashboard = () => {
   const [user, setUser] = useState(null);
   const [pendingTasks, setPendingTasks] = useState(0);
   const [isFeeUnpaid, setIsFeeUnpaid] = useState(false);
+  const [isFeedbackPending, setIsFeedbackPending] = useState(false);
   const [showFeePopup, setShowFeePopup] = useState(false);
   const [dynamicFeeAmount, setDynamicFeeAmount] = useState("500");
   const [isPhotoOpen, setIsPhotoOpen] = useState(false);
@@ -257,14 +258,17 @@ const StudentDashboard = () => {
     const fetchData = async () => {
       try {
         let activeNotis = [];
+        const today = new Date();
+        const currentMonth = today.getMonth() === 0 ? 12 : today.getMonth(); // Logic for target month
+        const currentYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
 
-        // Profile Photo
+        // 1. Profile Photo
         const photoRes = await axios.get(`${API_URL}/api/students/${storedUser.id}/profile-photo`);
         if (photoRes.data.success && photoRes.data.user?.profile_photo) {
           setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
         }
 
-        // Pending Tasks
+        // 2. Pending Tasks
         const taskRes = await axios.get(`${API_URL}/api/assignments/class/${storedUser.class}/${storedUser.id}`);
         if (taskRes.data.success) {
            const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED");
@@ -280,48 +284,51 @@ const StudentDashboard = () => {
            }
         }
 
-        // ======================
-        // FEES LOGIC (FIXED)
-      // ======================
-// NEW FEES LOGIC (Current Month Check)
-// ======================
-const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
-if (feeRes.data.success) {
-  const feesData = feeRes.data.fees;
-  
-  const today = new Date();
-  const currentMonth = today.getMonth(); // 0 = Jan, 1 = Feb...
-  const currentYear = today.getFullYear();
+        // 3. Feedback Notification Logic
+        const feedRes = await axios.get(`${API_URL}/api/feedback/student/${storedUser.id}`);
+        if (feedRes.data.success) {
+           const alreadyDone = feedRes.data.feedbacks?.some(f => f.month === currentMonth && f.year === currentYear);
+           if (!alreadyDone) {
+             setIsFeedbackPending(true);
+             activeNotis.push({
+               title: "Monthly Feedback",
+               desc: "Please submit your feedback for this month.",
+               icon: <FaStar />,
+               path: "feedback",
+               color: theme.gradients.purple
+             });
+           }
+        }
 
-  // Check kar rahe hain ki kya CURRENT month ki fees SUCCESSful hai?
-  const isPaidThisMonth = feesData.some(f => {
-    const fDate = new Date(f.payment_date);
-    return fDate.getMonth() === currentMonth && 
-           fDate.getFullYear() === currentYear && 
-           f.payment_status === "SUCCESS";
-  });
+        // 4. Fees Logic
+        const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
+        if (feeRes.data.success) {
+          const feesData = feeRes.data.fees;
+          const realMonth = today.getMonth();
+          const realYear = today.getFullYear();
 
-  if (!isPaidThisMonth) {
-    // Agar current month ki fees nahi mili, toh pichli kisi bhi record se amount utha lo
-    // Ya phir default amount set kar do (jaise 500)
-    const lastAmount = feesData.length > 0 ? feesData[0].amount : "500";
-    
-    setIsFeeUnpaid(true);
-    setShowFeePopup(true);
-    setDynamicFeeAmount(lastAmount);
+          const isPaidThisMonth = feesData.some(f => {
+            const fDate = new Date(f.payment_date);
+            return fDate.getMonth() === realMonth && fDate.getFullYear() === realYear && f.payment_status === "SUCCESS";
+          });
 
-    activeNotis.push({ 
-      title: "Fees Pending", 
-      desc: "Your Fee have'nt Deposit Yet!.", 
-      icon: <FaMoneyBillWave />, 
-      path: "fees", 
-      color: theme.gradients.warning 
-    });
-  } else {
-    setIsFeeUnpaid(false);
-    setShowFeePopup(false);
-  }
-}
+          if (!isPaidThisMonth) {
+            const lastAmount = feesData.length > 0 ? feesData[0].amount : "500";
+            setIsFeeUnpaid(true);
+            setShowFeePopup(true);
+            setDynamicFeeAmount(lastAmount);
+            activeNotis.push({ 
+              title: "Fees Pending", 
+              desc: "Monthly fee payment is due.", 
+              icon: <FaMoneyBillWave />, 
+              path: "fees", 
+              color: theme.gradients.warning 
+            });
+          } else {
+            setIsFeeUnpaid(false);
+            setShowFeePopup(false);
+          }
+        }
 
         setNotifications(activeNotis);
       } catch (err) { 
@@ -331,7 +338,6 @@ if (feeRes.data.success) {
 
     fetchData();
   }, [navigate]);
-
 
   if (!user) return null;
 
@@ -375,7 +381,6 @@ if (feeRes.data.success) {
                   { name: "Fees/Records", path: "fees", icon: <FaMoneyBillWave /> },
                   { name: "Feedback", path: "feedback", icon: <FaStar /> },
                   { name: "My Marks", path: "marks", icon: <FaChartLine /> },
-
                   { name: "Connect Chat", path: "chat", icon: <FaComments /> },
                 ].map((item, idx) => (
                   <Link key={idx} to={item.path} onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes(item.path))}>
@@ -393,7 +398,7 @@ if (feeRes.data.success) {
 
       <main style={mainBody}>
         <Routes>
-          <Route index element={<DashboardHome navigate={navigate} isFeeUnpaid={isFeeUnpaid} pendingTasks={pendingTasks} user={user} />} />
+          <Route index element={<DashboardHome navigate={navigate} isFeeUnpaid={isFeeUnpaid} isFeedbackPending={isFeedbackPending} pendingTasks={pendingTasks} user={user} />} />
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
@@ -416,12 +421,11 @@ if (feeRes.data.success) {
 };
 
 /* =========================
-   STYLES (CONSTANT)
+   STYLES (UNCHANGED)
 ========================= */
 const modernWelcomeStyle = (img) => ({
   position: 'relative', width: '100%', maxWidth: '1100px', margin: '0 auto', minHeight: '220px', padding: '1px',borderRadius: '24px', marginBottom: '25px', display: 'flex', alignItems: 'center', color: '#fff', backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)'
 });
-
 const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
 const headerWrapper = { position: "fixed", top: 15, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center", padding: "10px, 1px" };
 const headerContent = { width: "100%", maxWidth: "1100px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", borderRadius: "20px", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" };
