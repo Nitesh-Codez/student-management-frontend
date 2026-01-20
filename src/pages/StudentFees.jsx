@@ -99,11 +99,10 @@ const StudentFees = ({ user }) => {
       {isCurrentMonthUnpaid && (
         <div style={styles.feeNoticeBanner}>
           <div style={styles.noticeContent}>
-            <span style={styles.noticeIcon}>⚠️</span>
             <div>
-              <h4 style={{ margin: 0, color: "#fff" }}>Fees Pending!</h4>
+              <h4 style={{ margin: 0, color: "#fff" }}>Want to pay Advanced fee !</h4>
               <p style={{ marginTop: 4, fontSize: 13, opacity: 0.9 }}>
-                Please pay ₹{dynamicFee} for {months[new Date().getMonth()]} {new Date().getFullYear()}
+                 pay ₹{dynamicFee} for {months[new Date().getMonth()]} {new Date().getFullYear()}
               </p>
             </div>
           </div>
