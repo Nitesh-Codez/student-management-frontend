@@ -52,34 +52,52 @@ export default function StudentPage() {
   }, {});
 
   const handleSubmit = async (task) => {
-    const file = files[task.id];
-    if (!file) return alert("Select a file first!");
-    
-    // Final check before submission
-    const deadline = new Date(task.deadline);
-    const diffMs = currentTime - deadline;
-    if (diffMs > 3 * 24 * 60 * 60 * 1000) {
-      return alert("Late submission window closed (Max 3 days allowed).");
+  const file = files[task.id];
+  if (!file) return alert("Select a file first!");
+
+  // Deadline check (3 days rule)
+  const deadline = new Date(task.deadline);
+  const diffMs = currentTime - deadline;
+  if (diffMs > 3 * 24 * 60 * 60 * 1000) {
+    return alert("Late submission window closed (Max 3 days allowed).");
+  }
+
+  setUploadingId(task.id);
+
+  const fd = new FormData();
+  fd.append("file", file); 
+  fd.append("uploader_id", studentId);
+  fd.append("uploader_role", "student");
+  fd.append("student_id", studentId);
+  fd.append("class", studentClass);
+  fd.append("task_title", task.task_title); // Match backend requirement
+  fd.append("subject", task.subject);
+  
+  if(task.deadline) fd.append("deadline", task.deadline);
+
+  try {
+    const res = await axios.post(SUBMIT_API, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (res.data.success) {
+      alert("Submitted successfully! 🚀");
+      fetchTasks(); // Refresh list
+      setFocusedTask(null);
+      // Clear selected file for this task
+      setFiles(prev => {
+        const newFiles = { ...prev };
+        delete newFiles[task.id];
+        return newFiles;
+      });
     }
-
-    setUploadingId(task.id);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("uploader_id", studentId);
-    fd.append("uploader_role", "student");
-    fd.append("student_id", studentId);
-    fd.append("class", studentClass);
-    fd.append("task_title", task.task_title);
-    fd.append("subject", task.subject);
-    fd.append("uploaded_at", new Date().toISOString());
-
-    try {
-      const res = await axios.post(SUBMIT_API, fd);
-      if (res.data.success) { alert("Submitted! 🚀"); fetchTasks(); setFocusedTask(null); }
-    } catch (err) { alert("Submission failed."); }
-    finally { setUploadingId(null); }
-  };
-
+  } catch (err) {
+    console.error("Submission Error:", err.response?.data || err.message);
+    alert(`Error: ${err.response?.data?.message || "Submission failed."}`);
+  } finally {
+    setUploadingId(null);
+  }
+};
   const handleDeleteSubmission = async (submissionId) => {
     if (!window.confirm("Delete your submission?")) return;
     try {
@@ -195,8 +213,8 @@ export default function StudentPage() {
             ) : (
               <div style={uploadZone}>
                  {isExpired ? (
-                   <div style={{...customUploadBtn, borderColor: '#ffffff', color: '#ff4141',fontSize:"20px", cursor: 'not-allowed'}}>
-                     ❌ Sorry , Now Submission Closed (It's Too Late)
+                   <div style={{...customUploadBtn, borderColor: '#ff4141', color: '#ff4141', cursor: 'not-allowed'}}>
+                     ❌ Submission Closed (3+ Days Late)
                    </div>
                  ) : (
                    <>
