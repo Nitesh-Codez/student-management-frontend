@@ -20,27 +20,31 @@ export default function StudentPage() {
   const studentClass = user.class || "";
   const studentId = user.id || "";
 
-  // Update time every second for live countdown
+  // Live timer
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch tasks
   const fetchTasks = async () => {
     if (!studentClass || !studentId) return;
     try {
       const res = await axios.get(`${ASSIGNMENTS_API}/${studentClass}/${studentId}`);
       if (res.data.success) setTasks(res.data.assignments);
-    } catch (err) { console.error("Fetch Error:", err); }
-    finally { setLoading(false); }
+    } catch (err) {
+      console.error("Fetch Error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchTasks(); }, [studentClass, studentId]);
 
   const pendingTasks = tasks.filter((t) => t.status !== "SUBMITTED");
   const completedTasksList = tasks.filter((t) => t.status === "SUBMITTED");
-  
-  const ratedTasks = completedTasksList.filter(t => t.rating);
+
+  const ratedTasks = completedTasksList.filter((t) => t.rating);
   const totalStars = ratedTasks.reduce((acc, curr) => acc + curr.rating, 0);
   const avgStars = ratedTasks.length > 0 ? totalStars / ratedTasks.length : 0;
   const overallScoreOutof20 = (avgStars * 4).toFixed(1);
@@ -51,190 +55,143 @@ export default function StudentPage() {
     return acc;
   }, {});
 
+  // Submit file
   const handleSubmit = async (task) => {
-  const file = files[task.id];
-  if (!file) return alert("Select a file first!");
+    const file = files[task.id];
+    if (!file) return alert("Select a file first!");
 
-  // Deadline check (3 days rule)
-  const deadline = new Date(task.deadline);
-  const diffMs = currentTime - deadline;
-  if (diffMs > 3 * 24 * 60 * 60 * 1000) {
-    return alert("Late submission window closed (Max 3 days allowed).");
-  }
-
-  setUploadingId(task.id);
-
-  const fd = new FormData();
-  fd.append("file", file); 
-  fd.append("uploader_id", studentId);
-  fd.append("uploader_role", "student");
-  fd.append("student_id", studentId);
-  fd.append("class", studentClass);
-  fd.append("task_title", task.task_title); // Match backend requirement
-  fd.append("subject", task.subject);
-  
-  if(task.deadline) fd.append("deadline", task.deadline);
-
-  try {
-    const res = await axios.post(SUBMIT_API, fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    if (res.data.success) {
-      alert("Submitted successfully! 🚀");
-      fetchTasks(); // Refresh list
-      setFocusedTask(null);
-      // Clear selected file for this task
-      setFiles(prev => {
-        const newFiles = { ...prev };
-        delete newFiles[task.id];
-        return newFiles;
-      });
+    const deadline = new Date(task.deadline);
+    const diffMs = currentTime - deadline;
+    if (diffMs > 3 * 24 * 60 * 60 * 1000) {
+      return alert("Late submission window closed (Max 3 days allowed).");
     }
-  } catch (err) {
-    console.error("Submission Error:", err.response?.data || err.message);
-    alert(`Error: ${err.response?.data?.message || "Submission failed."}`);
-  } finally {
-    setUploadingId(null);
-  }
-};
+
+    setUploadingId(task.id);
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("uploader_id", studentId);
+    fd.append("uploader_role", "student");
+    fd.append("student_id", studentId);
+    fd.append("class", studentClass);
+    fd.append("task_title", task.task_title);
+    fd.append("subject", task.subject);
+    if (task.deadline) fd.append("deadline", task.deadline);
+
+    try {
+      const res = await axios.post(SUBMIT_API, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      if (res.data.success) {
+        alert("Submitted successfully! 🚀");
+        fetchTasks();
+        setFocusedTask(null);
+        setFiles((prev) => { const newFiles = { ...prev }; delete newFiles[task.id]; return newFiles; });
+      }
+    } catch (err) {
+      console.error("Submission Error:", err.response?.data || err.message);
+      alert(`Error: ${err.response?.data?.message || "Submission failed."}`);
+    } finally { setUploadingId(null); }
+  };
+
+  // Delete submission
   const handleDeleteSubmission = async (submissionId) => {
     if (!window.confirm("Delete your submission?")) return;
-    try {
-      await axios.delete(`${DELETE_API}/${submissionId}`);
-      fetchTasks();
-    } catch { alert("Delete failed"); }
+    try { await axios.delete(`${DELETE_API}/${submissionId}`); fetchTasks(); } 
+    catch { alert("Delete failed"); }
   };
 
   const formatDateTime = (dateStr) =>
-    dateStr
-      ? new Date(dateStr).toLocaleString("en-IN", {
-          day: "2-digit",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "-";
+    dateStr ? new Date(dateStr).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "-";
 
+  // Task card
   const renderTaskCard = (task, isFull = false) => {
     const isSubmitted = task.status === "SUBMITTED";
     const deadline = new Date(task.deadline);
     const diffMs = deadline - currentTime;
     const isOverdue = diffMs < 0;
     const absDiff = Math.abs(diffMs);
-
-    // Calculate time parts
     const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((absDiff / (1000 * 60 * 60)) % 24);
     const mins = Math.floor((absDiff / (1000 * 60)) % 60);
     const secs = Math.floor((absDiff / 1000) % 60);
-
-    // Strict Rule: 3 Days Late check
     const isExpired = isOverdue && days >= 3;
 
     return (
       <div key={task.id} style={isFull ? fullViewCard : taskCard(isSubmitted)}>
         <div style={cardHeader}>
           <div style={subjectPill}>{task.subject}</div>
-          <div style={statusBadge(isSubmitted)}>{isSubmitted ? "COMPLETED" : isExpired ? "EXPIRED" : "PENDING"}</div>
+          <div style={statusBadge(isSubmitted)}>
+            {isSubmitted ? "COMPLETED" : isExpired ? "EXPIRED" : "PENDING"}
+          </div>
         </div>
-
         <h3 style={taskTitleText}>{task.task_title}</h3>
-        
         <div style={infoGrid}>
+          <div style={infoItem}>
+            <span style={infoLabel}>DEADLINE</span>
+            <span style={infoValue}>{formatDateTime(task.deadline)}</span>
+          </div>
+          {!isSubmitted && (
             <div style={infoItem}>
-                <span style={infoLabel}>DEADLINE</span>
-                <span style={infoValue}>{formatDateTime(task.deadline)}</span>
+              <span style={infoLabel}>{isOverdue ? "TIME OVERDUE" : "TIME LEFT"}</span>
+              <span style={{ ...infoValue, color: isOverdue ? "#ff4141" : "#00ff88", fontFamily: "monospace", fontSize: "14px" }}>
+                {days}d {hours}h {mins}m {secs}s {isOverdue ? "LATE" : ""}
+              </span>
             </div>
-            
-            {!isSubmitted && (
-               <div style={infoItem}>
-                 <span style={infoLabel}>{isOverdue ? "TIME OVERDUE" : "TIME LEFT"}</span>
-                 <span style={{...infoValue, color: isOverdue ? '#ff4141' : '#00ff88', fontFamily: 'monospace', fontSize: '14px'}}>
-                   {days}d {hours}h {mins}m {secs}s {isOverdue ? "LATE" : ""}
-                 </span>
-               </div>
-            )}
-
-            {isSubmitted && (
-              <div style={infoItem}>
-                <span style={infoLabel}>SUBMITTED ON</span>
-                <span style={infoValue}>
-                  {formatDateTime(task.student_uploaded_at)}
-                  {(() => {
-                    const subDate = new Date(task.student_uploaded_at);
-                    const subDiff = deadline - subDate;
-                    const subAbs = Math.abs(subDiff);
-                    const d = Math.floor(subAbs / 86400000);
-                    const h = Math.floor((subAbs % 86400000) / 3600000);
-                    return (
-                      <span style={{ color: subDiff > 0 ? "#2fff00" : "#ff4141", marginLeft: "8px", fontSize: "12px", fontWeight: 700 }}>
-                        ({d}d {h}h {subDiff > 0 ? "early" : "late"})
-                      </span>
-                    );
-                  })()}
-                </span>
-              </div>
-            )}
+          )}
+          {isSubmitted && (
+            <div style={infoItem}>
+              <span style={infoLabel}>SUBMITTED ON</span>
+              <span style={infoValue}>
+                {formatDateTime(task.student_uploaded_at)}
+                {(() => {
+                  const subDate = new Date(task.student_uploaded_at);
+                  const subDiff = deadline - subDate;
+                  const subAbs = Math.abs(subDiff);
+                  const d = Math.floor(subAbs / 86400000);
+                  const h = Math.floor((subAbs % 86400000) / 3600000);
+                  return (
+                    <span style={{ color: subDiff > 0 ? "#2fff00" : "#ff4141", marginLeft: "8px", fontSize: "12px", fontWeight: 700 }}>
+                      ({d}d {h}h {subDiff > 0 ? "early" : "late"})
+                    </span>
+                  );
+                })()}
+              </span>
+            </div>
+          )}
         </div>
-
         <div style={glassDivider} />
-
         <div style={actionColumn}>
-            {!isFull && !isSubmitted && (
-                <button style={btnSmall} onClick={() => setFocusedTask(task)}>⛶ Focus Mode</button>
-            )}
-            
-            {task.task_file && (
-                <button style={btnViewTask} onClick={() => window.open(task.task_file, "_blank")}>
-                    📖 View Question Paper
-                </button>
-            )}
-
-            {isSubmitted ? (
-                <div style={submissionArea}>
-                    <button style={btnSuccess} onClick={() => window.open(task.student_file, "_blank")}>
-                        ✅ My Submission
-                    </button>
-                    {task.rating ? (
-                        <div style={ratingCard}>
-                            <p style={ratingLabel}>YOUR SCORE: {task.rating * 4}/20</p>
-                            <div style={starRow}>
-                                {[1,2,3,4,5].map(i => (
-                                    <span key={i} style={{color: i<=task.rating ? '#FFD700' : '#4b4b6b'}}>★</span>
-                                ))}
-                            </div>
-                        </div>
-                    ) : <div style={waitBadge}>🕒 Checking Performance...</div>}
-                    <button style={btnDeleteLink} onClick={() => handleDeleteSubmission(task.student_submission_id)}>
-                        <FaTrash /> Remove Submission
-                    </button>
+          {!isFull && !isSubmitted && <button style={btnSmall} onClick={() => setFocusedTask(task)}>⛶ Focus Mode</button>}
+          {task.task_file && <button style={btnViewTask} onClick={() => window.open(task.task_file, "_blank")}>📖 View Question Paper</button>}
+          {isSubmitted ? (
+            <div style={submissionArea}>
+              <button style={btnSuccess} onClick={() => window.open(task.student_file, "_blank")}>✅ My Submission</button>
+              {task.rating ? (
+                <div style={ratingCard}>
+                  <p style={ratingLabel}>YOUR SCORE: {task.rating * 4}/20</p>
+                  <div style={starRow}>
+                    {[1, 2, 3, 4, 5].map((i) => <span key={i} style={{ color: i <= task.rating ? "#FFD700" : "#4b4b6b" }}>★</span>)}
+                  </div>
                 </div>
-            ) : (
-              <div style={uploadZone}>
-                 {isExpired ? (
-                   <div style={{...customUploadBtn, borderColor: '#ff4141', color: '#ff4141', cursor: 'not-allowed'}}>
-                     ❌ Submission Closed (3+ Days Late)
-                   </div>
-                 ) : (
-                   <>
-                    <label style={uploadLabelStyle}>
-                        <input type="file" style={{display: 'none'}} onChange={(e) => setFiles({ ...files, [task.id]: e.target.files[0] })} />
-                        <div style={customUploadBtn}>
-                            {files[task.id] ? `📎 ${files[task.id].name.substring(0,20)}...` : "Select Assignment File"}
-                        </div>
-                    </label>
-                    <button 
-                        style={uploadingId === task.id ? btnDisabled : btnSubmit} 
-                        disabled={uploadingId === task.id}
-                        onClick={() => handleSubmit(task)}
-                    >
-                        {uploadingId === task.id ? "UPLOADING..." : isOverdue ? "SUBMIT LATE" : "SUBMIT NOW"}
-                    </button>
-                   </>
-                 )}
-              </div>
-            )}
+              ) : <div style={waitBadge}>🕒 Checking Performance...</div>}
+              <button style={btnDeleteLink} onClick={() => handleDeleteSubmission(task.student_submission_id)}><FaTrash /> Remove Submission</button>
+            </div>
+          ) : (
+            <div style={uploadZone}>
+              {isExpired ? (
+                <div style={{ ...customUploadBtn, borderColor: "#ff4141", color: "#ff4141", cursor: "not-allowed" }}>❌ Submission Closed (3+ Days Late)</div>
+              ) : (
+                <>
+                  <label style={uploadLabelStyle}>
+                    <input type="file" style={{ display: "none" }} onChange={(e) => setFiles({ ...files, [task.id]: e.target.files[0] })} />
+                    <div style={customUploadBtn}>{files[task.id] ? `📎 ${files[task.id].name.substring(0, 20)}...` : "Select Assignment File"}</div>
+                  </label>
+                  <button style={uploadingId === task.id ? btnDisabled : btnSubmit} disabled={uploadingId === task.id} onClick={() => handleSubmit(task)}>
+                    {uploadingId === task.id ? "UPLOADING..." : isOverdue ? "SUBMIT LATE" : "SUBMIT NOW"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -244,63 +201,63 @@ export default function StudentPage() {
     <div style={pageContainer}>
       <header style={headerStyle}>
         <div style={headerTopRow}>
-            <div style={avatarBox}>{user.name?.charAt(0)}<div style={onlineDot} /></div>
-            <div style={{ flex: 1 }}>
-                <h2 style={userName}>Hello, {user.name?.split(' ')[0]} ✨</h2>
-                <p style={userMeta}>Class {studentClass} • Score: {overallScoreOutof20}/20</p>
-            </div>
+          <div style={avatarBox}>{user.name?.charAt(0)}<div style={onlineDot} /></div>
+          <div style={{ flex: 1 }}>
+            <h2 style={userName}>Hello, {user.name?.split(" ")[0]} ✨</h2>
+            <p style={userMeta}>Class {studentClass} • Score: {overallScoreOutof20}/20</p>
+          </div>
         </div>
-
         <div style={progressCard}>
-            <div style={progressTextRow}>
-                <span style={progressLabel}>OVERALL PERFORMANCE</span>
-                <span style={progressPercentText}>{overallScoreOutof20}/20</span>
+          <div style={progressTextRow}>
+            <span style={progressLabel}>OVERALL PERFORMANCE</span>
+            <span style={progressPercentText}>{overallScoreOutof20}/20</span>
+          </div>
+          <div style={progressBarBg}>
+            <div style={{ ...progressBarFill, width: `${(overallScoreOutof20 / 20) * 100}%` }}>
+              <div style={shimmerEffect} />
             </div>
-            <div style={progressBarBg}>
-                <div style={{...progressBarFill, width: `${(overallScoreOutof20/20)*100}%`}}><div style={shimmerEffect} /></div>
-            </div>
-            <div style={marksCounterRow}>
-                <span>Accuracy: <b>{(avgStars * 20).toFixed(0)}%</b></span>
-                <span>Completed: {completedTasksList.length}/{tasks.length}</span>
-            </div>
+          </div>
+          <div style={marksCounterRow}>
+            <span>Accuracy: <b>{(avgStars * 20).toFixed(0)}%</b></span>
+            <span>Completed: {completedTasksList.length}/{tasks.length}</span>
+          </div>
         </div>
       </header>
 
       {focusedTask && (
         <div style={overlay}>
-            <button style={closeOverlayBtn} onClick={() => setFocusedTask(null)}><FaTimes /> Exit Focus</button>
-            <div style={overlayInner}>{renderTaskCard(focusedTask, true)}</div>
+          <button style={closeOverlayBtn} onClick={() => setFocusedTask(null)}><FaTimes /> Exit Focus</button>
+          <div style={overlayInner}>{renderTaskCard(focusedTask, true)}</div>
         </div>
       )}
 
       <div style={mainContent}>
         {loading ? (
-            <div style={loaderWrapper}><div style={loaderSpinner} /><p>FETCHING DATA...</p></div>
+          <div style={loaderWrapper}>
+            <div style={loaderSpinner} />
+            <p>FETCHING DATA...</p>
+          </div>
         ) : (
           <>
             {pendingTasks.length > 0 && (
               <div style={sectionBlock}>
                 <h4 style={sectionTitle}><FaClock /> LIVE ASSIGNMENTS</h4>
-                {pendingTasks.map(task => renderTaskCard(task))}
+                {pendingTasks.map((task) => renderTaskCard(task))}
               </div>
             )}
 
             <div style={sectionBlock}>
               <h4 style={sectionTitle}><FaCheckCircle /> COMPLETED ARCHIVE</h4>
               {Object.keys(groupedCompleted).length === 0 && pendingTasks.length === 0 ? (
-                 <div style={emptyBox}><h3>All Caught Up! 🌟</h3></div>
+                <div style={emptyBox}><h3>All Caught Up! 🌟</h3></div>
               ) : (
-                Object.keys(groupedCompleted).map(subject => (
+                Object.keys(groupedCompleted).map((subject) => (
                   <div key={subject} style={subjectAccordion}>
                     <div style={accordionHeader} onClick={() => setExpandedSubject(expandedSubject === subject ? null : subject)}>
-                      <span style={{fontWeight:'700', fontSize:'14px'}}>{subject.toUpperCase()} ({groupedCompleted[subject].length})</span>
+                      <span style={{ fontWeight: "700", fontSize: "14px" }}>{subject.toUpperCase()} ({groupedCompleted[subject].length})</span>
                       {expandedSubject === subject ? <FaChevronUp /> : <FaChevronDown />}
                     </div>
-                    {expandedSubject === subject && (
-                      <div style={accordionBody}>
-                        {groupedCompleted[subject].map(task => renderTaskCard(task))}
-                      </div>
-                    )}
+                    {expandedSubject === subject && <div style={accordionBody}>{groupedCompleted[subject].map((task) => renderTaskCard(task))}</div>}
                   </div>
                 ))
               )}
