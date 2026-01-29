@@ -267,7 +267,9 @@ export default function StudentPage() {
           </div>
           <div>
             <h2 style={styles.welcomeText}>Hi, {user.name?.split(" ")[0]}! <FaRocket style={{ fontSize: '16px', color: '#70a1ff' }} /></h2>
-            <p style={styles.subText}>Class {studentClass} Dashboard • 2024 Session</p>
+            <p style={styles.subText}>
+  Class {studentClass} Dashboard • {new Date().getFullYear()} Session
+</p>
           </div>
         </div>
 
