@@ -15,6 +15,12 @@ export default function AdminPage() {
   const [subjectsByClass, setSubjectsByClass] = useState({});
   const [isUploading, setIsUploading] = useState(false);
 
+  // Edit state
+  const [editingAssignment, setEditingAssignment] = useState(null);
+  const [editDeadline, setEditDeadline] = useState("");
+  const [editFile, setEditFile] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+
   // Profile photo states
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");
@@ -28,7 +34,7 @@ export default function AdminPage() {
         if (res.data.success) {
           setClasses(res.data.classes);
           const map = {};
-          res.data.classes.forEach(c => { map[c.class] = ["Math","English","Hindi","Science"]; });
+          res.data.classes.forEach(c => { map[c.class] = ["Math","English","Hindi","SST","Science"]; });
           setSubjectsByClass(map);
         }
       }).catch(err => console.error(err));
@@ -56,47 +62,82 @@ export default function AdminPage() {
     fetchAll();
   }, [viewClass]);
 
-const handleSubmit = async () => {
-  if (!file || !uploadClass || !taskTitle || !subject || !deadline) {
-    return alert("All fields are required!");
-  }
+  // ================= UPLOAD NEW ASSIGNMENT =================
+  const handleSubmit = async () => {
+    if (!file || !uploadClass || !taskTitle || !subject || !deadline) {
+      return alert("All fields are required!");
+    }
 
-  setIsUploading(true);
-  const user = JSON.parse(localStorage.getItem("user"));
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("uploader_id", user?.id);
-  formData.append("uploader_role", "admin"); // add this
-  formData.append("task_title", taskTitle);
-  formData.append("subject", subject);
-  formData.append("class", uploadClass);
-  formData.append("deadline", new Date(deadline).toISOString()); // convert to ISO
+    setIsUploading(true);
+    const user = JSON.parse(localStorage.getItem("user"));
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("uploader_id", user?.id);
+    formData.append("uploader_role", "admin");
+    formData.append("task_title", taskTitle);
+    formData.append("subject", subject);
+    formData.append("class", uploadClass);
+    formData.append("deadline", new Date(deadline).toISOString());
 
-  // Debug logs
-  for (let pair of formData.entries()) {
-    console.log(pair[0], pair[1]);
-  }
+    try {
+      const res = await axios.post(`${API_URL}/api/assignments/admin/upload`, formData);
+      alert(res.data.success ? "Assignment Uploaded!" : "Upload Failed");
 
-  try {
-    const res = await axios.post(`${API_URL}/api/assignments/admin/upload`, formData);
-    alert(res.data.success ? "Assignment Uploaded!" : "Upload Failed");
+      // reset fields
+      setFile(null);
+      setTaskTitle("");
+      setSubject("");
+      setUploadClass("");
+      setDeadline("");
 
-    // reset fields
-    setFile(null);
-    setTaskTitle("");
-    setSubject("");
-    setUploadClass("");
-    setDeadline("");
-  } catch (err) {
-    console.error(err.response?.data || err);
-    alert("Server error. Check console for details.");
-  } finally {
-    setIsUploading(false);
-  }
-};
+      // refresh submissions
+      setViewClass(prev => prev); 
+    } catch (err) {
+      console.error(err.response?.data || err);
+      alert("Server error. Check console for details.");
+    } finally { setIsUploading(false); }
+  };
 
+  // ================= HANDLE EDIT =================
+  const startEditing = (assignment) => {
+    setEditingAssignment(assignment);
+    setEditDeadline(assignment.deadline ? new Date(assignment.deadline).toISOString().slice(0,16) : "");
+  };
 
+  const handleEditSubmit = async () => {
+    if (!editingAssignment) return;
+    setIsEditing(true);
+    const formData = new FormData();
+    if (editFile) formData.append("file", editFile);
+    formData.append("deadline", new Date(editDeadline).toISOString());
 
+    try {
+      const res = await axios.put(`${API_URL}/api/assignments/admin/assignment/${editingAssignment.id}`, formData);
+      if (res.data.success) {
+        alert("Assignment updated successfully!");
+        setEditingAssignment(null);
+        setEditFile(null);
+        setViewClass(prev => prev); // refresh submissions
+      } else alert("Update failed");
+    } catch (err) {
+      console.error(err);
+      alert("Server error during update");
+    } finally { setIsEditing(false); }
+  };
+
+  // ================= HANDLE DELETE =================
+  const handleDelete = async (assignmentId) => {
+    if (!window.confirm("Are you sure you want to delete this submission?")) return;
+    try {
+      const res = await axios.delete(`${API_URL}/api/assignments/${assignmentId}`);
+      if (res.data.success) {
+        alert("Submission deleted ✅");
+        setViewClass(prev => prev); // refresh submissions
+      }
+    } catch (err) { console.error(err); alert("Delete failed"); }
+  };
+
+  // ================= HANDLE RATING =================
   const handleRating = async (submissionId, value) => {
     try {
       const res = await axios.put(`${API_URL}/api/assignments/rating/${submissionId}`, { rating: value });
@@ -112,6 +153,7 @@ const handleSubmit = async () => {
     } catch (err) { console.error(err); }
   };
 
+  // ================= HANDLE PROFILE PHOTO =================
   const handlePhotoUpload = async () => {
     if (!selectedStudent || !photoFile) return alert("Select a student and photo!");
     setIsPhotoUploading(true);
@@ -142,7 +184,8 @@ const handleSubmit = async () => {
       <div style={ui.header}>
         <div style={ui.headerInner}>
           <h1 style={ui.title}>Assignments <span style={{fontWeight:'300'}}>Center</span></h1>
-          <div style={ui.badge}>Assignment Management</div>
+          <div style={{...ui.badge, position: 'relative', left: '-10px'}}>Assignment Management</div>
+
         </div>
       </div>
 
@@ -221,13 +264,43 @@ const handleSubmit = async () => {
             </select>
           </div>
 
+          {/* Edit Assignment Modal */}
+          {editingAssignment && (
+            <div style={{marginBottom:20, padding:15, border:'1px solid #D1D5DB', borderRadius:10}}>
+              <h4>Edit Assignment: {editingAssignment.task_title}</h4>
+              <label style={ui.label}>Deadline</label>
+              <input type="datetime-local" style={ui.input} value={editDeadline} onChange={e=>setEditDeadline(e.target.value)} />
+              <label style={ui.label}>Replace File (optional)</label>
+              <input type="file" onChange={e=>setEditFile(e.target.files[0])} style={ui.fileInput} />
+              <div style={{display:'flex', gap:10, marginTop:10}}>
+                <button onClick={handleEditSubmit} style={ui.btnPrimary} disabled={isEditing}>
+                  {isEditing ? "Updating..." : "Update"}
+                </button>
+                <button onClick={()=>setEditingAssignment(null)} style={{...ui.btnPrimary, background:'#EF4444'}}>Cancel</button>
+              </div>
+            </div>
+          )}
+
           <div style={ui.scrollArea}>
             {!viewClass ? (
               <div style={ui.emptyState}>Select a class to monitor performance</div>
             ) : (
               Object.entries(taskSubmissions).map(([task, subs]) => (
                 <div key={task} style={ui.taskGroup}>
-                  <div style={ui.taskHeader}>{task}</div>
+                  <div style={ui.taskHeader}>
+                    {task}
+                    <button 
+  onClick={() => {
+    if (subs[0]) startEditing(subs[0]);
+    else alert("No submission available to edit!");
+  }} 
+  style={{marginLeft:10,padding:'2px 6px',fontSize:12}}
+>
+  Edit
+</button>
+
+
+                  </div>
                   {subs.length===0 ? <p style={ui.noData}>No submissions yet.</p> : (
                     <div style={{overflowX:'auto'}}>
                       <table style={ui.table}>
@@ -259,6 +332,7 @@ const handleSubmit = async () => {
                                 </td>
                                 <td style={ui.td}>
                                   <a href={s.file_path} target="_blank" rel="noreferrer" style={ui.viewLink}>View File</a>
+                                  <button onClick={()=>handleDelete(s.id)} style={{marginLeft:10,padding:'2px 6px',fontSize:12,background:'#EF4444',color:'#FFF',border:'none',borderRadius:5}}>Delete</button>
                                 </td>
                               </tr>
                             )
@@ -272,19 +346,20 @@ const handleSubmit = async () => {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
 }
 
+// ==================== UI STYLES ====================
+// ==================== UI STYLES ====================
 const ui = {
   pageWrapper: { background: "#F3F4F6", minHeight: "100vh", fontFamily: "'Inter', sans-serif" },
   header: { background: "#ffffff", padding: "20px 40px", borderBottom: "1px solid #E5E7EB" },
   headerInner: { maxWidth: 1400, margin: "0 auto", display: 'flex', alignItems:'center', justifyContent:'space-between' },
   title: { color: "#111827", fontSize: "24px", margin: 0, fontWeight: '800' },
   badge: { background: "#EEF2FF", color: "#4F46E5", padding: "6px 14px", borderRadius: 30, fontSize: 12, fontWeight: '600' },
-  mainGrid: { display: "grid", gridTemplateColumns: "350px 1fr", gap: 30, padding: 30, maxWidth: 1500, margin: "0 auto" },
+  mainGrid: { display: "grid", gridTemplateColumns: "850px 1fr", gap: 30, padding: 30, maxWidth: 1900, margin: "0 auto" },
   card: { background: "#FFFFFF", borderRadius: 16, padding: 25, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)" },
   cardHeader: { borderBottom: '1px solid #F3F4F6', marginBottom: 20, paddingBottom: 10 },
   cardTitle: { fontSize: 16, fontWeight: "700", color: "#374151", margin: 0 },
@@ -292,19 +367,19 @@ const ui = {
   label: { fontSize: 12, fontWeight: "600", color: "#6B7280", textTransform: 'uppercase' },
   input: { padding: "12px", borderRadius: 10, border: "1px solid #D1D5DB", outline: "none", fontSize: 14, background:'#F9FAFB' },
   fileInput: { padding: "12px", borderRadius: 10, border: "2px dashed #E5E7EB", background: "#F9FAFB", cursor:'pointer' },
-  btnPrimary: { background: "#4F46E5", color: "#FFF", border: "none", padding: "14px", borderRadius: 10, fontWeight: "700", cursor: "pointer", fontSize: 14 },
-  flexBetween: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 25 },
-  miniSelect: { padding: "8px 12px", borderRadius: 8, border: "1px solid #D1D5DB", fontSize: 13, background:'#FFF' },
-  scrollArea: { maxHeight: "75vh", overflowY: "auto" },
-  emptyState: { padding: 100, textAlign: 'center', color: '#9CA3AF', fontSize: 15 },
-  taskGroup: { marginBottom: 30, border: "1px solid #F3F4F6", borderRadius: 12, overflow: 'hidden', background:'#FFF' },
-  taskHeader: { background: "#F9FAFB", padding: "15px 20px", fontWeight: "700", color: "#111827", borderBottom: '1px solid #F3F4F6' },
-  table: { width: "100%", borderCollapse: "collapse", minWidth: 600 },
-  th: { textAlign: "left", padding: "12px 20px", fontSize: 11, color: "#6B7280", textTransform: "uppercase", background: "#F9FAFB", fontWeight:'700' },
-  tr: { borderBottom: "1px solid #F3F4F6", transition: '0.2s hover', background:'#FFF' },
-  td: { padding: "15px 20px", fontSize: 13, color: "#4B5563" },
-  tagOnTime: { background: "#D1FAE5", color: "#065F46", padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: '700' },
-  tagLate: { background: "#FEE2E2", color: "#991B1B", padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: '700' },
-  viewLink: { color: "#4F46E5", textDecoration: "none", fontWeight: "700", fontSize: 12 },
-  noData: { padding: 20, color: "#9CA3AF", fontSize: 13, textAlign: 'center' }
+  btnPrimary: { background: "rgb(79, 70, 229)", color: "#FFF", border: "none", padding: "14px", borderRadius: 10, fontWeight: "700", cursor: "pointer", fontSize: 14 },
+  flexBetween: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  scrollArea: { maxHeight: 400, overflowY: 'auto', marginTop: 10 },
+  emptyState: { padding: 20, textAlign: 'center', color: '#9CA3AF' },
+  taskGroup: { marginBottom: 20, border: '1px solid #E5E7EB', borderRadius: 10, padding: 10 },
+  taskHeader: { fontWeight: '700', fontSize: 14, marginBottom: 8 },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  th: { textAlign: 'left', padding: 8, background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' },
+  td: { padding: 8, borderBottom: '1px solid #E5E7EB' },
+  tr: {},
+  tagLate: { background: '#FEE2E2', color:'#B91C1C', padding: '2px 6px', borderRadius: 5, fontSize: 12 },
+  tagOnTime: { background: '#DCFCE7', color:'#15803D', padding: '2px 6px', borderRadius: 5, fontSize: 12 },
+  miniSelect: { padding: '6px 10px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 13 },
+  viewLink: { color:'#4F46E5', textDecoration:'underline', fontSize: 13 },
+  noData: { color:'#6B7280', fontStyle:'italic', fontSize:13 }
 };

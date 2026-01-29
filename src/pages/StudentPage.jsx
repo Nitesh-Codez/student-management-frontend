@@ -44,10 +44,27 @@ export default function StudentPage() {
   const pendingTasks = tasks.filter((t) => t.status !== "SUBMITTED");
   const completedTasksList = tasks.filter((t) => t.status === "SUBMITTED");
 
-  const ratedTasks = completedTasksList.filter((t) => t.rating);
-  const totalStars = ratedTasks.reduce((acc, curr) => acc + curr.rating, 0);
-  const avgStars = ratedTasks.length > 0 ? totalStars / ratedTasks.length : 0;
-  const overallScoreOutof20 = (avgStars * 4).toFixed(1);
+  // Calculate overall marks based on rating + submission time
+const calculateMarks = (task) => {
+  if (!task.rating) return 0;
+
+  const baseMarks = task.rating * 4; // rating out of 5 scaled to 20
+  const deadline = new Date(task.deadline);
+  const submitted = new Date(task.student_uploaded_at);
+
+  const diffDays = Math.floor((deadline - submitted) / (1000 * 60 * 60 * 24));
+
+  let timeModifier = 0;
+  if (diffDays > 0) timeModifier = Math.min(diffDays, 3);   // early submission bonus
+  else if (diffDays < 0) timeModifier = Math.max(diffDays, -3); // late submission penalty
+
+  return Math.max(0, Math.min(20, baseMarks + timeModifier)); // clamp between 0-20
+};
+
+const ratedTasks = completedTasksList.filter((t) => t.rating);
+const totalMarks = ratedTasks.reduce((sum, t) => sum + calculateMarks(t), 0);
+const overallScoreOutof20 = ratedTasks.length > 0 ? (totalMarks / ratedTasks.length).toFixed(1) : 0;
+
 
   const groupedCompleted = completedTasksList.reduce((acc, task) => {
     if (!acc[task.subject]) acc[task.subject] = [];
@@ -218,7 +235,8 @@ export default function StudentPage() {
             </div>
           </div>
           <div style={marksCounterRow}>
-            <span>Accuracy: <b>{(avgStars * 20).toFixed(0)}%</b></span>
+           <span>Accuracy: <b>{(overallScoreOutof20 / 20 * 100).toFixed(0)}%</b></span>
+
             <span>Completed: {completedTasksList.length}/{tasks.length}</span>
           </div>
         </div>
