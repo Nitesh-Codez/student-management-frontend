@@ -1,108 +1,93 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { FaIdCard, FaUserAlt, FaPhone, FaHome, FaUserTie } from "react-icons/fa";
+
+const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const StudentProfile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    // 1️⃣ Get user from localStorage
     const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) return;
+    if (!user) {
+      setError("User not logged in");
+      setLoading(false);
+      return;
+    }
 
-    const id = user.id;
-
-    const fetchData = async () => {
+    // 2️⃣ Fetch profile from backend
+    const fetchProfile = async () => {
       try {
-        const { data } = await axios.get(`${API_URL}/api/student-profile/${id}`);
-        setProfile(data.student);
+        const res = await axios.get(`${API_URL}/api/students/profile?id=${user.id}`);
+        if (res.data.success) {
+          setProfile(res.data.student);
+        } else {
+          setError(res.data.message || "Student not found");
+        }
       } catch (err) {
-        console.error("Error fetching profile:", err);
+        console.error(err);
+        setError("Server error while fetching profile");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [API_URL]); // <-- ESLint warning fix
+    fetchProfile();
+  }, []);
 
-  if (loading) return <h2 style={{ textAlign: "center" }}>Loading Profile...</h2>;
-  if (!profile) return <h2 style={{ textAlign: "center" }}>No profile found</h2>;
+  if (loading) return <p>Loading profile...</p>;
+  if (error) return <p style={{ color: "red", textAlign: "center" }}>{error}</p>;
 
   return (
-    <div style={container}>
-      <div style={card}>
-        <h2 style={title}>Student Profile</h2>
+    <div style={profileContainer}>
+      <img
+        src={profile.profile_photo || "/default-profile.png"}
+        alt="Profile"
+        style={profilePhoto}
+      />
+      <h2>{profile.name}</h2>
 
-        <div style={item}>
-          <strong>Name:</strong> {profile.name}
-        </div>
-
-        <div style={item}>
-          <strong>Father Name:</strong> {profile.fatherName}
-        </div>
-
-        <div style={item}>
-          <strong>Class:</strong> {profile.class}
-        </div>
-
-        <div style={item}>
-          <strong>Phone:</strong> {profile.phone}
-        </div>
-
-        <div style={item}>
-          <strong>Address:</strong> {profile.address}
-        </div>
-
-        <div style={item}>
-          <strong>Fees Paid This Month:</strong>{" "}
-          {profile.feesPaid === 1 ? "Yes" : "No"}
-        </div>
-
-        <div style={item}>
-          <strong>Roll No:</strong> {profile.rollNo}
-        </div>
-
-        <div style={item}>
-          <strong>Join Date:</strong> {profile.joinDate?.split("T")[0]}
-        </div>
-      </div>
+      <div style={infoRow}><FaIdCard /> <span>ID: {profile.id}</span></div>
+      <div style={infoRow}><FaUserAlt /> <span>Class: {profile.class}</span></div>
+      <div style={infoRow}><FaUserTie /> <span>Role: {profile.role}</span></div>
+      <div style={infoRow}><FaPhone /> <span>Mobile: {profile.mobile || "N/A"}</span></div>
+      <div style={infoRow}><FaHome /> <span>Address: {profile.address || "N/A"}</span></div>
     </div>
   );
 };
 
-// ---------------- Styles ----------------
-
-const container = {
-  display: "flex",
-  justifyContent: "center",
-  marginTop: "40px",
-  padding: "20px",
-};
-
-const card = {
-  width: "100%",
+// --- STYLES ---
+const profileContainer = {
   maxWidth: "500px",
-  background: "#ffffff",
+  margin: "30px auto",
   padding: "25px",
-  borderRadius: "12px",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-};
-
-const title = {
+  background: "#fff",
+  borderRadius: "15px",
+  boxShadow: "0 5px 25px rgba(0,0,0,0.1)",
   textAlign: "center",
-  marginBottom: "20px",
-  fontSize: "26px",
-  fontWeight: "700",
-  color: "#222",
+  fontFamily: "'Inter', sans-serif"
 };
 
-const item = {
-  marginBottom: "12px",
-  fontSize: "18px",
-  borderBottom: "1px solid #ddd",
-  paddingBottom: "8px",
+const profilePhoto = {
+  width: "130px",
+  height: "130px",
+  borderRadius: "50%",
+  objectFit: "cover",
+  marginBottom: "15px",
+  border: "3px solid #6366f1"
+};
+
+const infoRow = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "10px",
+  margin: "10px 0",
+  fontSize: "16px",
+  color: "#1e293b"
 };
 
 export default StudentProfile;
