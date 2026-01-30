@@ -34,6 +34,8 @@ const AdminAddMarks = () => {
   const [searchClass, setSearchClass] = useState("");
   const [searchDate, setSearchDate] = useState("");
   const [searchName, setSearchName] = useState(""); // 🆕 New Filter State
+  const [secretKey, setSecretKey] = useState("");
+
 
   const [editId, setEditId] = useState(null);
   const [editMarks, setEditMarks] = useState("");
@@ -82,24 +84,35 @@ const AdminAddMarks = () => {
     }
   };
 
-  const handleUpdate = async (record) => {
-    try {
-      await axios.put(`${API_URL}/api/marks/admin/marks/${record.id}`, {
-        subject: record.subject, // Purana subject bhej rahe hain
-        marks: +editMarks,       // Naye marks
-        maxMarks: +editTotal,    // Naya total
-        date: record.test_date   // Purani date bhej rahe hain
-      });
-      
-      setEditId(null);
-      fetchAllMarks(); // Table data refresh karne ke liye
-      setMessage({ text: "Record Updated Successfully!", type: "success" });
-      setTimeout(() => setMessage({ text: "", type: "" }), 3000);
-    } catch (err) {
-      console.error(err);
-      setMessage({ text: "Update Failed!", type: "error" });
-    }
-  };
+ const handleUpdate = async (record) => {
+  try {
+    await axios.put(
+      `${API_URL}/api/marks/admin/marks/${record.id}`,
+      {
+        subject: record.subject,
+        marks: +editMarks,
+        maxMarks: +editTotal,
+        date: record.test_date
+      },
+      {
+        headers: {
+          "x-head-secret": secretKey
+        }
+      }
+    );
+
+    setEditId(null);
+    setSecretKey("");
+    fetchAllMarks();
+    setMessage({ text: "Record Updated Successfully!", type: "success" });
+    setTimeout(() => setMessage({ text: "", type: "" }), 3000);
+
+  } catch (err) {
+    setMessage({ text: "Only HEAD can edit marks!", type: "error" });
+    setTimeout(() => setMessage({ text: "", type: "" }), 3000);
+  }
+};
+
 
   return (
     <div style={styles.page}>
@@ -220,9 +233,23 @@ const AdminAddMarks = () => {
                     {editId === m.id ? (
   <button style={styles.saveBtn} onClick={() => handleUpdate(m)}><FaSave /> Save</button>
 ) : (
-                      <button style={styles.editBtn} onClick={() => {
-                        setEditId(m.id); setEditMarks(m.obtained_marks); setEditTotal(m.total_marks);
-                      }}><FaEdit /> Edit</button>
+                      <button
+  style={styles.editBtn}
+  onClick={() => {
+    const key = prompt("Enter Head Secret Key");
+    if (!key) {
+      alert("Secret key required!");
+      return;
+    }
+    setSecretKey(key);
+    setEditId(m.id);
+    setEditMarks(m.obtained_marks);
+    setEditTotal(m.total_marks);
+  }}
+>
+  <FaEdit /> Edit
+</button>
+
                     )}
                   </td>
                 </tr>
