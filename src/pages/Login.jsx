@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -7,90 +7,45 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isBiometricSetup, setIsBiometricSetup] = useState(false);
-  
   const navigate = useNavigate();
+
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  // Check if fingerprint is already setup for this device
-  useEffect(() => {
-    const isEnabled = localStorage.getItem("biometric_active");
-    if (isEnabled) setIsBiometricSetup(true);
-  }, []);
-
-  // --- 1. SETUP FINGERPRINT (Peheli baar login ke baad) ---
-  const setupFingerprint = async () => {
-    try {
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
-      const options = {
-        publicKey: {
-          challenge,
-          rp: { name: "SmartZone" },
-          user: { id: new Uint8Array(16), name: name, displayName: name },
-          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-          authenticatorSelection: { authenticatorAttachment: "platform" },
-          timeout: 60000,
-        },
-      };
-
-      const cred = await navigator.credentials.create(options);
-      if (cred) {
-        localStorage.setItem("biometric_active", "true");
-        setIsBiometricSetup(true);
-        alert("Fingerprint set ho gaya! ✅");
-      }
-    } catch (err) {
-      console.error("Setup failed", err);
-    }
-  };
-
-  // --- 2. LOGIN WITH FINGERPRINT ---
-  const handleFingerprintLogin = async () => {
-    try {
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
-      const assertion = await navigator.credentials.get({
-        publicKey: { challenge, timeout: 60000 }
-      });
-
-      if (assertion) {
-        const user = JSON.parse(localStorage.getItem("user"));
-        if (user) navigate(user.role === "admin" ? "/admin" : "/student");
-      }
-    } catch (err) {
-      setError("Fingerprint matched nahi hua!");
-    }
-  };
-
-  // --- 3. NORMAL LOGIN ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const { data } = await axios.post(`${API_URL}/api/auth/login`, { name, password });
+      const { data } = await axios.post(`${API_URL}/api/auth/login`, {
+        name,
+        password,
+      });
 
       if (data.success) {
         const user = data.user;
+
+        // ✅ BASIC USER INFO
         localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("studentName", user.name);
         localStorage.setItem("userRole", user.role);
 
+        // ✅ IMPORTANT: SAVE CLASS (EXACT DB VALUE)
         if (user.role === "student") {
-          localStorage.setItem("studentClass", user.class);
+          localStorage.setItem("studentClass", user.class); // eg: "10th"
           localStorage.setItem("studentId", user.id);
         }
 
+        // ✅ REDIRECT
         navigate(user.role === "admin" ? "/admin" : "/student");
       } else {
         setError(data.message);
       }
     } catch (err) {
-      setError("Login failed. Password check karein.");
+      setError(
+        "Server Error: " +
+          (err.response?.data?.message || err.message)
+      );
     } finally {
       setLoading(false);
     }
@@ -102,7 +57,9 @@ const Login = () => {
 
       <div style={branding}>
         <h1 style={logo}>𝐒MARTZØηE</h1>
-        <p style={tagline}>Empowering Students | Celebrating Excellence</p>
+        <p style={tagline}>
+          Empowering Students | Celebrating Classes | Inspiring Excellence
+        </p>
       </div>
 
       <div style={loginCard}>
@@ -117,7 +74,6 @@ const Login = () => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={input}
-            placeholder="Type your name"
             required
           />
 
@@ -127,7 +83,6 @@ const Login = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={input}
-            placeholder="Type your password"
             required
           />
 
@@ -135,21 +90,6 @@ const Login = () => {
             {loading ? "Please wait..." : "Login"}
           </button>
         </form>
-
-        <hr style={{ margin: "20px 0", opacity: 0.1 }} />
-
-        {/* FINGERPRINT ACTIONS */}
-        <div style={{ textAlign: "center" }}>
-          {!isBiometricSetup ? (
-            <button onClick={setupFingerprint} style={bioBtn}>
-              + Enable Fingerprint Login
-            </button>
-          ) : (
-            <button onClick={handleFingerprintLogin} style={bioBtnActive}>
-              ☝️ Login with Fingerprint
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -158,48 +98,113 @@ const Login = () => {
 // ------------------ STYLES --------------------
 
 const page = {
-  minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center",
-  background: "#0d0d0d", position: "relative", fontFamily: "sans-serif", overflow: "hidden"
+  minHeight: "100vh",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  background: "linear-gradient(135deg, #1b1b1b, #0d0d0d)",
+  position: "relative",
+  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  overflow: "hidden",
 };
 
 const backgroundShapes = {
-  position: "absolute", width: "100%", height: "100%",
-  background: "radial-gradient(circle at 50% 50%, #ffcc0020 0%, transparent 70%)",
-  zIndex: 0, filter: "blur(50px)"
+  position: "absolute",
+  width: "150%",
+  height: "150%",
+  top: "-25%",
+  left: "-25%",
+  background:
+    "radial-gradient(circle at 25% 25%, #ffcc0080 0%, transparent 60%), radial-gradient(circle at 75% 75%, #ffffff20 0%, transparent 50%)",
+  zIndex: 0,
+  transform: "rotate(25deg)",
+  filter: "blur(80px)",
 };
 
-const branding = { position: "absolute", top: "50px", width: "100%", textAlign: "center", color: "#fff", zIndex: 1 };
-const logo = { fontSize: "40px", fontWeight: "900", letterSpacing: "5px" };
-const tagline = { fontSize: "14px", opacity: 0.7 };
+const branding = {
+  position: "absolute",
+  top: "50px",
+  width: "100%",
+  textAlign: "center",
+  color: "#fff",
+  zIndex: 1,
+};
+
+const logo = {
+  fontSize: "10vw",
+  fontWeight: "900",
+  margin: "0 auto",
+  letterSpacing: "0.18em",
+  color: "#ffffff",
+  textShadow: `
+    0 0 5px rgba(255,255,255,0.7),
+    0 0 10px rgba(122, 255, 60, 0.5),
+    0 0 20px rgba(255,204,0,0.3)
+  `,
+};
+
+const tagline = {
+  fontSize: "4.5vw",
+  marginTop: "15px",
+  color: "#fff",
+  fontWeight: "600",
+  fontStyle: "italic",
+};
 
 const loginCard = {
-  width: "350px", padding: "40px", background: "rgba(255,255,255,0.05)",
-  backdropFilter: "blur(20px)", borderRadius: "25px", zIndex: 2, color: "#fff",
-  border: "1px solid rgba(255,255,255,0.1)"
+  width: "90%",
+  maxWidth: "400px",
+  padding: "40px",
+  background: "rgba(255,255,255,0.05)",
+  backdropFilter: "blur(20px)",
+  borderRadius: "25px",
+  boxShadow: "0 15px 40px rgba(0,0,0,0.5)",
+  zIndex: 2,
+  marginTop: "250px",
+  color: "#fff",
 };
 
-const loginTitle = { marginBottom: "25px", textAlign: "center" };
-const label = { display: "block", marginBottom: "5px", fontSize: "14px" };
+const loginTitle = {
+  marginBottom: "25px",
+  fontWeight: "700",
+  textAlign: "center",
+  fontSize: "28px",
+};
+
+const label = {
+  display: "block",
+  marginBottom: "6px",
+  fontWeight: "500",
+};
+
 const input = {
-  width: "100%", padding: "12px", borderRadius: "10px", border: "none",
-  marginBottom: "15px", background: "rgba(255,255,255,0.1)", color: "#fff", boxSizing: "border-box"
+  width: "100%",
+  padding: "14px",
+  borderRadius: "12px",
+  border: "none",
+  marginBottom: "18px",
+  fontSize: "16px",
+  background: "rgba(255,255,255,0.1)",
+  color: "#fff",
+  outline: "none",
 };
 
 const button = {
-  width: "100%", padding: "12px", borderRadius: "10px", border: "none",
-  background: "#ffcc00", color: "#000", fontWeight: "bold", cursor: "pointer"
+  width: "100%",
+  padding: "14px",
+  borderRadius: "12px",
+  border: "none",
+  background: "linear-gradient(90deg, #ffcc00, #ff9900)",
+  color: "#1b1b1b",
+  fontSize: "17px",
+  fontWeight: "700",
+  cursor: "pointer",
 };
 
-const bioBtn = {
-  background: "none", border: "1px solid #ffcc00", color: "#ffcc00",
-  padding: "10px", borderRadius: "8px", cursor: "pointer", fontSize: "12px"
+const errorStyle = {
+  color: "#ff4d4f",
+  marginBottom: "10px",
+  textAlign: "center",
 };
-
-const bioBtnActive = {
-  background: "rgba(255,204,0,0.1)", border: "1px solid #ffcc00", color: "#ffcc00",
-  padding: "12px", borderRadius: "10px", cursor: "pointer", width: "100%", fontWeight: "bold"
-};
-
-const errorStyle = { color: "#ff4d4f", fontSize: "12px", textAlign: "center", marginBottom: "10px" };
 
 export default Login;
