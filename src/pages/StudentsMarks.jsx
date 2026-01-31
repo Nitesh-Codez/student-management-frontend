@@ -259,16 +259,23 @@ const StudentMarks = () => {
   // --- OVERALL CALCULATION FOR CIRCLE ---
   const overallPercentage = calculateAverage(marks);
   const getRemark = (p) => {
-    if (p >= 85) return "Elite Performance!";
-    if (p >= 60) return "Consistent Progress.";
-    if (p >= 40) return "Scope for Growth.";
-    return "Requires Immediate Focus.";
-  };
+  if (p >= 95) return "Outstanding! Truly exceptional work done.";
+  if (p >= 90) return "Excellent! Keep up your efforts.";
+  if (p >= 85) return "Elite Performance! You did great.";
+  if (p >= 80) return "Very Good! Strong understanding shown.";
+  if (p >= 70) return "Good Job! Skills improving consistently.";
+  if (p >= 60) return "Consistent Progress. Keep learning steadily.";
+  if (p >= 50) return "Average Performance. Can do better.";
+  if (p >= 40) return "Scope for Growth. Try harder.";
+  if (p >= 33) return "Barely Passing. Need more focus.";
+  return "Requires Immediate Focus. Work immediately.";
+};
 
   const dashArray = 2 * Math.PI * 45;
   const dashOffset = dashArray - (dashArray * overallPercentage) / 100;
 
   const grouped = marks.reduce((acc, m) => {
+    
     if (!acc[m.subject]) acc[m.subject] = [];
     acc[m.subject].push(m);
     return acc;
@@ -369,22 +376,60 @@ const StudentMarks = () => {
         </p>
       </div>
 
-      {/* 3. LATEST CHECKED MARKS DIV (Specific Requirement) */}
-      {latestCheckedMarks.length > 0 && (
-        <div style={styles.latestSection}>
-          <p style={{ margin: "0 0 10px 0", fontSize: "12px", fontWeight: "bold", color: "#E74C3C", textTransform: "uppercase" }}>
-            Recently Added Scores:
-          </p>
-          <div style={{ display: "flex", overflowX: "auto", paddingBottom: "5px" }}>
-            {latestCheckedMarks.map((m, i) => (
-              <div key={i} style={styles.latestBadge}>
-                {m.subject}: {m.obtained_marks}/{m.total_marks}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+     {/* 3. LATEST CHECKED MARKS DIV (With Comparison) */}
+{latestCheckedMarks.length > 0 && (
+  <div style={styles.latestSection}>
+    <p
+      style={{
+        margin: "0 0 10px 0",
+        fontSize: "12px",
+        fontWeight: "bold",
+        color: "#E74C3C",
+        textTransform: "uppercase",
+      }}
+    >
+      Recently Added Scores:
+    </p>
+    <div style={{ display: "flex", overflowX: "auto", paddingBottom: "5px" }}>
+      {latestCheckedMarks.map((m, i) => {
+        // Get previous marks for the same subject
+        const prevMarks = marks
+          .filter((old) => old.subject === m.subject && old.id !== m.id)
+          .sort((a, b) => new Date(b.test_date) - new Date(a.test_date))[0];
 
+        // Compare
+        let comparisonText = "";
+        if (prevMarks) {
+          if (m.obtained_marks > prevMarks.obtained_marks) {
+            comparisonText = "Better than last time!";
+          } else if (m.obtained_marks < prevMarks.obtained_marks) {
+            comparisonText = "Worse than last time!";
+          } else {
+            comparisonText = "Same as last time!";
+          }
+        } else {
+          comparisonText = "First attempt recorded!";
+        }
+
+        return (
+          <div key={i} style={styles.latestBadge}>
+            <div style={{ fontWeight: "bold" }}>
+              {m.subject}: {m.obtained_marks}/{m.total_marks}
+            </div>
+            <div style={{ fontSize: "11px", marginTop: "4px", color: "#fff" }}>
+  {prevMarks ? (
+    m.obtained_marks > prevMarks.obtained_marks ? "↑ Improving!" :
+    m.obtained_marks < prevMarks.obtained_marks ? "↓ Needs Focus!" :
+    "→ Same as last time!"
+  ) : "🎉 First attempt recorded!"}
+</div>
+
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
       {/* 4. CIRCULAR SUBJECT DIVS */}
       <div style={{ display: "flex", gap: "15px", overflowX: "auto", padding: "10px 12px 20px 12px", scrollbarWidth: "none" }}>
         {subjects.map((sub, idx) => {
@@ -406,6 +451,13 @@ const StudentMarks = () => {
                 <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", fontSize: "13px", fontWeight: "bold" }}>
                   {Math.round(subAvg)}%
                 </div>
+                <div style={{ position: "relative", marginTop: "6px" }}>
+  {subAvg >= 95 && <span style={{ fontSize: "20px", position: "absolute", left: "-20px", top: "-5px" }}>🏆</span>}
+  {subAvg >= 85 && subAvg < 95 && <span style={{ fontSize: "20px", position: "absolute", left: "-20px", top: "-5px" }}>🌟</span>}
+  {subAvg >= 70 && subAvg < 85 && <span style={{ fontSize: "20px", position: "absolute", left: "-20px", top: "-5px" }}>🎖️</span>}
+</div>
+
+
               </div>
               <p style={{ fontSize: "12px", marginTop: "12px", fontWeight: "bold", color: "#353b48" }}>{sub}</p>
             </div>
@@ -441,7 +493,7 @@ const StudentMarks = () => {
       {/* 6. CAPTCHA SECTION */}
       <div style={{ padding: "0 12px" }}>
         <div style={{ background: "#fff", borderRadius: "18px", padding: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
-          <div style={{ padding: "18px", background: "#f8f9fa", borderRadius: "12px", textAlign: "center", fontWeight: "900", letterSpacing: "8px", fontSize: "28px", border: "2px dashed #3498DB", color: "#2b5876", marginBottom: "15px" }}>
+          <div style={{ padding: "18px", background: "#f8f9fa", borderRadius: "10px", textAlign: "center", fontWeight: "700", letterSpacing: "8px", fontSize: "20px", border: "2px dashed #3498DB", color: "#2b5876", marginBottom: "15px" }}>
             {captcha}
           </div> 
           <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
