@@ -93,7 +93,7 @@ const StudentMarks = () => {
           const newEntries = fetchedData.filter((m) => !currentIds.includes(m.id));
 
           if (newEntries.length > 0 && currentLocalMarks.length > 0) {
-            const names = [...new Set(newEntries.map((m) => m.subject_name))].join(", ");
+            const names = [...new Set(newEntries.map((m) => m.subject))].join(", ");
             setNewSubjectNames(names);
             // We don't set latestCheckedMarks here yet; only after Captcha verification
             setShowPrePopup(true);
@@ -195,7 +195,7 @@ const StudentMarks = () => {
     (a, b) => new Date(a.test_date) - new Date(b.test_date)
   );
 
-  const subjects = [...new Set(sorted.map((m) => m.subject_name))];
+  const subjects = [...new Set(sorted.map((m) => m.subject))];
   const colors = [
     "#D4AF37", "#FF7F50", "#87CEEB", "#90EE90",
     "#AD6E55", "#DDA0DD", "#007DD1", "#E41700",
@@ -206,7 +206,7 @@ const StudentMarks = () => {
   const labels = [
     ...new Set(
       sorted
-        .filter((m) => visibleSubjects.includes(m.subject_name))
+        .filter((m) => visibleSubjects.includes(m.subject))
         .map((m) => new Date(m.test_date).toLocaleDateString())
     ),
   ];
@@ -216,7 +216,7 @@ const StudentMarks = () => {
     data: labels.map((date) => {
       const mark = sorted.find(
         (m) =>
-          m.subject_name === subject &&
+          m.subject === subject &&
           new Date(m.test_date).toLocaleDateString() === date
       );
       return mark
@@ -269,8 +269,8 @@ const StudentMarks = () => {
   const dashOffset = dashArray - (dashArray * overallPercentage) / 100;
 
   const grouped = marks.reduce((acc, m) => {
-    if (!acc[m.subject_name]) acc[m.subject_name] = [];
-    acc[m.subject_name].push(m);
+    if (!acc[m.subject]) acc[m.subject] = [];
+    acc[m.subject].push(m);
     return acc;
   }, {});
 
@@ -378,7 +378,7 @@ const StudentMarks = () => {
           <div style={{ display: "flex", overflowX: "auto", paddingBottom: "5px" }}>
             {latestCheckedMarks.map((m, i) => (
               <div key={i} style={styles.latestBadge}>
-                {m.subject_name}: {m.obtained_marks}/{m.total_marks}
+                {m.subject}: {m.obtained_marks}/{m.total_marks}
               </div>
             ))}
           </div>
