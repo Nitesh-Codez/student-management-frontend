@@ -144,13 +144,14 @@ const StudentProfile = () => {
       />
 
       <Input
-        label="DOB"
-        name="dob"
-        type="date"
-        value={profile.dob || ""}
-        disabled={locked.dob}
-        onChange={handleChange}
-      />
+  label="DOB"
+  name="dob"
+  type="date"
+  value={profile.dob ? profile.dob.split("T")[0] : ""}
+  disabled={locked.dob}
+  onChange={handleChange}
+/>
+
 
       <Input
         label="Email"
