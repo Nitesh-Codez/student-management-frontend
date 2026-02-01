@@ -6,17 +6,48 @@ import { FaCheckCircle, FaStar, FaPaperPlane, FaLock, FaChevronLeft, FaChevronRi
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const questions = [
-  { question: "How do you feel about Bhaiya's behavior and the way he supports you in class?", options: ["Excellent", "Good", "Neutral", "Angry"] },
-  { question: "Is the teaching style easy to understand, and are the topics explained clearly?", options: ["Crystal Clear", "Clear", "Average", "Confusing"] },
-  { question: "Do you think the speed of teaching is okay, or is it going too fast for you?", options: ["Perfect", "Good", "Fast", "Slow"] },
-  { question: "Honestly, did you understand every single topic that was covered in today's class?", options: ["100%", "Mostly", "Half", "Nothing"] },
-  { question: "How would you describe the overall energy and environment inside the classroom?", options: ["Very Happy", "Quiet", "Noisy", "Boring"] },
-  { question: "What do you think about the quality of the notes and study materials provided to you?", options: ["Best", "Good", "Average", "Poor"] },
-  { question: "When you ask a question, how fast are your doubts cleared by Bhaiya?", options: ["Instant", "Quick", "Slow", "Never"] },
-  { question: "Is the class starting on the exact time, and is everyone being punctual?", options: ["Always on time", "Mostly", "Late", "Very Late"] },
-  { question: "Do you feel that the amount of homework given to you is easy to manage at home?", options: ["Manageable", "Good", "Heavy", "Too Much"] },
-  { question: "Looking at your overall journey, are you happy and satisfied with your learning?", options: ["Very Satisfied", "Satisfied", "OK", "Not Good"] },
+  {
+    question: "How do you feel about Bhaiya’s behavior with students and the way he supports and motivates you during the class?",
+    options: ["Excellent", "Good", "Average", "Not Good"]
+  },
+  {
+    question: "Is Bhaiya’s teaching style easy to understand, and are the concepts explained in a clear and simple manner?",
+    options: ["Very Clear", "Clear", "Somewhat Clear", "Not Clear"]
+  },
+  {
+    question: "How do you feel about the speed of teaching in the class? Is it comfortable for you to follow and learn properly?",
+    options: ["Perfect Speed", "Mostly Fine", "Too Fast", "Too Slow"]
+  },
+  {
+    question: "After attending today’s class, how much of the topic do you feel you have understood?",
+    options: ["Completely", "Mostly", "Partially", "Not at All"]
+  },
+  {
+    question: "How would you describe the overall classroom environment, including discipline, energy, and student interaction?",
+    options: ["Very Positive", "Good", "Average", "Poor"]
+  },
+  {
+    question: "What is your opinion about the quality of notes, explanations, and study material provided during the class?",
+    options: ["Excellent", "Good", "Average", "Needs Improvement"]
+  },
+  {
+    question: "When you ask doubts in the class, how effectively and clearly are your questions answered by Bhaiya?",
+    options: ["Very Clearly", "Clearly", "Sometimes", "Rarely"]
+  },
+  {
+    question: "Is the class usually started on time, and does Bhaiya maintain proper punctuality throughout the session?",
+    options: ["Always On Time", "Mostly On Time", "Sometimes Late", "Often Late"]
+  },
+  {
+    question: "Considering this month’s classes, how manageable do you find the homework and practice work given to you?",
+    options: ["Very Manageable", "Manageable", "Heavy", "Too Much"]
+  },
+  {
+    question: "Overall, thinking about your learning progress and experience during this month, how satisfied are you with the classes?",
+    options: ["Very Satisfied", "Satisfied", "Neutral", "Not Satisfied"]
+  }
 ];
+
 
 export default function StudentFeedback({ studentId }) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -52,7 +83,7 @@ export default function StudentFeedback({ studentId }) {
     const newAns = [...mcqAnswers];
     newAns[currentStep] = index + 1;
     setMcqAnswers(newAns);
-    if (currentStep < 9) setTimeout(() => setCurrentStep(currentStep + 1), 400);
+    if (currentStep < 10) setTimeout(() => setCurrentStep(currentStep + 1), 400);
   };
 
   const handleSubmit = async () => {
