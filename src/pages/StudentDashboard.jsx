@@ -21,6 +21,7 @@ import StudentStudyMaterial from "./StudentStudyMaterial";
 import StudentPage from "./StudentPage";
 import StudentFeedback from "./StudentFeedback";
 import StudentChat from "./StudentChat";
+import ApplyCorrection from "./ApplyCorrection"; // Ensure this import exists
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
@@ -432,6 +433,7 @@ const StudentDashboard = () => {
           <Route path="task-update" element={<StudentPage studentId={user.id} />} />
           <Route path="feedback" element={<StudentFeedback studentId={user.id} />} />
           <Route path="chat" element={<StudentChat user={user} />} />
+          <Route path="apply-correction" element={<ApplyCorrection />} />
         </Routes>
       </main>
 

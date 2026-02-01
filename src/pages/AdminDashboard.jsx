@@ -3,22 +3,53 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
   FaBookOpen, FaFileUpload, FaStar, FaComments, FaChartBar,
-  FaArrowRight, FaThLarge, FaSearch, FaBell, FaCog, FaChevronRight, FaBars, FaLayersGroup
+  FaArrowRight, FaThLarge, FaSearch, FaBell, FaCog, FaChevronRight, FaBars
 } from "react-icons/fa";
+import axios from "axios";
+
+const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const AdminDashboard = () => {
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
-  // Default hide karne ke liye isse false rakha hai
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
-  // Dynamic stats: 45 Batches (jaisa aapne manga tha)
   const [stats, setStats] = useState({ students: 0, batches: 0 });
+  const [notifications, setNotifications] = useState([]);
+  const [showNotif, setShowNotif] = useState(false);
 
+  // Fetch stats
   useEffect(() => {
-    // API simulation
     setStats({ students: 45, batches: 2 });
   }, []);
+
+  // Fetch pending edit requests for bell notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/students/pending-edit-requests`);
+        setNotifications(res.data.requests || []);
+      } catch (err) {
+        console.error("Error fetching notifications:", err);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  const handleApproveReject = async (id, status) => {
+    try {
+      await axios.post(`${API_URL}/api/students/handle-edit`, {
+        request_id: id,
+        status,
+        admin_id: 1 // replace with logged-in admin ID
+      });
+      // Remove from local notifications
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      alert(`Request ${status} ✅`);
+    } catch (err) {
+      console.error(err);
+      alert("Action failed!");
+    }
+  };
 
   const links = [
     { title: "Manage Students", path: "manage-students", icon: <FaUserGraduate />, color: "#6366f1", category: "Academic" },
@@ -35,7 +66,7 @@ const AdminDashboard = () => {
     { title: "Student Chat", path: "admin-chat", icon: <FaComments />, color: "#2dd4bf", category: "Support" },
   ];
 
-  const filteredLinks = links.filter(link => 
+  const filteredLinks = links.filter(link =>
     link.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -43,65 +74,75 @@ const AdminDashboard = () => {
 
   return (
     <div style={layout}>
-      {/* Sidebar - Collapsed by default (80px) */}
-      <aside style={{...sidebar, width: isSidebarOpen ? '260px' : '80px'}}>
+      {/* Sidebar */}
+      <aside style={{ ...sidebar, width: isSidebarOpen ? '260px' : '80px' }}>
         <div style={logoSection}>
           <div style={logoIcon}><FaThLarge /></div>
           {isSidebarOpen && <span style={logoText}>EduFlow</span>}
         </div>
-        
         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} style={toggleBtn}>
           {isSidebarOpen ? <FaChevronLeft /> : <FaBars />}
         </button>
-
         <nav style={navLinks}>
           {isSidebarOpen && <div style={navLabel}>Main Menu</div>}
           {links.map((link) => (
-            <Link 
-              key={link.path} 
-              to={link.path} 
-              style={{...sideNavLink, justifyContent: isSidebarOpen ? 'flex-start' : 'center'}}
-              title={!isSidebarOpen ? link.title : ""}
-            >
-              <span style={{color: link.color, fontSize: '18px', display: 'flex'}}>{link.icon}</span>
+            <Link key={link.path} to={link.path} style={{ ...sideNavLink, justifyContent: isSidebarOpen ? 'flex-start' : 'center' }} title={!isSidebarOpen ? link.title : ""}>
+              <span style={{ color: link.color, fontSize: '18px', display: 'flex' }}>{link.icon}</span>
               {isSidebarOpen && <span style={navText}>{link.title}</span>}
             </Link>
           ))}
         </nav>
-
-        {isSidebarOpen && (
-          <div style={sidebarFooter}>
-            <div style={activeStatus}><span style={dot}></span> Live</div>
-            <p style={{margin: '4px 0 0', fontSize: '10px', color: '#94a3b8'}}>Panel v2.5</p>
-          </div>
-        )}
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <main style={mainContent}>
         {isBaseAdmin ? (
           <div style={contentWrapper}>
-            {/* Top Bar */}
+            {/* Top Nav */}
             <header style={topNav}>
               <div style={searchBar}>
-                <FaSearch style={{color: '#94a3b8'}} />
-                <input 
-                  type="text" 
-                  placeholder="Find anything..." 
-                  style={searchInput} 
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <FaSearch style={{ color: '#94a3b8' }} />
+                <input type="text" placeholder="Find anything..." style={searchInput} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
               <div style={topNavActions}>
-                <div style={iconBtn}><FaBell /></div>
+                {/* Bell Notification */}
+                <div style={{ position: 'relative' }}>
+                  <div style={iconBtn} onClick={() => setShowNotif(!showNotif)}>
+                    <FaBell />
+                    {notifications.length > 0 && (
+                      <span style={{
+                        position: 'absolute', top: '-5px', right: '-5px', background: 'red',
+                        color: '#fff', borderRadius: '50%', padding: '2px 6px', fontSize: '10px'
+                      }}>{notifications.length}</span>
+                    )}
+                  </div>
+                  {showNotif && (
+                    <div style={notifDropdown}>
+                      {notifications.length === 0 ? <p>No pending requests</p> :
+                        notifications.map(n => (
+                          <div key={n.id} style={notifItem}>
+                            <p><b>{n.student_name}</b> wants to change <b>{n.field_name}</b></p>
+                            <p>Old: {n.old_value || "-"}, New: {n.requested_value}</p>
+                            <div style={notifBtns}>
+                              <button onClick={() => handleApproveReject(n.id, "approved")} style={approveBtn}>Approve</button>
+                              <button onClick={() => handleApproveReject(n.id, "rejected")} style={rejectBtn}>Reject</button>
+                            </div>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  )}
+                </div>
+
+                {/* User */}
                 <div style={userProfile}>
-                  <img src="https://ui-avatars.com/api/?name=Nitesh&background=6366f1&color=fff" alt="user" style={avatar}/>
+                  <img src="https://ui-avatars.com/api/?name=Nitesh&background=6366f1&color=fff" alt="user" style={avatar} />
                   <span className="hide-mobile">Nitesh Admin</span>
                 </div>
               </div>
             </header>
 
-            {/* Hero Section - Staff replaced with Batches */}
+            {/* Hero */}
             <section style={hero}>
               <div style={heroText}>
                 <h1 style={greeting}>Admin Dashboard</h1>
@@ -120,20 +161,16 @@ const AdminDashboard = () => {
               </div>
             </section>
 
-            {/* Responsive Cards Grid */}
+            {/* Cards Grid */}
             <div style={grid}>
               {filteredLinks.map((link) => (
                 <Link to={link.path} key={link.title} className="glass-card" style={cardStyle}>
-                  <div style={{ ...iconBox, background: link.color }}>
-                    {link.icon}
-                  </div>
+                  <div style={{ ...iconBox, background: link.color }}>{link.icon}</div>
                   <div style={cardInfo}>
                     <span style={categoryLabel}>{link.category}</span>
                     <h3 style={cardTitle}>{link.title}</h3>
                   </div>
-                  <div className="arrow-btn" style={arrowBtn}>
-                    <FaArrowRight size={12} />
-                  </div>
+                  <div className="arrow-btn" style={arrowBtn}><FaArrowRight size={12} /></div>
                 </Link>
               ))}
             </div>
@@ -142,60 +179,23 @@ const AdminDashboard = () => {
           <div style={outletStyle}><Outlet /></div>
         )}
       </main>
-
-      <style>
-        {`
-          @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
-          
-          * { box-sizing: border-box; font-family: 'Outfit', sans-serif; }
-          body { margin: 0; background: #f8fafc; }
-
-          .glass-card {
-            position: relative;
-            background: rgba(255, 255, 255, 0.8) !important;
-            border: 1px solid #fff !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
-          }
-          
-          .glass-card:hover {
-            transform: translateY(-5px);
-            background: #fff !important;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05);
-            border-color: #6366f1 !important;
-          }
-
-          .glass-card:hover .arrow-btn {
-            background: #6366f1;
-            color: #fff;
-          }
-
-          /* Mobile Optimization */
-          @media (max-width: 768px) {
-            aside {
-              position: fixed !important;
-              height: 100vh;
-              width: ${isSidebarOpen ? '260px' : '0px'} !important;
-              padding: ${isSidebarOpen ? '25px 15px' : '0px'} !important;
-              overflow: hidden;
-            }
-            main { padding: 15px !important; }
-            .hide-mobile { display: none; }
-            .stats-container { flex-direction: column; gap: 15px; }
-            header { gap: 10px; }
-            .search-bar { width: 100% !important; }
-            .hero-section { padding: 25px !important; flex-direction: column; text-align: center; gap: 20px; }
-          }
-
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-        `}
-      </style>
     </div>
   );
 };
+
+// ---- Notification styles ----
+const notifDropdown = {
+  position: 'absolute', top: '45px', right: '0', width: '300px',
+  maxHeight: '400px', overflowY: 'auto', background: '#fff', borderRadius: '12px',
+  boxShadow: '0 10px 20px rgba(0,0,0,0.15)', padding: '10px', zIndex: 1002
+};
+
+const notifItem = { borderBottom: '1px solid #eee', padding: '10px 5px' };
+const notifBtns = { display: 'flex', gap: '10px', marginTop: '5px' };
+const approveBtn = { padding: '5px 8px', borderRadius: '5px', border: 'none', background: '#4ade80', color: '#fff', cursor: 'pointer' };
+const rejectBtn = { padding: '5px 8px', borderRadius: '5px', border: 'none', background: '#f87171', color: '#fff', cursor: 'pointer' };
+
+
 
 // --- Icons for Toggle ---
 const FaChevronLeft = () => <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 320 512" height="1em" width="1em"><path d="M34.52 239.03L228.87 44.69c9.37-9.37 24.57-9.37 33.94 0l22.67 22.67c9.36 9.36 9.37 24.52.04 33.9L131.49 256l154.02 154.75c9.34 9.38 9.32 24.54-.04 33.9l-22.67 22.67c-9.37 9.37-24.57 9.37-33.94 0L34.52 272.97c-9.37-9.37-9.37-24.57 0-33.94z"></path></svg>;

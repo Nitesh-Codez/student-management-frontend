@@ -238,7 +238,7 @@ const StudentAttendance = () => {
 };
 
 // --- STYLES ---
-const pageWrapper = { width: "100%", minHeight: "100vh", background: "#fff", paddingBottom: "60px", overflowX: "hidden" };
+const pageWrapper = { width: "110%", minHeight: "100vh", background: "#fff", paddingBottom: "60px", overflowX: "hidden" };
 
 const headerSection = { padding: "35px 20px 25px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", width: "100%", borderBottom: "1px solid #f1f5f9" };
 const headerTag = {
@@ -260,8 +260,17 @@ const headerTag = {
 const mainTitle = { fontSize: "28px", fontWeight: "900", margin: 0, color: "#0f172a", lineHeight: '1' };
 const subTitle = { fontSize: "20px", color: "#000000", marginTop: "6px" };
 
-const monthPickerWrapper = { background: "#f8fafc", padding: "10px 12px", borderRadius: "12px", border: "1px solid #e2e8f0" };
-const monthInput = { border: "none", background: "transparent", fontWeight: "800", outline: "none", fontSize: "13px", color: "#0f172a", cursor: "pointer" };
+const monthPickerWrapper = { background: "#f8fafc", padding: "10px 12px", borderRadius: "12px", border: "1px solid #e2e8f0" };const monthInput = { 
+  border: "none", 
+  background: "transparent", 
+  fontWeight: "800", 
+  outline: "none", 
+  fontSize: "13px", 
+  color: "#0f172a", 
+  cursor: "pointer",
+  marginRight: "27px", // Ye isko left side shift rakhega
+  display: "block" 
+};
 
 const heroCard = { width: "100%", background: "#0f172a", padding: "35px 25px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" };
 const heroText = { display: "flex", flexDirection: "column", flex: 1 };

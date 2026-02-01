@@ -1,0 +1,269 @@
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
+
+const API_URL = "https://student-management-system-4-hose.onrender.com";
+
+const ApplyCorrection = () => {
+  const { state } = useLocation();
+  const navigate = useNavigate();
+  const student = state?.profile;
+
+  const [selectedFields, setSelectedFields] = useState([]);
+  const [formData, setFormData] = useState({});
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [previousRequests, setPreviousRequests] = useState([]);
+
+  const availableFields = [
+    { label: "Full Name", key: "name" },
+    { label: "Class/Batch", key: "class" },
+    { label: "Mobile No.", key: "mobile" },
+    { label: "Father's Name", key: "father_name" },
+    { label: "Mother's Name", key: "mother_name" },
+    { label: "Date of Birth", key: "dob" },
+    { label: "Email ID", key: "email" },
+    { label: "Address", key: "address" },
+  ];
+
+  // Format Date DD-MM-YYYY
+  const getFormattedDate = () => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+  };
+
+  // Fetch previous requests for this student
+  const fetchPreviousRequests = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/students/pending-edit-requests`);
+      // Filter requests only for this student
+      const studentRequests = res.data.requests.filter(r => r.student_name === student.name);
+      setPreviousRequests(studentRequests);
+    } catch (err) {
+      console.error("Error fetching previous requests:", err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (student) fetchPreviousRequests();
+  }, [student]);
+
+  if (!student) {
+    return <p style={{ textAlign: "center", color: "red", marginTop: "50px" }}>No student data found.</p>;
+  }
+
+  // Check if a field is already requested and not approved yet
+  const isFieldLocked = (fieldKey) => {
+    const pending = previousRequests.find(r => r.field_name === fieldKey && r.status === "pending");
+    const approved = previousRequests.find(r => r.field_name === fieldKey && r.status === "approved");
+    return pending || approved;
+  };
+
+  const handleCheckboxChange = (fieldKey) => {
+    if (isFieldLocked(fieldKey)) return; // cannot select locked field
+
+    if (selectedFields.includes(fieldKey)) {
+      setSelectedFields(selectedFields.filter(f => f !== fieldKey));
+      const newFormData = { ...formData };
+      delete newFormData[fieldKey];
+      setFormData(newFormData);
+    } else {
+      if (selectedFields.length >= 3) {
+        alert("Attention: You can only request up to 3 corrections at a time.");
+        return;
+      }
+      setSelectedFields([...selectedFields, fieldKey]);
+      setFormData({ ...formData, [fieldKey]: "" });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (selectedFields.length === 0) return alert("Please select at least one field to correct.");
+    if (!reason.trim()) return alert("Please provide a reason for the correction.");
+
+    try {
+      setSubmitting(true);
+      const requests = selectedFields.map(field =>
+        axios.post(`${API_URL}/api/students/request-edit`, {
+          student_id: student.id,
+          field_name: field,
+          requested_value: formData[field],
+          reason: reason,
+        })
+      );
+      await Promise.all(requests);
+      setSuccess("Your application has been sent to HOC for approval! ✅");
+      setTimeout(() => navigate("/dashboard"), 3000);
+    } catch (err) {
+      alert("Error submitting request: " + err.message);
+    } finally {
+      setSubmitting(false);
+      fetchPreviousRequests(); // refresh requests
+    }
+  };
+
+  return (
+    <div style={container}>
+      <div style={headerFlex}>
+        <div style={studentInfoSide}>
+          <img src={student.profile_photo || "https://via.placeholder.com/100"} alt="Student" style={studentPhoto} />
+          <div style={{fontSize:"13px", color:"#555"}}>
+            <p style={{margin:"2px 0"}}><b>ID:</b> {student.code}</p>
+            <p style={{margin:"2px 0"}}><b>Name:</b> {student.name}</p>
+          </div>
+        </div>
+        <div style={institutionSide}>
+          <h2 style={brandName}>Smart Students Classes</h2>
+          <p style={subHeader}>Application for Record Correction</p>
+          <p style={dateLine}><b>Date:</b> {getFormattedDate()}</p>
+        </div>
+      </div>
+      <div style={divider}></div>
+
+      <div style={appContent}>
+        <p style={addressTo}>To,<br/><b>The Head of Center (HOC)</b>,<br/>Smart Students Classes.</p>
+        <p style={subjectLine}><b>Subject: Request for correction in my personal details.</b></p>
+        <p style={salutation}>Respected Sir/Ma'am,</p>
+        <p style={mainPara}>
+          I, <b>{student.name}</b>, am a student of class <b>{student.class}</b>. 
+          I am writing to request a correction in my official records. Kindly allow me to update the following details (Max 3):
+        </p>
+
+        {/* CHECKBOX SELECTION */}
+        <div style={checkboxContainer}>
+          {availableFields.map((field) => {
+            const locked = isFieldLocked(field.key);
+            return (
+              <label key={field.key} style={checkboxLabel}>
+                <input
+                  type="checkbox"
+                  style={{marginRight:"8px"}}
+                  checked={selectedFields.includes(field.key)}
+                  onChange={() => handleCheckboxChange(field.key)}
+                  disabled={locked}
+                />
+                {field.label} {locked && "(Locked / Already Requested)"}
+              </label>
+            );
+          })}
+        </div>
+
+        {/* CORRECTION TABLE */}
+        {selectedFields.length > 0 && (
+          <div style={tableWrapper}>
+            <table style={table}>
+              <thead>
+                <tr style={tableHead}>
+                  <th style={th}>Field Name</th>
+                  <th style={th}>Current Value (In Record)</th>
+                  <th style={th}>Requested Correct Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedFields.map((fieldKey) => (
+                  <tr key={fieldKey}>
+                    <td style={td}><b>{fieldKey.replace("_"," ").toUpperCase()}</b></td>
+                    <td style={td}>{student[fieldKey] || "Empty"}</td>
+                    <td style={td}>
+                      <input
+                        type="text"
+                        placeholder="Enter correct value"
+                        style={tableInput}
+                        value={formData[fieldKey]}
+                        onChange={(e) => setFormData({...formData, [fieldKey]: e.target.value})}
+                        required
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* PREVIOUS REQUESTS */}
+        {previousRequests.length > 0 && (
+          <div style={{marginTop:"20px"}}>
+            <h4>Previous Requests:</h4>
+            <table style={table}>
+              <thead>
+                <tr style={tableHead}>
+                  <th style={th}>Field</th>
+                  <th style={th}>Requested Value</th>
+                  <th style={th}>Status</th>
+                  <th style={th}>Submitted On</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previousRequests.map((r) => (
+                  <tr key={r.id}>
+                    <td style={td}>{r.field_name}</td>
+                    <td style={td}>{r.requested_value}</td>
+                    <td style={td}>{r.status}</td>
+                    <td style={td}>{new Date(r.action_at || Date.now()).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* REASON */}
+        <div style={{marginTop:"20px"}}>
+          <label style={{fontSize:"14px", fontWeight:"bold"}}>Reason for application:</label>
+          <textarea
+            style={reasonInput}
+            placeholder="Please mention why you want to change these details..."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            required
+          />
+        </div>
+
+        <button onClick={handleSubmit} disabled={submitting} style={submitBtn}>
+          {submitting ? "Processing Application..." : "Submit to HOC"}
+        </button>
+
+        {success && <div style={successBox}>{success}</div>}
+
+        <div style={signature}>
+          <p>Sincerely,</p>
+          <p><b>{student.name}</b></p>
+          <p>(Student Signature)</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- STYLING (Internal) ---
+const container = { maxWidth:"800px", margin:"40px auto", padding:"40px", background:"#fff", borderRadius:"2px", boxShadow:"0 0 20px rgba(0,0,0,0.1)", fontFamily:"'Times New Roman', Times, serif", border:"1px solid #ddd" };
+const headerFlex = { display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"10px" };
+const studentInfoSide = { textAlign:"left" };
+const institutionSide = { textAlign:"right" };
+const studentPhoto = { width:"90px", height:"90px", objectFit:"cover", borderRadius:"4px", border:"2px solid #eee", marginBottom:"5px" };
+const brandName = { color:"#4f46e5", margin:"0", fontSize:"24px", fontWeight:"bold", textTransform:"uppercase" };
+const subHeader = { margin:"2px 0", fontSize:"14px", color:"#666" };
+const dateLine = { fontSize:"15px", marginTop:"10px" };
+const divider = { height:"2px", background:"#4f46e5", marginBottom:"20px" };
+const appContent = { lineHeight:"1.6", color:"#222" };
+const addressTo = { marginBottom:"20px" };
+const subjectLine = { textDecoration:"underline", marginBottom:"20px", fontSize:"16px" };
+const salutation = { marginBottom:"10px" };
+const mainPara = { marginBottom:"20px", textAlign:"justify" };
+const checkboxContainer = { display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px", background:"#f9f9f9", padding:"15px", borderRadius:"8px", marginBottom:"20px" };
+const checkboxLabel = { fontSize:"13px", cursor:"pointer", display:"flex", alignItems:"center" };
+const tableWrapper = { marginTop:"20px", border:"1px solid #ccc" };
+const table = { width:"100%", borderCollapse:"collapse" };
+const tableHead = { background:"#f2f2f2" };
+const th = { padding:"12px", border:"1px solid #ccc", fontSize:"14px" };
+const td = { padding:"10px", border:"1px solid #ccc", fontSize:"14px" };
+const tableInput = { width:"95%", padding:"5px", border:"1px solid #4f46e5", borderRadius:"3px" };
+const reasonInput = { width:"100%", height:"70px", padding:"10px", marginTop:"5px", borderRadius:"4px", border:"1px solid #ccc", boxSizing:"border-box" };
+const submitBtn = { width:"100%", marginTop:"25px", padding:"15px", background:"#4f46e5", color:"white", border:"none", borderRadius:"4px", cursor:"pointer", fontWeight:"bold", fontSize:"16px" };
+const successBox = { marginTop:"15px", padding:"10px", background:"#dcfce7", color:"#166534", borderRadius:"4px", textAlign:"center", fontWeight:"bold" };
+const signature = { marginTop:"40px", textAlign:"left" };
+
+export default ApplyCorrection;

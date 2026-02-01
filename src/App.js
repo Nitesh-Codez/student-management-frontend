@@ -3,9 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 // Pages
 import Login from "./pages/Login";
-// ✅ Yahan se { AdminFeedback } hata diya kyunki ye ab alag file hai
-import AdminDashboard from "./pages/AdminDashboard"; 
-import AdminFeedback from "./pages/AdminFeedback"; // ✅ Naya import add kiya
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminFeedback from "./pages/AdminFeedback";
 import AdminAddMarks from "./pages/AdminAddMarks";
 import AdminAddNewMarks from "./pages/AdminAddNewMarks"; 
 import StudentDashboard from "./pages/StudentDashboard";
@@ -21,23 +20,24 @@ import HomeworkAdmin from "./pages/HomeworkAdmin";
 import StudentProfile from "./pages/StudentProfile";
 import AdminStudyMaterial from "./pages/AdminStudyMaterial";
 import StudentPage from "./pages/StudentPage";
-import AdminPage from "./pages/AdminPage"; // Student submission
-import AdminChat from "./pages/AdminChat"; // Admin chat
+import AdminPage from "./pages/AdminPage";
+import AdminChat from "./pages/AdminChat";
 import StudentChat from "./pages/StudentChat";
-import StudentFeedback from "./pages/StudentFeedback"; // Student chat
+import StudentFeedback from "./pages/StudentFeedback";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Refund from "./pages/Refund";
+import ApplyCorrection from "./pages/ApplyCorrection"; // ✅ student correction form
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Public Route */}
+        {/* Public Routes */}
+        <Route path="/" element={<Login />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/prefund_policy" element={<Refund />} />
-        <Route path="/" element={<Login />} />
 
         {/* Admin Routes */}
         <Route path="/admin/*" element={<AdminDashboard />}>
@@ -52,10 +52,7 @@ function App() {
           <Route path="upload-homework" element={<HomeworkAdmin />} />
           <Route path="study-material" element={<AdminStudyMaterial />} />
           <Route path="student-submission" element={<AdminPage />} />
-          {/* ✅ Ye element ab seedha AdminFeedback component use karega */}
           <Route path="admin-feedback" element={<AdminFeedback />} />
-
-          {/* Admin Chat */}
           <Route path="admin-chat" element={<AdminChat />} />
         </Route>
 
@@ -69,14 +66,15 @@ function App() {
           <Route path="homework" element={<HomeworkStudent />} />
           <Route path="feedback" element={<StudentFeedback />} />
           <Route path="task-update" element={<StudentPage studentId={101} />} />
-
-          {/* Student Chat */}
           <Route path="student-chat" element={<StudentChat />} />
+
+          {/* ✅ Apply for Correction under student route */}
+          <Route path="apply-correction" element={<ApplyCorrection />} />
 
           <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Route>
 
-        {/* Catch-all Route */}
+        {/* Catch-all */}
         <Route path="*" element={<div>404 - Page Not Found</div>} />
       </Routes>
     </Router>
