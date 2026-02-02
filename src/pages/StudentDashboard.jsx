@@ -21,7 +21,10 @@ import StudentStudyMaterial from "./StudentStudyMaterial";
 import StudentPage from "./StudentPage";
 import StudentFeedback from "./StudentFeedback";
 import StudentChat from "./StudentChat";
-import ApplyCorrection from "./ApplyCorrection"; // Ensure this import exists
+import ApplyCorrection from "./ApplyCorrection";
+import ExamForm from "../pages/Examination/ExamForm";
+import GenerateAdmitCard from "../pages/Examination/GenerateAdmitCard";
+import ExaminationResult from "../pages/Examination/ExaminationResult";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
@@ -239,6 +242,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
 const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [examOpen, setExamOpen] = useState(false);
   const [pendingTasks, setPendingTasks] = useState(0);
   const [isFeeUnpaid, setIsFeeUnpaid] = useState(false);
   const [isFeedbackPending, setIsFeedbackPending] = useState(false);
@@ -264,104 +268,58 @@ const StudentDashboard = () => {
         const currentMonth = today.getMonth() === 0 ? 12 : today.getMonth(); 
         const currentYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
 
-        // 1. Profile Photo
         const photoRes = await axios.get(`${API_URL}/api/students/${storedUser.id}/profile-photo`);
         if (photoRes.data.success && photoRes.data.user?.profile_photo) {
           setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
         }
 
-        // 2. Pending Tasks
         const taskRes = await axios.get(`${API_URL}/api/assignments/class/${storedUser.class}/${storedUser.id}`);
         if (taskRes.data.success) {
            const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED");
            setPendingTasks(pending.length);
            if (pending.length > 0) {
-             activeNotis.push({ 
-               title: "Assignments", 
-               desc: `${pending.length} tasks are pending submission.`, 
-               icon: <FaTasks />, 
-               path: "task-update", 
-               color: theme.gradients.primary 
-             });
+             activeNotis.push({ title: "Assignments", desc: `${pending.length} tasks are pending submission.`, icon: <FaTasks />, path: "task-update", color: theme.gradients.primary });
            }
         }
 
-        // 3. Feedback Notification Logic
         const feedRes = await axios.get(`${API_URL}/api/feedback/student/${storedUser.id}`);
         if (feedRes.data.success) {
            const alreadyDone = feedRes.data.feedbacks?.some(f => f.month === currentMonth && f.year === currentYear);
            if (!alreadyDone) {
              setIsFeedbackPending(true);
-             activeNotis.push({
-               title: "Monthly Feedback",
-               desc: "Please submit your feedback for this month.",
-               icon: <FaStar />,
-               path: "feedback",
-               color: theme.gradients.purple
-             });
+             activeNotis.push({ title: "Monthly Feedback", desc: "Please submit your feedback.", icon: <FaStar />, path: "feedback", color: theme.gradients.purple });
            }
         }
 
-        // 4. Fees Logic
         const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
         if (feeRes.data.success) {
           const feesData = feeRes.data.fees;
-          const realMonth = today.getMonth();
-          const realYear = today.getFullYear();
-
           const isPaidThisMonth = feesData.some(f => {
             const fDate = new Date(f.payment_date);
-            return fDate.getMonth() === realMonth && fDate.getFullYear() === realYear && f.payment_status === "SUCCESS";
+            return fDate.getMonth() === today.getMonth() && fDate.getFullYear() === today.getFullYear() && f.payment_status === "SUCCESS";
           });
-
           if (!isPaidThisMonth) {
-            const lastAmount = feesData.length > 0 ? feesData[0].amount : "500";
             setIsFeeUnpaid(true);
             setShowFeePopup(true);
-            setDynamicFeeAmount(lastAmount);
-            activeNotis.push({ 
-              title: "Fees Pending", 
-              desc: "Monthly fee payment is due.", 
-              icon: <FaMoneyBillWave />, 
-              path: "fees", 
-              color: theme.gradients.warning 
-            });
+            setDynamicFeeAmount(feesData.length > 0 ? feesData[0].amount : "500");
+            activeNotis.push({ title: "Fees Pending", desc: "Monthly fee payment is due.", icon: <FaMoneyBillWave />, path: "fees", color: theme.gradients.warning });
           }
         }
 
-        // 5. NEW MARKS NOTIFICATION LOGIC (Matching your StudentMarks.js)
-        const marksRes = await axios.post(`${API_URL}/api/marks/check`, {
-          studentId: storedUser.id,
-          studentName: storedUser.name,
-        });
-        
+        const marksRes = await axios.post(`${API_URL}/api/marks/check`, { studentId: storedUser.id, studentName: storedUser.name });
         if (marksRes.data.success && marksRes.data.data.length > 0) {
           const savedMarksData = JSON.parse(localStorage.getItem("userMarks")) || {};
           const localMarks = savedMarksData[storedUser.id] || [];
           const fetchedData = marksRes.data.data;
-          
-          const currentIds = localMarks.map((m) => m.id);
-          const newEntries = fetchedData.filter((m) => !currentIds.includes(m.id));
-
+          const newEntries = fetchedData.filter((m) => !localMarks.map(lm => lm.id).includes(m.id));
           if (newEntries.length > 0 && localMarks.length > 0) {
             setHasNewMarks(true);
-            const subjects = [...new Set(newEntries.map((m) => m.subject_name))].join(", ");
-            activeNotis.push({
-              title: "Check your New Marks of test",
-              desc: `New marks uploaded for: ${subjects}. Check now!`,
-              icon: <FaChartLine />,
-              path: "marks",
-              color: theme.gradients.info
-            });
+            activeNotis.push({ title: "New Marks Uploaded", desc: "Check your latest performance.", icon: <FaChartLine />, path: "marks", color: theme.gradients.info });
           }
         }
-
         setNotifications(activeNotis);
-      } catch (err) { 
-        console.error("Fetch Data Error:", err); 
-      }
+      } catch (err) { console.error(err); }
     };
-
     fetchData();
   }, [navigate]);
 
@@ -391,6 +349,7 @@ const StudentDashboard = () => {
       <FeePopup isOpen={showFeePopup} onClose={() => setShowFeePopup(false)} amount={dynamicFeeAmount} />
       <PhotoModal isOpen={isPhotoOpen} user={user} onClose={() => setIsPhotoOpen(false)} />
 
+      {/* ================= SIDEBAR ================= */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -400,21 +359,48 @@ const StudentDashboard = () => {
                 <div style={drawerLogo}><FaUserGraduate /></div>
                 <h4 style={{ color: "white", margin: 0 }}>SmartZone</h4>
               </div>
+
               <nav style={drawerNav}>
-                {[{ name: "Dashboard", path: "/student", icon: <FaHome /> },
-                  { name: "My Profile", path: "profile", icon: <FaUserAlt /> },
-                  { name: "Assignments", path: "task-update", icon: <FaTasks /> },
-                  { name: "Fees/Records", path: "fees", icon: <FaMoneyBillWave /> },
-                  { name: "Feedback", path: "feedback", icon: <FaStar /> },
-                  { name: "My Marks", path: "marks", icon: <FaChartLine /> },
-                  { name: "Connect Chat", path: "chat", icon: <FaComments /> },
-                ].map((item, idx) => (
-                  <Link key={idx} to={item.path} onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes(item.path))}>
-                    {item.icon} {item.name}
-                  </Link>
-                ))}
-                <div style={logoutBtnStyle} onClick={() => {localStorage.clear(); window.location.href="/";}}>
-                    <FaSignOutAlt /> Logout
+                <Link to="/student" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname === "/student")}>
+                  <FaHome /> Dashboard
+                </Link>
+                <Link to="profile" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("profile"))}>
+                  <FaUserAlt /> My Profile
+                </Link>
+                <Link to="task-update" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("task-update"))}>
+                  <FaTasks /> Assignments
+                </Link>
+                <Link to="fees" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("fees"))}>
+                  <FaMoneyBillWave /> Fees / Records
+                </Link>
+                <Link to="feedback" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("feedback"))}>
+                  <FaStar /> Feedback
+                </Link>
+                <Link to="marks" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("marks"))}>
+                  <FaChartLine /> My Marks
+                </Link>
+                <Link to="chat" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("chat"))}>
+                  <FaComments /> Connect Chat
+                </Link>
+
+                {/* ===== EXAMINATION DROPDOWN (ONLY HERE) ===== */}
+                <div onClick={() => setExamOpen(!examOpen)} style={{...drawerLinkStyle(location.pathname.includes("exam")), cursor: 'pointer', justifyContent: 'space-between'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaBookOpen /> Examination</div>
+                  <FaChevronRight style={{transform: examOpen ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
+                </div>
+
+                <AnimatePresence>
+                  {examOpen && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ marginLeft: 25, display: "flex", flexDirection: "column", gap: 5, overflow: 'hidden' }}>
+                      <Link to="exam-form" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-form"))}>📄 Exam Form</Link>
+                      <Link to="generate-admit" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("generate-admit"))}>🪪 Admit Card</Link>
+                      <Link to="exam-result" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-result"))}>📊 Exam Result</Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div style={logoutBtnStyle} onClick={() => { localStorage.clear(); window.location.href = "/"; }}>
+                  <FaSignOutAlt /> Logout
                 </div>
               </nav>
             </motion.aside>
@@ -434,6 +420,9 @@ const StudentDashboard = () => {
           <Route path="feedback" element={<StudentFeedback studentId={user.id} />} />
           <Route path="chat" element={<StudentChat user={user} />} />
           <Route path="apply-correction" element={<ApplyCorrection />} />
+          <Route path="exam-form" element={<ExamForm />} />
+          <Route path="generate-admit" element={<GenerateAdmitCard />} />
+          <Route path="exam-result" element={<ExaminationResult />} />
         </Routes>
       </main>
 
@@ -448,22 +437,21 @@ const StudentDashboard = () => {
 };
 
 /* =========================
-   STYLES (RETAINED)
+   STYLES
 ========================= */
-const modernWelcomeStyle = (img) => ({
-  position: 'relative', width: '100%', maxWidth: '1100px', margin: '0 auto', minHeight: '220px', padding: '1px',borderRadius: '24px', marginBottom: '25px', display: 'flex', alignItems: 'center', color: '#fff', backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)'
-});
+const subLinkStyle = (active) => ({ padding: "10px 15px", borderRadius: "10px", textDecoration: "none", color: active ? "#fff" : "#94a3b8", fontSize: "13px", fontWeight: 500, background: active ? "rgba(99, 102, 241, 0.2)" : "transparent" });
+const modernWelcomeStyle = (img) => ({ position: 'relative', width: '100%', maxWidth: '1100px', margin: '0 auto', minHeight: '220px', padding: '25px', borderRadius: '24px', marginBottom: '25px', display: 'flex', alignItems: 'center', color: '#fff', backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)' });
 const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
-const headerWrapper = { position: "fixed", top: 15, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center", padding: "10px, 1px" };
-const headerContent = { width: "100%", maxWidth: "1100px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", borderRadius: "20px", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" };
+const headerWrapper = { position: "fixed", top: 15, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center" };
+const headerContent = { width: "95%", maxWidth: "1100px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", borderRadius: "20px", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" };
 const brandLogo = { margin: 0, fontSize: 20, fontWeight: 900, color: "#6366f1" };
 const notiBox = { position: 'relative', fontSize: '22px', color: '#64748b', cursor: 'pointer', display: 'flex' };
 const redBadge = { position: 'absolute', top: -5, right: -5, background: '#ef4444', color: 'white', fontSize: '10px', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid white' };
 const headerAvatar = { width: 38, height: 38, borderRadius: "12px", objectFit: "cover", border: "2px solid #6366f1" };
 const mainBody = { padding: "110px 20px 100px", maxWidth: "1100px", margin: "0 auto" };
-const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '10px', borderRadius: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e' };
-const alertActionBtn = { background: '#92400e', color: 'white', border: 'none', padding: '2px 6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' };
-const quoteTextStyle = { fontSize: '14px', fontStyle: 'italic', maxWidth: '80%', margin: '5px 0' };
+const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '10px 15px', borderRadius: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e' };
+const alertActionBtn = { background: '#92400e', color: 'white', border: 'none', padding: '5px', borderRadius: '50%', cursor: 'pointer', display: 'flex' };
+const quoteTextStyle = { fontSize: '14px', fontStyle: 'italic', margin: '5px 0' };
 const statusPillRow = { display: 'flex', gap: '10px', marginTop: '15px' };
 const statusPill = { background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' };
 const cardGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px" };
@@ -473,13 +461,13 @@ const iconCircle = { width: '45px', height: '45px', background: 'rgba(255,255,25
 const cardMainTitle = { margin: '0', fontSize: '18px', fontWeight: '700' };
 const cardBottomBody = { display: 'flex', flexDirection: 'column' };
 const miniNoticeBadge = { position: "absolute", top: "15px", right: "15px", background: "#fff", color: "#ef4444", padding: "3px 8px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" };
-const sideDrawer = { position: "fixed", top: 0, left: 0, bottom: 0, width: 260, background: "#0f172a", zIndex: 2001, padding: "30px 20px" };
+const sideDrawer = { position: "fixed", top: 0, left: 0, bottom: 0, width: 260, background: "#0f172a", zIndex: 2001, padding: "30px 20px", overflowY: 'auto' };
 const sideOverlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", zIndex: 2000 };
 const drawerHeader = { display: "flex", alignItems: "center", gap: 12, marginBottom: 40 };
 const drawerLogo = { width: 40, height: 40, background: theme.gradients.primary, borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", color: 'white' };
-const drawerNav = { display: "flex", flexDirection: "column", gap: 10 };
-const drawerLinkStyle = (active) => ({ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: "14px", textDecoration: "none", color: active ? "white" : "#94a3b8", background: active ? "#6366f1" : "transparent", fontWeight: 600 });
-const logoutBtnStyle = { marginTop: '30px', padding: '14px 18px', color: '#f87171', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' };
+const drawerNav = { display: "flex", flexDirection: "column", gap: 8 };
+const drawerLinkStyle = (active) => ({ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: "14px", textDecoration: "none", color: active ? "white" : "#94a3b8", background: active ? "#6366f1" : "transparent", fontWeight: 600, transition: '0.2s' });
+const logoutBtnStyle = { marginTop: '20px', padding: '14px 18px', color: '#f87171', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' };
 const mobileBar = { position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: '#0f172a', padding: '12px 35px', borderRadius: '40px', display: 'flex', gap: '35px', color: 'white', fontSize: '22px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.3)' };
 const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 5000, display: "flex", alignItems: "center", justifyContent: "center", padding: '20px' };
 const notiModalContainer = { width: '100%', maxWidth: '380px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
