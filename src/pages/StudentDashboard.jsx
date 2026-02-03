@@ -8,7 +8,6 @@ import {
   FaChevronRight, FaTasks, FaQuoteLeft, FaStar, FaCalendarAlt,
   FaCheckCircle, FaBookOpen
 } from "react-icons/fa";
-
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
@@ -22,9 +21,11 @@ import StudentPage from "./StudentPage";
 import StudentFeedback from "./StudentFeedback";
 import StudentChat from "./StudentChat";
 import ApplyCorrection from "./ApplyCorrection";
-import ExamForm from "../pages/Examination/ExamForm";
-import GenerateAdmitCard from "../pages/Examination/GenerateAdmitCard";
-import ExaminationResult from "../pages/Examination/ExaminationResult";
+
+// Examination Components
+import ExamForm from "./Examination/ExamForm";
+import GenerateAdmitCard from "./Examination/GenerateAdmitCard";
+import ExaminationResult from "./Examination/ExaminationResult";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
@@ -278,7 +279,7 @@ const StudentDashboard = () => {
            const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED");
            setPendingTasks(pending.length);
            if (pending.length > 0) {
-             activeNotis.push({ title: "Assignments", desc: `${pending.length} tasks are pending submission.`, icon: <FaTasks />, path: "task-update", color: theme.gradients.primary });
+             activeNotis.push({ title: "Assignments", desc: `${pending.length} tasks are pending.`, icon: <FaTasks />, path: "task-update", color: theme.gradients.primary });
            }
         }
 
@@ -302,7 +303,7 @@ const StudentDashboard = () => {
             setIsFeeUnpaid(true);
             setShowFeePopup(true);
             setDynamicFeeAmount(feesData.length > 0 ? feesData[0].amount : "500");
-            activeNotis.push({ title: "Fees Pending", desc: "Monthly fee payment is due.", icon: <FaMoneyBillWave />, path: "fees", color: theme.gradients.warning });
+            activeNotis.push({ title: "Fees Pending", desc: "Fee payment is due.", icon: <FaMoneyBillWave />, path: "fees", color: theme.gradients.warning });
           }
         }
 
@@ -314,7 +315,7 @@ const StudentDashboard = () => {
           const newEntries = fetchedData.filter((m) => !localMarks.map(lm => lm.id).includes(m.id));
           if (newEntries.length > 0 && localMarks.length > 0) {
             setHasNewMarks(true);
-            activeNotis.push({ title: "New Marks Uploaded", desc: "Check your latest performance.", icon: <FaChartLine />, path: "marks", color: theme.gradients.info });
+            activeNotis.push({ title: "New Marks", desc: "Check latest results.", icon: <FaChartLine />, path: "marks", color: theme.gradients.info });
           }
         }
         setNotifications(activeNotis);
@@ -383,7 +384,7 @@ const StudentDashboard = () => {
                   <FaComments /> Connect Chat
                 </Link>
 
-                {/* ===== EXAMINATION DROPDOWN (ONLY HERE) ===== */}
+                {/* ===== EXAMINATION DROPDOWN ===== */}
                 <div onClick={() => setExamOpen(!examOpen)} style={{...drawerLinkStyle(location.pathname.includes("exam")), cursor: 'pointer', justifyContent: 'space-between'}}>
                   <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaBookOpen /> Examination</div>
                   <FaChevronRight style={{transform: examOpen ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
@@ -408,6 +409,7 @@ const StudentDashboard = () => {
         )}
       </AnimatePresence>
 
+      {/* ================= MAIN CONTENT ================= */}
       <main style={mainBody}>
         <Routes>
           <Route index element={<DashboardHome navigate={navigate} isFeeUnpaid={isFeeUnpaid} isFeedbackPending={isFeedbackPending} pendingTasks={pendingTasks} user={user} hasNewMarks={hasNewMarks} />} />
@@ -420,12 +422,15 @@ const StudentDashboard = () => {
           <Route path="feedback" element={<StudentFeedback studentId={user.id} />} />
           <Route path="chat" element={<StudentChat user={user} />} />
           <Route path="apply-correction" element={<ApplyCorrection />} />
+          
+          {/* Internal Examination Routes */}
           <Route path="exam-form" element={<ExamForm />} />
           <Route path="generate-admit" element={<GenerateAdmitCard />} />
           <Route path="exam-result" element={<ExaminationResult />} />
         </Routes>
       </main>
 
+      {/* Bottom Navigation for Mobile */}
       <div style={mobileBar}>
          <div onClick={() => navigate('/student')}><FaHome /></div>
          <div onClick={() => navigate('chat')}><FaComments /></div>
@@ -437,7 +442,7 @@ const StudentDashboard = () => {
 };
 
 /* =========================
-   STYLES
+   STYLES (SAME AS ORIGINAL)
 ========================= */
 const subLinkStyle = (active) => ({ padding: "10px 15px", borderRadius: "10px", textDecoration: "none", color: active ? "#fff" : "#94a3b8", fontSize: "13px", fontWeight: 500, background: active ? "rgba(99, 102, 241, 0.2)" : "transparent" });
 const modernWelcomeStyle = (img) => ({ position: 'relative', width: '100%', maxWidth: '1100px', margin: '0 auto', minHeight: '220px', padding: '25px', borderRadius: '24px', marginBottom: '25px', display: 'flex', alignItems: 'center', color: '#fff', backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)' });

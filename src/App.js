@@ -42,13 +42,13 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* ================= PUBLIC ROUTES ================= */}
+        {/* PUBLIC ROUTES */}
         <Route path="/" element={<Login />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/refund_policy" element={<Refund />} />
 
-        {/* ================= ADMIN ROUTES ================= */}
+        {/* ADMIN ROUTES - Added /* to allow nested navigation */}
         <Route path="/admin/*" element={<AdminDashboard />}>
           <Route index element={<div>Welcome to Admin Dashboard</div>} />
           <Route path="manage-students" element={<ManageStudents />} />
@@ -62,12 +62,11 @@ function App() {
           <Route path="student-submission" element={<AdminPage />} />
           <Route path="admin-feedback" element={<AdminFeedback />} />
           <Route path="admin-chat" element={<AdminChat />} />
-          <Route path="*" element={<div>404 - Admin Page Not Found</div>} />
         </Route>
 
-        {/* ================= STUDENT ROUTES ================= */}
+        {/* STUDENT ROUTES - Added /* to allow nested navigation */}
         <Route path="/student/*" element={<StudentDashboard />}>
-          <Route index element={<div>Welcome Student</div>} />
+          <Route index element={<div style={{padding: '20px'}}>Welcome Student Dashboard</div>} />
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees />} />
           <Route path="attendance" element={<StudentAttendance />} />
@@ -76,19 +75,12 @@ function App() {
           <Route path="feedback" element={<StudentFeedback />} />
           <Route path="task-update" element={<StudentPage studentId={101} />} />
           <Route path="student-chat" element={<StudentChat />} />
-
-          {/* ===== Examination Routes ===== */}
           <Route path="exam-form" element={<ExamForm />} />
           <Route path="generate-admit" element={<GenerateAdmitCard />} />
           <Route path="exam-result" element={<ExaminationResult />} />
-
-          {/* Apply for Correction */}
           <Route path="apply-correction" element={<ApplyCorrection />} />
-
-          <Route path="*" element={<div>404 - Student Page Not Found</div>} />
         </Route>
 
-        {/* ================= GLOBAL 404 ================= */}
         <Route path="*" element={<div>404 - Page Not Found</div>} />
       </Routes>
     </Router>

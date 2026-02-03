@@ -12,12 +12,13 @@ const StudentProfile = () => {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState("");
-  const [isEditing, setIsEditing] = useState(false); // Mode control karne ke liye
+  const [isEditing, setIsEditing] = useState(false);
 
   const navigate = useNavigate();
 
+  // "code" added to Step 1
   const fieldGroups = {
-    1: ["name", "father_name", "mother_name", "dob", "gender", "category"],
+    1: ["code", "name", "father_name", "mother_name", "dob", "gender", "category"],
     2: ["address", "city", "state", "pincode", "district"],
     3: ["email", "mobile", "blood_group"]
   };
@@ -69,9 +70,10 @@ const StudentProfile = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
+      // Data format synced with your backend UPDATE query
       await axios.put(`${API_URL}/api/students/update/${profile.id}`, profile);
       setPopup("Profile updated successfully ✅");
-      setIsEditing(false); // Save ke baad wapas view mode mein
+      setIsEditing(false);
       setTimeout(() => setPopup(""), 3000);
     } catch (err) {
       setPopup("Error saving profile ❌");
@@ -102,7 +104,6 @@ const StudentProfile = () => {
 
   return (
     <div style={container}>
-      {/* Profile Photo Header */}
       <div style={{ textAlign: "center", marginBottom: "30px" }}>
         <img src={profile.profile_photo || "/default-profile.png"} alt="Profile" style={photo} />
         <h2 style={{ margin: "10px 0 5px" }}>{profile.name}</h2>
@@ -110,7 +111,6 @@ const StudentProfile = () => {
       </div>
 
       {!isEditing ? (
-        /* --- VIEW MODE --- */
         <div style={viewSection}>
           <div style={infoGrid}>
             {Object.keys(fieldGroups).map(g => 
@@ -134,7 +134,6 @@ const StudentProfile = () => {
           </div>
         </div>
       ) : (
-        /* --- EDIT MODE (Stepper & Form) --- */
         <>
           <div style={stepperContainer}>
             {[1, 2, 3].map((num) => (
@@ -192,7 +191,6 @@ const StudentProfile = () => {
         </>
       )}
 
-      {/* History Table (Visible in both modes if step 3 or simple view) */}
       {(!isEditing || step === 3) && allRequests.length > 0 && (
         <div style={{ marginTop: "40px", overflowX: "auto", borderTop: "2px solid #f1f5f9", paddingTop: "20px" }}>
           <h4 style={{marginBottom: '15px', color: '#1e293b'}}>Recent Correction Requests</h4>
@@ -224,7 +222,7 @@ const StudentProfile = () => {
   );
 };
 
-// --- Updated Styles ---
+// --- Styles ---
 const container = { maxWidth: "1800px", margin: "20px auto", padding: "10px", background: "#fff", borderRadius: "12px", boxShadow: "0 20px 40px rgba(0,0,0,0.08)", fontFamily: "'Segoe UI', sans-serif" };
 const viewSection = { animation: "fadeIn 0.5s ease" };
 const infoGrid = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", background: "#f8fafc", padding: "25px", borderRadius: "15px" };
@@ -232,7 +230,6 @@ const infoItem = { borderBottom: "1px solid #e2e8f0", paddingBottom: "8px" };
 const viewLabel = { fontSize: "14px", fontWeight: "800", color: "#00357f", display: "block", marginBottom: "4px" };
 const viewValue = { fontSize: "16px", fontWeight: "500", color: "#090d12", margin: 0 };
 const correctionBtnView = { flex: 1, padding: "12px", background: "#fff", color: "#f97316", border: "1.5px solid #f97316", borderRadius: "12px", cursor: "pointer", fontWeight: "600" };
-
 const stepperContainer = { display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "5px" };
 const circle = { width: "35px", height: "35px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "14px", cursor: "pointer" };
 const line = { width: "50px", height: "3px" };
