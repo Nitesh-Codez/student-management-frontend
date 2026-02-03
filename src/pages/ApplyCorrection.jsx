@@ -18,28 +18,37 @@ const ApplyCorrection = () => {
 
   const availableFields = [
     { label: "Full Name", key: "name" },
-    { label: "Class/Batch", key: "class" },
-    { label: "Mobile No.", key: "mobile" },
     { label: "Father's Name", key: "father_name" },
     { label: "Mother's Name", key: "mother_name" },
     { label: "Date of Birth", key: "dob" },
+    { label: "Gender", key: "gender" },
+    { label: "Category", key: "category" },
+    { label: "Mobile No.", key: "mobile" },
     { label: "Email ID", key: "email" },
+    { label: "Aadhaar No.", key: "aadhaar" },
+    { label: "Blood Group", key: "blood_group" },
     { label: "Address", key: "address" },
+    { label: "City", key: "city" },
+    { label: "District", key: "district" },
+    { label: "State", key: "state" },
+    { label: "Pincode", key: "pincode" },
   ];
 
-  // Format Date DD-MM-YYYY
-  const getFormattedDate = () => {
-    const d = new Date();
-    return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+  const getFormattedDate = (dateStr) => {
+    const d = dateStr ? new Date(dateStr) : new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
   };
 
-  // Fetch previous requests for this student
   const fetchPreviousRequests = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/students/pending-edit-requests`);
-      // Filter requests only for this student
-      const studentRequests = res.data.requests.filter(r => r.student_name === student.name);
-      setPreviousRequests(studentRequests);
+      if (student && res.data.requests) {
+        const studentRequests = res.data.requests.filter(r => r.student_id === student.id);
+        setPreviousRequests(studentRequests);
+      }
     } catch (err) {
       console.error("Error fetching previous requests:", err.message);
     }
@@ -53,16 +62,12 @@ const ApplyCorrection = () => {
     return <p style={{ textAlign: "center", color: "red", marginTop: "50px" }}>No student data found.</p>;
   }
 
-  // Check if a field is already requested and not approved yet
   const isFieldLocked = (fieldKey) => {
-    const pending = previousRequests.find(r => r.field_name === fieldKey && r.status === "pending");
-    const approved = previousRequests.find(r => r.field_name === fieldKey && r.status === "approved");
-    return pending || approved;
+    return previousRequests.find(r => r.field_name === fieldKey && r.status === "pending");
   };
 
   const handleCheckboxChange = (fieldKey) => {
-    if (isFieldLocked(fieldKey)) return; // cannot select locked field
-
+    if (isFieldLocked(fieldKey)) return;
     if (selectedFields.includes(fieldKey)) {
       setSelectedFields(selectedFields.filter(f => f !== fieldKey));
       const newFormData = { ...formData };
@@ -70,7 +75,7 @@ const ApplyCorrection = () => {
       setFormData(newFormData);
     } else {
       if (selectedFields.length >= 3) {
-        alert("Attention: You can only request up to 3 corrections at a time.");
+        alert("Maximum 3 corrections allowed.");
         return;
       }
       setSelectedFields([...selectedFields, fieldKey]);
@@ -80,8 +85,8 @@ const ApplyCorrection = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (selectedFields.length === 0) return alert("Please select at least one field to correct.");
-    if (!reason.trim()) return alert("Please provide a reason for the correction.");
+    if (selectedFields.length === 0) return alert("Please select a field.");
+    if (!reason.trim()) return alert("Reason is required.");
 
     try {
       setSubmitting(true);
@@ -94,13 +99,13 @@ const ApplyCorrection = () => {
         })
       );
       await Promise.all(requests);
-      setSuccess("Your application has been sent to HOC for approval! ✅");
-      setTimeout(() => navigate("/dashboard"), 3000);
+      setSuccess("Sent to HOC successfully! ✅");
+      setTimeout(() => navigate(-1), 2500);
     } catch (err) {
-      alert("Error submitting request: " + err.message);
+      alert("Error: " + err.message);
     } finally {
       setSubmitting(false);
-      fetchPreviousRequests(); // refresh requests
+      fetchPreviousRequests();
     }
   };
 
@@ -127,11 +132,9 @@ const ApplyCorrection = () => {
         <p style={subjectLine}><b>Subject: Request for correction in my personal details.</b></p>
         <p style={salutation}>Respected Sir/Ma'am,</p>
         <p style={mainPara}>
-          I, <b>{student.name}</b>, am a student of class <b>{student.class}</b>. 
-          I am writing to request a correction in my official records. Kindly allow me to update the following details (Max 3):
+          I, <b>{student.name}</b>, am writing to request a correction in my official records (Max 3):
         </p>
 
-        {/* CHECKBOX SELECTION */}
         <div style={checkboxContainer}>
           {availableFields.map((field) => {
             const locked = isFieldLocked(field.key);
@@ -144,32 +147,30 @@ const ApplyCorrection = () => {
                   onChange={() => handleCheckboxChange(field.key)}
                   disabled={locked}
                 />
-                {field.label} {locked && "(Locked / Already Requested)"}
+                {field.label} {locked && "(Locked)"}
               </label>
             );
           })}
         </div>
 
-        {/* CORRECTION TABLE */}
         {selectedFields.length > 0 && (
           <div style={tableWrapper}>
             <table style={table}>
               <thead>
                 <tr style={tableHead}>
-                  <th style={th}>Field Name</th>
-                  <th style={th}>Current Value (In Record)</th>
-                  <th style={th}>Requested Correct Value</th>
+                  <th style={th}>Field</th>
+                  <th style={th}>Current</th>
+                  <th style={th}>New Value</th>
                 </tr>
               </thead>
               <tbody>
                 {selectedFields.map((fieldKey) => (
                   <tr key={fieldKey}>
-                    <td style={td}><b>{fieldKey.replace("_"," ").toUpperCase()}</b></td>
-                    <td style={td}>{student[fieldKey] || "Empty"}</td>
+                    <td style={td}><b>{fieldKey.toUpperCase()}</b></td>
+                    <td style={td}>{student[fieldKey] || "N/A"}</td>
                     <td style={td}>
                       <input
-                        type="text"
-                        placeholder="Enter correct value"
+                        type={fieldKey === 'dob' ? 'date' : 'text'}
                         style={tableInput}
                         value={formData[fieldKey]}
                         onChange={(e) => setFormData({...formData, [fieldKey]: e.target.value})}
@@ -183,26 +184,25 @@ const ApplyCorrection = () => {
           </div>
         )}
 
-        {/* PREVIOUS REQUESTS */}
         {previousRequests.length > 0 && (
-          <div style={{marginTop:"20px"}}>
+          <div style={{marginTop:"30px"}}>
             <h4>Previous Requests:</h4>
             <table style={table}>
               <thead>
                 <tr style={tableHead}>
                   <th style={th}>Field</th>
-                  <th style={th}>Requested Value</th>
+                  <th style={th}>Value</th>
                   <th style={th}>Status</th>
-                  <th style={th}>Submitted On</th>
+                  <th style={th}>Date</th>
                 </tr>
               </thead>
               <tbody>
                 {previousRequests.map((r) => (
                   <tr key={r.id}>
-                    <td style={td}>{r.field_name}</td>
+                    <td style={td}>{r.field_name.toUpperCase()}</td>
                     <td style={td}>{r.requested_value}</td>
-                    <td style={td}>{r.status}</td>
-                    <td style={td}>{new Date(r.action_at || Date.now()).toLocaleDateString()}</td>
+                    <td style={{...td, color: r.status === 'pending' ? 'orange' : 'green'}}>{r.status}</td>
+                    <td style={td}>{getFormattedDate(r.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -210,12 +210,10 @@ const ApplyCorrection = () => {
           </div>
         )}
 
-        {/* REASON */}
         <div style={{marginTop:"20px"}}>
-          <label style={{fontSize:"14px", fontWeight:"bold"}}>Reason for application:</label>
+          <label style={{fontSize:"14px", fontWeight:"bold"}}>Reason:</label>
           <textarea
             style={reasonInput}
-            placeholder="Please mention why you want to change these details..."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             required
@@ -223,22 +221,21 @@ const ApplyCorrection = () => {
         </div>
 
         <button onClick={handleSubmit} disabled={submitting} style={submitBtn}>
-          {submitting ? "Processing Application..." : "Submit to HOC"}
+          {submitting ? "Processing..." : "Submit to HOC"}
         </button>
 
         {success && <div style={successBox}>{success}</div>}
 
         <div style={signature}>
           <p>Sincerely,</p>
-          <p><b>{student.name}</b></p>
-          <p>(Student Signature)</p>
+          <p style={{marginTop:"20px"}}><b>{student.name}</b></p>
         </div>
       </div>
     </div>
   );
 };
 
-// --- STYLING (Internal) ---
+// Styles (DITTO SAME)
 const container = { maxWidth:"800px", margin:"40px auto", padding:"40px", background:"#fff", borderRadius:"2px", boxShadow:"0 0 20px rgba(0,0,0,0.1)", fontFamily:"'Times New Roman', Times, serif", border:"1px solid #ddd" };
 const headerFlex = { display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"10px" };
 const studentInfoSide = { textAlign:"left" };
@@ -258,7 +255,7 @@ const checkboxLabel = { fontSize:"13px", cursor:"pointer", display:"flex", align
 const tableWrapper = { marginTop:"20px", border:"1px solid #ccc" };
 const table = { width:"100%", borderCollapse:"collapse" };
 const tableHead = { background:"#f2f2f2" };
-const th = { padding:"12px", border:"1px solid #ccc", fontSize:"14px" };
+const th = { padding:"12px", border:"1px solid #ccc", fontSize:"14px", textAlign:'left' };
 const td = { padding:"10px", border:"1px solid #ccc", fontSize:"14px" };
 const tableInput = { width:"95%", padding:"5px", border:"1px solid #4f46e5", borderRadius:"3px" };
 const reasonInput = { width:"100%", height:"70px", padding:"10px", marginTop:"5px", borderRadius:"4px", border:"1px solid #ccc", boxSizing:"border-box" };
