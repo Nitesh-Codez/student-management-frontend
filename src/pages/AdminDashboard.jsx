@@ -66,6 +66,7 @@ const AdminDashboard = () => {
     { title: "Upload Homework", path: "upload-homework", icon: <FaUpload />, color: "#ef4444", category: "Academic" },
     { title: "Add Marks", path: "add-marks", icon: <FaStar />, color: "#ec4899", category: "Exams" },
     { title: "Reports", path: "reports", icon: <FaChartBar />, color: "#475569", category: "Reports" },
+    { title: "Add Teacher", path: "add-teacher", icon: <FaUserGraduate />, color: "#0ea5e9", category: "Management" },
     { title: "Student Chat", path: "admin-chat", icon: <FaComments />, color: "#2dd4bf", category: "Support" },
   ];
 

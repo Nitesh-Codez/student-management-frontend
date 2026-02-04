@@ -20,6 +20,7 @@ import AdminStudyMaterial from "./pages/AdminStudyMaterial";
 import AdminPage from "./pages/AdminPage";
 import AdminFeedback from "./pages/AdminFeedback";
 import AdminChat from "./pages/AdminChat";
+import AddTeacher from "./pages/AddTeacher";
 
 // Student Pages
 import StudentDashboard from "./pages/StudentDashboard";
@@ -62,6 +63,7 @@ function App() {
           <Route path="student-submission" element={<AdminPage />} />
           <Route path="admin-feedback" element={<AdminFeedback />} />
           <Route path="admin-chat" element={<AdminChat />} />
+          <Route path="/admin/add-teacher" element={<AddTeacher />} />
         </Route>
 
         {/* STUDENT ROUTES */}
