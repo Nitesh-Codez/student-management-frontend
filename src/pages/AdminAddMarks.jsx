@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { FaGraduationCap, FaSearch, FaSave, FaEdit, FaPlusCircle, FaFilter, FaUser } from "react-icons/fa";
+import { FaGraduationCap, FaSearch, FaSave, FaEdit, FaPlusCircle, FaFilter, FaTrash } from "react-icons/fa";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
@@ -12,8 +12,8 @@ const AdminAddMarks = () => {
     "4th": ["Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva"],
     "5th": ["Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva"],
     "6th": ["Math","English","Hindi","Science","Math Viva","English Viva","Hindi Viva","Science Viva"],
-    "7th": ["Math","English","Hindi","Science","Civics","Geography","Economics","History", "Math Viva","English Viva","Hindi Viva","Science Viva","Civics Viva","Geography Viva","Economics Viva","History Viva"],
-    "8th": ["Math","English","Science","Hindi","Civics","Geography","Economics","History", "Math Viva","English Viva","Science Viva","Hindi Viva","Civics Viva","Geography Viva","Economics Viva","History Viva"],
+    "7th": ["Math","English","Hindi","Science","Civics","Geography","Economics","History","Math Viva","English Viva","Hindi Viva","Science Viva","Civics Viva","Geography Viva","Economics Viva","History Viva"],
+    "8th": ["Math","English","Science","Hindi","Civics","Geography","Economics","History","Math Viva","English Viva","Science Viva","Hindi Viva","Civics Viva","Geography Viva","Economics Viva","History Viva"],
     "9th": ["Math","English","Hindi","Science","S.S.T","Math Viva","English Viva","Hindi Viva","Science Viva","S.S.T Viva"],
     "10th":["Math","English","Hindi","Science","S.S.T","Math Viva","English Viva","Hindi Viva","Science Viva","S.S.T Viva"],
     "11th":["Chemistry","Math","English","Physics","Biology","Chemistry Viva","Math Viva","English Viva","Physics Viva","Biology Viva"],
@@ -26,21 +26,23 @@ const AdminAddMarks = () => {
   const [selectedStudent, setSelectedStudent] = useState("");
   const [subject, setSubject] = useState("");
   const [marks, setMarks] = useState("");
-  const [maxMarks, setMaxMarks] = useState("");
+  const [maxMarks, setMaxMarks] = useState(100); // Default total marks
   const [testDate, setTestDate] = useState(new Date().toISOString().split("T")[0]);
   const [message, setMessage] = useState({ text: "", type: "" });
 
   const [allMarks, setAllMarks] = useState([]);
   const [searchClass, setSearchClass] = useState("");
   const [searchDate, setSearchDate] = useState("");
-  const [searchName, setSearchName] = useState(""); // 🆕 New Filter State
+  const [searchName, setSearchName] = useState(""); 
   const [secretKey, setSecretKey] = useState("");
-
 
   const [editId, setEditId] = useState(null);
   const [editMarks, setEditMarks] = useState("");
-  const [editTotal, setEditTotal] = useState("");
+  const [editTotal, setEditTotal] = useState(maxMarks);
+  const [editSubject, setEditSubject] = useState("");
+  const [editDate, setEditDate] = useState("");
 
+  // Fetch all students
   useEffect(() => {
     axios.get(`${API_URL}/api/students`).then(res => {
       if (res.data.success) {
@@ -50,6 +52,7 @@ const AdminAddMarks = () => {
     });
   }, []);
 
+  // Update students when class changes
   useEffect(() => {
     setStudents(selectedClass ? allStudents.filter(s => s.class === selectedClass) : []);
   }, [selectedClass, allStudents]);
@@ -61,7 +64,7 @@ const AdminAddMarks = () => {
 
   useEffect(() => { fetchAllMarks(); }, []);
 
-  // 🔥 ADVANCED FILTER LOGIC
+  // Filter logic
   const searchedMarks = allMarks.filter(m => {
     const matchesClass = searchClass ? m.class === searchClass : true;
     const matchesDate = searchDate ? new Date(m.test_date).toISOString().split("T")[0] === searchDate : true;
@@ -69,8 +72,9 @@ const AdminAddMarks = () => {
     return matchesClass && matchesDate && matchesName;
   });
 
+  // Add Marks
   const handleAddMarks = async () => {
-    if (!selectedStudent || !subject || !marks || !maxMarks) {
+    if (!selectedStudent || !subject || !marks) {
       return setMessage({ text: "Please fill all fields!", type: "error" });
     }
     const res = await axios.post(`${API_URL}/api/marks/add`, {
@@ -78,46 +82,57 @@ const AdminAddMarks = () => {
     });
     if (res.data.success) {
       setMessage({ text: "Marks Added Successfully!", type: "success" });
-      setMarks(""); setMaxMarks("");
+      setMarks(""); setSubject(""); setSelectedStudent("");
       fetchAllMarks();
       setTimeout(() => setMessage({ text: "", type: "" }), 3000);
     }
   };
 
- const handleUpdate = async (record) => {
-  try {
-    await axios.put(
-      `${API_URL}/api/marks/admin/marks/${record.id}`,
-      {
-        subject: record.subject,
-        marks: +editMarks,
-        maxMarks: +editTotal,
-        date: record.test_date
-      },
-      {
-        headers: {
-          "x-head-secret": secretKey
-        }
-      }
-    );
+  // Update Marks
+  const handleUpdate = async (record) => {
+    try {
+      await axios.put(
+        `${API_URL}/api/marks/admin/marks/${record.id}`,
+        {
+          subject: editSubject || record.subject,
+          marks: +editMarks,
+          maxMarks: +editTotal,
+          date: editDate || record.test_date
+        },
+        { headers: { "x-head-secret": secretKey } }
+      );
+      setEditId(null);
+      setSecretKey("");
+      fetchAllMarks();
+      setMessage({ text: "Record Updated Successfully!", type: "success" });
+      setTimeout(() => setMessage({ text: "", type: "" }), 3000);
+    } catch (err) {
+      setMessage({ text: "Only HEAD can edit marks!", type: "error" });
+      setTimeout(() => setMessage({ text: "", type: "" }), 3000);
+    }
+  };
 
-    setEditId(null);
-    setSecretKey("");
-    fetchAllMarks();
-    setMessage({ text: "Record Updated Successfully!", type: "success" });
-    setTimeout(() => setMessage({ text: "", type: "" }), 3000);
+  // Delete Marks
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this record?");
+    if (!confirmDelete) return;
 
-  } catch (err) {
-    setMessage({ text: "Only HEAD can edit marks!", type: "error" });
-    setTimeout(() => setMessage({ text: "", type: "" }), 3000);
-  }
-};
-
+    try {
+      await axios.delete(`${API_URL}/api/marks/admin/marks/${id}`, {
+        headers: { "x-head-secret": secretKey }
+      });
+      setMessage({ text: "Record Deleted Successfully!", type: "success" });
+      fetchAllMarks();
+      setTimeout(() => setMessage({ text: "", type: "" }), 3000);
+    } catch (err) {
+      setMessage({ text: "Only HEAD can delete marks!", type: "error" });
+      setTimeout(() => setMessage({ text: "", type: "" }), 3000);
+    }
+  };
 
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        
         {/* HEADER */}
         <div style={styles.header}>
           <FaGraduationCap size={40} color="#4f46e5" />
@@ -126,12 +141,10 @@ const AdminAddMarks = () => {
         </div>
 
         {message.text && (
-          <div style={message.type === "error" ? styles.errorMsg : styles.successMsg}>
-            {message.text}
-          </div>
+          <div style={message.type === "error" ? styles.errorMsg : styles.successMsg}>{message.text}</div>
         )}
 
-        {/* 1. ADD MARKS SECTION */}
+        {/* ADD MARKS */}
         <div style={styles.card}>
           <h3 style={styles.cardTitle}><FaPlusCircle /> Add Marks</h3>
           <div style={styles.grid}>
@@ -172,18 +185,11 @@ const AdminAddMarks = () => {
           <button style={styles.mainButton} onClick={handleAddMarks}>Save Entry</button>
         </div>
 
-        {/* 2. FILTER SECTION */}
+        {/* FILTER */}
         <div style={styles.searchBox}>
           <h4 style={styles.cardTitle}><FaFilter /> Search & Filter Records</h4>
           <div style={styles.grid3}>
-            <div style={styles.inputGroup}>
-               <input 
-                style={styles.input} 
-                placeholder="Search Student Name..." 
-                value={searchName} 
-                onChange={e => setSearchName(e.target.value)} 
-               />
-            </div>
+            <input style={styles.input} placeholder="Search Student Name..." value={searchName} onChange={e => setSearchName(e.target.value)} />
             <select style={styles.input} value={searchClass} onChange={e => setSearchClass(e.target.value)}>
               <option value="">All Classes</option>
               {classes.map((c, i) => <option key={i}>{c}</option>)}
@@ -192,7 +198,7 @@ const AdminAddMarks = () => {
           </div>
         </div>
 
-        {/* 3. TABLE SECTION */}
+        {/* TABLE */}
         <div style={styles.tableWrapper}>
           <table style={styles.table}>
             <thead>
@@ -212,7 +218,15 @@ const AdminAddMarks = () => {
                 <tr key={m.id} style={styles.tr}>
                   <td style={styles.td}><b>{m.name}</b></td>
                   <td style={styles.td}>{m.class}</td>
-                  <td style={styles.td}><span style={styles.subjectPill}>{m.subject}</span></td>
+                  <td style={styles.td}>
+                    {editId === m.id ? (
+                      <select style={styles.editIn} value={editSubject} onChange={e => setEditSubject(e.target.value)}>
+                        {subjectsByClass[m.class]?.map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    ) : (
+                      <span style={styles.subjectPill}>{m.subject}</span>
+                    )}
+                  </td>
                   <td style={styles.td}>
                     {editId === m.id ? <input style={styles.editIn} value={editMarks} onChange={e => setEditMarks(e.target.value)} /> : m.obtained_marks}
                   </td>
@@ -221,35 +235,31 @@ const AdminAddMarks = () => {
                   </td>
                   <td style={styles.td}>
                     <span style={{
-                      ...styles.statusTag, 
+                      ...styles.statusTag,
                       backgroundColor: m.status === 'Pass' ? '#dcfce7' : '#fee2e2',
                       color: m.status === 'Pass' ? '#15803d' : '#b91c1c'
-                    }}>
-                      {m.status}
-                    </span>
+                    }}>{m.status}</span>
                   </td>
-                  <td style={styles.td}>{new Date(m.test_date).toLocaleDateString()}</td>
+                  <td style={styles.td}>
+                    {editId === m.id ? <input style={styles.editIn} type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /> : new Date(m.test_date).toLocaleDateString()}
+                  </td>
                   <td style={styles.td}>
                     {editId === m.id ? (
-  <button style={styles.saveBtn} onClick={() => handleUpdate(m)}><FaSave /> Save</button>
-) : (
-                      <button
-  style={styles.editBtn}
-  onClick={() => {
-    const key = prompt("Enter Head Secret Key");
-    if (!key) {
-      alert("Secret key required!");
-      return;
-    }
-    setSecretKey(key);
-    setEditId(m.id);
-    setEditMarks(m.obtained_marks);
-    setEditTotal(m.total_marks);
-  }}
->
-  <FaEdit /> Edit
-</button>
-
+                      <button style={styles.saveBtn} onClick={() => handleUpdate(m)}><FaSave /> Save</button>
+                    ) : (
+                      <>
+                        <button style={styles.editBtn} onClick={() => {
+                          const key = prompt("Enter Head Secret Key");
+                          if (!key) { alert("Secret key required!"); return; }
+                          setSecretKey(key);
+                          setEditId(m.id);
+                          setEditMarks(m.obtained_marks);
+                          setEditTotal(m.total_marks);
+                          setEditSubject(m.subject);
+                          setEditDate(new Date(m.test_date).toISOString().split("T")[0]);
+                        }}><FaEdit /> Edit</button>
+                        <button style={{...styles.editBtn, background:"#fee2e2", color:"#b91c1c", marginLeft:"5px"}} onClick={() => handleDelete(m.id)}><FaTrash /> Delete</button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -285,11 +295,12 @@ const styles = {
   td: { padding: "15px", fontSize: "14px", color: "#334155" },
   subjectPill: { background: "#eef2ff", color: "#4f46e5", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" },
   statusTag: { padding: "4px 12px", borderRadius: "12px", fontSize: "12px", fontWeight: "700" },
-  editIn: { width: "50px", padding: "4px", border: "1px solid #4f46e5", borderRadius: "4px" },
+  editIn: { width: "60px", padding: "4px", border: "1px solid #4f46e5", borderRadius: "4px" },
   editBtn: { border: "none", background: "#f1f5f9", padding: "6px 12px", borderRadius: "6px", cursor: "pointer" },
   saveBtn: { border: "none", background: "#dcfce7", color: "#15803d", padding: "6px 12px", borderRadius: "6px", cursor: "pointer" },
-  successMsg: { padding: "12px", background: "#dcfce7", color: "#15803d", borderRadius: "8px", marginBottom: "15px", textAlign: "center" },
+  successMsg: { padding: "12px", background: "#dcfce7", color: "#15803d", borderRadius: "8", marginBottom: "15px", textAlign: "center" },
   errorMsg: { padding: "12px", background: "#fee2e2", color: "#b91c1c", borderRadius: "8px", marginBottom: "15px", textAlign: "center" }
 };
 
 export default AdminAddMarks;
+
