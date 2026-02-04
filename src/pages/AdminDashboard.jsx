@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
   FaBookOpen, FaFileUpload, FaStar, FaComments, FaChartBar,
-  FaArrowRight, FaThLarge, FaSearch, FaBell, FaBars, FaChevronLeft, FaUserCircle
+  FaArrowRight, FaThLarge, FaSearch, FaBell, FaBars, FaChevronLeft, FaCheck, FaTimes
 } from "react-icons/fa";
 import axios from "axios";
 
@@ -24,6 +24,7 @@ const AdminDashboard = () => {
     "https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&q=80&w=1200"
   ];
 
+  // Image slider
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentImg((prev) => (prev + 1) % bgImages.length);
@@ -31,7 +32,35 @@ const AdminDashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Main Links for Sidebar/Grid (Excluding the ones moved to Top Nav)
+  // Fetch Pending Requests Logic
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/students/pending-edit-requests`);
+        setNotifications(res.data.requests || []);
+      } catch (err) {
+        console.error("Error fetching notifications:", err);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  // Approve/Reject Logic
+  const handleApproveReject = async (id, status) => {
+    try {
+      await axios.post(`${API_URL}/api/students/handle-edit`, {
+        request_id: id,
+        status,
+        admin_id: 1 
+      });
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      alert(`Request ${status} ✅`);
+    } catch (err) {
+      console.error(err);
+      alert("Action failed!");
+    }
+  };
+
   const links = [
     { title: "Manage Students", path: "manage-students", icon: <FaUserGraduate />, color: "#6366f1", category: "Academic" },
     { title: "Manage Fees", path: "manage-fees", icon: <FaMoneyBillWave />, color: "#10b981", category: "Finance" },
@@ -112,7 +141,7 @@ const AdminDashboard = () => {
           
           <div style={headerRight}>
             <div style={searchBox}>
-              <FaSearch size={14} color="rgba(255,255,255,0.7)" />
+              <FaSearch size={14} color="#f97316" />
               <input 
                 type="text" 
                 placeholder="Quick search..." 
@@ -120,10 +149,37 @@ const AdminDashboard = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div style={headerIconBtn} onClick={() => setShowNotif(!showNotif)}>
-              <FaBell size={18} />
-              <span style={headerBadge}></span>
+
+            {/* Notification Bell with Logic */}
+            <div style={{ position: 'relative' }}>
+                <div style={headerIconBtn} onClick={() => setShowNotif(!showNotif)}>
+                <FaBell size={18} />
+                {notifications.length > 0 && <span style={headerBadge}>{notifications.length}</span>}
+                </div>
+                
+                {showNotif && (
+                <div style={notifDropdown}>
+                    <div style={notifTitle}>Pending Edit Requests</div>
+                    <div style={notifScroll}>
+                    {notifications.length === 0 ? (
+                        <div style={emptyNotif}>No pending requests ✅</div>
+                    ) : (
+                        notifications.map(n => (
+                        <div key={n.id} style={notifCard}>
+                            <p style={notifDesc}><b>{n.student_name}</b> wants to change <b>{n.field_name}</b></p>
+                            <p style={notifValues}>New: {n.requested_value}</p>
+                            <div style={notifActions}>
+                            <button onClick={() => handleApproveReject(n.id, "approved")} style={approveBtn}><FaCheck size={10} /> Approve</button>
+                            <button onClick={() => handleApproveReject(n.id, "rejected")} style={rejectBtn}><FaTimes size={10} /> Reject</button>
+                            </div>
+                        </div>
+                        ))
+                    )}
+                    </div>
+                </div>
+                )}
             </div>
+
             <div style={headerUser}>
               <img src="https://ui-avatars.com/api/?name=Nitesh+Admin&background=fff&color=f97316" style={avatarSmall} alt="admin" />
               <span>Nitesh Admin</span>
@@ -133,7 +189,6 @@ const AdminDashboard = () => {
 
         {isBaseAdmin ? (
           <div style={pagePadding}>
-            {/* HERO SECTION */}
             <section style={{...hero, backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url(${bgImages[currentImg]})`}}>
               <div style={heroContent}>
                 <h1 style={heroTitle}>Welcome Back, Nitesh! 👋</h1>
@@ -151,7 +206,6 @@ const AdminDashboard = () => {
               </div>
             </section>
 
-            {/* DASHBOARD GRID */}
             <div style={grid}>
               {filteredLinks.map((link, index) => (
                 <Link to={link.path} key={link.title} className="glass-card" style={{...cardStyle, animation: `slideIn 0.3s ease forwards ${index * 0.05}s`}}>
@@ -172,9 +226,7 @@ const AdminDashboard = () => {
         {/* NEWS TICKER FOOTER */}
         <footer style={footerStyle}>
           <div style={tickerWrapper}>
-             <p style={tickerText}>
-               Built with ❤️ for Smart Education | © 2026 EduFlow
- </p>
+             <p style={tickerText}>Start Building for Smart Education |  © 2026 EduFlow</p>
           </div>
         </footer>
       </main>
@@ -182,21 +234,19 @@ const AdminDashboard = () => {
   );
 };
 
-// --- STYLES (Professional & Sleek) ---
+// --- STYLES ---
 const layout = { display: 'flex', minHeight: '100vh', background: '#f8fafc' };
 const sidebar = { background: '#fff', borderRight: '1px solid #e2e8f0', padding: '20px 15px', position: 'sticky', top: 0, height: '100vh', transition: '0.3s', zIndex: 1000 };
 const logoSection = { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '35px', padding: '0 10px' };
 const logoIcon = { background: 'linear-gradient(135deg, #f97316, #fb923c)', color: '#fff', width: '35px', height: '35px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const logoText = { fontSize: '18px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.5px' };
 const toggleBtn = { position: 'absolute', right: '-12px', top: '25px', width: '24px', height: '24px', borderRadius: '50%', background: '#1e293b', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-
 const navLinks = { display: 'flex', flexDirection: 'column', gap: '4px' };
 const navLabel = { fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', margin: '15px 0 10px 10px' };
 const sideNavLink = { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 15px', textDecoration: 'none', fontWeight: '600', borderRadius: '10px', transition: '0.2s', fontSize: '14px' };
-
 const mainContent = { flex: 1, display: 'flex', flexDirection: 'column' };
 
-// Compact Header
+// Header Styles
 const orangeHeader = {
   height: '96px', background: 'linear-gradient(90deg, #f97316 0%, #cc4700 100%)',
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -208,22 +258,31 @@ const headerTag = { fontSize: '31px', fontWeight: '800', opacity: 0.8, letterSpa
 const vDivider = { width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)' };
 const headerNav = { display: 'flex', gap: '25px' };
 const headerLink = { color: '#fff', textDecoration: 'none', fontSize: '19px', fontWeight: '800' };
-
-const headerRight = { display: 'flex', alignItems: 'center', gap: '0px' };
-const searchBox = { background: 'rgb(255, 255, 255)', borderRadius: '6px', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgb(255, 255, 255)' };
-const topSearchInput = { border: 'none', background: 'transparent', color: '#fff', outline: 'none', fontSize: '13px', width: '150px' };
-const headerIconBtn = { cursor: 'pointer', position: 'relative', opacity: 0.9 };
-const headerBadge = { position: 'absolute', top: '-2px', right: '-2px', width: '8px', height: '8px', background: '#fff', borderRadius: '50%' };
-const headerUser = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '600', paddingLeft: '10px', borderLeft: '1px solid rgba(255,255,255,0.3)' };
+const headerRight = { display: 'flex', alignItems: 'center', gap: '20px' };
+const searchBox = { background: '#fff', borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px' };
+const topSearchInput = { border: 'none', background: 'transparent', color: '#333', outline: 'none', fontSize: '13px', width: '150px' };
+const headerIconBtn = { cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center' };
+const headerBadge = { position: 'absolute', top: '-8px', right: '-8px', background: '#fff', color: '#f97316', fontSize: '10px', fontWeight: '800', padding: '2px 5px', borderRadius: '10px' };
+const headerUser = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '600', paddingLeft: '20px', borderLeft: '1px solid rgba(255,255,255,0.3)' };
 const avatarSmall = { width: '30px', height: '30px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' };
 
-const pagePadding = { padding: '30px', maxWidth: '1300px', margin: '0 auto', width: '100%' };
-
-const hero = { 
-  height: '240px', borderRadius: '24px', backgroundSize: 'cover', backgroundPosition: 'center',
-  display: 'flex', alignItems: 'center', padding: '0 40px', color: '#fff', marginBottom: '35px',
-  transition: '1s ease', animation: 'slideIn 0.8s ease'
+// Notification Dropdown Styles
+const notifDropdown = {
+  position: 'absolute', top: '45px', right: '0', width: '300px', background: '#fff',
+  borderRadius: '12px', boxShadow: '0 15px 35px rgba(0,0,0,0.2)', zIndex: 2000, overflow: 'hidden', color: '#333'
 };
+const notifTitle = { padding: '12px', background: '#f8fafc', color: '#475569', fontSize: '12px', fontWeight: '700', borderBottom: '1px solid #f1f5f9' };
+const notifScroll = { maxHeight: '350px', overflowY: 'auto' };
+const notifCard = { padding: '12px', borderBottom: '1px solid #f1f5f9' };
+const notifDesc = { margin: 0, fontSize: '13px', color: '#1e293b', lineHeight: '1.4' };
+const notifValues = { margin: '4px 0', fontSize: '11px', color: '#64748b' };
+const notifActions = { display: 'flex', gap: '8px', marginTop: '10px' };
+const approveBtn = { background: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' };
+const rejectBtn = { background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' };
+const emptyNotif = { padding: '30px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' };
+
+const pagePadding = { padding: '30px', maxWidth: '1300px', margin: '0 auto', width: '100%' };
+const hero = { height: '240px', borderRadius: '24px', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', padding: '0 40px', color: '#fff', marginBottom: '35px', transition: '1s ease' };
 const heroContent = { maxWidth: '600px' };
 const heroTitle = { fontSize: '32px', margin: 0, fontWeight: '800' };
 const heroSub = { fontSize: '15px', opacity: 0.9, margin: '10px 0 25px', lineHeight: '1.5' };
@@ -238,7 +297,6 @@ const iconBox = { width: '45px', height: '45px', borderRadius: '12px', display: 
 const cardCategory = { fontSize: '10px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' };
 const cardTitle = { margin: 0, fontSize: '16px', color: '#1e293b', fontWeight: '700' };
 const cardArrow = { position: 'absolute', bottom: '24px', right: '24px', color: '#cbd5e1' };
-
 const footerStyle = { position: 'fixed', height: '56px', bottom: 0, left: 0, right: 0, background: '#1e293b', padding: '10px 0', zIndex: 1200 };
 const tickerWrapper = { overflow: 'hidden', whiteSpace: 'nowrap' };
 const tickerText = { display: 'inline-block', animation: 'marquee 25s linear infinite', color: '#8cde19a4', fontSize: '53px', margin: 0, paddingLeft: '100%' };
