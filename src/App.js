@@ -48,9 +48,9 @@ function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/refund_policy" element={<Refund />} />
 
-        {/* ADMIN ROUTES - Added /* to allow nested navigation */}
-        <Route path="/admin/*" element={<AdminDashboard />}>
-          <Route index element={<div>Welcome to Admin Dashboard</div>} />
+        {/* ADMIN ROUTES - Fixed Nesting */}
+        <Route path="/admin" element={<AdminDashboard />}>
+          {/* Dashboard Home Content yahan dikhega jab path exact /admin ho */}
           <Route path="manage-students" element={<ManageStudents />} />
           <Route path="manage-fees" element={<AdminFees />} />
           <Route path="mark-attendance" element={<MarkAttendance />} />
@@ -64,9 +64,8 @@ function App() {
           <Route path="admin-chat" element={<AdminChat />} />
         </Route>
 
-        {/* STUDENT ROUTES - Added /* to allow nested navigation */}
-        <Route path="/student/*" element={<StudentDashboard />}>
-          <Route index element={<div style={{padding: '20px'}}>Welcome Student Dashboard</div>} />
+        {/* STUDENT ROUTES */}
+        <Route path="/student" element={<StudentDashboard />}>
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees />} />
           <Route path="attendance" element={<StudentAttendance />} />
