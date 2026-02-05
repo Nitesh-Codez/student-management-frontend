@@ -16,7 +16,8 @@ const AddTeacher = () => {
     qualification: "",
     experience_years: "",
     salary: "",
-    joining_date: ""
+    joining_date: "",
+    password: ""   // <-- added
   });
 
   const handleChange = (e) => {
@@ -30,9 +31,7 @@ const AddTeacher = () => {
     try {
       const formData = new FormData();
       
-      // Saare fields append karein
       Object.keys(form).forEach(key => {
-        // Empty strings ko null ki tarah treat karne ke liye handle karein
         if (form[key] !== "") {
           formData.append(key, form[key]);
         }
@@ -50,11 +49,10 @@ const AddTeacher = () => {
 
       if (response.data.success) {
         alert("Teacher Profile Created! ✅");
-        // Form reset
         setForm({
           teacher_code: "", name: "", gender: "", dob: "", phone: "",
           email: "", address: "", qualification: "", experience_years: "",
-          salary: "", joining_date: ""
+          salary: "", joining_date: "", password: ""  // <-- reset password too
         });
         setPhoto(null);
       }
@@ -74,16 +72,19 @@ const AddTeacher = () => {
       </div>
 
       <form onSubmit={handleSubmit} style={formGrid}>
+        {/* Teacher Code */}
         <div style={inputGroup}>
           <label style={label}>Teacher Code *</label>
           <input name="teacher_code" value={form.teacher_code} onChange={handleChange} style={input} required placeholder="TCH-001" />
         </div>
 
+        {/* Name */}
         <div style={inputGroup}>
           <label style={label}>Full Name *</label>
           <input name="name" value={form.name} onChange={handleChange} style={input} required placeholder="John Doe" />
         </div>
 
+        {/* Gender */}
         <div style={inputGroup}>
           <label style={label}>Gender</label>
           <select name="gender" value={form.gender} onChange={handleChange} style={input}>
@@ -94,36 +95,61 @@ const AddTeacher = () => {
           </select>
         </div>
 
+        {/* DOB */}
         <div style={inputGroup}>
           <label style={label}>Date of Birth</label>
           <input type="date" name="dob" value={form.dob} onChange={handleChange} style={input} />
         </div>
 
+        {/* Joining Date */}
+        <div style={inputGroup}>
+          <label style={label}>Joining Date</label>
+          <input type="date" name="joining_date" value={form.joining_date} onChange={handleChange} style={input} />
+        </div>
+
+        {/* Phone */}
         <div style={inputGroup}>
           <label style={label}>Phone Number</label>
           <input name="phone" value={form.phone} onChange={handleChange} style={input} placeholder="+91..." />
         </div>
 
+        {/* Email */}
         <div style={inputGroup}>
           <label style={label}>Email Address</label>
           <input type="email" name="email" value={form.email} onChange={handleChange} style={input} placeholder="teacher@school.com" />
         </div>
 
+        {/* Qualification */}
         <div style={inputGroup}>
           <label style={label}>Qualification</label>
           <input name="qualification" value={form.qualification} onChange={handleChange} style={input} placeholder="M.Sc, B.Ed" />
         </div>
 
+        {/* Salary */}
         <div style={inputGroup}>
           <label style={label}>Salary (Monthly)</label>
           <input type="number" name="salary" value={form.salary} onChange={handleChange} style={input} placeholder="50000" />
         </div>
 
+        {/* Experience */}
+        <div style={inputGroup}>
+          <label style={label}>Experience (Years)</label>
+          <input type="number" name="experience_years" value={form.experience_years} onChange={handleChange} style={input} placeholder="5" />
+        </div>
+
+        {/* Address */}
         <div style={{...inputGroup, gridColumn: 'span 2'}}>
           <label style={label}>Address</label>
           <textarea name="address" value={form.address} onChange={handleChange} style={{...input, height: '60px'}} placeholder="Full Address..." />
         </div>
 
+        {/* Password */}
+        <div style={inputGroup}>
+          <label style={label}>Password</label>
+          <input type="password" name="password" value={form.password} onChange={handleChange} style={input} placeholder="Set password..." />
+        </div>
+
+        {/* Profile Photo */}
         <div style={inputGroup}>
           <label style={label}>Profile Photo</label>
           <div style={fileInputContainer}>
@@ -132,6 +158,7 @@ const AddTeacher = () => {
           </div>
         </div>
 
+        {/* Submit */}
         <div style={{...inputGroup, display: 'flex', alignItems: 'flex-end'}}>
           <button type="submit" disabled={loading} style={submitBtn}>
             {loading ? "Saving..." : "Create Teacher Profile"}
@@ -142,7 +169,7 @@ const AddTeacher = () => {
   );
 };
 
-// Styles
+// Styles (unchanged)
 const container = { padding: '20px', background: '#fff', borderRadius: '15px' };
 const header = { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '30px', borderBottom: '2px solid #f8fafc', paddingBottom: '15px' };
 const formGrid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' };

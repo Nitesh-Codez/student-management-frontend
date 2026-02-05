@@ -3,8 +3,11 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
   FaBookOpen, FaFileUpload, FaStar, FaComments, FaChartBar,
-  FaArrowRight, FaThLarge, FaSearch, FaBell, FaBars, FaChevronLeft, FaCheck, FaTimes
+  FaArrowRight, FaThLarge, FaSearch, FaBell, FaBars, FaChevronLeft, FaCheck, FaTimes,
+  FaChalkboardTeacher
 } from "react-icons/fa";
+
+
 import axios from "axios";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
@@ -17,6 +20,7 @@ const AdminDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
+  
 
   const bgImages = [
     "https://images.unsplash.com/photo-1523050853023-8c2d27543054?auto=format&fit=crop&q=80&w=1200",
@@ -67,6 +71,9 @@ const AdminDashboard = () => {
     { title: "Add Marks", path: "add-marks", icon: <FaStar />, color: "#ec4899", category: "Exams" },
     { title: "Reports", path: "reports", icon: <FaChartBar />, color: "#475569", category: "Reports" },
     { title: "Add Teacher", path: "add-teacher", icon: <FaUserGraduate />, color: "#0ea5e9", category: "Management" },
+    { title: "Assign Classes", path: "assign-classes", icon: <FaChalkboardTeacher />, color: "#0ea5e9", category: "Management" },
+ 
+    { title: "Teacher List", path: "teachers", icon: <FaUserGraduate />, color: "#f97316", category: "Management" },
     { title: "Student Chat", path: "admin-chat", icon: <FaComments />, color: "#2dd4bf", category: "Support" },
   ];
 

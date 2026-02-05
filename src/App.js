@@ -21,6 +21,8 @@ import AdminPage from "./pages/AdminPage";
 import AdminFeedback from "./pages/AdminFeedback";
 import AdminChat from "./pages/AdminChat";
 import AddTeacher from "./pages/AddTeacher";
+import TeacherList from "./pages/TeacherList";
+import AssignClasses from "./pages/AssignClasses";
 
 // Student Pages
 import StudentDashboard from "./pages/StudentDashboard";
@@ -63,7 +65,9 @@ function App() {
           <Route path="student-submission" element={<AdminPage />} />
           <Route path="admin-feedback" element={<AdminFeedback />} />
           <Route path="admin-chat" element={<AdminChat />} />
-          <Route path="/admin/add-teacher" element={<AddTeacher />} />
+         <Route path="add-teacher" element={<AddTeacher />} />          // ✅ relative
+  <Route path="teachers" element={<TeacherList />} />            // ✅ relative
+  <Route path="assign-classes" element={<AssignClasses />} />
         </Route>
 
         {/* STUDENT ROUTES */}
