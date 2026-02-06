@@ -159,11 +159,59 @@ const FeePopup = ({ isOpen, onClose, amount }) => {
 /* =========================
    DASHBOARD HOME
 ========================= */
-const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending, user, hasNewMarks }) => {
+const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending, user, hasNewMarks, todayClasses,setTodayClasses }) => {
+ 
   const [greeting, setGreeting] = useState("");
   const [randomQuote, setRandomQuote] = useState("");
   const [imgIndex, setImgIndex] = useState(0);
   const [showTaskAlert, setShowTaskAlert] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // 2. Schedule Fetch karne ka main function
+  const fetchTodaySchedule = async () => {
+    if (!user?.class) return;
+    try {
+      const day = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+
+const res = await axios.get(
+ `${API_URL}/api/teacher-assignments/student-class/${user.class}/${day}`
+);
+
+
+      if (res.data.success && Array.isArray(res.data.assignments)) {
+        const filterDate = selectedDate.toLocaleDateString('en-CA'); 
+        const filteredData = res.data.assignments.filter(a => {
+          if (!a.class_date) return false;
+          const classDateStr = String(a.class_date).split("T")[0];
+          return classDateStr === filterDate;
+        });
+        setTodayClasses(filteredData);
+      }
+    } catch (err) {
+      console.error("Schedule error details:", err.response?.data || err.message);
+    }
+  };
+
+  // 3. SINGLE useEffect - Jo date aur user dono pe chale
+  useEffect(() => {
+    if (user) {
+      fetchTodaySchedule();
+    }
+  }, [selectedDate, user?.class, user]);
+
+  
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Good Morning");
+    else if (hour < 17) setGreeting("Good Afternoon");
+    else setGreeting("Good Evening");
+    setRandomQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+    
+    const interval = setInterval(() => {
+      setImgIndex(prev => (prev + 1) % studyImages.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -233,6 +281,161 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
           </motion.div>
         ))}
       </div>
+ {/* Today's Schedule Section */}
+<div style={{ 
+    width: '100%', 
+    maxWidth: '1400px', 
+    margin: '20px auto', 
+    backgroundColor: '#fff', 
+    borderRadius: '8px', 
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    overflow: 'hidden',
+    fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+    border: '1px solid #e1e8ed'
+}}>
+  
+  {/* TOP TITLE BAR - Amizone Style */}
+  <div style={{ 
+      padding: '12px 15px', 
+      backgroundColor: '#f5f7f9', 
+      borderBottom: '1px solid #e1e8ed',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+  }}>
+    <h2 style={{ margin: 0, fontSize: '18px', color: '#34495e', fontWeight: 'bold' }}>My Classes</h2>
+  </div>
+
+  {/* CONTROLS BAR */}
+  <div style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center', 
+      padding: '12px 15px', 
+      backgroundColor: '#fff'
+  }}>
+    <div style={{ display: 'flex', border: '1px solid #ccc', borderRadius: '4px', overflow: 'hidden' }}>
+      <button 
+        onClick={() => {
+          const prev = new Date(selectedDate);
+          prev.setDate(prev.getDate() - 1);
+          setSelectedDate(prev);
+        }}
+        style={{ ...navBtnStyle, border: 'none', borderRight: '1px solid #ccc', borderRadius: 0, padding: '5px 12px', background: '#fff' }}
+      >◀</button>
+      <button 
+        onClick={() => {
+          const next = new Date(selectedDate);
+          next.setDate(next.getDate() + 1);
+          setSelectedDate(next);
+        }}
+        style={{ ...navBtnStyle, border: 'none', borderRight: '1px solid #ccc', borderRadius: 0, padding: '5px 12px', background: '#fff' }}
+      >▶</button>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <button style={{ ...navBtnStyle, border: 'none', borderRadius: 0, padding: '5px 12px', background: '#fff' }}>📅</button>
+        <input 
+          type="date" 
+          value={selectedDate.toISOString().split('T')[0]}
+          onChange={(e) => setSelectedDate(new Date(e.target.value))}
+          style={{
+            position: 'absolute', top: 0, left: 0, opacity: 0, 
+            width: '100%', height: '100%', cursor: 'pointer'
+          }}
+        />
+      </div>
+    </div>
+    
+    <div style={{ fontSize: '18px', color: '#333', fontWeight: '400', flex: 1, textAlign: 'center' }}>
+      {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+    </div>
+    <div style={{ width: '80px', display: 'none' }}></div> 
+  </div>
+
+  {/* DAY HEADER */}
+  <div style={{ 
+      padding: '10px 15px', 
+      backgroundColor: '#fff', 
+      borderTop: '1px solid #f1f1f1',
+      borderBottom: '1px solid #f1f1f1', 
+      fontWeight: 'bold', 
+      color: '#000',
+      fontSize: '15px'
+  }}>
+    {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
+  </div>
+
+  {/* Classes List */}
+  <div style={{ width: '100%' }}>
+    {todayClasses.length > 0 ? (
+      todayClasses.map((cls, idx) => (
+        <div key={idx} style={{ 
+            display: 'flex', 
+            padding: '15px', 
+            borderBottom: '1px solid #eee',
+            gap: '15px',
+            alignItems: 'center'
+        }}>
+          {/* Time Slot */}
+          <div style={{ 
+              minWidth: '90px', 
+              color: '#008ba3', 
+              fontWeight: '500', 
+              fontSize: '14px',
+              textAlign: 'center'
+          }}>
+            {cls.start_time}<br/>-<br/>{cls.end_time}
+          </div>
+
+          
+
+          {/* TEACHER PHOTO - Fixed Version */}
+<div style={{ 
+    width: '55px', 
+    height: '55px', 
+    borderRadius: '50%', 
+    backgroundColor: '#f1f5f9', 
+    overflow: 'hidden', 
+    flexShrink: 0, 
+    border: '1px solid #e2e8f0' 
+}}>
+  <img 
+    src={
+      cls.profile_photo 
+      ? (cls.profile_photo.startsWith('http') 
+          ? cls.profile_photo 
+          : `https://student-management-system-4-hose.onrender.com/${cls.profile_photo}`)
+      : `https://ui-avatars.com/api/?name=${cls.teacher_name || 'T'}&background=6366f1&color=fff`
+    } 
+    alt="Teacher" 
+    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+    onError={(e) => { 
+        // Agar image path galat hua toh ye initials dikha dega
+        e.target.src = `https://ui-avatars.com/api/?name=${cls.teacher_name || 'T'}&background=random`; 
+    }}
+  />
+</div>
+
+          {/* Class Details */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 'bold', color: '#4b0082', fontSize: '14px', textTransform: 'uppercase' }}>
+              {cls.subject_name}
+            </div>
+            <div style={{ fontSize: '13px', color: '#4b0082', marginTop: '2px' }}>
+              {cls.teacher_name} <span style={{color: '#777'}}>[{cls.teacher_code || cls.teacher_id || 'ID'}]</span>
+            </div>
+            <div style={{ fontSize: '12px', color: '#4b0082', fontWeight: '500' }}>
+              {cls.room_no || 'HOME'}
+            </div>
+          </div>
+        </div>
+      ))
+    ) : (
+      <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
+        <p style={{ fontSize: '16px' }}>No classes scheduled for this day.</p>
+      </div>
+    )}
+  </div>
+</div>
     </motion.div>
   );
 };
@@ -245,6 +448,7 @@ const StudentDashboard = () => {
   const [user, setUser] = useState(null);
   const [examOpen, setExamOpen] = useState(false);
   const [pendingTasks, setPendingTasks] = useState(0);
+// 1. Saari States ek saath
   const [isFeeUnpaid, setIsFeeUnpaid] = useState(false);
   const [isFeedbackPending, setIsFeedbackPending] = useState(false);
   const [hasNewMarks, setHasNewMarks] = useState(false);
@@ -253,7 +457,8 @@ const StudentDashboard = () => {
   const [isPhotoOpen, setIsPhotoOpen] = useState(false);
   const [isNotiOpen, setIsNotiOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  
+  const [todayClasses, setTodayClasses] = useState([]);
+   // Ab jab bhi date ya user badlega, ye fetch karega
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -261,6 +466,7 @@ const StudentDashboard = () => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
     if(!storedUser) { navigate("/"); return; }
     setUser(storedUser);
+    
 
     const fetchData = async () => {
       try {
@@ -292,6 +498,7 @@ const StudentDashboard = () => {
            }
         }
 
+        
         const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
         if (feeRes.data.success) {
           const feesData = feeRes.data.fees;
@@ -412,7 +619,22 @@ const StudentDashboard = () => {
       {/* ================= MAIN CONTENT ================= */}
       <main style={mainBody}>
         <Routes>
-          <Route index element={<DashboardHome navigate={navigate} isFeeUnpaid={isFeeUnpaid} isFeedbackPending={isFeedbackPending} pendingTasks={pendingTasks} user={user} hasNewMarks={hasNewMarks} />} />
+          <Route
+ index
+ element={
+  <DashboardHome
+    navigate={navigate}
+    isFeeUnpaid={isFeeUnpaid}
+    isFeedbackPending={isFeedbackPending}
+    pendingTasks={pendingTasks}
+    user={user}
+    hasNewMarks={hasNewMarks}
+    todayClasses={todayClasses}
+    setTodayClasses={setTodayClasses}
+  />
+ }
+/>
+
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees user={user} />} />
           <Route path="attendance" element={<StudentAttendance user={user} />} />
@@ -422,6 +644,7 @@ const StudentDashboard = () => {
           <Route path="feedback" element={<StudentFeedback studentId={user.id} />} />
           <Route path="chat" element={<StudentChat user={user} />} />
           <Route path="apply-correction" element={<ApplyCorrection />} />
+          
           
           {/* Internal Examination Routes */}
           <Route path="exam-form" element={<ExamForm />} />
@@ -500,4 +723,35 @@ const headerRight = { display: "flex", alignItems: "center", gap: 15 };
 const iconBtnStyle = { cursor: "pointer", color: "#6366f1", fontSize: "20px" };
 const profileTrigger = { cursor: "pointer", display: "flex" };
 
+const scheduleCard = {
+  minWidth: '200px',
+  background: 'white',
+  padding: '15px',
+  borderRadius: '20px',
+  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+  borderLeft: '5px solid #6366f1'
+};
+const navBtnStyle = {
+    background: '#fff',
+    border: '1px solid #874949',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    width: '35px',
+    height: '35px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#000000',
+    fontSize: '14px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+  };
+const timeTag = {
+  fontSize: '11px',
+  fontWeight: 'bold',
+  color: '#6366f1',
+  background: '#eef2ff',
+  padding: '4px 8px',
+  borderRadius: '6px',
+  display: 'inline-block'
+};
 export default StudentDashboard;
