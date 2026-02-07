@@ -32,6 +32,7 @@ import StudentAttendance from "./pages/StudentAttendance";
 import StudentsMarks from "./pages/StudentsMarks";
 import HomeworkStudent from "./pages/HomeworkStudent";
 import StudentFeedback from "./pages/StudentFeedback";
+import StudentStudyMaterial from "./pages/StudentStudyMaterial";
 import StudentPage from "./pages/StudentPage";
 import StudentChat from "./pages/StudentChat";
 import ApplyCorrection from "./pages/ApplyCorrection";
@@ -79,6 +80,7 @@ function App() {
           <Route path="homework" element={<HomeworkStudent />} />
           <Route path="feedback" element={<StudentFeedback />} />
           <Route path="task-update" element={<StudentPage studentId={101} />} />
+          <Route path="study-material" element={<StudentStudyMaterial />} />
           <Route path="student-chat" element={<StudentChat />} />
           <Route path="exam-form" element={<ExamForm />} />
           <Route path="generate-admit" element={<GenerateAdmitCard />} />
