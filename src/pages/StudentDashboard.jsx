@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   FaClipboardCheck, FaMoneyBillWave, FaChartLine,
@@ -166,9 +167,83 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
   const [imgIndex, setImgIndex] = useState(0);
   const [showTaskAlert, setShowTaskAlert] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [attendanceStats, setAttendanceStats] = useState({
+present: 0,
+total: 0,
+percentage: 0,
+today: "Not Marked",
+records:[]
+});
+
+const getPollColor = (classDate) => {
+
+ const rec = attendanceStats.records.find(a =>
+   new Date(a.date).toDateString() === new Date(classDate).toDateString()
+ );
+
+ if (!rec) return "#3b82f6";      // Not Marked
+ if (rec.status === "Present") return "#22c55e";
+ if (rec.status === "Absent") return "#ef4444";
+
+ return "#facc15";
+};
+
+
+
+const fetchAttendance = useCallback(async () => {
+
+  if (!user?.id) return;
+
+  try {
+    const res = await axios.get(`${API_URL}/api/attendance/${user.id}`);
+
+    if (res.data.success) {
+      const data = res.data.attendance;
+
+      const todayStr = new Date().toDateString();
+
+      const todayRec = data.find(
+        a => new Date(a.date).toDateString() === todayStr
+      );
+
+      const month = new Date().getMonth();
+      const year = new Date().getFullYear();
+
+      const monthData = data.filter(a => {
+        const d = new Date(a.date);
+        return d.getMonth() === month && d.getFullYear() === year;
+      });
+
+      const present = monthData.filter(a => a.status === "Present").length;
+      const total = monthData.filter(a => a.status !== "Leave").length;
+
+      const percent = total === 0 ? 0 : ((present / total) * 100).toFixed(1);
+
+      setAttendanceStats({
+present,
+total,
+percentage: percent,
+today: todayRec ? todayRec.status : "Not Marked",
+records:data
+});
+
+    }
+
+  } catch (err) {
+    console.log(err);
+  }
+}, [user]);
+
+
+useEffect(() => {
+  fetchAttendance();
+}, [fetchAttendance]);
+
+
 
   // 2. Schedule Fetch karne ka main function
-  const fetchTodaySchedule = async () => {
+  const fetchTodaySchedule = useCallback(async () => {
+
     if (!user?.class) return;
     try {
       const day = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
@@ -190,16 +265,13 @@ const res = await axios.get(
     } catch (err) {
       console.error("Schedule error details:", err.response?.data || err.message);
     }
-  };
+  }, [user, selectedDate, setTodayClasses]);
 
   // 3. SINGLE useEffect - Jo date aur user dono pe chale
-  useEffect(() => {
-    if (user) {
-      fetchTodaySchedule();
-    }
-  }, [selectedDate, user?.class, user]);
+ useEffect(() => {
+  fetchTodaySchedule();
+}, [fetchTodaySchedule]);
 
-  
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good Morning");
@@ -417,6 +489,16 @@ const res = await axios.get(
 
           {/* Class Details */}
           <div style={{ flex: 1 }}>
+  {/* POLL RIGHT */}
+<div style={{
+width:'12px',
+height:'12px',
+borderRadius:'50%',
+background:getPollColor(cls.class_date),
+boxShadow:'0 0 2px rgba(0,0,0,0.2)',
+marginLeft: '130px',
+marginTop:'30px',
+}}/>
             <div style={{ fontWeight: 'bold', color: '#4b0082', fontSize: '14px', textTransform: 'uppercase' }}>
               {cls.subject_name}
             </div>
@@ -668,7 +750,20 @@ const StudentDashboard = () => {
    STYLES (SAME AS ORIGINAL)
 ========================= */
 const subLinkStyle = (active) => ({ padding: "10px 15px", borderRadius: "10px", textDecoration: "none", color: active ? "#fff" : "#94a3b8", fontSize: "13px", fontWeight: 500, background: active ? "rgba(99, 102, 241, 0.2)" : "transparent" });
-const modernWelcomeStyle = (img) => ({ position: 'relative', width: '100%', maxWidth: '1100px', margin: '0 auto', minHeight: '220px', padding: '25px', borderRadius: '24px', marginBottom: '25px', display: 'flex', alignItems: 'center', color: '#fff', backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)' });
+const modernWelcomeStyle = (img) => ({
+  position: 'relative',
+  width: '100%',
+  maxWidth: '400px',
+  marginLeft: 'auto',
+  marginRight: '10px',
+  minHeight: '220px',
+  padding: '25px',
+  borderRadius: '24px',
+  marginBottom: '25px',
+  display: 'flex',
+  alignItems: 'center',
+  color: '#fff',
+ backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)' });
 const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
 const headerWrapper = { position: "fixed", top: 15, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center" };
 const headerContent = { width: "95%", maxWidth: "1100px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", borderRadius: "20px", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" };
@@ -723,14 +818,7 @@ const headerRight = { display: "flex", alignItems: "center", gap: 15 };
 const iconBtnStyle = { cursor: "pointer", color: "#6366f1", fontSize: "20px" };
 const profileTrigger = { cursor: "pointer", display: "flex" };
 
-const scheduleCard = {
-  minWidth: '200px',
-  background: 'white',
-  padding: '15px',
-  borderRadius: '20px',
-  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
-  borderLeft: '5px solid #6366f1'
-};
+
 const navBtnStyle = {
     background: '#fff',
     border: '1px solid #874949',
@@ -745,13 +833,5 @@ const navBtnStyle = {
     fontSize: '14px',
     boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
   };
-const timeTag = {
-  fontSize: '11px',
-  fontWeight: 'bold',
-  color: '#6366f1',
-  background: '#eef2ff',
-  padding: '4px 8px',
-  borderRadius: '6px',
-  display: 'inline-block'
-};
+
 export default StudentDashboard;

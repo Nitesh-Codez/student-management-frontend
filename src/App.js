@@ -66,8 +66,8 @@ function App() {
           <Route path="student-submission" element={<AdminPage />} />
           <Route path="admin-feedback" element={<AdminFeedback />} />
           <Route path="admin-chat" element={<AdminChat />} />
-         <Route path="add-teacher" element={<AddTeacher />} />          // ✅ relative
-  <Route path="teachers" element={<TeacherList />} />            // ✅ relative
+         <Route path="add-teacher" element={<AddTeacher />} />          
+  <Route path="teachers" element={<TeacherList />} />            
   <Route path="assign-classes" element={<AssignClasses />} />
         </Route>
 
