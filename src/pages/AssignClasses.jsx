@@ -191,7 +191,7 @@ const AssignClasses = () => {
     <div style={{ padding: "20px", backgroundColor: "#f4f7f6", minHeight: "100vh", fontFamily: 'sans-serif' }}>
       <div style={{ maxWidth: "1100px", margin: "0 auto", background: "white", padding: "25px", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
         
-        <h2 style={{ color: "#1a237e", marginTop: 0 }}>🚀 Smart Bulk Assign</h2>
+        <h2 style={{ color: "#1a237e", marginTop: 0 }}>🚀 Assign Faculties</h2>
 
         <div style={{ background: "#e3f2fd", padding: "20px", borderRadius: "8px", marginBottom: "25px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px", alignItems: "flex-end" }}>
           <div>
