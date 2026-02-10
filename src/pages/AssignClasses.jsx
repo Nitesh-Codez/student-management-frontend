@@ -12,7 +12,8 @@ const AssignClasses = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false); // Naya state saving ke liye
 
-  const today = new Date().toISOString().split('T')[0];
+const today = new Date().toLocaleDateString('en-CA');
+
   const [filterDate, setFilterDate] = useState(today);
   
   const [masterDate, setMasterDate] = useState(today);
@@ -76,12 +77,22 @@ const AssignClasses = () => {
     return list.sort((a, b) => parseInt(a) - parseInt(b));
   }, [students]);
 
-  const filteredLectures = useMemo(() => {
-    return teacherLectures.filter(lec => {
-      const lecDate = lec.class_date ? lec.class_date.split('T')[0] : "";
-      return lecDate === filterDate;
-    });
-  }, [teacherLectures, filterDate]);
+ const filteredLectures = useMemo(() => {
+  return teacherLectures.filter(lec => {
+    const start = lec.class_date?.split('T')[0];
+    const end = lec.repeat_until?.split('T')[0];
+
+    if (!start) return false;
+
+    if (filterDate < start) return false;
+    if (end && filterDate > end) return false;
+
+    const day = new Date(filterDate).toLocaleDateString('en-US',{weekday:'long'});
+
+    return lec.day_of_week === day;
+  });
+}, [teacherLectures, filterDate]);
+
 
   const handleBulkGenerate = () => {
     if (!bulkStart || !bulkEnd || !masterDate) return alert("Pehle Master Date aur Range bhariye!");

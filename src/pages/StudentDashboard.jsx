@@ -244,28 +244,24 @@ useEffect(() => {
   // 2. Schedule Fetch karne ka main function
   const fetchTodaySchedule = useCallback(async () => {
 
-    if (!user?.class) return;
-    try {
-      const day = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+  if (!user?.class) return;
 
-const res = await axios.get(
- `${API_URL}/api/teacher-assignments/student-class/${user.class}/${day}`
-);
+  try {
+    const date = selectedDate.toISOString().split("T")[0];
 
+    const res = await axios.get(
+      `${API_URL}/api/teacher-assignments/student/${user.class}/${date}`
+    );
 
-      if (res.data.success && Array.isArray(res.data.assignments)) {
-        const filterDate = selectedDate.toLocaleDateString('en-CA'); 
-        const filteredData = res.data.assignments.filter(a => {
-          if (!a.class_date) return false;
-          const classDateStr = String(a.class_date).split("T")[0];
-          return classDateStr === filterDate;
-        });
-        setTodayClasses(filteredData);
-      }
-    } catch (err) {
-      console.error("Schedule error details:", err.response?.data || err.message);
+    if (res.data.success) {
+      setTodayClasses(res.data.assignments);
     }
-  }, [user, selectedDate, setTodayClasses]);
+
+  } catch (err) {
+    console.error("Schedule error:", err.response?.data || err.message);
+  }
+
+}, [user, selectedDate, setTodayClasses]);
 
   // 3. SINGLE useEffect - Jo date aur user dono pe chale
  useEffect(() => {
@@ -494,9 +490,9 @@ const res = await axios.get(
 width:'12px',
 height:'12px',
 borderRadius:'50%',
-background:getPollColor(cls.class_date),
+background: getPollColor(selectedDate),
 boxShadow:'0 0 2px rgba(0,0,0,0.2)',
-marginLeft: '130px',
+marginLeft: '110px',
 marginTop:'30px',
 }}/>
             <div style={{ fontWeight: 'bold', color: '#4b0082', fontSize: '14px', textTransform: 'uppercase' }}>
@@ -753,9 +749,9 @@ const subLinkStyle = (active) => ({ padding: "10px 15px", borderRadius: "10px", 
 const modernWelcomeStyle = (img) => ({
   position: 'relative',
   width: '100%',
-  maxWidth: '400px',
-  marginLeft: 'auto',
-  marginRight: '10px',
+  maxWidth: '310px',
+  marginLeft: '1px',
+  marginRight: '1px',
   minHeight: '220px',
   padding: '25px',
   borderRadius: '24px',
