@@ -773,8 +773,26 @@ const alertActionBtn = { background: '#92400e', color: 'white', border: 'none', 
 const quoteTextStyle = { fontSize: '14px', fontStyle: 'italic', margin: '5px 0' };
 const statusPillRow = { display: 'flex', gap: '10px', marginTop: '15px' };
 const statusPill = { background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(5px)', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' };
-const cardGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px" };
-const cardBase = { position: "relative", borderRadius: "24px", padding: "20px", color: "#fff", cursor: "pointer", minHeight: "150px", display: "flex", flexDirection: "column", justifyContent: "space-between" };
+const cardGrid = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "15px",
+};
+const cardBase = {
+  position: "relative",
+  width: "100%",          // FULL WIDTH
+  borderRadius: "8px",
+  padding: "5px",
+  color: "#fff",
+  cursor: "pointer",
+  minHeight: "170px",
+  display: "flex",
+  flexDirection: "row",  // icon left, text right
+  alignItems: "center",
+  justifyContent: "space-between",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.12)"
+};
+
 const cardTopRow = { display: 'flex', justifyContent: 'space-between' };
 const iconCircle = { width: '45px', height: '45px', background: 'rgba(255,255,255,0.2)', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
 const cardMainTitle = { margin: '0', fontSize: '18px', fontWeight: '700' };

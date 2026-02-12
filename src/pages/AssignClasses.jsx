@@ -11,6 +11,8 @@ const AssignClasses = () => {
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false); // Naya state saving ke liye
+  const [specialMode,setSpecialMode] = useState(false);
+
 
 const today = new Date().toLocaleDateString('en-CA');
 
@@ -120,6 +122,22 @@ const today = new Date().toLocaleDateString('en-CA');
     setAssignments(arr);
   };
 
+  const handleAssignAllClasses = () => {
+  if(!selectedTeacher || !masterDate || !masterStart || !masterEnd)
+    return alert("Teacher + Date + Time required");
+
+  const rows = classesList.map(cls=>({
+    class_id:cls,
+    subject_id:"",
+    class_date:masterDate,
+    start_time:masterStart,
+    end_time:masterEnd,
+    special:specialMode
+  }));
+
+  setAssignments(rows);
+};
+
   // ================= FIXED SUBMIT LOGIC =================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -135,9 +153,11 @@ const today = new Date().toLocaleDateString('en-CA');
 
         try {
           await axios.post(`${API_URL}/api/teacher-assignments/assign`, { 
-            teacher_id: selectedTeacher, 
-            ...a 
-          });
+ teacher_id:selectedTeacher,
+ ...a,
+ special:specialMode
+});
+
           savedCount++;
         } catch (err) {
           // Backend se aane wala message yahan pakdenge
@@ -231,6 +251,19 @@ const today = new Date().toLocaleDateString('en-CA');
             </div>
           </div>
           <button onClick={handleBulkGenerate} style={btnBulk}>Generate Rows</button>
+          <label style={{fontSize:12}}>
+  <input
+    type="checkbox"
+    checked={specialMode}
+    onChange={e=>setSpecialMode(e.target.checked)}
+  />
+  Special Case (Same teacher all classes same time)
+</label>
+
+<button onClick={handleAssignAllClasses} style={btnBulk}>
+ Assign Same Teacher to ALL Classes
+</button>
+
         </div>
 
         <form onSubmit={handleSubmit}>
