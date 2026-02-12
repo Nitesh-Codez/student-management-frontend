@@ -191,7 +191,6 @@ const getPollColor = (classDate) => {
 
 
 const fetchAttendance = useCallback(async () => {
-
   if (!user?.id) return;
 
   try {
@@ -202,44 +201,60 @@ const fetchAttendance = useCallback(async () => {
 
       const todayStr = new Date().toDateString();
 
+      // Find today's record
       const todayRec = data.find(
         a => new Date(a.date).toDateString() === todayStr
       );
 
-      const month = new Date().getMonth();
-      const year = new Date().getFullYear();
+      const [currentYear, currentMonth] = [
+        new Date().getFullYear(),
+        new Date().getMonth() + 1
+      ];
 
-      const monthData = data.filter(a => {
+      // Filter data for current month & year
+      let monthData = data.filter(a => {
         const d = new Date(a.date);
-        return d.getMonth() === month && d.getFullYear() === year;
+        return d.getFullYear() === currentYear && d.getMonth() + 1 === currentMonth;
       });
 
-      const present = monthData.filter(a => a.status === "Present").length;
-      const total = monthData.filter(a => a.status !== "Leave").length;
+      // Add today if not present
+      if (!todayRec) {
+        const newToday = { date: new Date().toISOString(), status: "Not Marked", isToday: true };
+        monthData.push(newToday);
+      } else {
+        monthData = monthData.map(rec =>
+          new Date(rec.date).toDateString() === todayStr
+            ? { ...rec, isToday: true }
+            : rec
+        );
+      }
 
-      const percent = total === 0 ? 0 : ((present / total) * 100).toFixed(1);
+      // Count present & total days, skipping holidays
+      const validDays = monthData.filter(
+        a => a.status === "Present" || a.status === "Absent"
+      );
+      const presentDays = validDays.filter(a => a.status === "Present");
+
+      const percent = validDays.length === 0
+        ? 0
+        : ((presentDays.length / validDays.length) * 100).toFixed(1);
 
       setAttendanceStats({
-present,
-total,
-percentage: percent,
-today: todayRec ? todayRec.status : "Not Marked",
-records:data
-});
-
+        present: presentDays.length,
+        total: validDays.length,
+        percentage: percent,
+        today: todayRec ? todayRec.status : "Not Marked",
+        records: monthData
+      });
     }
-
   } catch (err) {
-    console.log(err);
+    console.log("Fetch error:", err);
   }
 }, [user]);
-
 
 useEffect(() => {
   fetchAttendance();
 }, [fetchAttendance]);
-
-
 
   // 2. Schedule Fetch karne ka main function
   const fetchTodaySchedule = useCallback(async () => {
@@ -343,9 +358,57 @@ useEffect(() => {
                 <FaChevronRight style={{opacity: 0.5}} />
             </div>
             <div style={cardBottomBody}>
-              <h3 style={cardMainTitle}>{c.title}</h3>
-              <p style={{margin: 0, fontSize: '11px', opacity: 0.9}}>{c.sub}</p>
-            </div>
+
+ {c.title === "Attendance" && (
+  <div style={{
+    display:'flex',
+    alignItems:'center',
+    gap:'12px',
+    marginBottom:'10px'
+  }}>
+
+    <div style={{
+      width:'85px',
+      height:'85px',
+      borderRadius:'50%',
+      background:`conic-gradient(${attendanceStats.percentage >= 85 ? "#22c55e" : attendanceStats.percentage >= 75 ? "#facc15" : "#ef4444"} ${attendanceStats.percentage * 3.6}deg,#ffffff33 0deg)`,
+      display:'flex',
+      alignItems:'center',
+      justifyContent:'center'
+    }}>
+
+      <div style={{
+        width:'60px',
+        height:'60px',
+        borderRadius:'50%',
+        background:'rgba(0,0,0,0.35)',
+        display:'flex',
+        alignItems:'center',
+        justifyContent:'center',
+        fontSize:'11px',
+        fontWeight:'bold'
+      }}>
+        {attendanceStats.percentage}%
+      </div>
+
+    </div>
+
+    <div style={{fontSize:'15px'}}>
+      <b>{attendanceStats.present}/{attendanceStats.total}</b>
+    </div>
+
+  </div>
+)}
+
+
+  <h3 style={cardMainTitle}>{c.title}</h3>
+
+  <p style={{margin: 0, fontSize: '11px', opacity: 0.11}}>
+    {c.sub}
+  </p>
+
+</div>
+
           </motion.div>
         ))}
       </div>
