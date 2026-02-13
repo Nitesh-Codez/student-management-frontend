@@ -395,16 +395,18 @@ useEffect(() => {
   <div style={{
     display:'flex',
     alignItems:'center',
+    
     gap:'12px',
     marginBottom:'10px'
   }}>
 
     <div style={{
-      width:'85px',
-      height:'95px',
+      width:'105px',
+      height:'105px',
       borderRadius:'50%',
       background:`conic-gradient(${attendanceStats.percentage >= 85 ? "#22c55e" : attendanceStats.percentage >= 75 ? "#facc15" : "#ef4444"} ${attendanceStats.percentage * 3.6}deg,#ffffff33 0deg)`,
       display:'flex',
+      border:'1px solid white',
       alignItems:'center',
       justifyContent:'center'
     }}>
@@ -417,6 +419,7 @@ useEffect(() => {
         display:'flex',
         alignItems:'center',
         justifyContent:'center',
+        border:'1px solid white',
         fontSize:'11px',
         fontWeight:'bold'
       }}>
@@ -427,6 +430,7 @@ useEffect(() => {
 
     <div style={{fontSize:'15px'}}>
       <b>{attendanceStats.present}/{attendanceStats.total}</b>
+      
     </div>
 
   </div>
