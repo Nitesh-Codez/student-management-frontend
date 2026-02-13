@@ -404,7 +404,7 @@ useEffect(() => {
       width:'105px',
       height:'105px',
       borderRadius:'50%',
-      background:`conic-gradient(${attendanceStats.percentage >= 85 ? "#22c55e" : attendanceStats.percentage >= 75 ? "#facc15" : "#ef4444"} ${attendanceStats.percentage * 3.6}deg,#ffffff33 0deg)`,
+      background:`conic-gradient(${attendanceStats.percentage >= 85 ? "#15ae4d" : attendanceStats.percentage >= 75 ? "#facc15" : "#ef4444"} ${attendanceStats.percentage * 3.6}deg,#ffffff33 0deg)`,
       display:'flex',
       border:'1px solid white',
       alignItems:'center',
