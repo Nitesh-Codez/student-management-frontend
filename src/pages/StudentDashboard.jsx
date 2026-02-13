@@ -160,7 +160,7 @@ const FeePopup = ({ isOpen, onClose, amount }) => {
 /* =========================
    DASHBOARD HOME
 ========================= */
-const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending, user, hasNewMarks, todayClasses,setTodayClasses }) => {
+const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending, user, hasNewMarks, todayClasses,setTodayClasses, dynamicFeeAmount  }) => {
  
   const [greeting, setGreeting] = useState("");
   const [randomQuote, setRandomQuote] = useState("");
@@ -350,8 +350,40 @@ useEffect(() => {
 
       <div style={cardGrid}>
         {cards.map((c, i) => (
-          <motion.div key={i} whileTap={{ scale: 0.95 }} onClick={() => navigate(c.path)} style={{ ...cardBase, background: c.grad }}>
-            {c.showNotice && <div style={miniNoticeBadge}>CHECK NOW</div>}
+          <motion.div
+ key={i}
+ whileTap={{ scale: 0.95 }}
+ onClick={() => navigate(c.path)}
+ style={{
+   ...cardBase,
+   background: c.grad,
+   overflow: c.title === "Fees" ? "visible" : "hidden"
+ }}
+>
+            {c.title === "Fees" && isFeeUnpaid && (
+  <div style={feeNoticeBox}>
+    <div style={{ fontSize: "15px", fontWeight: "900" }}>
+      ⚠ PAYMENT NOTICE
+    </div>
+
+    <div style={{ fontSize: "12px", marginTop: "6px" }}>
+      Your monthly fee is pending.
+    </div>
+
+    <div style={{ marginTop: "6px", fontWeight: "bold" }}>
+      Amount Due : ₹{dynamicFeeAmount}
+    </div>
+
+    <div style={{ fontSize: "10px", opacity: 0.8, marginTop: "4px" }}>
+      Please clear dues to avoid interruption.
+    </div>
+  </div>
+)}
+
+{c.title === "Marks" && hasNewMarks && (
+  <div style={miniNoticeBadge}>CHECK NOW</div>
+)}
+
             {c.count > 0 && <div style={miniNoticeBadge}>{c.count} NEW</div>}
             <div style={cardTopRow}>
                 <div style={iconCircle}>{c.icon}</div>
@@ -369,7 +401,7 @@ useEffect(() => {
 
     <div style={{
       width:'85px',
-      height:'85px',
+      height:'95px',
       borderRadius:'50%',
       background:`conic-gradient(${attendanceStats.percentage >= 85 ? "#22c55e" : attendanceStats.percentage >= 75 ? "#facc15" : "#ef4444"} ${attendanceStats.percentage * 3.6}deg,#ffffff33 0deg)`,
       display:'flex',
@@ -641,19 +673,45 @@ const StudentDashboard = () => {
 
         
         const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
-        if (feeRes.data.success) {
-          const feesData = feeRes.data.fees;
-          const isPaidThisMonth = feesData.some(f => {
-            const fDate = new Date(f.payment_date);
-            return fDate.getMonth() === today.getMonth() && fDate.getFullYear() === today.getFullYear() && f.payment_status === "SUCCESS";
-          });
-          if (!isPaidThisMonth) {
-            setIsFeeUnpaid(true);
-            setShowFeePopup(true);
-            setDynamicFeeAmount(feesData.length > 0 ? feesData[0].amount : "500");
-            activeNotis.push({ title: "Fees Pending", desc: "Fee payment is due.", icon: <FaMoneyBillWave />, path: "fees", color: theme.gradients.warning });
-          }
-        }
+
+setIsFeeUnpaid(false);
+setShowFeePopup(false);
+
+if (feeRes.data.success) {
+
+  const feesData = feeRes.data.fees || [];
+
+  const isPaidThisMonth = feesData.some(f => {
+    const fDate = new Date(f.payment_date);
+    return (
+      fDate.getMonth() === today.getMonth() &&
+      fDate.getFullYear() === today.getFullYear() &&
+      f.payment_status === "SUCCESS"
+    );
+  });
+
+  if (!isPaidThisMonth) {
+
+    const amount = feesData.length > 0 ? feesData[0].amount : "500";
+
+    // MASTER SWITCH
+    setShowFeePopup(true);
+
+    // NOTICE depends on popup
+    setIsFeeUnpaid(true);
+
+    setDynamicFeeAmount(amount);
+
+    activeNotis.push({
+      title: "Fees Pending",
+      desc: `Amount Due ₹${amount}`,
+      icon: <FaMoneyBillWave />,
+      path: "fees",
+      color: theme.gradients.warning
+    });
+  }
+}
+
 
         const marksRes = await axios.post(`${API_URL}/api/marks/check`, { studentId: storedUser.id, studentName: storedUser.name });
         if (marksRes.data.success && marksRes.data.data.length > 0) {
@@ -810,18 +868,19 @@ const StudentDashboard = () => {
 ========================= */
 const subLinkStyle = (active) => ({ padding: "10px 15px", borderRadius: "10px", textDecoration: "none", color: active ? "#fff" : "#94a3b8", fontSize: "13px", fontWeight: 500, background: active ? "rgba(99, 102, 241, 0.2)" : "transparent" });
 const modernWelcomeStyle = (img) => ({
-  position: 'relative',
-  width: '100%',
-  maxWidth: '310px',
-  marginLeft: '1px',
-  marginRight: '1px',
-  minHeight: '220px',
-  padding: '25px',
-  borderRadius: '24px',
-  marginBottom: '25px',
-  display: 'flex',
-  alignItems: 'center',
-  color: '#fff',
+  position: "relative",
+  width: "100%",          // FULL WIDTH
+  borderRadius: "8px",
+  padding: "5px",
+  color: "#fff",
+  cursor: "pointer",
+  minHeight: "240px",
+  marginBottom: "25px",
+  display: "flex",
+  flexDirection: "row",  // icon left, text right
+  alignItems: "center",
+  justifyContent: "space-between",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
  backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)' });
 const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
 const headerWrapper = { position: "fixed", top: 15, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center" };
@@ -860,7 +919,18 @@ const cardTopRow = { display: 'flex', justifyContent: 'space-between' };
 const iconCircle = { width: '45px', height: '45px', background: 'rgba(255,255,255,0.2)', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
 const cardMainTitle = { margin: '0', fontSize: '18px', fontWeight: '700' };
 const cardBottomBody = { display: 'flex', flexDirection: 'column' };
-const miniNoticeBadge = { position: "absolute", top: "15px", right: "15px", background: "#fff", color: "#ef4444", padding: "3px 8px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" };
+const miniNoticeBadge = { 
+  position: "absolute",
+  top: "8px",
+  right: "8px",
+  background: "#fff",
+  color: "#ef4444",
+  padding: "4px 10px",
+  borderRadius: "8px",
+  fontSize: "10px",
+  fontWeight: "800",
+  zIndex: 10
+};
 const sideDrawer = { position: "fixed", top: 0, left: 0, bottom: 0, width: 260, background: "#0f172a", zIndex: 2001, padding: "30px 20px", overflowY: 'auto' };
 const sideOverlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", zIndex: 2000 };
 const drawerHeader = { display: "flex", alignItems: "center", gap: 12, marginBottom: 40 };
@@ -894,6 +964,24 @@ const headerLeft = { display: "flex", alignItems: "center", gap: 12 };
 const headerRight = { display: "flex", alignItems: "center", gap: 15 };
 const iconBtnStyle = { cursor: "pointer", color: "#6366f1", fontSize: "20px" };
 const profileTrigger = { cursor: "pointer", display: "flex" };
+const feeNoticeBox = {
+  position: "absolute",
+  top: "6px",
+  left: "6px",
+  background: "#ff3b3b",
+  color: "#fff",
+  padding: "8px 4px",
+  borderRadius: "6px",
+  fontSize: "10px",
+  fontWeight: "500",
+  width: "auto",
+  maxWidth: "180px",
+  hieght:"10px",
+  textAlign: "center",
+  lineHeight: "1.2",
+};
+
+
 
 
 const navBtnStyle = {
