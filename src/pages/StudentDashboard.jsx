@@ -23,6 +23,7 @@ import StudentFeedback from "./StudentFeedback";
 import StudentChat from "./StudentChat";
 import ApplyCorrection from "./ApplyCorrection";
 
+
 // Examination Components
 import ExamForm from "./Examination/ExamForm";
 import GenerateAdmitCard from "./Examination/GenerateAdmitCard";
@@ -834,6 +835,8 @@ if (feeRes.data.success) {
     hasNewMarks={hasNewMarks}
     todayClasses={todayClasses}
     setTodayClasses={setTodayClasses}
+    dynamicFeeAmount={dynamicFeeAmount}
+
   />
  }
 />
@@ -974,16 +977,16 @@ const feeNoticeBox = {
   left: "6px",
   background: "#ff3b3b",
   color: "#fff",
-  padding: "8px 4px",
-  borderRadius: "6px",
-  fontSize: "10px",
-  fontWeight: "500",
-  width: "auto",
-  maxWidth: "180px",
-  hieght:"10px",
+  padding: "12px 10px",
+  borderRadius: "10px",
+  fontSize: "13px",
+  fontWeight: "600",
+  minWidth: "200px",
+  minHeight: "70px",
   textAlign: "center",
-  lineHeight: "1.2",
+  lineHeight: "1.4",
 };
+
 
 
 
