@@ -185,7 +185,7 @@ const getPollColor = (classDate) => {
  if (rec.status === "Present") return "#22c55e";
  if (rec.status === "Absent") return "#ef4444";
 
- return "#facc15";
+ return "#0e6bff";
 };
 
 
