@@ -23,7 +23,7 @@ const StudentFees = ({ user }) => {
     // Force Edge-to-Edge
     document.body.style.margin = "0";
     document.body.style.padding = "0";
-    document.body.style.overflow = "hidden"; // Prevent double scrollbar
+   
 
     if (!user || !user.id) return;
 
@@ -56,7 +56,7 @@ const StudentFees = ({ user }) => {
       } catch (err) { console.error(err); }
     };
     fetchFees();
-  }, [user, API_URL, currM, currY]);
+ }, [user, currM, currY]);
 
   const handlePayment = (mName) => {
     const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartZone&am=${dynamicFee}&cu=INR&tn=Fees_For_${mName}`;

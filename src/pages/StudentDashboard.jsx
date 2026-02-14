@@ -58,6 +58,7 @@ const studyImages = [
   "https://images.unsplash.com/photo-1509062522246-3755977927d7",
 ];
 
+
 /* =========================
    UI COMPONENTS (MODALS)
 ========================= */
@@ -738,24 +739,50 @@ if (feeRes.data.success) {
   if (!user) return null;
 
   return (
-    <div style={masterWrapper}>
-      <header style={headerWrapper}>
-        <div style={headerContent}>
-          <div style={headerLeft}>
-            <div style={iconBtnStyle} onClick={() => setSidebarOpen(true)}><FaBars /></div>
-            <h1 style={brandLogo}>𝐒mart𝐙one</h1>
-          </div>
-          <div style={headerRight}>
-             <div style={notiBox} onClick={() => setIsNotiOpen(true)}>
-                <FaBell />
-                {notifications.length > 0 && <span style={redBadge}>{notifications.length}</span>}
-             </div>
-            <div style={profileTrigger} onClick={() => setIsPhotoOpen(true)}>
-              <img src={user.photo || "/default-profile.png"} style={headerAvatar} alt="user" />
-            </div>
+   <div style={masterWrapper}>
+  {/* --- UPDATED MAIN HEADER --- */}
+  <header style={{...headerWrapper, position: 'sticky', top: 0, zIndex: 1000, background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)'}}>
+    <div style={headerContent}>
+      <div style={headerLeft}>
+        <motion.div 
+          whileTap={{ scale: 0.9 }}
+          style={iconBtnStyle} 
+          onClick={() => setSidebarOpen(true)}
+        >
+          <FaBars />
+        </motion.div>
+        <h1 style={brandLogo}>𝐒mart𝐙one</h1>
+      </div>
+      <div style={headerRight}>
+         <div style={notiBox} onClick={() => setIsNotiOpen(true)}>
+            <FaBell />
+            {notifications.length > 0 && <span style={redBadgePulse}>{notifications.length}</span>}
+         </div>
+        <div style={profileTrigger} onClick={() => setIsPhotoOpen(true)}>
+          <div style={{padding: '2px', background: 'linear-gradient(45deg, #6366f1, #a855f7)', borderRadius: '10px'}}>
+            <img src={user.photo || "/default-profile.png"} style={{...headerAvatar, display: 'block'}} alt="user" />
           </div>
         </div>
-      </header>
+      </div>
+    </div>
+  </header>
+
+  {/* --- NEW SUB-HEADER (Immediately after Header) --- */}
+  <div style={subHeaderStyle}>
+    <div style={subHeaderInner}>
+      <div style={{display: 'flex', flexDirection: 'column'}}>
+        <span style={portalBadge}>Student Portal</span>
+        <h2 style={subHeaderText}>
+          {location.pathname === "/student" ? " Student portal" : 
+           location.pathname.includes("profile") ? "My Profile" : "Learning Space"}
+        </h2>
+      </div>
+      <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+         <div style={liveDot}></div>
+         <span style={{fontSize: '12px', fontWeight: '600', color: '#64748b'}}>Be the Brilliant </span>
+      </div>
+    </div>
+  </div>
 
       <NotificationModal isOpen={isNotiOpen} onClose={() => setIsNotiOpen(false)} notifications={notifications} navigate={navigate} />
       <FeePopup isOpen={showFeePopup} onClose={() => setShowFeePopup(false)} amount={dynamicFeeAmount} />
@@ -891,13 +918,34 @@ const modernWelcomeStyle = (img) => ({
  backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)' });
 const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
 const headerWrapper = { position: "fixed", top: 15, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center" };
-const headerContent = { width: "95%", maxWidth: "1100px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", borderRadius: "20px", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" };
-const brandLogo = { margin: 0, fontSize: 20, fontWeight: 900, color: "#6366f1" };
+const headerContent = {
+  width: "95%",
+  maxWidth: "1200px",
+  background: "rgba(255, 255, 255, 0.75)", // Semi-transparent
+  backdropFilter: "blur(12px)",             // Glass effect
+  WebkitBackdropFilter: "blur(12px)",
+  borderRadius: "16px",
+  padding: "12px 24px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  border: "1px solid rgba(255, 255, 255, 0.3)",
+  boxShadow: "0 8px 32px rgba(31, 38, 135, 0.07)"
+};
+const brandLogo = { 
+  fontSize: "22px", 
+  fontWeight: "800", 
+  letterSpacing: "-0.5px",
+  color: "#1e293b",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px"
+};
 const notiBox = { position: 'relative', fontSize: '22px', color: '#64748b', cursor: 'pointer', display: 'flex' };
 const redBadge = { position: 'absolute', top: -5, right: -5, background: '#ef4444', color: 'white', fontSize: '10px', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid white' };
-const headerAvatar = { width: 38, height: 38, borderRadius: "12px", objectFit: "cover", border: "2px solid #6366f1" };
-const mainBody = { padding: "110px 20px 100px", maxWidth: "1100px", margin: "0 auto" };
-const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '10px 15px', borderRadius: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e' };
+const headerAvatar = { width: 48, height: 48, borderRadius: "14px", objectFit: "cover", border: "2px solid #6366f1" };
+const mainBody = { padding: "5px 20px 100px", maxWidth: "1100px", margin: "0 auto" };
+const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '3px 15px', borderRadius: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e' };
 const alertActionBtn = { background: '#92400e', color: 'white', border: 'none', padding: '5px', borderRadius: '50%', cursor: 'pointer', display: 'flex' };
 const quoteTextStyle = { fontSize: '14px', fontStyle: 'italic', margin: '5px 0' };
 const statusPillRow = { display: 'flex', gap: '10px', marginTop: '15px' };
@@ -953,7 +1001,7 @@ const notiItemStyle = { display: 'flex', alignItems: 'center', gap: '15px', padd
 const notiIconCircle = { width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' };
 const bigRectContainer = { width: '100%', maxWidth: '380px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
 const modalMainContent = { padding: '25px', textAlign: 'center' };
-const bigRectPhoto = { width: '120px', height: '120px', borderRadius: '20px', objectFit: 'cover', marginBottom: '15px', border: '3px solid #6366f1' };
+const bigRectPhoto = { width: '140px', height: '140px', borderRadius: '20px', objectFit: 'cover', marginBottom: '15px', border: '3px solid #6366f1' };
 const modalDetails = { textAlign: 'center' };
 const badgeRow = { display: 'flex', justifyContent: 'center', gap: '8px', margin: '15px 0' };
 const infoBadge = { background: '#f1f5f9', padding: '5px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', color: '#6366f1' };
@@ -987,7 +1035,67 @@ const feeNoticeBox = {
   lineHeight: "1.4",
 };
 
+// Inhe apne existing styles/constants ke pass add karein
+const subHeaderStyle = {
+  background: "rgba(248, 250, 252, 0.8)",
+  backdropFilter: "blur(8px)",
+  padding: "8px 20px",
+  borderRadius: "0 0 20px 20px",
+  borderBottom: "1px solid #e2e8f0",
+  display: "flex",
+  justifyContent: "center",
+  position: "sticky",
+  top: "85px", // Adjust based on header height
+  zIndex: 99,
+};
 
+const subHeaderInner = {
+  width: "100%",
+  maxWidth: "1100px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  borderLeft: "4px solid #6366f1", // Left accent line
+  paddingLeft: "15px"
+};
+
+const portalBadge = {
+  fontSize: "10px",
+  background: "#6366f1",
+  color: "#fff",
+  padding: "2px 8px",
+  borderRadius: "20px",
+  fontWeight: "bold",
+  textTransform: "uppercase",
+};
+
+const subHeaderText = {
+  margin: "4px 0 0 0",
+  fontSize: "16px",
+  fontWeight: "700",
+  color: "#1e293b",
+};
+
+const liveDot = {
+  width: "8px",
+  height: "8px",
+  background: "#10b981",
+  borderRadius: "50%",
+  boxShadow: "0 0 8px #10b981",
+};
+
+const redBadgePulse = {
+  position: "absolute",
+  top: "-4px",
+  right: "-4px",
+  background: "#ef4444",
+  color: "#fff",
+  fontSize: "10px",
+  padding: "2px 5px",
+  borderRadius: "50%",
+  fontWeight: "bold",
+  border: "2px solid #fff",
+};
 
 
 
