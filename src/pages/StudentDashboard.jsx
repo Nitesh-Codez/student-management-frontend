@@ -169,6 +169,18 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
   const [imgIndex, setImgIndex] = useState(0);
   const [showTaskAlert, setShowTaskAlert] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [headTeacher, setHeadTeacher] = useState(null);
+  useEffect(() => {
+  axios
+    .get("https://student-management-system-4-hose.onrender.com/api/teachers/admin/teachers")
+    .then((res) => {
+      if (res.data.length > 0) {
+        setHeadTeacher(res.data[1]); // first teacher = head
+      }
+    })
+    .catch((err) => console.log(err));
+}, []);
+
   const [attendanceStats, setAttendanceStats] = useState({
 present: 0,
 total: 0,
@@ -349,6 +361,7 @@ useEffect(() => {
             </div>
         </div>
       </div>
+      
 
       <div style={cardGrid}>
         {cards.map((c, i) => (
@@ -613,11 +626,140 @@ marginTop:'30px',
         <p style={{ fontSize: '16px' }}>No classes scheduled for this day.</p>
       </div>
     )}
+
+
+    
+
+
+    
+    
   </div>
+  
 </div>
+{headTeacher && (
+  <div style={{
+    width: '100vw',
+    position: 'relative',
+    left: '50%',
+    right: '50%',
+    marginLeft: '-50vw',
+    marginRight: '-50vw',
+    backgroundColor: '#fff',
+    padding: window.innerWidth < 768 ? '30px 0' : '60px 0',
+    marginTop: '40px',
+    borderTop: '1px solid #e2e8f0'
+  }}>
+    <div style={{
+      maxWidth: '1100px',
+      margin: '0 auto',
+      padding: '0 25px',
+      overflow: 'hidden' // Float clear karne ke liye
+    }}>
+      
+      {/* SECTION HEADER */}
+      <h2 style={{ 
+        color: '#2d3785', 
+        fontSize: window.innerWidth < 768 ? '22px' : '28px', 
+        fontWeight: '900', 
+        borderBottom: '3px solid #6366f1',
+        paddingBottom: '12px',
+        marginBottom: '30px',
+        display: 'inline-block'
+      }}>
+        Message from the Desk of HOC
+      </h2>
+
+      <div style={{ width: '100%' }}>
+        
+        {/* RIGHT SIDE PHOTO: Floating technique for text wrap */}
+        <div style={{ 
+          float: 'right', 
+          marginLeft: window.innerWidth < 768 ? '15px' : '40px',
+          marginBottom: '15px',
+          textAlign: 'center',
+          width: window.innerWidth < 768 ? '140px' : '350px' // Controlled size
+        }}>
+          <div style={{
+            width: '100%',
+            aspectRatio: '1/1',
+            borderRadius: '50%', // Circle shape
+            overflow: 'hidden',
+            // Fade style border
+            border: '1px  rgba(99, 102, 241, 0.05)', 
+            boxShadow: '0 0 0 1px rgba(99, 102, 241, 0.1), 0 10px 30px rgba(0,0,0,0.1)', 
+            backgroundColor: '#f8fafc'
+          }}>
+            <img
+              src={headTeacher.profile_photo || `https://ui-avatars.com/api/?name=${headTeacher.name}&background=2d3785&color=fff&size=512`}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              alt="HOC Profile"
+            />
+          </div>
+          <div style={{
+            marginTop: '10px',
+            fontSize: '10px',
+            fontWeight: '900',
+            color: '#10b981',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>
+            Head of Tuition
+          </div>
+        </div>
+
+        {/* TEXT AREA: Will wrap around the image */}
+        <div style={{ 
+          color: '#334155', 
+          fontSize: window.innerWidth < 768 ? '15px' : '17px', 
+          lineHeight: '1.7',
+          textAlign: 'justify' // Professional look
+        }}>
+          
+          <p style={{ marginBottom: '15px', fontWeight: '700', color: '#1e293b', fontSize: '18px' }}>
+             I wish you a highly productive academic year ahead, filled with immense personal growth and learning.
+          </p>
+
+          <p style={{ marginBottom: '15px' }}>
+            At <strong>SMART STUDENT CLASSES</strong>, we don't just teach subjects; we build character and competence. I truly appreciate the hard work and dedication our students show every day. It is your spirit that makes us the best.
+          </p>
+
+          <p style={{ marginBottom: '15px' }}>
+            Our mission is to equip every student with the right tools and mindset to become a leader. With <strong>{headTeacher.experience_years}+ years</strong> of mentorship, I am proud that <strong>90% of our students consistently score above 90%</strong>. We appreciate your trust in our "Smart-Study" methodology to reach that 95%+ goal.
+          </p>
+
+          <p style={{ marginBottom: '20px', fontStyle: 'italic', color: '#64748b', fontWeight: '500' }}>
+            "Your success is our greatest appreciation. Take care, stay disciplined, and keep striving for excellence."
+          </p>
+
+          {/* SIGNATURE SECTION */}
+          <div style={{ marginTop: '30px', clear: window.innerWidth < 768 ? 'none' : 'both' }}>
+            <p style={{ margin: '0', fontWeight: '600', color: '#475569' }}>All the best,</p>
+            <h3 style={{ 
+              margin: '5px 0 2px 0', 
+              fontSize: window.innerWidth < 768 ? '20px' : '24px', 
+              fontWeight: '900', 
+              color: '#0f172a' 
+            }}>
+              {headTeacher.name}
+            </h3>
+            <p style={{ margin: '0', color: '#6366f1', fontWeight: '800', fontSize: '20px', letterSpacing: '1px' }}>
+              HOC - SMART STUDENT CLASSES
+            </p>
+            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>
+              {headTeacher.qualification}
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+)}
     </motion.div>
+    
   );
 };
+
 
 /* =========================
    STUDENT DASHBOARD MAIN
