@@ -37,9 +37,9 @@ const today = new Date().toLocaleDateString('en-CA');
     "U.K.G": ["Hindi", "English", "Maths", "EVS", "Reading", "Test"],
     "6th": ["Hindi", "English", "Maths", "Science", "SST", "Test"],
     "7th": ["Hindi", "English", "Maths", "Science", "SST", "Test"],
-    "8th": ["Hindi", "English", "Maths", "Science", "SST", "Test"],
-    "9th": ["Hindi", "English", "Maths", "Physics", "Chemistry", "Biology", "SST", "Computer", "Test"],
-    "10th": ["Hindi", "English", "Maths", "Physics", "Chemistry", "Biology", "SST", "Computer", "Test"],
+    "8th": ["Hindi", "English", "Maths", "Science", "SST","Sanskrit", "Test"],
+    "9th": ["Hindi", "English", "Maths", "Physics", "Chemistry","Sanskrit", "Biology", "SST", "Computer", "Test"],
+    "10th": ["Hindi", "English", "Maths", "Physics", "Chemistry","Sanskrit", "Biology", "SST", "Computer", "Test"],
     "11th": ["Hindi", "English", "Maths", "Physics", "Chemistry", "Biology", "Computer", "Test"],
     "12th": ["Hindi", "English", "Maths", "Physics", "Chemistry", "Biology", "Computer", "Test"]
   };

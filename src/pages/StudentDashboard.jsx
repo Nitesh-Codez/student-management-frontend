@@ -22,6 +22,9 @@ import StudentPage from "./StudentPage";
 import StudentFeedback from "./StudentFeedback";
 import StudentChat from "./StudentChat";
 import ApplyCorrection from "./ApplyCorrection";
+/*============Record previous classes=============*/
+import StudentResult from "./Results_details/StudentResult";
+import ViewResults from "./Results_details/ViewResults";
 
 
 // Examination Components
@@ -767,7 +770,7 @@ marginTop:'30px',
 const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [examOpen, setExamOpen] = useState(false);
+  const [examOpen] = useState(false);
   const [pendingTasks, setPendingTasks] = useState(0);
 // 1. Saari States ek saath
   const [isFeeUnpaid, setIsFeeUnpaid] = useState(false);
@@ -779,6 +782,7 @@ const StudentDashboard = () => {
   const [isNotiOpen, setIsNotiOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [todayClasses, setTodayClasses] = useState([]);
+ const [openFolder, setOpenFolder] = useState(null);
    // Ab jab bhi date ya user badlega, ye fetch karega
   const navigate = useNavigate();
   const location = useLocation();
@@ -951,27 +955,71 @@ if (feeRes.data.success) {
                 <Link to="task-update" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("task-update"))}>
                   <FaTasks /> Assignments
                 </Link>
+                
                 <Link to="fees" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("fees"))}>
                   <FaMoneyBillWave /> Fees / Records
                 </Link>
                 <Link to="feedback" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("feedback"))}>
                   <FaStar /> Feedback
                 </Link>
+                
                 <Link to="marks" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("marks"))}>
                   <FaChartLine /> My Marks
                 </Link>
                 <Link to="chat" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("chat"))}>
                   <FaComments /> Connect Chat
                 </Link>
+                
 
-                {/* ===== EXAMINATION DROPDOWN ===== */}
-                <div onClick={() => setExamOpen(!examOpen)} style={{...drawerLinkStyle(location.pathname.includes("exam")), cursor: 'pointer', justifyContent: 'space-between'}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaBookOpen /> Examination</div>
-                  <FaChevronRight style={{transform: examOpen ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
-                </div>
+            {/* ===== SIDEBAR DROPDOWN ===== */}
+<div
+  onClick={() => setOpenFolder(prev => prev === "exam" ? null : "exam")}
+  style={{...drawerLinkStyle(location.pathname.includes("exam")), cursor: 'pointer', justifyContent: 'space-between'}}
+>
+  <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaBookOpen /> Examination</div>
+  <FaChevronRight style={{transform: openFolder === "exam" ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
+</div>
 
+<AnimatePresence>
+  {openFolder === "exam" && (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: 'auto', opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      style={{ marginLeft: 25, display: "flex", flexDirection: "column", gap: 5, overflow: 'hidden' }}
+    >
+      <Link to="exam-form" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-form"))}>📄 Exam Form</Link>
+      <Link to="generate-admit" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("generate-admit"))}>🪪 Admit Card</Link>
+      <Link to="exam-result" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-result"))}>📊 Exam Result</Link>
+    </motion.div>
+  )}
+</AnimatePresence>
+
+{/* ===== RESULTS DROPDOWN ===== */}
+<div
+  onClick={() => setOpenFolder(prev => prev === "result" ? null : "result")}
+  style={{...drawerLinkStyle(location.pathname.includes("submit-results") || location.pathname.includes("view-results")), cursor: 'pointer', justifyContent: 'space-between'}}
+>
+  <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaClipboardCheck /> Results</div>
+  <FaChevronRight style={{transform: openFolder === "result" ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
+</div>
+
+<AnimatePresence>
+  {openFolder === "result" && (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: 'auto', opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      style={{ marginLeft: 25, display: "flex", flexDirection: "column", gap: 5, overflow: 'hidden' }}
+    >
+      <Link to="submit-results" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("submit-results"))}>📄 Uploads Marks</Link>
+      <Link to="view-results" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("view-results"))}>📊 View Results Records</Link>
+    </motion.div>
+  )}
+</AnimatePresence>
                 <AnimatePresence>
                   {examOpen && (
+                    
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ marginLeft: 25, display: "flex", flexDirection: "column", gap: 5, overflow: 'hidden' }}>
                       <Link to="exam-form" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-form"))}>📄 Exam Form</Link>
                       <Link to="generate-admit" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("generate-admit"))}>🪪 Admit Card</Link>
@@ -979,6 +1027,7 @@ if (feeRes.data.success) {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                
 
                 <div style={logoutBtnStyle} onClick={() => { localStorage.clear(); window.location.href = "/"; }}>
                   <FaSignOutAlt /> Logout
@@ -988,6 +1037,7 @@ if (feeRes.data.success) {
           </>
         )}
       </AnimatePresence>
+      
 
       {/* ================= MAIN CONTENT ================= */}
       <main style={mainBody}>
@@ -1019,7 +1069,10 @@ if (feeRes.data.success) {
           <Route path="feedback" element={<StudentFeedback studentId={user.id} />} />
           <Route path="chat" element={<StudentChat user={user} />} />
           <Route path="apply-correction" element={<ApplyCorrection />} />
-          
+
+          <Route path="submit-results" element={<StudentResult />} />
+          <Route path="view-results" element={<ViewResults />} />
+
           
           {/* Internal Examination Routes */}
           <Route path="exam-form" element={<ExamForm />} />
@@ -1056,7 +1109,6 @@ const modernWelcomeStyle = (img) => ({
   flexDirection: "row",  // icon left, text right
   alignItems: "center",
   justifyContent: "space-between",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
  backgroundImage: `linear-gradient(45deg, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', overflow: 'hidden', boxShadow: '0 15px 35px rgba(0,0,0,0.15)' });
 const masterWrapper = { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" };
 const headerWrapper = { position: "fixed", top: 15, left: 0, width: "100%", zIndex: 1000, display: "flex", justifyContent: "center" };
@@ -1084,7 +1136,6 @@ const brandLogo = {
   gap: "8px"
 };
 const notiBox = { position: 'relative', fontSize: '22px', color: '#64748b', cursor: 'pointer', display: 'flex' };
-const redBadge = { position: 'absolute', top: -5, right: -5, background: '#ef4444', color: 'white', fontSize: '10px', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid white' };
 const headerAvatar = { width: 48, height: 48, borderRadius: "14px", objectFit: "cover", border: "2px solid #6366f1" };
 const mainBody = { padding: "5px 20px 100px", maxWidth: "1100px", margin: "0 auto" };
 const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '3px 15px', borderRadius: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e' };

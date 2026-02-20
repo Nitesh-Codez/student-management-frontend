@@ -72,7 +72,7 @@ const AdminDashboard = () => {
     { title: "Reports", path: "reports", icon: <FaChartBar />, color: "#475569", category: "Reports" },
     { title: "Add Teacher", path: "add-teacher", icon: <FaUserGraduate />, color: "#0ea5e9", category: "Management" },
     { title: "Assign Classes", path: "assign-classes", icon: <FaChalkboardTeacher />, color: "#0ea5e9", category: "Management" },
- 
+    { title: "Results", path: "results", icon: <FaChartBar />, color: "#475569", category: "Reports" },
     { title: "Teacher List", path: "teachers", icon: <FaUserGraduate />, color: "#f97316", category: "Management" },
     { title: "Student Chat", path: "admin-chat", icon: <FaComments />, color: "#2dd4bf", category: "Support" },
   ];

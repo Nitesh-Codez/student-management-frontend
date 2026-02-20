@@ -1,13 +1,13 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-// Public Pages
+/* ================= PUBLIC ================= */
 import Login from "./pages/Login";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Refund from "./pages/Refund";
 
-// Admin Pages
+/* ================= ADMIN ================= */
 import AdminDashboard from "./pages/AdminDashboard";
 import ManageStudents from "./pages/ManageStudents";
 import AdminFees from "./pages/AdminFees";
@@ -24,7 +24,8 @@ import AddTeacher from "./pages/AddTeacher";
 import TeacherList from "./pages/TeacherList";
 import AssignClasses from "./pages/AssignClasses";
 
-// Student Pages
+
+/* ================= STUDENT ================= */
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentProfile from "./pages/StudentProfile";
 import StudentFees from "./pages/StudentFees";
@@ -37,24 +38,30 @@ import StudentPage from "./pages/StudentPage";
 import StudentChat from "./pages/StudentChat";
 import ApplyCorrection from "./pages/ApplyCorrection";
 
-// Examination Pages
+/*============Record previous classes=============*/
+import StudentResult from "./pages/Results_details/StudentResult";
+import ViewResults from "./pages/Results_details/ViewResults";
+
+/* ================= EXAM ================= */
 import ExamForm from "./pages/Examination/ExamForm";
 import GenerateAdmitCard from "./pages/Examination/GenerateAdmitCard";
 import ExaminationResult from "./pages/Examination/ExaminationResult";
+
+/* ================= HOME ================= */// 👈 Ye ensure karo
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* PUBLIC ROUTES */}
+
+        {/* PUBLIC */}
         <Route path="/" element={<Login />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/refund_policy" element={<Refund />} />
 
-        {/* ADMIN ROUTES - Fixed Nesting */}
+        {/* ADMIN */}
         <Route path="/admin" element={<AdminDashboard />}>
-          {/* Dashboard Home Content yahan dikhega jab path exact /admin ho */}
           <Route path="manage-students" element={<ManageStudents />} />
           <Route path="manage-fees" element={<AdminFees />} />
           <Route path="mark-attendance" element={<MarkAttendance />} />
@@ -66,13 +73,15 @@ function App() {
           <Route path="student-submission" element={<AdminPage />} />
           <Route path="admin-feedback" element={<AdminFeedback />} />
           <Route path="admin-chat" element={<AdminChat />} />
-         <Route path="add-teacher" element={<AddTeacher />} />          
-  <Route path="teachers" element={<TeacherList />} />            
-  <Route path="assign-classes" element={<AssignClasses />} />
+          <Route path="add-teacher" element={<AddTeacher />} />
+          <Route path="teachers" element={<TeacherList />} />
+          <Route path="assign-classes" element={<AssignClasses />} />
+          
         </Route>
 
-        {/* STUDENT ROUTES */}
+        {/* STUDENT */}
         <Route path="/student" element={<StudentDashboard />}>
+
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees />} />
           <Route path="attendance" element={<StudentAttendance />} />
@@ -86,9 +95,14 @@ function App() {
           <Route path="generate-admit" element={<GenerateAdmitCard />} />
           <Route path="exam-result" element={<ExaminationResult />} />
           <Route path="apply-correction" element={<ApplyCorrection />} />
+          <Route path="submit-results" element={<StudentResult />} />
+          <Route path="view-results" element={<ViewResults />} />
+
         </Route>
 
+        {/* 404 */}
         <Route path="*" element={<div>404 - Page Not Found</div>} />
+
       </Routes>
     </Router>
   );
