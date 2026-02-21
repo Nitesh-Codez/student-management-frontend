@@ -3,8 +3,7 @@ import axios from "axios";
 
 /**
  * SMART STUDENTS CLASSES - OFFICIAL RESULT PORTAL
- * Version: 5.0.0 (Full Edge-to-Edge Professional Layout)
- * Optimized for Mobile & Desktop
+ * Version: 5.1.0 (Strict Edge-to-Edge Layout)
  */
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
@@ -20,6 +19,10 @@ export default function ViewResults() {
 
   // --- Data Initialization ---
   useEffect(() => {
+    // Resetting body margins for strict edge-to-edge
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+
     const loadResult = async () => {
       try {
         const user = JSON.parse(localStorage.getItem("user"));
@@ -32,7 +35,6 @@ export default function ViewResults() {
             params: { name: user.name }
           });
 
-          // Grouping logic for clean class-wise structure
           const grouped = res.data.reduce((acc, curr) => {
             const className = curr.class || "Other";
             if (!acc[className]) acc[className] = [];
@@ -45,14 +47,12 @@ export default function ViewResults() {
       } catch (err) {
         console.error("Database Connection Error:", err);
       } finally {
-        // Aesthetic delay for board-like "Processing" feel
         setTimeout(() => setLoading(false), 1200);
       }
     };
     loadResult();
   }, []);
 
-  // --- Dynamic Academic Year Logic ---
   const getAutoYear = (selectedCls) => {
     const baseYear = 2025;
     const selNum = parseInt(selectedCls?.match(/\d+/)?.[0]);
@@ -62,7 +62,6 @@ export default function ViewResults() {
     return `${targetYear}-${(targetYear + 1).toString().slice(-2)}`;
   };
 
-  // --- Loading State Component ---
   if (loading) return (
     <div style={loaderPage}>
       <div style={officialLoaderBox}>
@@ -78,25 +77,25 @@ export default function ViewResults() {
   return (
     <div style={fullWidthContainer}>
       
-      {/* 1. TOP BRANDING HEADER (Edge-to-Edge) */}
+      {/* 1. TOP BRANDING HEADER */}
       <header style={officialHeader}>
         <div style={headerTop}>
-          <div style={govTag}> SMARTZONE ACADEMICS</div>
+          <div style={govTag}>SMARTZONE ACADEMICS</div>
           <div style={headerMain}>
-            <div style={logoBadge}>Smart Students Classes</div>
+            <div style={logoBadge}></div>
             <div style={headerTextGroup}>
               <h1 style={mainPortalTitle}>SMART STUDENTS CLASSES</h1>
-              <p style={subPortalTitle}>NATIONAL DIGITAL EXAMINATION RECORD SYSTEM</p>
+              <p style={subPortalTitle}>DIGITAL EXAMINATION RECORD SYSTEM</p>
             </div>
           </div>
         </div>
         
         {/* News Ticker */}
         <div style={tickerContainer}>
-          <div style={tickerLabel}>LATEST NEWS</div>
+          <div style={tickerLabel}>NEWS</div>
           <div style={tickerScrollArea}>
             <div style={tickerTrack}>
-              Important: Examination results for Session {getAutoYear(activeClass)} are now officially verified and uploaded. Students can download their digital transcripts directly from this portal. • Please verify all marks and subjects before final submission. • SSC Examination Board is committed to 100% Transparency.
+              Important: Examination results for Session {getAutoYear(activeClass)} are now officially verified. Students can download digital transcripts.
             </div>
           </div>
         </div>
@@ -104,12 +103,12 @@ export default function ViewResults() {
 
       <main style={contentMain}>
         
-        {/* STEP 1: CLASS SELECTION (Horizontal Tabs Style) */}
+        {/* STEP 1: CLASS SELECTION */}
         {!activeClass && (
           <section style={stepSection}>
             <div style={pageLead}>
-              <h2 style={pageTitle}>Student Record History</h2>
-              <p style={pageDesc}>Welcome, <strong>{studentName}</strong>. Select your academic grade below.</p>
+              <h2 style={pageTitle}>Record History</h2>
+              <p style={pageDesc}>Welcome, <strong>{studentName}</strong>.</p>
             </div>
             
             <div style={classGrid}>
@@ -127,27 +126,23 @@ export default function ViewResults() {
           </section>
         )}
 
-        {/* STEP 2: EXAM SELECTION (Official Term Pills) */}
+        {/* STEP 2: EXAM SELECTION */}
         {activeClass && !activeExam && (
           <section style={stepSection}>
             <div style={breadCrumb}>
               <button onClick={() => setActiveClass(null)} style={backLink}>
-                &#8592; Back to Class Selection
+                &#8592; Back
               </button>
             </div>
             
             <div style={pageLead}>
-              <h2 style={pageTitle}>Examination Terms</h2>
-              <p style={pageDesc}>Records found for <strong>Class {activeClass}</strong> | Session {getAutoYear(activeClass)}</p>
+              <h2 style={pageTitle}>Class {activeClass} Terms</h2>
+              <p style={pageDesc}>Session {getAutoYear(activeClass)}</p>
             </div>
 
             <div style={examButtonGroup}>
               {groupedResults[activeClass].map((exam, idx) => (
-                <button 
-                  key={idx} 
-                  onClick={() => setActiveExam(exam)} 
-                  style={examPillButton}
-                >
+                <button key={idx} onClick={() => setActiveExam(exam)} style={examPillButton}>
                   <div style={examStatusDot}></div>
                   {exam.exam_term.toUpperCase()}
                 </button>
@@ -156,30 +151,28 @@ export default function ViewResults() {
           </section>
         )}
 
-        {/* STEP 3: FINAL MARKSHEET (Full Edge-to-Edge) */}
+        {/* STEP 3: FINAL MARKSHEET (Strict Edge-to-Edge) */}
         {activeExam && (
           <section style={marksheetSection}>
             <div style={breadCrumbPadding}>
               <button onClick={() => setActiveExam(null)} style={backLink}>
-                &#8592; Back to Exam Terms
+                &#8592; Back to Terms
               </button>
             </div>
 
             <div style={officialTranscriptFrame}>
-              {/* Header inside transcript */}
               <div style={transcriptTop}>
                 <h3 style={transcriptHeadline}>{activeExam.exam_term.toUpperCase()} TRANSCRIPT</h3>
                 <div style={infoStrips}>
-                  <div style={infoStrip}><strong>CANDIDATE:</strong> {studentName.toUpperCase()}</div>
+                  <div style={infoStrip}><strong>NAME:</strong> {studentName.toUpperCase()}</div>
                   <div style={infoStrip}><strong>CLASS:</strong> {activeClass} | <strong>SESSION:</strong> {getAutoYear(activeClass)}</div>
                 </div>
               </div>
 
-              {/* Data Table - EDGE TO EDGE */}
               <table style={transcriptTable}>
                 <thead>
                   <tr>
-                    <th style={thStyle}>SUBJECT DESCRIPTION</th>
+                    <th style={thStyle}>SUBJECT</th>
                     <th style={thStyle}>MAX</th>
                     <th style={thStyle}>OBTAINED</th>
                   </tr>
@@ -195,160 +188,138 @@ export default function ViewResults() {
                 </tbody>
                 <tfoot>
                   <tr style={footerRowStyle}>
-                    <td style={tdStyle}><strong>GRAND TOTAL</strong></td>
+                    <td style={tdStyle}><strong>TOTAL</strong></td>
                     <td style={tdStyle}><strong>{activeExam.total_max_marks}</strong></td>
                     <td style={tdGrandMarks}>{activeExam.obtained_marks}</td>
                   </tr>
                 </tfoot>
               </table>
 
-              {/* Performance Summary Banner */}
               <div style={performanceBanner}>
                 <div style={percCol}>
-                  <span style={percLabel}>FINAL PERCENTAGE</span>
+                  <span style={percLabel}>PERCENTAGE</span>
                   <span style={percVal}>{activeExam.percentage}%</span>
                 </div>
                 <div style={divider}></div>
                 <div style={statusCol}>
-                  <span style={statusLabel}>RESULT STATUS</span>
+                  <span style={statusLabel}>STATUS</span>
                   <span style={statusVal}>{parseFloat(activeExam.percentage) >= 33 ? "PASSED" : "FAILED"}</span>
                 </div>
               </div>
 
-              {/* Footer Note */}
               <div style={footerDisclaimer}>
-                <p>* This is an electronically generated report card. Original hardcopy with school seal is required for official admission processes.</p>
-                <div style={qrPlaceholder}>[ VERIFIED RECORD ]</div>
+                <p style={{fontSize:'10px', color:'#999'}}>* Electronically generated report card.</p>
+                <div style={qrPlaceholder}>[ VERIFIED ]</div>
               </div>
             </div>
           </section>
         )}
       </main>
 
-      {/* 4. OFFICIAL FOOTER (Edge-to-Edge) */}
       <footer style={portalFooter}>
         <div style={footerBranding}> DIGITAL PORTAL</div>
-        <p style={footerCopyright}>© 2026 Smart Students Classes. Managed by National Exam Board.</p>
-        <div style={footerLegal}>
-          Information Technology Act 2000 Compliance | Privacy Policy | Disclaimer
-        </div>
+        <p style={footerCopyright}>© 2026 Smart Students Classes.</p>
       </footer>
 
-      {/* Global Scoped Styles */}
       <style>{`
         @keyframes tickerMove { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        
-        button:hover { filter: brightness(1.1); transition: 0.3s; }
-        button:active { transform: scale(0.96); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        button:active { transform: scale(0.98); }
       `}</style>
     </div>
   );
 }
 
-// --- OFFICIAL STYLING OBJECTS (450+ Lines Equivalent Structure) ---
+// --- UPDATED STYLES FOR EDGE-TO-EDGE ---
 
 const fullWidthContainer = {
   width: "100%", minHeight: "100vh", display: "flex", flexDirection: "column",
-  background: "#f9fafb", fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  background: "#fff", fontFamily: "'Inter', sans-serif", margin: 0, padding: 0
 };
 
-// Official Header
 const officialHeader = {
   width: "100%", background: "#0d47a1", color: "#fff",
-  borderBottom: "5px solid #ffca28", boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
+  borderBottom: "4px solid #ffca28", margin: 0
 };
 
-const headerTop = { padding: "25px 15px", textAlign: "center" };
-const govTag = { fontSize: "10px", letterSpacing: "2px", opacity: 0.8, marginBottom: "10px" };
-const headerMain = { display: "flex", justifyContent: "center", alignItems: "center", gap: "15px" };
-const logoBadge = { background: "#fff", color: "#0d47a1", padding: "10px 14px", borderRadius: "10px", fontWeight: "900", fontSize: "22px" };
+const headerTop = { padding: "20px 10px", textAlign: "center" };
+const govTag = { fontSize: "9px", letterSpacing: "1px", opacity: 0.8, marginBottom: "8px" };
+const headerMain = { display: "flex", justifyContent: "center", alignItems: "center", gap: "10px" };
+const logoBadge = { background: "#fff", color: "#0d47a1", padding: "8px 10px", borderRadius: "8px", fontWeight: "900", fontSize: "18px" };
 const headerTextGroup = { textAlign: "left" };
-const mainPortalTitle = { margin: 0, fontSize: "20px", fontWeight: "900", letterSpacing: "1px" };
-const subPortalTitle = { margin: 0, fontSize: "9px", opacity: 0.7, fontWeight: "600" };
+const mainPortalTitle = { margin: 0, fontSize: "16px", fontWeight: "900" };
+const subPortalTitle = { margin: 0, fontSize: "8px", opacity: 0.7 };
 
-// Ticker
-const tickerContainer = { display: "flex", background: "#ffca28", color: "#1a237e", height: "35px", alignItems: "center" };
-const tickerLabel = { background: "#b71c1c", color: "#fff", height: "100%", padding: "0 15px", fontSize: "11px", fontWeight: "900", display: "flex", alignItems: "center" };
+const tickerContainer = { display: "flex", background: "#ffca28", color: "#1a237e", height: "30px", alignItems: "center", overflow: "hidden" };
+const tickerLabel = { background: "#b71c1c", color: "#fff", height: "100%", padding: "0 10px", fontSize: "10px", fontWeight: "900", display: "flex", alignItems: "center", zIndex: 2 };
 const tickerScrollArea = { flex: 1, overflow: "hidden", whiteSpace: "nowrap" };
-const tickerTrack = { display: "inline-block", animation: "tickerMove 25s linear infinite", fontSize: "12px", fontWeight: "700" };
+const tickerTrack = { display: "inline-block", animation: "tickerMove 20s linear infinite", fontSize: "11px", fontWeight: "600" };
 
-// Body
-const contentMain = { flex: 1, width: "100%", animation: "slideUp 0.6s ease-out" };
-const stepSection = { padding: "30px 15px" };
-const pageLead = { textAlign: "center", marginBottom: "30px" };
-const pageTitle = { fontSize: "24px", color: "#1a237e", fontWeight: "800", margin: "0 0 5px 0" };
-const pageDesc = { color: "#666", fontSize: "14px" };
+const contentMain = { flex: 1, width: "100%", animation: "slideUp 0.4s ease-out" };
+const stepSection = { padding: "20px 10px" };
+const pageLead = { textAlign: "center", marginBottom: "20px" };
+const pageTitle = { fontSize: "20px", color: "#1a237e", fontWeight: "800", margin: 0 };
+const pageDesc = { color: "#666", fontSize: "13px", marginTop: "5px" };
 
-// Class Selection Cards
-const classGrid = { display: "flex", flexDirection: "column", gap: "12px" };
+const classGrid = { display: "flex", flexDirection: "column", gap: "10px" };
 const classRecordCard = {
-  display: "flex", alignItems: "center", padding: "18px", background: "#fff",
-  border: "1px solid #e0e6ed", borderRadius: "14px", cursor: "pointer",
-  boxShadow: "0 3px 6px rgba(0,0,0,0.03)"
+  display: "flex", alignItems: "center", padding: "15px", background: "#f8f9fa",
+  border: "1px solid #eee", borderRadius: "10px", cursor: "pointer", width: "100%", textAlign: "left"
 };
-const folderIcon = { fontSize: "28px", marginRight: "15px" };
-const classInfo = { flex: 1, textAlign: "left" };
-const classLabel = { fontSize: "10px", color: "#999", fontWeight: "700" };
-const classNameValue = { fontSize: "18px", fontWeight: "800", color: "#333" };
-const nextArrow = { color: "#0d47a1", fontWeight: "bold" };
+const folderIcon = { fontSize: "24px", marginRight: "12px" };
+const classInfo = { flex: 1 };
+const classLabel = { fontSize: "9px", color: "#999", fontWeight: "700" };
+const classNameValue = { fontSize: "16px", fontWeight: "800", color: "#333" };
+const nextArrow = { color: "#0d47a1", opacity: 0.5 };
 
-// Exam Selection (Pills Style - as per image)
-const breadCrumb = { marginBottom: "15px" };
-const backLink = { background: "none", border: "none", color: "#0d47a1", fontWeight: "700", cursor: "pointer", fontSize: "13px" };
-const examButtonGroup = { display: "flex", flexWrap: "wrap", gap: "12px", justifyContent: "center" };
+const breadCrumb = { marginBottom: "10px" };
+const backLink = { background: "#eee", border: "none", color: "#0d47a1", padding: "5px 12px", borderRadius: "5px", fontWeight: "700", cursor: "pointer", fontSize: "12px" };
+const examButtonGroup = { display: "flex", flexDirection: "column", gap: "10px" };
 const examPillButton = {
-  padding: "15px 35px", background: "#fff", border: "2px solid #0d47a1",
-  borderRadius: "50px", color: "#0d47a1", fontWeight: "900", fontSize: "14px",
-  cursor: "pointer", display: "flex", alignItems: "center", gap: "10px",
-  boxShadow: "0 4px 12px rgba(13, 71, 161, 0.15)"
+  padding: "15px", background: "#fff", border: "1px solid #0d47a1",
+  borderRadius: "10px", color: "#0d47a1", fontWeight: "800", fontSize: "14px",
+  cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", width: "100%"
 };
 const examStatusDot = { width: "8px", height: "8px", background: "#4caf50", borderRadius: "50%" };
 
-// Marksheet Section (Edge-to-Edge)
-const marksheetSection = { width: "100%" };
-const breadCrumbPadding = { padding: "15px" };
-const officialTranscriptFrame = { width: "100%", background: "#fff", boxShadow: "0 -5px 25px rgba(0,0,0,0.05)" };
-const transcriptTop = { padding: "30px 15px", textAlign: "center", borderTop: "6px solid #0d47a1" };
-const transcriptHeadline = { fontSize: "22px", color: "#0d47a1", margin: "0 0 15px 0", letterSpacing: "1px" };
-const infoStrips = { display: "flex", flexDirection: "column", gap: "5px", background: "#f8f9fa", padding: "15px", borderRadius: "8px" };
-const infoStrip = { fontSize: "12px", color: "#555" };
+const marksheetSection = { width: "100%", margin: 0 };
+const breadCrumbPadding = { padding: "10px" };
+const officialTranscriptFrame = { width: "100%", background: "#fff", margin: 0 };
+const transcriptTop = { padding: "20px 10px", textAlign: "center", borderTop: "4px solid #0d47a1" };
+const transcriptHeadline = { fontSize: "18px", color: "#0d47a1", margin: "0 0 10px 0" };
+const infoStrips = { display: "flex", flexDirection: "column", gap: "4px", background: "#f8f9fa", padding: "10px" };
+const infoStrip = { fontSize: "11px", color: "#333" };
 
-// Table Styles
-const transcriptTable = { width: "100%", borderCollapse: "collapse" };
-const thStyle = { background: "#f1f3f6", padding: "15px 12px", textAlign: "left", fontSize: "11px", fontWeight: "900", color: "#1a237e", borderBottom: "2px solid #dee2e6" };
+const transcriptTable = { width: "100%", borderCollapse: "collapse", margin: 0 };
+const thStyle = { background: "#f1f3f6", padding: "12px 10px", textAlign: "left", fontSize: "10px", fontWeight: "900", color: "#1a237e", borderBottom: "1px solid #dee2e6" };
 const trStyle = { borderBottom: "1px solid #f0f0f0" };
-const tdStyle = { padding: "18px 12px", fontSize: "15px", color: "#333" };
-const tdMarks = { padding: "18px 12px", fontSize: "16px", fontWeight: "900", color: "#1a237e", textAlign: "right" };
+const tdStyle = { padding: "12px 10px", fontSize: "13px", color: "#333" };
+const tdMarks = { padding: "12px 10px", fontSize: "14px", fontWeight: "900", color: "#1a237e", textAlign: "right" };
 const footerRowStyle = { background: "#f8f9fa", borderTop: "2px solid #0d47a1" };
-const tdGrandMarks = { padding: "18px 12px", fontSize: "18px", fontWeight: "900", color: "#d32f2f", textAlign: "right" };
+const tdGrandMarks = { padding: "12px 10px", fontSize: "16px", fontWeight: "900", color: "#d32f2f", textAlign: "right" };
 
-// Performance Banner
 const performanceBanner = { 
-  display: "flex", background: "#0d47a1", color: "#fff", padding: "25px 15px",
+  display: "flex", background: "#0d47a1", color: "#fff", padding: "20px 10px",
   textAlign: "center", alignItems: "center", justifyContent: "space-around"
 };
 const percCol = { display: "flex", flexDirection: "column" };
-const percLabel = { fontSize: "11px", opacity: 0.8, fontWeight: "600" };
-const percVal = { fontSize: "32px", fontWeight: "900", color: "#ffca28" };
-const divider = { width: "1px", height: "40px", background: "rgba(255,255,255,0.2)" };
+const percLabel = { fontSize: "10px", opacity: 0.8 };
+const percVal = { fontSize: "28px", fontWeight: "900", color: "#ffca28" };
+const divider = { width: "1px", height: "30px", background: "rgba(255,255,255,0.2)" };
 const statusCol = { display: "flex", flexDirection: "column" };
-const statusLabel = { fontSize: "11px", opacity: 0.8, fontWeight: "600" };
-const statusVal = { fontSize: "22px", fontWeight: "900" };
+const statusLabel = { fontSize: "10px", opacity: 0.8 };
+const statusVal = { fontSize: "18px", fontWeight: "900" };
 
-const footerDisclaimer = { padding: "30px 15px", textAlign: "center" };
-const qrPlaceholder = { marginTop: "15px", fontSize: "10px", color: "#ccc", fontWeight: "bold", border: "1px dashed #eee", display: "inline-block", padding: "10px 20px" };
+const footerDisclaimer = { padding: "20px 10px", textAlign: "center" };
+const qrPlaceholder = { marginTop: "10px", fontSize: "9px", color: "#ccc", border: "1px dashed #eee", display: "inline-block", padding: "5px 15px" };
 
-// Footer
-const portalFooter = { background: "#1a237e", color: "#fff", padding: "40px 15px", textAlign: "center" };
-const footerBranding = { fontSize: "14px", fontWeight: "900", marginBottom: "10px", letterSpacing: "1px" };
-const footerCopyright = { fontSize: "11px", opacity: 0.7, margin: "0 0 10px 0" };
-const footerLegal = { fontSize: "9px", opacity: 0.4, letterSpacing: "0.5px" };
+const portalFooter = { background: "#1a237e", color: "#fff", padding: "20px 10px", textAlign: "center" };
+const footerBranding = { fontSize: "12px", fontWeight: "900", marginBottom: "5px" };
+const footerCopyright = { fontSize: "10px", opacity: 0.6, margin: 0 };
 
-// Loader
 const loaderPage = { height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0d47a1", color: "#fff" };
 const officialLoaderBox = { textAlign: "center" };
-const spinnerRing = { width: "50px", height: "50px", border: "5px solid rgba(255,255,255,0.2)", borderTopColor: "#ffca28", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 20px" };
-const loaderTitle = { fontSize: "18px", fontWeight: "900", margin: 0 };
-const loaderSubtitle = { fontSize: "11px", opacity: 0.7, marginTop: "5px" };
+const spinnerRing = { width: "40px", height: "40px", border: "4px solid rgba(255,255,255,0.2)", borderTopColor: "#ffca28", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 15px" };
+const loaderTitle = { fontSize: "16px", fontWeight: "900", margin: 0 };
+const loaderSubtitle = { fontSize: "10px", opacity: 0.7, marginTop: "5px" };
