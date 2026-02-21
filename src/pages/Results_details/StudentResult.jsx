@@ -30,14 +30,13 @@ export default function StudentResult() {
   const [term, setTerm] = useState("Terminal");
   const [marks, setMarks] = useState({});
   const [maxMarks, setMaxMarks] = useState(""); // Default Empty kar diya
-  const [query, setQuery] = useState("");
 
   useEffect(() => {
     try {
       const userData = JSON.parse(localStorage.getItem("user"));
       if (userData) {
         if (userData.name) setStudent(userData.name);
-        if (userData.class) setCls(userData.class); // Class bhi local storage se le li
+         // Class bhi local storage se le li
       }
     } catch (err) {
       console.log("No user found");
@@ -95,8 +94,8 @@ export default function StudentResult() {
   return (
     <div style={mobileWrapper}>
       <div style={headerArea}>
-        <p style={subHeaderText}>Learning Space</p>
-        <h1 style={mainTitle}>Dashboard</h1>
+        <p style={subHeaderText}>Marks and Performance Added Space</p>
+        <h1 style={mainTitle}>Add Your Previous Classes Records</h1>
       </div>
 
       <div style={contentArea}>
@@ -128,7 +127,7 @@ export default function StudentResult() {
         </div>
 
         <div style={{...maxMarksBox, border: !maxMarks ? "2px solid #ff5252" : "none"}}>
-          <label style={labelStyle}>Set Max Marks per Subject *</label>
+          <label style={labelStyle}>Set Max Marks of the Exam like 50 or 100</label>
           <input
             type="number"
             placeholder="Enter e.g. 50 or 100"
@@ -191,7 +190,7 @@ const labelStyle = { display: "block", fontSize: "14px", fontWeight: "600", colo
 const mainInput = { width: "100%", padding: "16px", borderRadius: "15px", border: "2px solid #eee", fontSize: "16px", boxSizing: "border-box" };
 const selectField = { ...mainInput };
 const flexRow = { display: "flex", gap: "15px", marginBottom: "20px" };
-const maxMarksBox = { background: "#eaefff", padding: "15px", borderRadius: "18px", marginBottom: "20px", transition: '0.3s' };
+const maxMarksBox = { background: "#ffffff", padding: "15px", borderRadius: "18px", marginBottom: "20px", transition: '0.3s' };
 const marksInputSmall = { ...mainInput, border: "none", marginTop: "5px", background: 'transparent' };
 const subjectCard = { background: "#fff", padding: "20px", borderRadius: "20px", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", marginBottom: "20px" };
 const subjectHeading = { marginTop: 0, marginBottom: "20px" };
