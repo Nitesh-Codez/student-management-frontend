@@ -82,7 +82,7 @@ export default function ViewResults() {
         <div style={headerTop}>
           <div style={govTag}>SMARTZONE ACADEMICS</div>
           <div style={headerMain}>
-            <div style={logoBadge}></div>
+            <div style={logoBadge}>Smart Student's Classes</div>
             <div style={headerTextGroup}>
               <h1 style={mainPortalTitle}>SMART STUDENTS CLASSES</h1>
               <p style={subPortalTitle}>DIGITAL EXAMINATION RECORD SYSTEM</p>
