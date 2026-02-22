@@ -10,6 +10,10 @@ const AttemptQuizPage = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const studentId = user?.id || user?._id;
 
+  // LocalStorage Keys
+  const TIMER_KEY = `quiz_expiry_${id}_${studentId}`;
+  const ANSWERS_KEY = `quiz_answers_${id}_${studentId}`;
+
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -18,11 +22,10 @@ const AttemptQuizPage = () => {
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   
-  // Timer sync ke liye refs
   const timerRef = useRef(null);
 
   // --- SUBMIT LOGIC ---
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (finalAnswers = answers) => {
     if (submitting) return;
     setSubmitting(true);
     
@@ -30,19 +33,20 @@ const AttemptQuizPage = () => {
       const res = await axios.post(`${API_URL}/api/quiz/submit`, {
         student_id: studentId,
         quiz_id: id,
-        answers: answers,
+        answers: finalAnswers,
       });
       
-      // Submit hote hi local storage se timer clear karo
-      localStorage.removeItem(`quiz_expiry_${id}_${studentId}`);
-      setResult(res.data.data || res.data); // Back-end response structure ke according
+      // Cleanup on successful submit
+      localStorage.removeItem(TIMER_KEY);
+      localStorage.removeItem(ANSWERS_KEY);
+      setResult(res.data.data || res.data);
     } catch (err) {
       console.error(err);
       alert("Error submitting quiz.");
     } finally {
       setSubmitting(false);
     }
-  }, [id, studentId, answers, API_URL, submitting]);
+  }, [id, studentId, answers, API_URL, submitting, TIMER_KEY, ANSWERS_KEY]);
 
   // --- INITIAL LOAD ---
   useEffect(() => {
@@ -54,19 +58,24 @@ const AttemptQuizPage = () => {
       setQuiz(quizData);
       const q = typeof quizData.questions === 'string' ? JSON.parse(quizData.questions) : quizData.questions;
       setQuestions(q);
-      setAnswers(new Array(q.length).fill(null));
 
-      // TIMER PERSISTENCE LOGIC
-      const storageKey = `quiz_expiry_${id}_${studentId}`;
-      const savedExpiry = localStorage.getItem(storageKey);
+      // 1. Load Saved Answers or Initialize
+      const savedAnswers = localStorage.getItem(ANSWERS_KEY);
+      if (savedAnswers) {
+        setAnswers(JSON.parse(savedAnswers));
+      } else {
+        setAnswers(new Array(q.length).fill(null));
+      }
+
+      // 2. Timer Persistence
+      const savedExpiry = localStorage.getItem(TIMER_KEY);
       let expiryTime;
 
       if (savedExpiry) {
         expiryTime = parseInt(savedExpiry);
       } else {
-        // Pehli baar start ho raha hai
         expiryTime = Date.now() + quizData.timer_minutes * 60 * 1000;
-        localStorage.setItem(storageKey, expiryTime.toString());
+        localStorage.setItem(TIMER_KEY, expiryTime.toString());
       }
 
       const calculateTimeLeft = () => {
@@ -76,7 +85,7 @@ const AttemptQuizPage = () => {
 
       setTimeLeft(calculateTimeLeft());
     });
-  }, [id, API_URL, studentId]);
+  }, [id, API_URL, studentId, TIMER_KEY, ANSWERS_KEY]);
 
   // --- TIMER TICK & AUTO-SUBMIT ---
   useEffect(() => {
@@ -88,17 +97,31 @@ const AttemptQuizPage = () => {
     }
 
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
 
     return () => clearInterval(timerRef.current);
   }, [timeLeft, result, handleSubmit, submitting]);
+
+  // --- SAVE ANSWERS TO LOCALSTORAGE ON CHANGE ---
+  const handleOptionSelect = (opt) => {
+    const newAns = [...answers];
+    newAns[currentIdx] = opt;
+    setAnswers(newAns);
+    localStorage.setItem(ANSWERS_KEY, JSON.stringify(newAns));
+  };
+
+  // --- TAB SWITCH DETECTION (Anti-Cheat) ---
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && !result && quiz) {
+        console.warn("Tab switched! Warning recorded.");
+        // Aap yahan alert ya auto-submit logic bhi dal sakte hain
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [result, quiz]);
 
   const formatTime = (s) => {
     if (s === null) return "00:00";
@@ -154,15 +177,12 @@ const AttemptQuizPage = () => {
               return (
                 <div 
                   key={i} 
-                  onClick={() => {
-                    const newAns = [...answers];
-                    newAns[currentIdx] = opt;
-                    setAnswers(newAns);
-                  }}
+                  onClick={() => handleOptionSelect(opt)}
                   style={{
                     ...styles.optionBox,
                     borderColor: isSelected ? '#FF6B00' : '#E0E0E0',
                     backgroundColor: isSelected ? '#FFF9F5' : '#FFF',
+                    transform: isSelected ? 'translateY(-2px)' : 'none'
                   }}
                 >
                   <div style={{...styles.radioCircle, borderColor: isSelected ? '#FF6B00' : '#CCC'}}>
@@ -178,25 +198,19 @@ const AttemptQuizPage = () => {
         <div style={styles.navRow}>
           <button 
             disabled={currentIdx === 0}
-            onClick={() => {
-                setCurrentIdx(currentIdx - 1);
-                window.scrollTo(0,0);
-            }}
+            onClick={() => { setCurrentIdx(currentIdx - 1); window.scrollTo(0,0); }}
             style={{...styles.backBtn, opacity: currentIdx === 0 ? 0.3 : 1}}
           >
             Previous
           </button>
 
           {currentIdx === questions.length - 1 ? (
-            <button onClick={handleSubmit} disabled={submitting} style={styles.submitBtn}>
+            <button onClick={() => handleSubmit()} disabled={submitting} style={styles.submitBtn}>
               {submitting ? "Submitting..." : "Submit Test"}
             </button>
           ) : (
             <button 
-                onClick={() => {
-                    setCurrentIdx(currentIdx + 1);
-                    window.scrollTo(0,0);
-                }} 
+                onClick={() => { setCurrentIdx(currentIdx + 1); window.scrollTo(0,0); }} 
                 style={styles.nextBtn}
             >
               Next Question
@@ -209,6 +223,7 @@ const AttemptQuizPage = () => {
 };
 
 const styles = {
+  // Styles same as before with minor tweaks for mobile feel
   wrapper: { width: "100%", minHeight: "100vh", display: "flex", flexDirection: "column" },
   header: { position: "sticky", top: 0, background: "#FFF", zIndex: 10, borderBottom: "1px solid #EEE" },
   headerInner: { maxWidth: "800px", margin: "0 auto", padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" },
