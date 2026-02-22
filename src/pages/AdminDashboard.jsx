@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
   FaBookOpen, FaFileUpload, FaStar, FaComments, FaChartBar,
-  FaArrowRight, FaThLarge, FaSearch, FaBell, FaBars, FaChevronLeft, FaCheck, FaTimes,
+  FaArrowRight, FaThLarge, FaSearch, FaBell, FaBars, FaChevronLeft,FaQuestionCircle,FaCheck, FaTimes,
   FaChalkboardTeacher
 } from "react-icons/fa";
 
@@ -75,6 +75,13 @@ const AdminDashboard = () => {
     { title: "Results", path: "results", icon: <FaChartBar />, color: "#475569", category: "Reports" },
     { title: "Teacher List", path: "teachers", icon: <FaUserGraduate />, color: "#f97316", category: "Management" },
     { title: "Student Chat", path: "admin-chat", icon: <FaComments />, color: "#2dd4bf", category: "Support" },
+    {
+  title: "Manage Quiz",
+  path: "quiz",
+  icon: <FaQuestionCircle />,
+  color: "#14b8a6",
+  category: "Exams"
+},
   ];
 
   const filteredLinks = links.filter(link =>

@@ -1,13 +1,13 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
-/* ================= PUBLIC ================= */
+/* PUBLIC */
 import Login from "./pages/Login";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Refund from "./pages/Refund";
 
-/* ================= ADMIN ================= */
+/* ADMIN */
 import AdminDashboard from "./pages/AdminDashboard";
 import ManageStudents from "./pages/ManageStudents";
 import AdminFees from "./pages/AdminFees";
@@ -23,9 +23,9 @@ import AdminChat from "./pages/AdminChat";
 import AddTeacher from "./pages/AddTeacher";
 import TeacherList from "./pages/TeacherList";
 import AssignClasses from "./pages/AssignClasses";
+import AdminQuizPage from "./pages/AdminQuizPage";
 
-
-/* ================= STUDENT ================= */
+/* STUDENT */
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentProfile from "./pages/StudentProfile";
 import StudentFees from "./pages/StudentFees";
@@ -37,17 +37,16 @@ import StudentStudyMaterial from "./pages/StudentStudyMaterial";
 import StudentPage from "./pages/StudentPage";
 import StudentChat from "./pages/StudentChat";
 import ApplyCorrection from "./pages/ApplyCorrection";
+import StudentQuizDashboard from "./pages/StudentQuizDashboard";
+import AttemptQuizPage from "./pages/AttemptQuizPage";
 
-/*============Record previous classes=============*/
 import StudentResult from "./pages/Results_details/StudentResult";
 import ViewResults from "./pages/Results_details/ViewResults";
 
-/* ================= EXAM ================= */
+/* EXAM */
 import ExamForm from "./pages/Examination/ExamForm";
 import GenerateAdmitCard from "./pages/Examination/GenerateAdmitCard";
 import ExaminationResult from "./pages/Examination/ExaminationResult";
-
-/* ================= HOME ================= */// 👈 Ye ensure karo
 
 function App() {
   return (
@@ -62,6 +61,9 @@ function App() {
 
         {/* ADMIN */}
         <Route path="/admin" element={<AdminDashboard />}>
+
+          <Route index element={<Navigate to="manage-students" />} />
+
           <Route path="manage-students" element={<ManageStudents />} />
           <Route path="manage-fees" element={<AdminFees />} />
           <Route path="mark-attendance" element={<MarkAttendance />} />
@@ -76,11 +78,14 @@ function App() {
           <Route path="add-teacher" element={<AddTeacher />} />
           <Route path="teachers" element={<TeacherList />} />
           <Route path="assign-classes" element={<AssignClasses />} />
-          
+          <Route path="quiz" element={<AdminQuizPage />} />
+
         </Route>
 
         {/* STUDENT */}
         <Route path="/student" element={<StudentDashboard />}>
+
+          <Route index element={<Navigate to="profile" />} />
 
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees />} />
@@ -97,6 +102,8 @@ function App() {
           <Route path="apply-correction" element={<ApplyCorrection />} />
           <Route path="submit-results" element={<StudentResult />} />
           <Route path="view-results" element={<ViewResults />} />
+          <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
+          <Route path="attempt/:id" element={<AttemptQuizPage />} />
 
         </Route>
 

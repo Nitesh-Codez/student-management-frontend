@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   FaClipboardCheck, FaMoneyBillWave, FaChartLine,
@@ -25,6 +24,8 @@ import ApplyCorrection from "./ApplyCorrection";
 /*============Record previous classes=============*/
 import StudentResult from "./Results_details/StudentResult";
 import ViewResults from "./Results_details/ViewResults";
+import StudentQuizDashboard from "./StudentQuizDashboard";
+import AttemptQuizPage from "./AttemptQuizPage";
 
 
 // Examination Components
@@ -966,6 +967,13 @@ if (feeRes.data.success) {
                 <Link to="marks" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("marks"))}>
                   <FaChartLine /> My Marks
                 </Link>
+                <Link
+  to="quiz-dashboard"
+  onClick={() => setSidebarOpen(false)}
+  style={drawerLinkStyle(location.pathname.includes("quiz-dashboard"))}
+>
+  📝 Practice Quiz
+</Link>
                 <Link to="chat" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("chat"))}>
                   <FaComments /> Connect Chat
                 </Link>
@@ -1072,6 +1080,8 @@ if (feeRes.data.success) {
 
           <Route path="submit-results" element={<StudentResult />} />
           <Route path="view-results" element={<ViewResults />} />
+          <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
+          <Route path="attempt/:id" element={<AttemptQuizPage />} />
 
           
           {/* Internal Examination Routes */}
