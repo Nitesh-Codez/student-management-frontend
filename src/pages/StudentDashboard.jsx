@@ -26,6 +26,7 @@ import StudentResult from "./Results_details/StudentResult";
 import ViewResults from "./Results_details/ViewResults";
 import StudentQuizDashboard from "./StudentQuizDashboard";
 import AttemptQuizPage from "./AttemptQuizPage";
+import QuizReview from './QuizReview';
 
 
 // Examination Components
@@ -1082,6 +1083,7 @@ if (feeRes.data.success) {
           <Route path="view-results" element={<ViewResults />} />
           <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
+          <Route path="review/:quizId/:studentId" element={<QuizReview />} />
 
           
           {/* Internal Examination Routes */}

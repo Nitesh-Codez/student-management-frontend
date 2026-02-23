@@ -39,6 +39,7 @@ import StudentChat from "./pages/StudentChat";
 import ApplyCorrection from "./pages/ApplyCorrection";
 import StudentQuizDashboard from "./pages/StudentQuizDashboard";
 import AttemptQuizPage from "./pages/AttemptQuizPage";
+import QuizReview from './pages/QuizReview';
 
 import StudentResult from "./pages/Results_details/StudentResult";
 import ViewResults from "./pages/Results_details/ViewResults";
@@ -104,6 +105,9 @@ function App() {
           <Route path="view-results" element={<ViewResults />} />
           <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
+
+
+          <Route path="review/:quizId/:studentId" element={<QuizReview />} />
 
         </Route>
 
