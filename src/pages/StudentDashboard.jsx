@@ -915,22 +915,6 @@ if (feeRes.data.success) {
     </div>
   </header>
 
-  {/* --- NEW SUB-HEADER (Immediately after Header) --- */}
-  <div style={subHeaderStyle}>
-    <div style={subHeaderInner}>
-      <div style={{display: 'flex', flexDirection: 'column'}}>
-        <span style={portalBadge}>Student Portal</span>
-        <h2 style={subHeaderText}>
-          {location.pathname === "/student" ? " Student portal" : 
-           location.pathname.includes("profile") ? "My Profile" : "Learning Space"}
-        </h2>
-      </div>
-      <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-         <div style={liveDot}></div>
-         <span style={{fontSize: '12px', fontWeight: '600', color: '#64748b'}}>Be the Brilliant </span>
-      </div>
-    </div>
-  </div>
 
       <NotificationModal isOpen={isNotiOpen} onClose={() => setIsNotiOpen(false)} notifications={notifications} navigate={navigate} />
       <FeePopup isOpen={showFeePopup} onClose={() => setShowFeePopup(false)} amount={dynamicFeeAmount} />
@@ -1241,54 +1225,6 @@ const feeNoticeBox = {
 };
 
 // Inhe apne existing styles/constants ke pass add karein
-const subHeaderStyle = {
-  background: "rgba(248, 250, 252, 0.8)",
-  backdropFilter: "blur(8px)",
-  padding: "8px 20px",
-  borderRadius: "0 0 20px 20px",
-  borderBottom: "1px solid #e2e8f0",
-  display: "flex",
-  justifyContent: "center",
-  position: "sticky",
-  top: "85px", // Adjust based on header height
-  zIndex: 99,
-};
-
-const subHeaderInner = {
-  width: "100%",
-  maxWidth: "1100px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  borderLeft: "4px solid #6366f1", // Left accent line
-  paddingLeft: "15px"
-};
-
-const portalBadge = {
-  fontSize: "10px",
-  background: "#6366f1",
-  color: "#fff",
-  padding: "2px 8px",
-  borderRadius: "20px",
-  fontWeight: "bold",
-  textTransform: "uppercase",
-};
-
-const subHeaderText = {
-  margin: "4px 0 0 0",
-  fontSize: "16px",
-  fontWeight: "700",
-  color: "#1e293b",
-};
-
-const liveDot = {
-  width: "8px",
-  height: "8px",
-  background: "#10b981",
-  borderRadius: "50%",
-  boxShadow: "0 0 8px #10b981",
-};
-
 const redBadgePulse = {
   position: "absolute",
   top: "-4px",
