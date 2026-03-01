@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  FaTimes, FaChevronLeft, FaCheckCircle, FaStar,
-  FaRegTimesCircle, FaBolt, FaAward, FaChartLine, FaHistory 
+  FaTimes, FaChevronLeft, FaStar,
+   FaBolt, FaAward, FaChartLine,
 } from 'react-icons/fa';
 import { motion } from "framer-motion";
 import axios from 'axios';
