@@ -40,9 +40,14 @@ import ApplyCorrection from "./pages/ApplyCorrection";
 import StudentQuizDashboard from "./pages/StudentQuizDashboard";
 import AttemptQuizPage from "./pages/AttemptQuizPage";
 import QuizReview from './pages/QuizReview';
+import RegisterationStudent from "./pages/RegisterationStudent";
 
 import StudentResult from "./pages/Results_details/StudentResult";
 import ViewResults from "./pages/Results_details/ViewResults";
+
+
+import AdminHoliday from './pages/AdminHoliday';
+import StudentHoliday from './pages/StudentHoliday';
 
 /* EXAM */
 import ExamForm from "./pages/Examination/ExamForm";
@@ -78,6 +83,7 @@ function App() {
           <Route path="admin-chat" element={<AdminChat />} />
           <Route path="add-teacher" element={<AddTeacher />} />
           <Route path="teachers" element={<TeacherList />} />
+          <Route path="add-holiday" element={<AdminHoliday />} />
           <Route path="assign-classes" element={<AssignClasses />} />
           <Route path="quiz" element={<AdminQuizPage />} />
 
@@ -103,7 +109,9 @@ function App() {
           <Route path="apply-correction" element={<ApplyCorrection />} />
           <Route path="submit-results" element={<StudentResult />} />
           <Route path="view-results" element={<ViewResults />} />
+          <Route path="holidays" element={<StudentHoliday />} />
           <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
+          <Route path="register-student" element={<RegisterationStudent />} />
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
 
 

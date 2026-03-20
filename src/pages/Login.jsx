@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -10,6 +10,15 @@ const Login = () => {
   const navigate = useNavigate();
 
   const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
+
+  // Check if already logged in
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      navigate(user.role === "admin" ? "/admin" : "/student");
+    }
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,20 +33,29 @@ const Login = () => {
 
       if (data.success) {
         const user = data.user;
+        
+        // --- 100% Data Retention for Dashboard ---
         localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("studentName", user.name);
         localStorage.setItem("userRole", user.role);
 
         if (user.role === "student") {
           localStorage.setItem("studentClass", user.class);
-          localStorage.setItem("studentId", user.id);
+          localStorage.setItem("studentId", user.id || user._id);
+          // Store these for easy access in Quiz logic
+          localStorage.setItem("session", user.session || "2026-27");
+          localStorage.setItem("stream", user.stream || "General");
         }
-        navigate(user.role === "admin" ? "/admin" : "/student");
+
+        // --- Success Redirect with Fade Effect ---
+        setTimeout(() => {
+          navigate(user.role === "admin" ? "/admin" : "/student");
+        }, 500);
       } else {
-        setError(data.message);
+        setError(data.message || "Access Denied: Invalid Credentials");
       }
     } catch (err) {
-      setError("Server Error: " + (err.response?.data?.message || err.message));
+      setError("Network Error: check your internet or server status.");
     } finally {
       setLoading(false);
     }
@@ -45,203 +63,268 @@ const Login = () => {
 
   return (
     <div style={styles.page}>
-      {/* --- INJECTING ANIMATION --- */}
+      {/* --- ADVANCED CSS ANIMATIONS --- */}
       <style>
         {`
           @keyframes float {
-            0% { transform: translateY(0px) translateX(0px); }
-            50% { transform: translateY(-20px) translateX(10px); }
-            100% { transform: translateY(0px) translateX(0px); }
+            0% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(30px, -50px) rotate(5deg); }
+            66% { transform: translate(-20px, 20px) rotate(-5deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
           }
-          @keyframes floatSlow {
-            0% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-30px) rotate(10deg); }
-            100% { transform: translateY(0px) rotate(0deg); }
+          @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            50% { scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 0.6; }
+          }
+          @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          input:focus {
+            border-bottom: 2px solid #6c5ce7 !important;
+            transition: 0.4s ease;
+          }
+          .glass-card {
+            animation: slideUp 0.8s ease-out;
           }
         `}
       </style>
 
-      {/* --- ANIMATED BUBBLES (Image Reference) --- */}
+      {/* --- BACKGROUND ELEMENTS --- */}
       <div style={{ ...styles.bubble, ...styles.bubble1 }}></div>
       <div style={{ ...styles.bubble, ...styles.bubble2 }}></div>
       <div style={{ ...styles.bubble, ...styles.bubble3 }}></div>
+      <div style={{ ...styles.bubble, ...styles.bubble4 }}></div>
 
-      <div style={styles.branding}>
-        <h1 style={styles.logo}>𝐒MARTZØηE</h1>
-        <p style={styles.tagline}>
-          Empowering Students | Celebrating Classes | Inspiring Excellence
-        </p>
-      </div>
+      <div style={styles.contentWrapper}>
+        <div style={styles.branding}>
+          <div style={styles.badge}>v2.0 Beta</div>
+          <h1 style={styles.logo}>𝐒MARTZØηE</h1>
+          <p style={styles.tagline}>
+            Next-Gen Academic Portal for <b>Smart Student Classes</b>
+          </p>
+        </div>
 
-      <div style={styles.loginCard}>
-        <h2 style={styles.loginTitle}>Login</h2>
+        <div style={styles.loginCard} className="glass-card">
+          <div style={styles.cardHeader}>
+            <h2 style={styles.loginTitle}>Login</h2>
+            <div style={styles.titleLine}></div>
+          </div>
 
-        {error && <p style={styles.errorStyle}>{error}</p>}
+          {error && (
+            <div style={styles.errorContainer}>
+              <span>⚠️</span> {error}
+            </div>
+          )}
 
-        <form onSubmit={handleLogin}>
-          <label style={styles.label}>Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={styles.input}
-            placeholder="Enter your Name"
-            required
-          />
+          <form onSubmit={handleLogin} style={styles.form}>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Full Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={styles.input}
+                placeholder="Ex: Nitesh Kushwah"
+                required
+              />
+            </div>
 
-          <label style={styles.label}>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-            placeholder="Enter password"
-            required
-          />
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Secret Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={styles.input}
+                placeholder="••••••••"
+                required
+              />
+            </div>
 
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? "Please wait..." : "Login"}
-          </button>
-        </form>
+            <button type="submit" style={styles.button} disabled={loading}>
+              {loading ? (
+                <span style={styles.loaderText}>Authenticating...</span>
+              ) : (
+                "Sign In to Dashboard"
+              )}
+            </button>
+          </form>
+          
+          <div style={styles.footerLinks}>
+            Forgot Password? <span style={{color: '#6c5ce7', cursor: 'pointer'}}>Contact Admin</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-// ------------------ STYLES --------------------
+// ------------------ PRENIUM STYLING --------------------
 
 const styles = {
   page: {
     minHeight: "100vh",
     display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
     alignItems: "center",
-    background: "#f3f4f6", // Light grey background jaisa image mein hai
+    justifyContent: "center",
+    background: "#f0f2f5",
     position: "relative",
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
     overflow: "hidden",
+  },
+  contentWrapper: {
+    zIndex: 10,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    width: "100%",
   },
   bubble: {
     position: "absolute",
     borderRadius: "50%",
-    zIndex: 0,
-    filter: "blur(2px)",
+    filter: "blur(40px)",
+    zIndex: 1,
   },
   bubble1: {
-    width: "90px",
-    height: "90px",
-    background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", // Pinkish bubble
-    top: "5%",
-    left: "5%",
-    animation: "floatSlow 8s infinite ease-in-out",
-    opacity: 0.9,
+    width: "300px", height: "300px",
+    background: "rgba(108, 92, 231, 0.2)",
+    top: "-50px", left: "-50px",
+    animation: "float 12s infinite linear",
   },
   bubble2: {
-    width: "50px",
-    height: "50px",
-    background: "linear-gradient(135deg, #ffcc33 0%, #ffb347 100%)", // Orange/Yellow bubble
-    top: "65%",
-    left: "70%",
-    animation: "float 6s infinite ease-in-out",
-    opacity: 0.9,
-  },
-  bubble2: {
-    width: "90px",
-    height: "90px",
-    background: "linear-gradient(135deg, #ffcc33 0%, #ffb347 100%)", // Orange/Yellow bubble
-    top: "15%",
-    left: "60%",
-    animation: "float 6s infinite ease-in-out",
-    opacity: 0.7,
+    width: "250px", height: "250px",
+    background: "rgba(255, 107, 107, 0.15)",
+    bottom: "10%", right: "5%",
+    animation: "float 10s infinite reverse linear",
   },
   bubble3: {
-    width: "150px",
-    height: "150px",
-    background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", // Blue bubble
-    top: "20%",
-    left: "40%",
-    animation: "floatSlow 10s infinite ease-in-out",
-    opacity: 0.6,
+    width: "200px", height: "200px",
+    background: "rgba(0, 210, 211, 0.15)",
+    top: "20%", right: "20%",
+    animation: "pulse 6s infinite ease-in-out",
+  },
+  bubble4: {
+    width: "150px", height: "150px",
+    background: "rgba(254, 202, 87, 0.2)",
+    bottom: "20%", left: "20%",
+    animation: "float 8s infinite linear",
   },
   branding: {
     textAlign: "center",
-    color: "#333",
-    zIndex: 1,
-    marginBottom: "30px",
+    marginBottom: "40px",
+  },
+  badge: {
+    display: "inline-block",
+    background: "#6c5ce7",
+    color: "#fff",
+    fontSize: "10px",
+    padding: "4px 12px",
+    borderRadius: "20px",
+    fontWeight: "bold",
+    marginBottom: "10px",
+    boxShadow: "0 4px 10px rgba(108, 92, 231, 0.3)",
   },
   logo: {
-    fontSize: "12vw",
+    fontSize: "clamp(48px, 12vw, 84px)",
     fontWeight: "900",
     margin: "0",
-    letterSpacing: "0.1em",
-    color: "#2d3436",
+    color: "#1a1a1a",
+    letterSpacing: "-2px",
   },
   tagline: {
-    fontSize: "18px",
-    color: "#424a4e",
-    fontWeight: "600",
+    fontSize: "16px",
+    color: "#57606f",
+    marginTop: "5px",
+    letterSpacing: "0.5px",
   },
   loginCard: {
-    width: "85%",
-    maxWidth: "300px",
-    padding: "40px",
-    background: "rgba(255, 255, 255, 0.9)",
-    backdropFilter: "blur(10px)",
-    borderRadius: "20px",
-    boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-    zIndex: 2,
-    color: "#333",
-    border: "1px solid rgba(255,255,255,0.3)",
+    width: "90%",
+    maxWidth: "400px",
+    background: "rgba(255, 255, 255, 0.8)",
+    backdropFilter: "blur(12px)",
+    borderRadius: "32px",
+    padding: "50px 40px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
+    border: "1px solid rgba(255,255,255,0.6)",
+  },
+  cardHeader: {
+    marginBottom: "35px",
   },
   loginTitle: {
-    marginBottom: "25px",
+    fontSize: "32px",
     fontWeight: "800",
-    textAlign: "left",
-    fontSize: "28px",
     color: "#2d3436",
-    borderBottom: "3px solid #ffcc00",
-    display: "inline-block",
+    margin: "0",
+  },
+  titleLine: {
+    width: "40px",
+    height: "5px",
+    background: "#6c5ce7",
+    borderRadius: "10px",
+    marginTop: "8px",
+  },
+  inputGroup: {
+    marginBottom: "25px",
   },
   label: {
     display: "block",
-    marginBottom: "8px",
-    fontWeight: "700",
     fontSize: "12px",
-    color: "#b2bec3",
+    fontWeight: "700",
+    color: "#a4b0be",
     textTransform: "uppercase",
+    marginBottom: "8px",
+    paddingLeft: "2px",
   },
   input: {
     width: "100%",
-    padding: "12px 0",
-    borderRadius: "0",
-    border: "none",
-    borderBottom: "2px solid #dfe6e9",
-    marginBottom: "25px",
+    padding: "14px 0px",
     fontSize: "16px",
+    border: "none",
+    borderBottom: "2px solid #f1f2f6",
     background: "transparent",
     color: "#2d3436",
     outline: "none",
-    transition: "border-color 0.3s",
+    fontWeight: "500",
   },
   button: {
     width: "100%",
-    padding: "15px",
-    borderRadius: "12px",
+    padding: "18px",
+    borderRadius: "18px",
     border: "none",
-    background: "linear-gradient(90deg, #6c5ce7, #a29bfe)", // Modern Purple Gradient
+    background: "linear-gradient(135deg, #2d3436 0%, #000000 100%)",
     color: "#fff",
     fontSize: "16px",
     fontWeight: "700",
     cursor: "pointer",
-    boxShadow: "0 10px 20px rgba(108, 92, 231, 0.3)",
+    boxShadow: "0 15px 30px rgba(0,0,0,0.2)",
+    transition: "all 0.3s ease",
+    marginTop: "10px",
   },
-  errorStyle: {
-    color: "#ff7675",
-    marginBottom: "15px",
+  errorContainer: {
+    background: "#fff2f0",
+    border: "1px solid #ffa39e",
+    color: "#cf1322",
+    padding: "12px 16px",
+    borderRadius: "12px",
     fontSize: "14px",
     fontWeight: "600",
+    marginBottom: "25px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
   },
+  footerLinks: {
+    marginTop: "25px",
+    fontSize: "13px",
+    color: "#a4b0be",
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  loaderText: {
+    letterSpacing: "1px",
+  }
 };
 
 export default Login;

@@ -27,6 +27,7 @@ import ViewResults from "./Results_details/ViewResults";
 import StudentQuizDashboard from "./StudentQuizDashboard";
 import AttemptQuizPage from "./AttemptQuizPage";
 import QuizReview from './QuizReview';
+import RegisterationStudent from "./RegisterationStudent";
 
 
 // Examination Components
@@ -334,6 +335,8 @@ useEffect(() => {
     { title: "Marks", icon: <FaChartLine />, path: "marks", grad: theme.gradients.info, showNotice: hasNewMarks, sub: "Performance" },
     { title: "Tasks", icon: <FaTasks />, path: "task-update", grad: theme.gradients.primary, count: pendingTasks, sub: "Assignments" },
     { title: "Study Lab", icon: <FaBookOpen />, path: "study-material", grad: theme.gradients.dark, sub: "Library" },
+     // ✅ NEW HOLIDAY CARD
+  { title: "Holidays", icon: <FaCalendarAlt />, path: "holidays", grad: theme.gradients.info, sub: "Holiday List" },
     { title: "Feedback", icon: <FaStar />, path: "feedback", grad: theme.gradients.purple, showNotice: isFeedbackPending, sub: "Monthly Review" },
   ];
 
@@ -948,6 +951,13 @@ if (feeRes.data.success) {
                 <Link to="feedback" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("feedback"))}>
                   <FaStar /> Feedback
                 </Link>
+             <Link 
+ to="register-student"
+ onClick={() => setSidebarOpen(false)}
+ style={drawerLinkStyle(location.pathname.includes("register-student"))}
+>
+  <FaUserGraduate /> Student Registration
+</Link>
                 
                 <Link to="marks" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("marks"))}>
                   <FaChartLine /> My Marks
@@ -1068,6 +1078,7 @@ if (feeRes.data.success) {
           <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
           <Route path="review/:quizId/:studentId" element={<QuizReview />} />
+            <Route path="register-student" element={<RegisterationStudent />} />
 
           
           {/* Internal Examination Routes */}

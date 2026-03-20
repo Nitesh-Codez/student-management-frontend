@@ -6,32 +6,49 @@ const StudentQuizDashboard = () => {
   const navigate = useNavigate();
   const API_URL = "https://student-management-system-4-hose.onrender.com";
 
+  // User session details
   const user = JSON.parse(localStorage.getItem("user"));
   const studentId = user?.id || user?._id;
   const userClass = user?.class;
+  const userSession = user?.session;
+  const userStream = user?.stream;
 
   const [quizzes, setQuizzes] = useState([]);
-  const [filteredQuizzes, setFilteredQuizzes] = useState([]); // Filtered list ke liye
-  const [subjects, setSubjects] = useState([]); // Unique subjects ki list
-  const [activeSubject, setActiveSubject] = useState("All"); // Current select kiya hua subject
+  const [filteredQuizzes, setFilteredQuizzes] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [activeSubject, setActiveSubject] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const now = new Date();
 
   useEffect(() => {
+    // Injecting High-Tech Animations
     const styleSheet = document.createElement("style");
-    styleSheet.type = "text/css";
     styleSheet.innerText = `
-      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F8F9FA; }
-      #root { width: 100%; height: 100%; }
-      @keyframes thunderPulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.2); opacity: 0.8; filter: drop-shadow(0 0 5px #FF6B00); }
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+      body { margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background-color: #FF6B00; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      
+      @keyframes fadeInScale {
+        0% { transform: scale(0.9); opacity: 0; }
         100% { transform: scale(1); opacity: 1; }
       }
-      .animate-thunder { animation: thunderPulse 1.5s infinite ease-in-out; display: inline-block; }
-      ::-webkit-scrollbar { display: none; }
+      .quiz-card { animation: fadeInScale 0.4s ease-out forwards; }
+      
+      @keyframes pulseDark {
+        0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 107, 0, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); }
+      }
+      .active-tab { animation: pulseDark 2s infinite; }
+      
+      @keyframes loaderSpin {
+        0% { transform: rotate(0deg) scale(1); }
+        50% { transform: rotate(180deg) scale(1.2); }
+        100% { transform: rotate(360deg) scale(1); }
+      }
+      .loader-icon { animation: loaderSpin 1.5s infinite linear; }
     `;
     document.head.appendChild(styleSheet);
 
@@ -43,12 +60,17 @@ const StudentQuizDashboard = () => {
 
     const fetchQuizzes = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/quiz/class/${userClass}`);
+        setLoading(true);
+        const res = await axios.get(`${API_URL}/api/quiz/class/${userClass}`, {
+          params: { session: userSession, stream: userStream }
+        });
+
         const statusRequests = res.data.map((quiz) =>
           axios.get(`${API_URL}/api/quiz/status/${quiz.id}/${studentId}`)
         );
+
         const statusResults = await Promise.all(statusRequests);
-        
+
         const updatedQuizzes = res.data.map((quiz, index) => ({
           ...quiz,
           attempted: statusResults[index].data.attempted,
@@ -57,160 +79,165 @@ const StudentQuizDashboard = () => {
 
         setQuizzes(updatedQuizzes);
         setFilteredQuizzes(updatedQuizzes);
-
-        // Unique subjects nikalna
-        const uniqueSubjects = ["All", ...new Set(updatedQuizzes.map(q => q.subject))];
-        setSubjects(uniqueSubjects);
-
+        setSubjects(["All", ...new Set(updatedQuizzes.map(q => q.subject))]);
         setLoading(false);
       } catch (err) {
-        setError("Failed to load quizzes.");
+        setError("Failed to fetch dashboard data.");
         setLoading(false);
       }
     };
-    fetchQuizzes();
-    
-    return () => document.head.removeChild(styleSheet);
-  }, [userClass, studentId]);
 
-  // Subject change hone par list filter karna
-  const handleSubjectClick = (sub) => {
+    fetchQuizzes();
+    return () => document.head.removeChild(styleSheet);
+  }, [userClass, studentId, userSession, userStream]);
+
+  const handleSubjectFilter = (sub) => {
     setActiveSubject(sub);
-    if (sub === "All") {
-      setFilteredQuizzes(quizzes);
-    } else {
-      setFilteredQuizzes(quizzes.filter(q => q.subject === sub));
-    }
+    setFilteredQuizzes(sub === "All" ? quizzes : quizzes.filter(q => q.subject === sub));
   };
 
-  if (loading) return <div style={styles.center}>Loading Quizzes...</div>;
+  if (loading) return (
+    <div style={styles.center}>
+      <div className="loader-icon" style={{fontSize: '50px'}}>⚡</div>
+      <p style={{fontWeight: '800', color: '#FF6B00', marginTop: '10px'}}>Syncing Assignments...</p>
+    </div>
+  );
 
   return (
-    <div style={styles.appWrapper}>
-      {/* HEADER SECTION */}
-      <div style={styles.header}>
-        <div style={styles.statusBar}>
-          <span>{now.getHours()}:{now.getMinutes() < 10 ? '0'+now.getMinutes() : now.getMinutes()}</span>
-          <div style={{ display: 'flex', gap: '10px' }}>📶 ⚡ 🔋</div>
+    <div style={styles.appContainer}>
+      {/* MODERN HEADER */}
+      <header style={styles.header}>
+        <div style={styles.topBar}>
+          <span>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          <div style={{display: 'flex', gap: '8px'}}>📶 🔋</div>
         </div>
-        <div style={styles.headerContent}>
-          <div style={styles.welcomeText}>Welcome, 👋</div>
-          <div style={styles.mainTitle}>{user?.name || "Student"}</div>
-          <div style={styles.badgeRow}>
-            <div style={styles.subTitle}>Class {userClass} • {quizzes.length} Tests</div>
+        <div style={styles.headerBody}>
+          <span style={styles.greeting}>Good Day, 👋</span>
+          <h1 style={styles.userName}>{user?.name || "Smart Student"}</h1>
+          <div style={styles.pillContainer}>
+            <span style={styles.pill}>Class {userClass}</span>
+            <span style={styles.pill}>{userSession}</span>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* CONTENT AREA */}
-      <div style={styles.contentArea}>
+      {/* INTERACTIVE CONTENT */}
+      <main style={styles.contentArea}>
         <div style={styles.dragHandle}></div>
         
-        {/* SUBJECT FILTER TABS */}
-        <div style={styles.subjectContainer}>
-            {subjects.map((sub, idx) => (
-                <button 
-                    key={idx} 
-                    onClick={() => handleSubjectClick(sub)}
-                    style={{
-                        ...styles.subjectTab,
-                        backgroundColor: activeSubject === sub ? "#b64c00" : "#FFF",
-                        color: activeSubject === sub ? "#FFF" : "#666",
-                        border: activeSubject === sub ? "3px solid #FF6B00" : "1px solid #EEE"
-                    }}
-                >
-                    {sub}
-                </button>
-            ))}
+        {/* SUBJECT TABS */}
+        <section style={styles.tabSection} className="no-scrollbar">
+          {subjects.map((sub, i) => (
+            <button
+              key={i}
+              onClick={() => handleSubjectFilter(sub)}
+              className={activeSubject === sub ? "active-tab" : ""}
+              style={{
+                ...styles.tab,
+                backgroundColor: activeSubject === sub ? "#FF6B00" : "#FFF",
+                color: activeSubject === sub ? "#FFF" : "#636E72",
+                border: activeSubject === sub ? 'none' : '1px solid #E0E0E0'
+              }}
+            >
+              {sub}
+            </button>
+          ))}
+        </section>
+
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>{activeSubject} Quizzes</h2>
+          <span style={styles.countBadge}>{filteredQuizzes.length}</span>
         </div>
 
-        <div style={styles.topRow}>
-          <div style={styles.listHeading}>{activeSubject} Quizzes</div>
-          <div style={styles.dateBadge}>{now.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</div>
-        </div>
-
-        {/* SCROLLABLE LIST */}
-        <div style={styles.scrollArea}>
+        {/* QUIZ LIST */}
+        <section style={styles.quizList} className="no-scrollbar">
           {filteredQuizzes.length > 0 ? (
-            filteredQuizzes.map((quiz, i) => {
+            filteredQuizzes.map((quiz, idx) => {
               const isDone = quiz.attempted;
-              const percentage = isDone ? Math.round((quiz.result.score / quiz.total_marks) * 100) : 0;
+              const scorePercent = isDone ? Math.round((quiz.result.score / quiz.total_marks) * 100) : 0;
+
               return (
-                <div key={i} style={styles.quizItem}>
-                  <div style={styles.itemMain}>
-                    <div style={isDone ? styles.iconBoxOrange : styles.iconBoxGray}>
-                      {isDone ? "✓" : <span className="animate-thunder">⚡</span>}
+                <div key={idx} style={styles.card} className="quiz-card">
+                  <div style={styles.cardMain}>
+                    <div style={isDone ? styles.iconBoxDone : styles.iconBoxTodo}>
+                      {isDone ? "⭐" : "🔥"}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={styles.itemTitle}>{quiz.title}</div>
-                      <div style={styles.itemSub}>{quiz.subject} • {quiz.timer_minutes}m</div>
+                    <div style={{flex: 1}}>
+                      <h3 style={styles.quizTitle}>{quiz.title}</h3>
+                      <p style={styles.quizMeta}>{quiz.subject} • {quiz.timer_minutes} Mins</p>
                     </div>
-                    <div style={styles.itemRight}>
-                      {isDone ? (
-                        <div style={styles.scoreContainer}>
-                          <div style={styles.scoreText}>{percentage}%</div>
-                          <div style={styles.gradeText}>{quiz.result.grade}</div>
-                        </div>
-                      ) : (
-                        <button onClick={() => navigate(`/student/attempt/${quiz.id}`)} style={styles.btnStart}>
-                          Start
-                        </button>
-                      )}
-                    </div>
+                    {isDone ? (
+                      <div style={styles.scoreBox}>
+                        <span style={styles.scoreValue}>{scorePercent}%</span>
+                        <span style={styles.gradeLabel}>{quiz.result.grade}</span>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => navigate(`/student/attempt/${quiz.id}`)}
+                        style={styles.startButton}
+                      >
+                        Start
+                      </button>
+                    )}
                   </div>
                   {isDone && (
-                    <div style={styles.reviewBar} onClick={() => navigate(`/student/review/${quiz.id}/${studentId}`)}>
-                      <span>Performance Review</span>
-                      <span>→</span>
+                    <div style={styles.reviewLink} onClick={() => navigate(`/student/review/${quiz.id}/${studentId}`)}>
+                      View Detailed Feedback <span>→</span>
                     </div>
                   )}
                 </div>
               );
             })
           ) : (
-            <div style={styles.empty}>No tests found for {activeSubject}.</div>
+            <div style={styles.emptyState}>
+              <div style={{fontSize: '40px'}}>🎯</div>
+              <p>Everything is complete!</p>
+            </div>
           )}
-          <div style={{ height: "40px" }}></div>
-        </div>
-      </div>
+          <div style={{height: '100px'}}></div>
+        </section>
+      </main>
     </div>
   );
 };
 
 const styles = {
-  appWrapper: { width: "100vw", height: "100vh", backgroundColor: "#FF6B00", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, fontFamily: "'Inter', sans-serif" },
-  header: { background: "linear-gradient(180deg, #FF6B00 0%, #FF8E3C 100%)", padding: "10px 20px 35px 20px", color: "#fff", flexShrink: 0 },
-  statusBar: { display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "700", marginBottom: "15px", opacity: 0.8 },
-  headerContent: { display: "flex", flexDirection: "column" },
-  welcomeText: { fontSize: "14px", fontWeight: "400", opacity: 0.9 },
-  mainTitle: { fontSize: "30px", fontWeight: "800", margin: "12px 0 8px 0", letterSpacing: "0px" },
-  badgeRow: { display: 'flex', gap: '8px' },
-  subTitle: { fontSize: "12px", fontWeight: "700", background: "rgba(255,255,255,0.2)", padding: "4px 10px", borderRadius: "10px" },
+  appContainer: { width: "100%", height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" },
+  header: { background: "#FF6B00", padding: "20px 25px 50px 25px", color: "#FFF" },
+  topBar: { display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "600", marginBottom: "20px", opacity: 0.8 },
+  headerBody: { display: "flex", flexDirection: "column", gap: "5px" },
+  greeting: { fontSize: "14px", fontWeight: "400" },
+  userName: { fontSize: "28px", fontWeight: "800", margin: 0, letterSpacing: "-0.5px" },
+  pillContainer: { display: "flex", gap: "10px", marginTop: "10px" },
+  pill: { background: "rgba(255,255,255,0.2)", padding: "5px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "700" },
 
-  contentArea: { flex: 3, backgroundColor: "#F8F9FA", marginTop: "-25px", borderTopLeftRadius: "45px", borderTopRightRadius: "35px", padding: "0", display: "flex", flexDirection: "column", overflow: "hidden" },
-  dragHandle: { width: "35px", height: "4px", backgroundColor: "#E0E0E0", borderRadius: "10px", margin: "12px auto 18px auto" },
+  contentArea: { flex: 1, background: "#F8F9FA", marginTop: "-30px", borderRadius: "35px 35px 0 0", display: "flex", flexDirection: "column", boxShadow: "0 -10px 20px rgba(0,0,0,0.05)" },
+  dragHandle: { width: "40px", height: "5px", background: "#DDD", borderRadius: "10px", margin: "15px auto" },
   
-  // Naya styles Subjects ke liye
-  subjectContainer: { display: "flex", overflowX: "auto", padding: "0 20px", gap: "10px", marginBottom: "15px", scrollbarWidth: "none" },
-  subjectTab: { padding: "8px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "700", cursor: "pointer", transition: "all 0.3s ease", whiteSpace: "nowrap" },
+  tabSection: { display: "flex", overflowX: "auto", padding: "10px 20px", gap: "12px" },
+  tab: { padding: "10px 20px", borderRadius: "20px", fontSize: "13px", fontWeight: "700", border: "none", cursor: "pointer", whiteSpace: "nowrap", transition: "0.3s" },
 
-  topRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 20px", marginBottom: "15px" },
-  listHeading: { fontSize: "18px", fontWeight: "800", color: "#111" },
-  dateBadge: { fontSize: "11px", fontWeight: "700", color: "#FF6B00" },
-  scrollArea: { flex: 1, overflowY: "auto", padding: "0 15px", WebkitOverflowScrolling: "touch" },
-  quizItem: { backgroundColor: "#fff", borderRadius: "20px", padding: "15px", marginBottom: "12px", boxShadow: "0 4px 15px rgba(0,0,0,0.03)", border: "1px solid #F0F0F0" },
-  itemMain: { display: "flex", alignItems: "center", gap: "12px" },
-  iconBoxGray: { width: "45px", height: "45px", background: "#F5F5F5", borderRadius: "14px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "18px" },
-  iconBoxOrange: { width: "45px", height: "45px", background: "#FFF0E6", color: "#FF6B00", borderRadius: "14px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "18px" },
-  itemTitle: { fontWeight: "800", fontSize: "16px", color: "#222" },
-  itemSub: { fontSize: "12px", color: "#999", marginTop: "1px" },
-  itemRight: { marginLeft: "auto" },
-  btnStart: { background: "#000", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "12px", fontWeight: "800", fontSize: "13px", cursor: "pointer" },
-  scoreText: { fontSize: "15px", fontWeight: "900", color: "#FF6B00" },
-  gradeText: { fontSize: "10px", fontWeight: "800", color: "#BBB", textAlign: "right" },
-  reviewBar: { marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #F8F8F8", display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "700", color: "#FF6B00", cursor: "pointer" },
-  empty: { textAlign: "center", padding: "40px 20px", color: "#ccc" },
-  center: { display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#fff", fontSize: "18px", fontWeight: "700" }
+  sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 25px 10px 25px" },
+  sectionTitle: { fontSize: "18px", fontWeight: "800", color: "#2D3436", margin: 0 },
+  countBadge: { background: "#E0E0E0", color: "#666", padding: "2px 10px", borderRadius: "10px", fontSize: "12px", fontWeight: "700" },
+
+  quizList: { flex: 1, overflowY: "auto", padding: "10px 20px" },
+  card: { background: "#FFF", borderRadius: "22px", padding: "18px", marginBottom: "15px", boxShadow: "0 4px 12px rgba(0,0,0,0.03)", border: "1px solid #F0F0F0" },
+  cardMain: { display: "flex", alignItems: "center", gap: "15px" },
+  iconBoxTodo: { width: "48px", height: "48px", background: "#F5F5F5", borderRadius: "15px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" },
+  iconBoxDone: { width: "48px", height: "48px", background: "#FFF0E6", borderRadius: "15px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" },
+  quizTitle: { fontSize: "16px", fontWeight: "800", color: "#111", margin: 0 },
+  quizMeta: { fontSize: "12px", color: "#999", marginTop: "3px" },
+  
+  startButton: { background: "#111", color: "#FFF", border: "none", padding: "10px 22px", borderRadius: "14px", fontWeight: "700", cursor: "pointer" },
+  scoreBox: { textAlign: "right" },
+  scoreValue: { display: "block", fontSize: "18px", fontWeight: "800", color: "#FF6B00" },
+  gradeLabel: { fontSize: "10px", fontWeight: "700", color: "#BBB", textTransform: "uppercase" },
+
+  reviewLink: { marginTop: "15px", paddingTop: "12px", borderTop: "1px solid #F8F8F8", color: "#FF6B00", fontSize: "12px", fontWeight: "700", display: "flex", justifyContent: "space-between", cursor: "pointer" },
+  
+  emptyState: { textAlign: "center", padding: "50px", color: "#999", fontWeight: "600" },
+  center: { height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", background: "#FFF" }
 };
 
 export default StudentQuizDashboard;
