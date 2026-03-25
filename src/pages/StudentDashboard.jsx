@@ -819,54 +819,94 @@ const StudentDashboard = () => {
            }
         }
 
-        const feedRes = await axios.get(`${API_URL}/api/feedback/student/${storedUser.id}`);
-        if (feedRes.data.success) {
-           const alreadyDone = feedRes.data.feedbacks?.some(f => f.month === currentMonth && f.year === currentYear);
-           if (!alreadyDone) {
-             setIsFeedbackPending(true);
-             activeNotis.push({ title: "Monthly Feedback", desc: "Please submit your feedback.", icon: <FaStar />, path: "feedback", color: theme.gradients.purple });
-           }
+       /* =========================
+   🔥 FINAL SMART FEE LOGIC (SYNCED WITH BACKEND)
+========================= */
+
+try {
+  // ✅ API CALL
+  const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
+
+  // Initial State Reset
+  setIsFeeUnpaid(false);
+  setShowFeePopup(false);
+
+  if (feeRes.data.success) {
+    const feesData = feeRes.data.fees || [];
+    const showPopupFromServer = feeRes.data.showPopup; // Backend flag (New student handled here)
+    const today = new Date();
+
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    let lastPaidDate = null;
+    let pendingMonths = 0;
+
+    /* =========================
+       📅 FIND LAST PAID DATE
+    ========================= */
+    if (feesData.length > 0) {
+      const paidFees = feesData
+        .filter(f => f.payment_status === "SUCCESS")
+        .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
+
+      if (paidFees.length > 0) {
+        lastPaidDate = new Date(paidFees[0].payment_date);
+      }
+    }
+
+    /* =========================
+       🔢 PENDING CALCULATION (ONLY IF BACKEND SAYS SO)
+    ========================= */
+    // Agar backend ne mana kiya hai (nayi joining), toh calculation skip hogi
+    if (showPopupFromServer) {
+      if (!lastPaidDate) {
+        // Purana baccha jisne kabhi pay nahi kiya
+        pendingMonths = 1; 
+      } else {
+        // Gap mahine calculate karo
+        let temp = new Date(lastPaidDate);
+        temp.setMonth(temp.getMonth() + 1);
+
+        while (
+          temp.getFullYear() < currentYear ||
+          (temp.getFullYear() === currentYear && temp.getMonth() <= currentMonth)
+        ) {
+          pendingMonths++;
+          temp.setMonth(temp.getMonth() + 1);
         }
+      }
+    }
 
-        
-        const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
+    /* =========================
+       💵 AMOUNT CALCULATION
+    ========================= */
+    const monthlyFee = feesData.length > 0 
+      ? Number(feesData[0].amount) 
+      : 1000;
 
-setIsFeeUnpaid(false);
-setShowFeePopup(false);
+    const totalPendingAmount = pendingMonths * monthlyFee;
 
-if (feeRes.data.success) {
+    /* =========================
+       🚨 FINAL TRIGGER
+    ========================= */
+    // Ab pendingMonths 0 hi rahega agar showPopupFromServer false hai
+    if (pendingMonths > 0) {
+      setShowFeePopup(true);
+      setIsFeeUnpaid(true);
+      setDynamicFeeAmount(totalPendingAmount);
 
-  const feesData = feeRes.data.fees || [];
-
-  const isPaidThisMonth = feesData.some(f => {
-    const fDate = new Date(f.payment_date);
-    return (
-      fDate.getMonth() === today.getMonth() &&
-      fDate.getFullYear() === today.getFullYear() &&
-      f.payment_status === "SUCCESS"
-    );
-  });
-
-  if (!isPaidThisMonth) {
-
-    const amount = feesData.length > 0 ? feesData[0].amount : "500";
-
-    // MASTER SWITCH
-    setShowFeePopup(true);
-
-    // NOTICE depends on popup
-    setIsFeeUnpaid(true);
-
-    setDynamicFeeAmount(amount);
-
-    activeNotis.push({
-      title: "Fees Pending",
-      desc: `Amount Due ₹${amount}`,
-      icon: <FaMoneyBillWave />,
-      path: "fees",
-      color: theme.gradients.warning
-    });
+      activeNotis.push({
+        title: "Fees Pending",
+        desc: `${pendingMonths} month(s) pending • ₹${totalPendingAmount}`,
+        icon: <FaMoneyBillWave />,
+        path: "fees",
+        color: theme.gradients.warning
+      });
+    }
   }
+} catch (err) {
+  console.error("Fee Error:", err);
 }
 
 

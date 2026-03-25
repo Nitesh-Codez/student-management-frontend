@@ -16,7 +16,7 @@ const ManageStudents = () => {
   const [loading, setLoading] = useState(true);
   
   const [formData, setFormData] = useState({
-    name: "", studentClass: "", password: "", address: "", mobile: ""
+    name: "", studentClass: "", password: "", address: "", mobile: "",  joining_date: ""   
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -66,7 +66,8 @@ const ManageStudents = () => {
         class: formData.studentClass, // Backend expects "class"
         password: formData.password,
         mobile: formData.mobile || null,
-        address: formData.address || null
+        address: formData.address || null,
+        joining_date: formData.joining_date || null
       };
 
       const res = await axios.post(API_URL, studentPayload);
@@ -239,6 +240,9 @@ const ManageStudents = () => {
             <label style={ui.labelStyle}>Mobile Number</label>
             <input name="mobile" style={ui.panelInput} value={formData.mobile} onChange={handleInputChange} placeholder="+91..." />
             
+             <label style={ui.labelStyle}>Joining date</label>
+            <input name="joining_date" style={ui.panelInput} value={formData.joining_date} onChange={handleInputChange} placeholder="Joining date" />
+
             <label style={ui.labelStyle}>Permanent Address</label>
             <textarea name="address" style={ui.panelTextarea} value={formData.address} onChange={handleInputChange} placeholder="Full House Address" />
             
