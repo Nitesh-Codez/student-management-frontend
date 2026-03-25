@@ -4,11 +4,12 @@ import axios from "axios";
 const StudentFees = ({ user }) => {
   const API_URL = "https://student-management-system-4-hose.onrender.com";
 
+  // States
   const [fees, setFees] = useState([]);
   const [selectedFee, setSelectedFee] = useState(null);
   const [showSheet, setShowSheet] = useState(false);
   const [isPending, setIsPending] = useState(false);
-  const [isNewStudent, setIsNewStudent] = useState(false); // New State for Welcome Msg
+  const [isNewStudent, setIsNewStudent] = useState(false); 
   const [dynamicFee, setDynamicFee] = useState("1000");
 
   const months = [
@@ -27,23 +28,31 @@ const StudentFees = ({ user }) => {
       try {
         const res = await axios.get(`${API_URL}/api/fees/student/${user.id}`);
         if (res.data.success) {
-          // 1. Map History (Prev Month Logic)
+          // Mapping data and calculating internal logic for month/late status
           let feesData = res.data.fees.map(f => {
             const d = new Date(f.payment_date);
             let month = d.getMonth() - 1; 
             let year = d.getFullYear();
             if (month === -1) { month = 11; year -= 1; }
             
+            // Logic: If paid after 5th of the month, it's considered late
             const isLate = d.getDate() > 5; 
-            return { ...f, feeMonth: month, feeYear: year, isLate, payDay: d.getDate() };
+            return { 
+                ...f, 
+                feeMonth: month, 
+                feeYear: year, 
+                isLate, 
+                payDay: d.getDate(),
+                formattedDate: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+                mode: f.payment_mode || "Online" 
+            };
           });
           
           feesData.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
           setFees(feesData);
 
-          // 2. Sync Status from Backend
           setIsPending(res.data.showPopup);
-          setIsNewStudent(res.data.isNewStudent); // Backend se aayega
+          setIsNewStudent(res.data.isNewStudent);
 
           if (feesData.length > 0) {
             setDynamicFee(feesData[0].amount || "1000");
@@ -63,7 +72,7 @@ const StudentFees = ({ user }) => {
 
   return (
     <div style={styles.appWrapper}>
-      {/* HEADER */}
+      {/* --- UI HEADER --- */}
       <div style={styles.header}>
         <div style={styles.statusBar}>
           <span>{now.getHours()}:{now.getMinutes() < 10 ? '0'+now.getMinutes() : now.getMinutes()}</span>
@@ -87,7 +96,7 @@ const StudentFees = ({ user }) => {
 
         <div style={styles.scrollArea}>
           
-          {/* CASE 1: PENDING FEES (Only if not a new student or explicitly due) */}
+          {/* CASE 1: PENDING FEES */}
           {isPending && (
             <div style={styles.overdueCard}>
               <div style={styles.cardMain}>
@@ -108,7 +117,7 @@ const StudentFees = ({ user }) => {
             </div>
           )}
 
-          {/* CASE 2: NEW STUDENT (No fees due yet) */}
+          {/* CASE 2: NEW JOINING WELCOME */}
           {!isPending && isNewStudent && (
             <div style={styles.newStudentCard}>
               <div style={styles.cardMain}>
@@ -122,7 +131,7 @@ const StudentFees = ({ user }) => {
             </div>
           )}
 
-          {/* CASE 3: OLD STUDENT - ALL PAID */}
+          {/* CASE 3: PUNCTUAL STUDENT */}
           {!isPending && !isNewStudent && (
             <div style={styles.successNote}>
               <div style={{fontSize: "24px", marginBottom: "5px"}}>🏆</div>
@@ -155,21 +164,46 @@ const StudentFees = ({ user }) => {
         </div>
       </div>
 
-      {/* RECEIPT SHEET (SAME AS BEFORE) */}
+      {/* --- DETAILED RECEIPT SHEET (MODAL) --- */}
       {showSheet && selectedFee && (
         <div style={styles.overlay} onClick={() => setShowSheet(false)}>
           <div style={styles.sheet} onClick={e => e.stopPropagation()}>
             <div style={styles.handle}></div>
             <div style={styles.receiptBox}>
-              <div style={selectedFee.isLate ? styles.checkCircleLate : styles.checkCircle}>{selectedFee.isLate ? "!" : "✓"}</div>
+              <div style={selectedFee.isLate ? styles.checkCircleLate : styles.checkCircle}>
+                {selectedFee.isLate ? "!" : "✓"}
+              </div>
               <div style={styles.receiptAmt}>₹{selectedFee.amount}</div>
-              <div style={styles.receiptStatus}>{selectedFee.isLate ? "LATE SUBMISSION" : "PUNCTUAL PAYMENT"}</div>
+              <div style={styles.receiptStatus}>
+                {selectedFee.isLate ? "LATE SUBMISSION" : "PUNCTUAL PAYMENT"}
+              </div>
+
               <div style={styles.detailsGrid}>
-                <div style={styles.detailItem}><span>For Month</span><strong>{months[selectedFee.feeMonth]}</strong></div>
-                <div style={styles.detailItem}><span>Ref ID</span><small>{selectedFee.id}</small></div>
+                <div style={styles.detailItem}>
+                    <span>For Month</span>
+                    <strong>{months[selectedFee.feeMonth]} {selectedFee.feeYear}</strong>
+                </div>
+                <div style={styles.detailItem}>
+                    <span>Payment Date</span>
+                    <strong>{selectedFee.formattedDate}</strong>
+                </div>
+                <div style={styles.detailItem}>
+                    <span>Payment Mode</span>
+                    <strong style={{color: '#2d3785'}}>{selectedFee.mode}</strong>
+                </div>
+                <div style={styles.detailItem}>
+                    <span>Status</span>
+                    <strong style={{color: selectedFee.isLate ? '#f39c12' : '#4caf50'}}>
+                        {selectedFee.isLate ? "Delayed" : "On-Time"}
+                    </strong>
+                </div>
+                <div style={styles.detailItem}>
+                    <span>Ref ID</span>
+                    <small style={{opacity: 0.5}}>{selectedFee.id}</small>
+                </div>
               </div>
             </div>
-            <button style={styles.closeBtn} onClick={() => setShowSheet(false)}>Close</button>
+            <button style={styles.closeBtn} onClick={() => setShowSheet(false)}>Close Receipt</button>
           </div>
         </div>
       )}
@@ -178,7 +212,7 @@ const StudentFees = ({ user }) => {
 };
 
 const styles = {
-  appWrapper: { width: "100vw", height: "100vh", backgroundColor: "#fff", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0 },
+  appWrapper: { width: "100vw", height: "100vh", backgroundColor: "#fff", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, fontFamily: 'sans-serif' },
   header: { background: "linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d)", padding: "40px 25px 60px 25px", color: "#fff", flexShrink: 0 },
   statusBar: { display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: "700", marginBottom: "30px" },
   monthStack: { display: "flex", flexDirection: "column" },
@@ -205,7 +239,7 @@ const styles = {
   btnDismiss: { flex: 1, padding: "14px", borderRadius: "18px", border: "1px solid #eee", background: "transparent", color: "#bdc3c7", fontWeight: "800" },
   successNote: { padding: "25px", borderRadius: "30px", background: "#f1fdf4", color: "#1b5e20", textAlign: "center", marginBottom: "20px", border: "1px dashed #c8e6c9" },
   historyHeading: { padding: "10px 0", fontSize: "12px", fontWeight: "800", color: "#bdc3c7", letterSpacing: "1px" },
-  historyRow: { display: "flex", alignItems: "center", gap: "15px", padding: "18px 0", borderBottom: "1px solid #f8f9fa" },
+  historyRow: { display: "flex", alignItems: "center", gap: "15px", padding: "18px 0", borderBottom: "1px solid #f8f9fa", cursor: 'pointer' },
   iconBoxGreen: { width: "42px", height: "42px", background: "#e8f5e9", color: "#4caf50", borderRadius: "14px", display: "flex", justifyContent: "center", alignItems: "center" },
   iconBoxLate: { width: "42px", height: "42px", background: "#fff9e6", color: "#f39c12", borderRadius: "14px", display: "flex", justifyContent: "center", alignItems: "center" },
   historyTitle: { fontWeight: "700", fontSize: "16px", color: "#2d3436" },
@@ -214,15 +248,15 @@ const styles = {
   historyPrice: { fontSize: "17px", fontWeight: "800", color: "#2d3436" },
   chevron: { color: "#eee", fontSize: "20px" },
   overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-end" },
-  sheet: { width: "100%", background: "#fff", borderTopLeftRadius: "40px", borderTopRightRadius: "40px", padding: "20px 25px 40px 25px" },
+  sheet: { width: "100%", background: "#fff", borderTopLeftRadius: "40px", borderTopRightRadius: "40px", padding: "20px 25px 40px 25px", boxShadow: '0 -10px 25px rgba(0,0,0,0.1)' },
   handle: { width: "40px", height: "5px", background: "#eee", borderRadius: "10px", margin: "0 auto 20px auto" },
   receiptBox: { textAlign: 'center' },
   checkCircle: { width: "60px", height: "60px", background: "#4caf50", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 15px auto", fontSize: "30px" },
   checkCircleLate: { width: "60px", height: "60px", background: "#f39c12", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 15px auto", fontSize: "30px" },
   receiptAmt: { fontSize: "40px", fontWeight: "900", color: "#2d3436" },
   receiptStatus: { fontSize: "11px", color: "#4caf50", fontWeight: "900", letterSpacing: "2px", marginBottom: "25px" },
-  detailsGrid: { background: "#f8f9fa", padding: "20px", borderRadius: "25px", textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '10px' },
-  detailItem: { display: 'flex', justifyContent: 'space-between', fontSize: '14px' },
+  detailsGrid: { background: "#f8f9fa", padding: "20px", borderRadius: "25px", textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '12px' },
+  detailItem: { display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid #f1f2f6', paddingBottom: '8px' },
   closeBtn: { width: "100%", padding: "16px", borderRadius: "20px", background: "#f1f2f6", border: "none", color: "#2d3436", fontWeight: "800", marginTop: "20px" }
 };
 
