@@ -77,11 +77,11 @@ const StudentMarks = () => {
   const checkForNewMarks = (currentLocalMarks) => {
     if (!userRef.current?.id) return;
 
-    axios
-      .post(`${API_URL}/api/marks/check`, {
-        studentId: userRef.current.id,
-        studentName: userRef.current.name,
-      })
+   axios.post(`${API_URL}/api/marks/check`, {
+    studentId: userRef.current.id,
+    studentName: userRef.current.name,
+    session: userRef.current.session // <--- Yeh line add kar
+})
       .then((res) => {
         if (res.data.success && res.data.data.length > 0) {
           const fetchedData = res.data.data;
@@ -133,6 +133,7 @@ const StudentMarks = () => {
       .post(`${API_URL}/api/marks/check`, {
         studentId: userRef.current.id,
         studentName: userRef.current.name,
+        session: userRef.current.session,
       })
       .then((res) => {
         if (res.data.success && res.data.data.length > 0) {

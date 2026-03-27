@@ -17,6 +17,8 @@ const AdminAddMarks = () => {
     "9th": ["Math","English","Hindi","Science","S.S.T","Math Viva","English Viva","Hindi Viva","Science Viva","S.S.T Viva"],
     "10th":["Math","English","Hindi","Science","S.S.T","Math Viva","English Viva","Hindi Viva","Science Viva","S.S.T Viva"],
     "11th":["Chemistry","Math","English","Physics","Biology","Chemistry Viva","Math Viva","English Viva","Physics Viva","Biology Viva"],
+     "12th":["Chemistry","Math","English","Physics","Biology","Chemistry Viva","Math Viva","English Viva","Physics Viva","Biology Viva"],
+ 
   };
 
   const [allStudents, setAllStudents] = useState([]);
