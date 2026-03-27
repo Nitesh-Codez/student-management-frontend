@@ -12,6 +12,7 @@ const AdminAddNewMarks = () => {
     "9th": ["Math", "English", "Hindi", "Science", "S.S.T"],
     "10th": ["Math", "English", "Hindi", "Science", "S.S.T"],
     "11th": ["Chemistry", "Math", "English", "Physics", "Biology"],
+    "12th": ["Chemistry", "Math", "English", "Physics", "Biology","Hindi",""],
   };
 
   const [classes, setClasses] = useState([]);
