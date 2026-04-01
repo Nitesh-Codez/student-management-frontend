@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { 
   FaClock, FaCheckCircle, FaChevronDown, FaChevronUp, FaTimes, 
-  FaTrash, FaCloudUploadAlt, FaBookOpen, FaAward, FaCalendarAlt, 
-  FaExclamationTriangle, FaUserGraduate, FaLightbulb, FaRocket
+  FaTrash, FaBookOpen, FaAward, FaCalendarAlt, 
+  FaExclamationTriangle,FaLightbulb, FaRocket
 } from "react-icons/fa";
 
 /**
@@ -56,7 +56,6 @@ export default function StudentPage() {
     }
   }, [studentClass, studentId]);
 
-  // FIX: Added fetchTasks to dependency array
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
@@ -179,7 +178,7 @@ export default function StudentPage() {
           {!isSubmitted ? (
             <div style={styles.infoItem}>
               <span style={styles.infoLabel}>{isOverdue ? "OVERDUE BY" : "REMAINING"}</span>
-              <span style={{ ...styles.infoValue, color: isOverdue ? "#ff4757" : "#2ed573", letterSpacing: '0.5px' }}>
+              <span style={{ ...styles.infoValue, color: isOverdue ? "#e84118" : "#20bf6b" }}>
                 {d}d {h}h {m}m {s}s
               </span>
             </div>
@@ -203,21 +202,21 @@ export default function StudentPage() {
           {isSubmitted ? (
             <div style={styles.submissionBox}>
               <button style={styles.btnSuccess} onClick={() => window.open(task.student_file, "_blank")}>
-                My Submission
+                View My Solution
               </button>
               {task.rating ? (
                 <div style={styles.scoreContainer}>
                   <div style={styles.scoreText}>
-                    <FaAward style={{ color: '#ffa502' }} /> Score: {calculateMarks(task).toFixed(1)}/20
+                    <FaAward style={{ color: '#f39c12' }} /> Score: {calculateMarks(task).toFixed(1)}/20
                   </div>
                   <div style={styles.stars}>
                     {[1, 2, 3, 4, 5].map(i => (
-                      <span key={i} style={{ color: i <= task.rating ? "#ffa502" : "#2f3542" }}>★</span>
+                      <span key={i} style={{ color: i <= task.rating ? "#f1c40f" : "#dcdde1" }}>★</span>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div style={styles.pendingReview}>Awaiting Teacher's Review</div>
+                <div style={styles.pendingReview}>Reviewing by Teacher...</div>
               )}
               {!task.rating && (
                 <button style={styles.btnDelete} onClick={() => handleDelete(task.student_submission_id)}>
@@ -228,13 +227,13 @@ export default function StudentPage() {
           ) : (
             <div style={styles.uploadZone}>
               {isExpired ? (
-                <div style={styles.lockoutMsg}>Submission blocked. Maximum delay (3 days) exceeded.</div>
+                <div style={styles.lockoutMsg}>Lockout: Maximum delay exceeded.</div>
               ) : (
                 <>
                   <label style={styles.fileLabel}>
                     <input type="file" style={{ display: 'none' }} onChange={(e) => setFiles({ ...files, [task.id]: e.target.files[0] })} />
                     <div style={styles.fileDummy}>
-                      {files[task.id] ? `📎 ${files[task.id].name.slice(0, 15)}...` : "Choose Solution File"}
+                      {files[task.id] ? `📎 ${files[task.id].name.slice(0, 20)}` : "Select Submission File"}
                     </div>
                   </label>
                   <button 
@@ -242,7 +241,7 @@ export default function StudentPage() {
                     disabled={uploadingId === task.id}
                     onClick={() => handleSubmit(task)}
                   >
-                    {uploadingId === task.id ? "Uploading..." : isOverdue ? "Submit Late" : "Submit Assignment"}
+                    {uploadingId === task.id ? "Uploading..." : isOverdue ? "Submit Late" : "Turn In Assignment"}
                   </button>
                 </>
               )}
@@ -250,7 +249,7 @@ export default function StudentPage() {
           )}
 
           {!isFull && !isSubmitted && !isExpired && (
-            <button style={styles.btnFocus} onClick={() => setFocusedTask(task)}>Full Screen View</button>
+            <button style={styles.btnFocus} onClick={() => setFocusedTask(task)}>Expand View</button>
           )}
         </div>
       </div>
@@ -266,26 +265,22 @@ export default function StudentPage() {
             <div style={styles.onlineSignal} />
           </div>
           <div>
-            <h2 style={styles.welcomeText}>Hi, {user.name?.split(" ")[0]}! <FaRocket style={{ fontSize: '16px', color: '#70a1ff' }} /></h2>
-            <p style={styles.subText}>
-  Class {studentClass} Dashboard • {new Date().getFullYear()} Session
-</p>
+            <h2 style={styles.welcomeText}>Hi, {user.name?.split(" ")[0]}! <FaRocket style={{ fontSize: '16px', color: '#4834d4' }} /></h2>
+            <p style={styles.subText}>Class {studentClass} Dashboard • {new Date().getFullYear()} Session</p>
           </div>
         </div>
 
         <div style={styles.performanceCard}>
           <div style={styles.perfTop}>
-            <span style={styles.perfLabel}>ACADEMIC PERFORMANCE</span>
+            <span style={styles.perfLabel}>ACADEMIC PROGRESS</span>
             <span style={styles.perfValue}>{overallScore}/20</span>
           </div>
           <div style={styles.barBg}>
-            <div style={{ ...styles.barFill, width: `${(overallScore / 20) * 100}%` }}>
-              <div style={styles.barShimmer} />
-            </div>
+            <div style={{ ...styles.barFill, width: `${(overallScore / 20) * 100}%` }}></div>
           </div>
           <div style={styles.perfStats}>
             <span>Accuracy: <b>{(overallScore / 20 * 100).toFixed(0)}%</b></span>
-            <span>Progress: {completedTasksList.length}/{tasks.length}</span>
+            <span>Completed: {completedTasksList.length}/{tasks.length}</span>
           </div>
         </div>
       </header>
@@ -294,7 +289,7 @@ export default function StudentPage() {
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <button style={styles.btnCloseModal} onClick={() => setFocusedTask(null)}>
-              <FaTimes /> Close Focus Mode
+              <FaTimes /> Exit Focus Mode
             </button>
             {renderTaskCard(focusedTask, true)}
           </div>
@@ -305,16 +300,16 @@ export default function StudentPage() {
         {loading ? (
           <div style={styles.loaderContainer}>
             <div style={styles.spinner} />
-            <p style={{ marginTop: '15px', opacity: 0.6, fontSize: '12px' }}>SYNCING CLASSROOM...</p>
+            <p style={{ marginTop: '15px', color: '#a4b0be', fontSize: '13px' }}>Loading Classroom...</p>
           </div>
         ) : (
           <>
             <div style={styles.tabs}>
               <button style={activeTab === 'pending' ? styles.activeTab : styles.tab} onClick={() => setActiveTab('pending')}>
-                Assignments ({pendingTasks.length})
+                Active Assignments ({pendingTasks.length})
               </button>
               <button style={activeTab === 'completed' ? styles.activeTab : styles.tab} onClick={() => setActiveTab('completed')}>
-                Archive ({completedTasksList.length})
+                Past Submissions ({completedTasksList.length})
               </button>
             </div>
 
@@ -322,8 +317,8 @@ export default function StudentPage() {
               <section style={styles.section}>
                 {pendingTasks.length > 0 ? pendingTasks.map(task => renderTaskCard(task)) : (
                   <div style={styles.emptyState}>
-                    <FaLightbulb style={{ fontSize: '40px', marginBottom: '15px' }} />
-                    <p>No pending tasks. You're all caught up!</p>
+                    <FaLightbulb style={{ fontSize: '40px', color: '#dfe6e9', marginBottom: '15px' }} />
+                    <p>Hooray! No pending assignments.</p>
                   </div>
                 )}
               </section>
@@ -333,7 +328,7 @@ export default function StudentPage() {
                   <div key={subject} style={styles.accordion}>
                     <div style={styles.accordionHeader} onClick={() => setExpandedSubject(expandedSubject === subject ? null : subject)}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <FaCalendarAlt style={{ color: '#70a1ff' }} />
+                        <FaCalendarAlt style={{ color: '#686de0' }} />
                         <span>{subject}</span>
                         <span style={styles.countBadge}>{groupedCompleted[subject].length}</span>
                       </div>
@@ -345,7 +340,7 @@ export default function StudentPage() {
                       </div>
                     )}
                   </div>
-                )) : <div style={styles.emptyState}>No completed tasks found.</div>}
+                )) : <div style={styles.emptyState}>No submissions archived yet.</div>}
               </section>
             )}
           </>
@@ -353,110 +348,109 @@ export default function StudentPage() {
       </main>
 
       <footer style={styles.footer}>
-         System v4.2 • Secured Encryption • Local Time: {currentTime.toLocaleTimeString()}
+          SmartZone Dashboard v4.2 • Secure Student Portal • {currentTime.toLocaleTimeString()}
       </footer>
     </div>
   );
 }
 
 const styles = {
-  page: { background: "#0a0b10", minHeight: "100vh", width: "100vw", color: "#e1e1e1", fontFamily: "'Inter', sans-serif", paddingBottom: "50px" },
-  header: { padding: "30px 20px", background: "linear-gradient(to bottom, #111420, #0a0b10)", borderBottom: "1px solid rgba(255,255,255,0.05)" },
-  userContainer: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' },
-  avatar: { width: "60px", height: "60px", background: "linear-gradient(135deg, #6c5ce7, #a29bfe)", borderRadius: "20px", display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "24px", fontWeight: "bold", position: 'relative', boxShadow: "0 10px 20px rgba(108, 92, 231, 0.3)" },
-  onlineSignal: { width: "14px", height: "14px", background: "#2ed573", borderRadius: "50%", border: "3px solid #0a0b10", position: 'absolute', bottom: -2, right: -2 },
-  welcomeText: { margin: 0, fontSize: "22px", fontWeight: "700", color: "#fff" },
-  subText: { margin: "2px 0 0 0", fontSize: "13px", color: "rgba(255,255,255,0.4)" },
-  performanceCard: { background: "rgba(255,255,255,0.03)", padding: "20px", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: 'blur(10px)' },
-  perfTop: { display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' },
-  perfLabel: { fontSize: '11px', fontWeight: '800', color: '#70a1ff', letterSpacing: '1.5px' },
-  perfValue: { fontSize: '20px', fontWeight: '800', color: '#fff' },
-  barBg: { height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', overflow: 'hidden', position:'relative' },
-  barFill: { height: '100%', background: 'linear-gradient(90deg, #6c5ce7, #a29bfe)', borderRadius: '10px', transition: 'width 1.5s ease-out' },
-  barShimmer: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)" },
-  perfStats: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '12px' },
-  main: { padding: "20px" },
-  tabs: { display: 'flex', gap: '10px', marginBottom: '25px', background: 'rgba(255,255,255,0.02)', padding: '5px', borderRadius: '14px' },
-  tab: { flex: 1, padding: '12px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '13px', fontWeight: '600', cursor: 'pointer', borderRadius: '10px' },
-  activeTab: { flex: 1, padding: '12px', background: '#2f3542', border: 'none', color: '#fff', fontSize: '13px', fontWeight: '600', borderRadius: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' },
+  page: { background: "#F8FAFC", minHeight: "100vh", width: "100vw", color: "#2d3436", fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif", paddingBottom: "50px" },
+  header: { padding: "40px 20px", background: "#ffffff", borderBottom: "1px solid #edf2f7" },
+  userContainer: { display: 'flex', alignItems: 'center', gap: '18px', marginBottom: '30px' },
+  avatar: { width: "65px", height: "65px", background: "linear-gradient(135deg, #686de0, #4834d4)", borderRadius: "22px", display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "26px", fontWeight: "bold", color: "#fff", position: 'relative', boxShadow: "0 10px 25px rgba(104, 109, 224, 0.25)" },
+  onlineSignal: { width: "16px", height: "16px", background: "#2ecc71", borderRadius: "50%", border: "3px solid #fff", position: 'absolute', bottom: -2, right: -2 },
+  welcomeText: { margin: 0, fontSize: "24px", fontWeight: "800", color: "#1a1c2c" },
+  subText: { margin: "4px 0 0 0", fontSize: "14px", color: "#7f8c8d" },
+  performanceCard: { background: "#ffffff", padding: "24px", borderRadius: "24px", border: "1px solid #edf2f7", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" },
+  perfTop: { display: 'flex', justifyContent: 'space-between', marginBottom: '14px', alignItems: 'center' },
+  perfLabel: { fontSize: '12px', fontWeight: '800', color: '#686de0', letterSpacing: '1px' },
+  perfValue: { fontSize: '22px', fontWeight: '800', color: '#2d3436' },
+  barBg: { height: '12px', background: '#f1f2f6', borderRadius: '12px', overflow: 'hidden' },
+  barFill: { height: '100%', background: 'linear-gradient(90deg, #686de0, #4834d4)', borderRadius: '12px', transition: 'width 1s ease-in-out' },
+  perfStats: { display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#95a5a6', marginTop: '14px' },
+  main: { padding: "25px 20px" },
+  tabs: { display: 'flex', gap: '10px', marginBottom: '30px', background: '#e2e8f0', padding: '6px', borderRadius: '16px' },
+  tab: { flex: 1, padding: '14px', background: 'transparent', border: 'none', color: '#64748b', fontSize: '14px', fontWeight: '600', cursor: 'pointer', borderRadius: '12px' },
+  activeTab: { flex: 1, padding: '14px', background: '#ffffff', border: 'none', color: '#4834d4', fontSize: '14px', fontWeight: '700', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' },
   section: { marginBottom: "30px" },
   
-  // FIXED SYNTAX FOR OBJECT METHODS
   taskCard(done, late) {
     return {
-      background: done ? "rgba(255,255,255,0.02)" : "#161b22",
-      borderRadius: "22px",
-      padding: "24px",
-      marginBottom: "18px",
-      border: late ? "1px solid rgba(255, 71, 87, 0.3)" : "1px solid rgba(255,255,255,0.05)",
-      transition: 'transform 0.2s ease'
+      background: "#ffffff",
+      borderRadius: "24px",
+      padding: "26px",
+      marginBottom: "20px",
+      border: late ? "1px solid #ff7675" : "1px solid #edf2f7",
+      boxShadow: "0 10px 30px rgba(0,0,0,0.02)",
+      transition: 'all 0.3s ease'
     };
   },
   
-  cardHeader: { display: "flex", justifyContent: "space-between", marginBottom: "18px", alignItems:'center' },
-  subjectPill: { background: "rgba(112, 161, 255, 0.1)", color: "#70a1ff", padding: "6px 14px", borderRadius: "10px", fontSize: "11px", fontWeight: "800" },
+  cardHeader: { display: "flex", justifyContent: "space-between", marginBottom: "20px", alignItems:'center' },
+  subjectPill: { background: "#f0f3ff", color: "#686de0", padding: "7px 15px", borderRadius: "12px", fontSize: "12px", fontWeight: "700" },
   
-  // FIXED SYNTAX FOR OBJECT METHODS
   statusBadge(done, expired) {
     return {
       display: 'flex', 
       alignItems: 'center', 
-      gap: '5px', 
-      fontSize: "11px", 
-      fontWeight: "800", 
-      color: done ? "#2ed573" : expired ? "#ff4757" : "#ffa502" 
+      gap: '6px', 
+      fontSize: "12px", 
+      fontWeight: "700", 
+      color: done ? "#27ae60" : expired ? "#e74c3c" : "#f39c12" 
     };
   },
 
-  taskTitle: { margin: "0 0 18px 0", fontSize: "17px", fontWeight: "700", color: "#fff" },
-  infoGrid: { display: "flex", gap: "30px", marginBottom: '20px' },
-  infoItem: { display: "flex", flexDirection: "column", gap: '4px' },
-  infoLabel: { fontSize: "9px", color: "rgba(255,255,255,0.3)", fontWeight: "800", letterSpacing: '1px' },
-  infoValue: { fontSize: "13px", fontWeight: '600', color: '#f1f2f6' },
-  divider: { height: "1px", background: "rgba(255,255,255,0.05)", margin: "0 0 20px 0" },
-  actionRow: { display: "flex", flexDirection: "column", gap: "12px" },
-  btnSecondary: { background: "rgba(255,255,255,0.05)", color: "#fff", padding: "12px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", cursor: "pointer", fontSize: "13px", fontWeight: "600", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
+  taskTitle: { margin: "0 0 20px 0", fontSize: "18px", fontWeight: "700", color: "#2d3436", lineHeight: '1.4' },
+  infoGrid: { display: "flex", gap: "35px", marginBottom: '22px' },
+  infoItem: { display: "flex", flexDirection: "column", gap: '5px' },
+  infoLabel: { fontSize: "10px", color: "#b2bec3", fontWeight: "700", letterSpacing: '0.8px', textTransform: 'uppercase' },
+  infoValue: { fontSize: "14px", fontWeight: '600', color: '#2d3436' },
+  divider: { height: "1px", background: "#f1f2f6", margin: "0 0 22px 0" },
+  actionRow: { display: "flex", flexDirection: "column", gap: "14px" },
+  btnSecondary: { background: "#f8f9fa", color: "#2d3436", padding: "14px", border: "1px solid #e9ecef", borderRadius: "14px", cursor: "pointer", fontSize: "14px", fontWeight: "600", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
   
   btnSubmit(late) {
     return {
-      background: late ? "#ff4757" : "linear-gradient(45deg, #6c5ce7, #a29bfe)",
-      color: "#fff", padding: "14px", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer", fontSize: '14px'
+      background: late ? "#eb4d4b" : "#4834d4",
+      color: "#fff", padding: "16px", border: "none", borderRadius: "14px", fontWeight: "700", cursor: "pointer", fontSize: '15px', boxShadow: "0 8px 20px rgba(72, 52, 212, 0.2)"
     };
   },
 
-  btnDisabled: { background: "#2f3542", color: "rgba(255,255,255,0.2)", padding: "14px", borderRadius: "12px", border: "none", cursor: 'not-allowed' },
-  btnSuccess: { background: "#2ed573", color: "#fff", padding: "14px", borderRadius: "12px", border: "none", fontWeight: "700", cursor: 'pointer' },
-  btnDelete: { background: "transparent", border: "1px solid rgba(255, 71, 87, 0.3)", color: "#ff4757", padding: "10px", borderRadius: "10px", fontSize: "11px", cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' },
-  btnFocus: { background: 'none', border: 'none', color: '#70a1ff', fontSize: '11px', textDecoration: 'underline', cursor: 'pointer', marginTop: '5px' },
-  uploadZone: { display: 'flex', flexDirection: 'column', gap: '10px' },
+  btnDisabled: { background: "#dcdde1", color: "#95a5a6", padding: "16px", borderRadius: "14px", border: "none", cursor: 'not-allowed' },
+  btnSuccess: { background: "#2ecc71", color: "#fff", padding: "16px", borderRadius: "14px", border: "none", fontWeight: "700", cursor: 'pointer' },
+  btnDelete: { background: "transparent", border: "1px solid #fab1a0", color: "#ff7675", padding: "12px", borderRadius: "12px", fontSize: "12px", cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: '600' },
+  btnFocus: { background: 'none', border: 'none', color: '#4834d4', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textAlign: 'center' },
+  uploadZone: { display: 'flex', flexDirection: 'column', gap: '12px' },
   fileLabel: { cursor: 'pointer' },
-  fileDummy: { background: "rgba(0,0,0,0.3)", border: "2px dashed rgba(255,255,255,0.1)", padding: "15px", borderRadius: "12px", textAlign: "center", color: "#70a1ff", fontSize: "13px" },
-  lockoutMsg: { padding: '15px', background: 'rgba(255, 71, 87, 0.1)', color: '#ff4757', borderRadius: '12px', fontSize: '12px', textAlign: 'center', border: '1px solid rgba(255, 71, 87, 0.2)' },
-  submissionBox: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  scoreContainer: { background: "rgba(255, 165, 2, 0.05)", padding: "15px", borderRadius: "16px", border: "1px solid rgba(255, 165, 2, 0.2)", textAlign: 'center' },
-  scoreText: { fontSize: "14px", fontWeight: '700', color: '#ffa502', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '5px' },
-  stars: { fontSize: "18px" },
-  pendingReview: { textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' },
-  accordion: { background: "rgba(255,255,255,0.01)", borderRadius: "18px", border: "1px solid rgba(255,255,255,0.05)", marginBottom: "15px", overflow: 'hidden' },
-  accordionHeader: { padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" },
-  countBadge: { background: "#2f3542", color: "#fff", padding: "2px 8px", borderRadius: "6px", fontSize: "10px", marginLeft: "10px" },
-  accordionContent: { padding: "0 15px 15px" },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(5, 6, 10, 0.95)', zIndex: 9999, padding: '20px', display: 'flex', flexDirection: 'column' },
-  modalContent: { maxWidth: '500px', margin: 'auto', width: '100%' },
-  btnCloseModal: { background: '#ff4757', color: '#fff', border: 'none', padding: '12px 20px', borderRadius: '12px', cursor: 'pointer', marginBottom: '20px', fontWeight: '700' },
-  fullView: { background: "#161b22", padding: "30px", borderRadius: "28px", border: "2px solid #6c5ce7", boxShadow: "0 0 40px rgba(108, 92, 231, 0.2)" },
-  loaderContainer: { textAlign: 'center', padding: '100px 0' },
-  spinner: { width: "35px", height: "35px", border: "3px solid rgba(255,255,255,0.05)", borderTopColor: "#6c5ce7", borderRadius: "50%", margin: "0 auto", animation: "spin 0.8s linear infinite" },
-  emptyState: { textAlign: 'center', padding: '60px 0', opacity: 0.4 },
-  footer: { textAlign: 'center', fontSize: '10px', opacity: 0.3, letterSpacing: '1px', marginTop: '20px' }
+  fileDummy: { background: "#fdfdfd", border: "2px dashed #dcdde1", padding: "18px", borderRadius: "14px", textAlign: "center", color: "#636e72", fontSize: "14px", fontWeight: '500' },
+  lockoutMsg: { padding: '16px', background: '#fff5f5', color: '#c0392b', borderRadius: '14px', fontSize: '13px', textAlign: 'center', border: '1px solid #feb2b2', fontWeight: '600' },
+  submissionBox: { display: 'flex', flexDirection: 'column', gap: '14px' },
+  scoreContainer: { background: "#fff9eb", padding: "18px", borderRadius: "18px", border: "1px solid #ffeaa7", textAlign: 'center' },
+  scoreText: { fontSize: "15px", fontWeight: '700', color: '#d35400', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '6px' },
+  stars: { fontSize: "20px" },
+  pendingReview: { textAlign: 'center', fontSize: '13px', color: '#95a5a6', fontStyle: 'italic', padding: '10px' },
+  accordion: { background: "#ffffff", borderRadius: "20px", border: "1px solid #edf2f7", marginBottom: "16px", overflow: 'hidden' },
+  accordionHeader: { padding: "22px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontWeight: '700', color: '#2d3436' },
+  countBadge: { background: "#f0f3ff", color: "#4834d4", padding: "3px 10px", borderRadius: "8px", fontSize: "11px", marginLeft: "12px" },
+  accordionContent: { padding: "0 18px 18px" },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(255, 255, 255, 0.98)', zIndex: 9999, padding: '20px', display: 'flex', flexDirection: 'column' },
+  modalContent: { maxWidth: '550px', margin: 'auto', width: '100%' },
+  btnCloseModal: { background: '#2d3436', color: '#fff', border: 'none', padding: '14px 24px', borderRadius: '14px', cursor: 'pointer', marginBottom: '25px', fontWeight: '700', alignSelf: 'center' },
+  fullView: { background: "#ffffff", padding: "35px", borderRadius: "32px", border: "2px solid #4834d4", boxShadow: "0 20px 50px rgba(72, 52, 212, 0.15)" },
+  loaderContainer: { textAlign: 'center', padding: '120px 0' },
+  spinner: { width: "40px", height: "40px", border: "4px solid #f1f2f6", borderTopColor: "#4834d4", borderRadius: "50%", margin: "0 auto", animation: "spin 1s linear infinite" },
+  emptyState: { textAlign: 'center', padding: '80px 0', color: '#b2bec3', fontSize: '15px' },
+  footer: { textAlign: 'center', fontSize: '11px', color: '#bdc3c7', letterSpacing: '0.5px', marginTop: '30px' }
 };
 
 // GLOBAL ANIMATIONS
 if (typeof document !== 'undefined') {
   const sheet = document.createElement("style");
   sheet.innerText = `
-    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
     @keyframes spin { to { transform: rotate(360deg); } }
+    body { margin: 0; padding: 0; background-color: #F8FAFC; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   `;
   document.head.appendChild(sheet);
 }
