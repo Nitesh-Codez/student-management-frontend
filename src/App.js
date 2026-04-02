@@ -31,7 +31,7 @@ import StudentProfile from "./pages/StudentProfile";
 import StudentFees from "./pages/StudentFees";
 import StudentAttendance from "./pages/StudentAttendance";
 import StudentsMarks from "./pages/StudentsMarks";
-import HomeworkStudent from "./pages/HomeworkStudent";
+
 import StudentFeedback from "./pages/StudentFeedback";
 import StudentStudyMaterial from "./pages/StudentStudyMaterial";
 import StudentPage from "./pages/StudentPage";
@@ -47,7 +47,7 @@ import ViewResults from "./pages/Results_details/ViewResults";
 
 
 import AdminHoliday from './pages/AdminHoliday';
-import StudentHoliday from './pages/StudentHoliday';
+import StudentDropApply from "./pages/StudentDropApply";
 
 /* EXAM */
 import ExamForm from "./pages/Examination/ExamForm";
@@ -98,7 +98,7 @@ function App() {
           <Route path="fees" element={<StudentFees />} />
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="marks" element={<StudentsMarks />} />
-          <Route path="homework" element={<HomeworkStudent />} />
+          
           <Route path="feedback" element={<StudentFeedback />} />
           <Route path="task-update" element={<StudentPage studentId={101} />} />
           <Route path="study-material" element={<StudentStudyMaterial />} />
@@ -109,7 +109,7 @@ function App() {
           <Route path="apply-correction" element={<ApplyCorrection />} />
           <Route path="submit-results" element={<StudentResult />} />
           <Route path="view-results" element={<ViewResults />} />
-          <Route path="holidays" element={<StudentHoliday />} />
+         <Route path="drop-apply" element={<StudentDropApply />} />
           <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
           <Route path="register-student" element={<RegisterationStudent />} />
           <Route path="attempt/:id" element={<AttemptQuizPage />} />

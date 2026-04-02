@@ -28,6 +28,7 @@ import StudentQuizDashboard from "./StudentQuizDashboard";
 import AttemptQuizPage from "./AttemptQuizPage";
 import QuizReview from './QuizReview';
 import RegisterationStudent from "./RegisterationStudent";
+import StudentDropApply from "./StudentDropApply";
 
 
 // Examination Components
@@ -335,8 +336,7 @@ useEffect(() => {
     { title: "Marks", icon: <FaChartLine />, path: "marks", grad: theme.gradients.info, showNotice: hasNewMarks, sub: "Performance" },
     { title: "Tasks", icon: <FaTasks />, path: "task-update", grad: theme.gradients.primary, count: pendingTasks, sub: "Assignments" },
     { title: "Study Lab", icon: <FaBookOpen />, path: "study-material", grad: theme.gradients.dark, sub: "Library" },
-     // ✅ NEW HOLIDAY CARD
-  { title: "Holidays", icon: <FaCalendarAlt />, path: "holidays", grad: theme.gradients.info, sub: "Holiday List" },
+     
     { title: "Feedback", icon: <FaStar />, path: "feedback", grad: theme.gradients.purple, showNotice: isFeedbackPending, sub: "Monthly Review" },
   ];
 
@@ -779,7 +779,7 @@ const StudentDashboard = () => {
   const [pendingTasks, setPendingTasks] = useState(0);
 // 1. Saari States ek saath
   const [isFeeUnpaid, setIsFeeUnpaid] = useState(false);
-  const [isFeedbackPending, setIsFeedbackPending] = useState(false);
+  const [isFeedbackPending] = useState(false);
   const [hasNewMarks, setHasNewMarks] = useState(false);
   const [showFeePopup, setShowFeePopup] = useState(false);
   const [dynamicFeeAmount, setDynamicFeeAmount] = useState("500");
@@ -801,9 +801,8 @@ const StudentDashboard = () => {
     const fetchData = async () => {
       try {
         let activeNotis = [];
-        const today = new Date();
-        const currentMonth = today.getMonth() === 0 ? 12 : today.getMonth(); 
-        const currentYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+       
+  
 
         const photoRes = await axios.get(`${API_URL}/api/students/${storedUser.id}/profile-photo`);
         if (photoRes.data.success && photoRes.data.user?.profile_photo) {
@@ -1012,6 +1011,13 @@ try {
                 <Link to="chat" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("chat"))}>
                   <FaComments /> Connect Chat
                 </Link>
+                <Link to="drop-apply" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("drop-apply"))}>
+                  <FaComments /> Apply Drop
+                </Link>
+                
+
+
+                
                 
 
             {/* ===== SIDEBAR DROPDOWN ===== */}
@@ -1119,6 +1125,7 @@ try {
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
           <Route path="review/:quizId/:studentId" element={<QuizReview />} />
             <Route path="register-student" element={<RegisterationStudent />} />
+          <Route path="drop-apply" element={<StudentDropApply />} />
 
           
           {/* Internal Examination Routes */}

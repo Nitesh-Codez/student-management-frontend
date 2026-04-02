@@ -1,45 +1,100 @@
 import React, { useState } from "react";
 
-// For demo, use same dummy homeworkList as Admin (In real app, fetch from backend)
-const dummyHomework = [
-  {
-    title: "Math Assignment",
-    date: "2025-12-01",
-    students: [
-      { name: "Student A", done: true },
-      { name: "Student B", done: false },
-    ],
-  },
-  {
-    title: "Science Project",
-    date: "2025-12-03",
-    students: [
-      { name: "Student A", done: false },
-      { name: "Student B", done: false },
-    ],
-  },
-];
+const StudentDropApply = () => {
 
-const HomeworkStudent = () => {
-  const [homeworkList] = useState(dummyHomework);
+  const [formData, setFormData] = useState({
+    start_date: "",
+    end_date: "",
+    reason: ""
+  });
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    console.log("Drop Applied Data:", formData);
+
+    // yaha API call hogi
+    // fetch("/api/apply-drop",{method:"POST",body:JSON.stringify(formData)})
+  };
 
   return (
     <div style={{ padding: "30px" }}>
-      <h2>Homework Status</h2>
-      {homeworkList.map((hw, index) => (
-        <div key={index} style={{ background: "#f5f5f5", padding: "15px", marginBottom: "15px", borderRadius: "10px" }}>
-          <h3>{hw.title} - {hw.date}</h3>
-          <ul>
-            {hw.students.map((s, i) => (
-              <li key={i}>
-                {s.name} - <b style={{ color: s.done ? "green" : "red" }}>{s.done ? "Done" : "Not Done"}</b>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      <h2>Apply for Drop</h2>
+
+      <div
+        style={{
+          background: "#f5f5f5",
+          padding: "20px",
+          borderRadius: "10px",
+          width: "400px"
+        }}
+      >
+
+        <form onSubmit={handleSubmit}>
+
+          <div style={{ marginBottom: "15px" }}>
+            <label>Start Date</label>
+            <br />
+            <input
+              type="date"
+              name="start_date"
+              value={formData.start_date}
+              onChange={handleChange}
+              required
+              style={{ width: "100%", padding: "8px" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "15px" }}>
+            <label>End Date</label>
+            <br />
+            <input
+              type="date"
+              name="end_date"
+              value={formData.end_date}
+              onChange={handleChange}
+              required
+              style={{ width: "100%", padding: "8px" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "15px" }}>
+            <label>Reason</label>
+            <br />
+            <textarea
+              name="reason"
+              value={formData.reason}
+              onChange={handleChange}
+              rows="3"
+              style={{ width: "100%", padding: "8px" }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            style={{
+              background: "#007bff",
+              color: "white",
+              padding: "10px 20px",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer"
+            }}
+          >
+            Apply Drop
+          </button>
+
+        </form>
+      </div>
     </div>
   );
 };
 
-export default HomeworkStudent;
+export default StudentDropApply;

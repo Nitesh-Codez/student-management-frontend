@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Line } from "react-chartjs-2";
+import { motion, AnimatePresence } from "framer-motion"; // Added for animation
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -77,11 +78,11 @@ const StudentMarks = () => {
   const checkForNewMarks = (currentLocalMarks) => {
     if (!userRef.current?.id) return;
 
-   axios.post(`${API_URL}/api/marks/check`, {
-    studentId: userRef.current.id,
-    studentName: userRef.current.name,
-    session: userRef.current.session // <--- Yeh line add kar
-})
+    axios.post(`${API_URL}/api/marks/check`, {
+      studentId: userRef.current.id,
+      studentName: userRef.current.name,
+      session: userRef.current.session 
+    })
       .then((res) => {
         if (res.data.success && res.data.data.length > 0) {
           const fetchedData = res.data.data;
@@ -153,11 +154,17 @@ const StudentMarks = () => {
           );
 
           setMarks(fetchedData);
+          
+          // Updated Logic: Keep previous latest marks and add new ones (No deletion)
           if (newOnes.length > 0) {
-            setLatestCheckedMarks(newOnes);
-            
             const historyStore = JSON.parse(localStorage.getItem("latestCheckHistory")) || {};
-            historyStore[userRef.current.id] = newOnes;
+            const existingLatest = historyStore[userRef.current.id] || [];
+            
+            // Combine old latest with new ones, avoiding duplicates
+            const updatedLatest = [...newOnes, ...existingLatest].slice(0, 10); // Keep last 10 for UI cleaness
+            
+            setLatestCheckedMarks(updatedLatest);
+            historyStore[userRef.current.id] = updatedLatest;
             localStorage.setItem("latestCheckHistory", JSON.stringify(historyStore));
           }
 
@@ -245,17 +252,18 @@ const StudentMarks = () => {
 
   const overallPercentage = calculateAverage(marks);
   const getRemark = (p) => {
-  if (p >= 95) return "Outstanding! Truly exceptional work done.";
-  if (p >= 90) return "Excellent! Keep up your efforts.";
-  if (p >= 85) return "Elite Performance! You did great.";
-  if (p >= 80) return "Very Good! Strong understanding shown.";
-  if (p >= 70) return "Good Job! Skills improving consistently.";
-  if (p >= 60) return "Consistent Progress. Keep learning steadily.";
-  if (p >= 50) return "Average Performance. Can do better.";
-  if (p >= 40) return "Scope for Growth. Try harder.";
-  if (p >= 33) return "Barely Passing. Need more focus.";
-  return "Requires Immediate Focus. Work immediately.";
-};
+    if (p <= 0) return ""; // 0 par message nahi aayega
+    if (p >= 95) return "Outstanding! Truly exceptional work done.";
+    if (p >= 90) return "Excellent! Keep up your efforts.";
+    if (p >= 85) return "Elite Performance! You did great.";
+    if (p >= 80) return "Very Good! Strong understanding shown.";
+    if (p >= 70) return "Good Job! Skills improving consistently.";
+    if (p >= 60) return "Consistent Progress. Keep learning steadily.";
+    if (p >= 50) return "Average Performance. Can do better.";
+    if (p >= 40) return "Scope for Growth. Try harder.";
+    if (p >= 33) return "Barely Passing. Need more focus.";
+    return "Requires Immediate Focus. Work immediately.";
+  };
 
   const dashArray = 2 * Math.PI * 45;
   const dashOffset = dashArray - (dashArray * overallPercentage) / 100;
@@ -307,47 +315,68 @@ const StudentMarks = () => {
 
   return (
     <div style={styles.container}>
-      {showPrePopup && (
-        <div style={styles.popupOverlay}>
-          <div style={styles.popupContent}>
-            <div style={{ fontSize: "50px", marginBottom: "10px" }}>🔔</div>
-            <h2 style={{ color: "#2b5876" }}>New Marks Uploaded!</h2>
-            <p style={{ color: "#666", margin: "15px 0" }}>
-              Teacher has updated marks for: <br/>
-              <strong style={{ color: "#D4AF37", fontSize: "18px" }}>{newSubjectNames}</strong>
-            </p>
-            <button 
-              onClick={() => setShowPrePopup(false)}
-              style={{
-                background: "#3498DB", color: "#fff", border: "none",
-                padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold"
-              }}
+      <AnimatePresence>
+        {showPrePopup && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            style={styles.popupOverlay}
+          >
+            <motion.div 
+              initial={{ scale: 0.7, y: 100 }} 
+              animate={{ scale: 1, y: 0 }} 
+              style={styles.popupContent}
             >
-              Okay, Let me check
-            </button>
-          </div>
-        </div>
-      )}
+              <div style={{ fontSize: "50px", marginBottom: "10px" }}>🔔</div>
+              <h2 style={{ color: "#2b5876" }}>New Marks Uploaded!</h2>
+              <p style={{ color: "#666", margin: "15px 0" }}>
+                Teacher has updated marks for: <br/>
+                <strong style={{ color: "#D4AF37", fontSize: "18px" }}>{newSubjectNames}</strong>
+              </p>
+              <button 
+                onClick={() => setShowPrePopup(false)}
+                style={{
+                  background: "#3498DB", color: "#fff", border: "none",
+                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold"
+                }}
+              >
+                Okay, Let me check
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {showPostPopup && (
-        <div style={styles.popupOverlay}>
-          <div style={styles.popupContent}>
-            <h2 style={{ color: performanceMsg.includes("improved") ? "#2ECC71" : "#E74C3C" }}>
-              {performanceMsg.includes("improved") ? "Well Done! 🎉" : "Keep Trying! 💪"}
-            </h2>
-            <p style={{ margin: "20px 0", fontSize: "17px", lineHeight: "1.6" }}>{performanceMsg}</p>
-            <button 
-              onClick={() => setShowPostPopup(false)}
-              style={{
-                background: "#2b5876", color: "#fff", border: "none",
-                padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold"
-              }}
+      <AnimatePresence>
+        {showPostPopup && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            style={styles.popupOverlay}
+          >
+            <motion.div 
+              initial={{ rotate: -5, scale: 0.9 }} 
+              animate={{ rotate: 0, scale: 1 }} 
+              style={styles.popupContent}
             >
-              Show My Report
-            </button>
-          </div>
-        </div>
-      )}
+              <h2 style={{ color: performanceMsg.includes("improved") ? "#2ECC71" : "#E74C3C" }}>
+                {performanceMsg.includes("improved") ? "Well Done! 🎉" : "Keep Trying! 💪"}
+              </h2>
+              <p style={{ margin: "20px 0", fontSize: "17px", lineHeight: "1.6" }}>{performanceMsg}</p>
+              <button 
+                onClick={() => setShowPostPopup(false)}
+                style={{
+                  background: "#2b5876", color: "#fff", border: "none",
+                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold"
+                }}
+              >
+                Show My Report
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div style={{ padding: "20px 15px 5px 15px" }}>
         <h2 style={{ margin: 0, color: "#2f3640" }}>Academic Insights</h2>
@@ -358,9 +387,13 @@ const StudentMarks = () => {
 
       {/* RECENT MARKS WITH COMPARISON */}
       {latestCheckedMarks.length > 0 && (
-        <div style={styles.latestSection}>
+        <motion.div 
+          initial={{ x: -50, opacity: 0 }} 
+          animate={{ x: 0, opacity: 1 }} 
+          style={styles.latestSection}
+        >
           <p style={{ margin: "0 0 10px 0", fontSize: "12px", fontWeight: "bold", color: "#E74C3C", textTransform: "uppercase" }}>
-            Recently Added Scores:
+            New & Unchecked Scores:
           </p>
           <div style={{ display: "flex", overflowX: "auto", paddingBottom: "5px" }}>
             {latestCheckedMarks.map((m, i) => {
@@ -372,7 +405,11 @@ const StudentMarks = () => {
               let prevPct = prevMarks ? (prevMarks.obtained_marks / prevMarks.total_marks) * 100 : null;
 
               return (
-                <div key={i} style={styles.latestBadge}>
+                <motion.div 
+                  whileHover={{ y: -5 }}
+                  key={i} 
+                  style={styles.latestBadge}
+                >
                   <div style={{ fontWeight: "bold" }}>
                     {m.subject}: {m.obtained_marks}/{m.total_marks}
                   </div>
@@ -383,66 +420,77 @@ const StudentMarks = () => {
                       "→ Same as last time!"
                     ) : "🎉 First attempt recorded!"}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
-        </div>
+        </motion.div>
       )}
 
-      {/* SUBJECT CIRCLE CARDS WITH MEDALS/TROPHIES */}
+      {/* SUBJECT CIRCLE CARDS */}
       <div style={{ display: "flex", gap: "15px", overflowX: "auto", padding: "10px 12px 20px 12px", scrollbarWidth: "none" }}>
         {subjects.map((sub, idx) => {
           const subData = grouped[sub];
           const subAvg = calculateAverage(subData);
           return (
-            <div key={sub} style={styles.subjectCircleCard}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: idx * 0.1 }}
+              key={sub} 
+              style={styles.subjectCircleCard}
+            >
               <div style={{ position: "relative", width: "65px", height: "65px" }}>
                 <svg width="65" height="65" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="42" fill="transparent" stroke="#f1f2f6" strokeWidth="10" />
-                  <circle 
+                  <motion.circle 
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: subAvg / 100 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
                     cx="50" cy="50" r="42" fill="transparent" 
                     stroke={colors[idx % colors.length]} strokeWidth="10" 
-                    strokeDasharray="264" strokeDashoffset={264 - (264 * subAvg) / 100}
                     strokeLinecap="round" transform="rotate(-90 50 50)"
-                    style={{ transition: "stroke-dashoffset 1s ease" }}
                   />
                 </svg>
                 <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", fontSize: "13px", fontWeight: "bold" }}>
                   {Math.round(subAvg)}%
                 </div>
-                
-                {/* MEDALS & TROPHIES ICONS RE-ADDED HERE */}
                 <div style={{ position: "absolute", top: "-10px", right: "-10px" }}>
-                  {subAvg >= 95 && <span title="Outstanding" style={{ fontSize: "20px" }}>🏆</span>}
-                  {subAvg >= 85 && subAvg < 95 && <span title="Elite" style={{ fontSize: "20px" }}>🌟</span>}
-                  {subAvg >= 70 && subAvg < 85 && <span title="Good" style={{ fontSize: "20px" }}>🎖️</span>}
+                  {subAvg >= 95 && <span style={{ fontSize: "20px" }}>🏆</span>}
+                  {subAvg >= 85 && subAvg < 95 && <span style={{ fontSize: "20px" }}>🌟</span>}
+                  {subAvg >= 70 && subAvg < 85 && <span style={{ fontSize: "20px" }}>🎖️</span>}
                 </div>
               </div>
               <p style={{ fontSize: "12px", marginTop: "12px", fontWeight: "bold", color: "#353b48" }}>{sub}</p>
-            </div>
+            </motion.div>
           );
         })}
       </div>
 
       {/* MAIN OVERALL PERCENTAGE CARD */}
-      <div style={{ margin: "0 12px 25px 12px", background: "linear-gradient(135deg, #2b5876 0%, #4e4376 100%)", borderRadius: "24px", padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", color: "#fff", boxShadow: "0 12px 24px rgba(43, 88, 118, 0.3)" }}>
+      <motion.div 
+        whileInView={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 30 }}
+        style={{ margin: "0 12px 25px 12px", background: "linear-gradient(135deg, #2b5876 0%, #4e4376 100%)", borderRadius: "24px", padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", color: "#fff", boxShadow: "0 12px 24px rgba(43, 88, 118, 0.3)" }}
+      >
         <div style={{ position: "relative", width: "130px", height: "130px" }}>
           <svg width="130" height="130" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="45" fill="transparent" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
-            <circle cx="50" cy="50" r="45" fill="transparent" stroke="#FFD700" strokeWidth="8" 
-              strokeDasharray={dashArray} strokeDashoffset={dashOffset} strokeLinecap="round"
-              style={{ transition: "stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)" }}
+            <motion.circle 
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: overallPercentage / 100 }}
+              transition={{ duration: 2 }}
+              cx="50" cy="50" r="45" fill="transparent" stroke="#FFD700" strokeWidth="8" 
+              strokeLinecap="round" transform="rotate(-90 50 50)"
             />
           </svg>
           <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", fontSize: "26px", fontWeight: "900" }}>
             {overallPercentage}%
           </div>
-          {/* MAIN TROPHY FOR OVERALL GOOD PERFORMANCE */}
           {overallPercentage >= 80 && <div style={{ position: "absolute", bottom: "-10px", right: "-5px", fontSize: "30px" }}>👑</div>}
         </div>
         <h3 style={{ marginTop: "20px", fontSize: "20px", textAlign: 'center' }}>{getRemark(overallPercentage)}</h3>
-      </div>
+      </motion.div>
 
       {/* CAPTCHA SECTION */}
       <div style={{ padding: "0 12px" }}>
@@ -474,7 +522,12 @@ const StudentMarks = () => {
 
       {/* DETAILED TABLES */}
       {Object.keys(grouped).map((subject, idx) => (
-        <div key={subject} style={styles.tableWrapper}>
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          whileInView={{ opacity: 1 }} 
+          key={subject} 
+          style={styles.tableWrapper}
+        >
           <h3 style={{ borderLeft: `6px solid ${colors[idx % colors.length]}`, paddingLeft: "12px", color: "#2f3640", marginBottom: "18px" }}>{subject}</h3>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
@@ -506,7 +559,7 @@ const StudentMarks = () => {
               })}
             </tbody>
           </table>
-        </div>
+        </motion.div>
       ))}
       <div style={{ height: "60px" }}></div>
     </div>
