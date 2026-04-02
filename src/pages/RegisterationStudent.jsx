@@ -296,7 +296,7 @@ const RegistrationStudent = () => {
                     <option value="2nd">2nd</option>
                   <option value="3rd">3rd</option>
                   <option value="4th">4th</option>
-                  <option value="4th">5th</option>
+                  <option value="5th">5th</option>
                   <option value="6th">6th</option>
                   <option value="7th">7th</option>
                     <option value="8th">8th</option>
