@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState} from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+
 
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
@@ -11,7 +11,7 @@ const RegisterationStudent = () => {
   const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState(null);
   const [remainingUpdates, setRemainingUpdates] = useState(3);
-  const navigate = useNavigate();
+  
 
   const initialForm = {
     id: "",
@@ -122,7 +122,7 @@ const RegisterationStudent = () => {
              />
           </div>
           <div style={headerText}>
-             <h2 style={titleStyle}>Admission Portal</h2>
+             <h2 style={titleStyle}>Registration portal</h2>
              <p style={subtitleStyle}>Session: {formData.session || "---"}</p>
              {formData.id && (
                <p style={{color: remainingUpdates > 0 ? "#0f0890" : "red", fontSize: "12px", fontWeight: "bold"}}>
