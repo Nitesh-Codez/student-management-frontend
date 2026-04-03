@@ -10,7 +10,7 @@ const MenuIcon = () => <span>☰</span>;
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const subjectsByClass = {
-  "1st": ["Hindi", "English", "EVS", "Maths","Computer","GK"],
+  "1st": ["Hindi", "English", "EVS", "Maths","Computer","GK","Drawing"],
   "2nd": ["Hindi", "English","Computer","GK", "EVS", "Maths"],
   "3rd": ["Hindi", "English","Computer","GK", "EVS", "Maths"],
   "4th": ["Hindi", "English","Computer","GK", "EVS", "Maths"],
