@@ -10,14 +10,14 @@ const MenuIcon = () => <span>☰</span>;
 const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const subjectsByClass = {
-  "1st": ["Hindi", "English", "EVS", "Maths"],
-  "2nd": ["Hindi", "English", "EVS", "Maths"],
-  "3rd": ["Hindi", "English", "EVS", "Maths"],
-  "4th": ["Hindi", "English", "EVS", "Maths"],
-  "5th": ["Hindi", "English", "EVS", "Maths"],
-  "6th": ["Hindi", "English", "Maths", "Sanskrit", "Science", "SST"],
-  "7th": ["Hindi", "English", "Maths", "Science", "Sanskrit", "SST"],
-  "8th": ["Hindi", "English", "Maths", "Science", "SST", "Sanskrit"],
+  "1st": ["Hindi", "English", "EVS", "Maths","Computer","GK"],
+  "2nd": ["Hindi", "English","Computer","GK", "EVS", "Maths"],
+  "3rd": ["Hindi", "English","Computer","GK", "EVS", "Maths"],
+  "4th": ["Hindi", "English","Computer","GK", "EVS", "Maths"],
+  "5th": ["Hindi", "English", "EVS","Computer","GK", "Maths"],
+  "6th": ["Hindi", "English","Computer","GK", "Maths", "Sanskrit", "Science", "SST"],
+  "7th": ["Hindi", "English", "Computer","GK","Maths", "Science", "Sanskrit", "SST"],
+  "8th": ["Hindi", "English","Computer","GK", "Maths", "Science", "SST", "Sanskrit"],
   "9th": ["Hindi", "English", "Maths", "Science", "Sanskrit", "SST", "Computer"],
   "10th": ["Hindi", "English", "Maths", "Science", "Sanskrit", "SST", "Computer"],
   "11th": ["Hindi", "English", "Maths", "Physics", "Chemistry", "Biology", "Computer"],
@@ -122,6 +122,9 @@ export default function StudentResult() {
               <option>Terminal</option>
               <option>Half Yearly</option>
               <option>Final</option>
+               <option>Term 1</option>
+              <option>Term 2</option>
+              <option>Term 3</option>
             </select>
           </div>
         </div>
