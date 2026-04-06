@@ -28,14 +28,12 @@ const StudentFees = ({ user }) => {
       try {
         const res = await axios.get(`${API_URL}/api/fees/student/${user.id}`);
         if (res.data.success) {
-          // Mapping data and calculating internal logic for month/late status
           let feesData = res.data.fees.map(f => {
             const d = new Date(f.payment_date);
             let month = d.getMonth() - 1; 
             let year = d.getFullYear();
             if (month === -1) { month = 11; year -= 1; }
             
-            // Logic: If paid after 5th of the month, it's considered late
             const isLate = d.getDate() > 5; 
             return { 
                 ...f, 
@@ -47,15 +45,22 @@ const StudentFees = ({ user }) => {
                 mode: f.payment_mode || "Online" 
             };
           });
+
+          // --- DYNAMIC FILTER BASED ON LOCAL USER SESSION ---
+          // Local user object se session (e.g., "2025-26") check karke filter
+          const currentSessionFees = feesData.filter(f => {
+            // Agar record ka session user ke current session se match karta hai
+            return f.session === user.session; 
+          });
           
-          feesData.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
-          setFees(feesData);
+          currentSessionFees.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
+          setFees(currentSessionFees);
 
           setIsPending(res.data.showPopup);
           setIsNewStudent(res.data.isNewStudent);
 
-          if (feesData.length > 0) {
-            setDynamicFee(feesData[0].amount || "1000");
+          if (currentSessionFees.length > 0) {
+            setDynamicFee(currentSessionFees[0].amount || "1000");
           }
         }
       } catch (err) {
@@ -63,7 +68,7 @@ const StudentFees = ({ user }) => {
       }
     };
     fetchFees();
-  }, [user.id]);
+  }, [user.id, user.session]); // Dependency mein user.session add kiya
 
   const handlePayment = (mName) => {
     const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartZone&am=${dynamicFee}&cu=INR&tn=Fees_For_${mName}`;
@@ -87,10 +92,17 @@ const StudentFees = ({ user }) => {
       </div>
 
       <div style={styles.contentArea}>
+        {/* --- PREVIOUS RECORD NOTICE --- */}
+        <div style={styles.noticeBanner}>
+            <span>⚠️ For previous record statement, contact your HOC</span>
+        </div>
+
         <div style={styles.topRow}>
-          <div style={styles.dropdown}>Smart Billing ▾</div>
+          <div style={styles.dropdown}>
+            {user?.class || "Smart"} Billing ▾
+          </div>
           <div style={styles.performanceBadge}>
-            {isNewStudent ? "✨ New Student" : isPending ? "⚠️ Due" : "🏆 Star Student"}
+             Session: {user?.session || "Current"}
           </div>
         </div>
 
@@ -124,7 +136,7 @@ const StudentFees = ({ user }) => {
                 <div style={styles.iconBoxGold}>✨</div>
                 <div style={{flex: 1}}>
                   <div style={styles.cardTitle}>Welcome to SmartZone!</div>
-                  <div style={styles.cardSub}>Your first fee cycle starts next month.</div>
+                  <div style={styles.cardSub}>Student Class: {user?.class}</div>
                 </div>
               </div>
               <div style={styles.welcomeFooter}>Enjoy your learning journey! 🚀</div>
@@ -136,11 +148,11 @@ const StudentFees = ({ user }) => {
             <div style={styles.successNote}>
               <div style={{fontSize: "24px", marginBottom: "5px"}}>🏆</div>
               <strong>Great Job, {user?.name || 'Student'}!</strong><br/>
-              <span style={{fontSize: "12px", opacity: 0.8}}>All your previous dues are settled. Stay punctual!</span>
+              <span style={{fontSize: "12px", opacity: 0.8}}>Dues for session {user?.session} are clear.</span>
             </div>
           )}
 
-          <div style={styles.historyHeading}>PAYMENT HISTORY</div>
+          <div style={styles.historyHeading}>PAYMENT HISTORY ({user?.session})</div>
 
           {fees.length > 0 ? (
             fees.map((f, i) => (
@@ -155,8 +167,8 @@ const StudentFees = ({ user }) => {
               </div>
             ))
           ) : (
-            <div style={{textAlign: 'center', padding: '20px', color: '#ccc', fontSize: '14px'}}>
-              No payment records found yet.
+            <div style={{textAlign: 'center', padding: '40px 20px', color: '#bdc3c7', fontSize: '14px'}}>
+              No records found for session {user?.session}.
             </div>
           )}
           
@@ -164,7 +176,7 @@ const StudentFees = ({ user }) => {
         </div>
       </div>
 
-      {/* --- DETAILED RECEIPT SHEET (MODAL) --- */}
+      {/* --- DETAILED RECEIPT SHEET --- */}
       {showSheet && selectedFee && (
         <div style={styles.overlay} onClick={() => setShowSheet(false)}>
           <div style={styles.sheet} onClick={e => e.stopPropagation()}>
@@ -180,6 +192,10 @@ const StudentFees = ({ user }) => {
 
               <div style={styles.detailsGrid}>
                 <div style={styles.detailItem}>
+                    <span>Session</span>
+                    <strong>{selectedFee.session}</strong>
+                </div>
+                <div style={styles.detailItem}>
                     <span>For Month</span>
                     <strong>{months[selectedFee.feeMonth]} {selectedFee.feeYear}</strong>
                 </div>
@@ -188,18 +204,8 @@ const StudentFees = ({ user }) => {
                     <strong>{selectedFee.formattedDate}</strong>
                 </div>
                 <div style={styles.detailItem}>
-                    <span>Payment Mode</span>
+                    <span>Mode</span>
                     <strong style={{color: '#2d3785'}}>{selectedFee.mode}</strong>
-                </div>
-                <div style={styles.detailItem}>
-                    <span>Status</span>
-                    <strong style={{color: selectedFee.isLate ? '#f39c12' : '#4caf50'}}>
-                        {selectedFee.isLate ? "Delayed" : "On-Time"}
-                    </strong>
-                </div>
-                <div style={styles.detailItem}>
-                    <span>Ref ID</span>
-                    <small style={{opacity: 0.5}}>{selectedFee.id}</small>
                 </div>
               </div>
             </div>
@@ -218,7 +224,8 @@ const styles = {
   monthStack: { display: "flex", flexDirection: "column" },
   monthLabelSmall: { fontSize: "22px", fontWeight: "800", opacity: 0.3 },
   monthLabelBig: { fontSize: "38px", fontWeight: "900", letterSpacing: "-1px" },
-  contentArea: { flex: 1, backgroundColor: "#fff", marginTop: "-40px", borderTopLeftRadius: "45px", borderTopRightRadius: "45px", padding: "35px 25px 0 25px", display: "flex", flexDirection: "column", overflow: "hidden" },
+  contentArea: { flex: 1, backgroundColor: "#fff", marginTop: "-40px", borderTopLeftRadius: "45px", borderTopRightRadius: "45px", padding: "20px 25px 0 25px", display: "flex", flexDirection: "column", overflow: "hidden" },
+  noticeBanner: { background: "#fff9e6", color: "#856404", padding: "12px", borderRadius: "15px", fontSize: "12px", fontWeight: "700", marginBottom: "15px", border: "1px solid #ffeeba", textAlign: "center" },
   topRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" },
   dropdown: { color: "#2d3785", fontSize: "19px", fontWeight: "800" },
   performanceBadge: { fontSize: "11px", fontWeight: "800", background: "#f8f9fa", padding: "4px 12px", borderRadius: "12px", color: "#2d3785" },

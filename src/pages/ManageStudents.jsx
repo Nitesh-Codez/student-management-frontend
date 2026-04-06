@@ -22,13 +22,21 @@ const ManageStudents = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // 1. Fetch Students
+  // 1. Fetch & Sort Students Alphabetically
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(API_URL);
-      const data = res.data.success ? res.data.students : (Array.isArray(res.data) ? res.data : []);
-      setStudents(data);
+      let data = res.data.success ? res.data.students : (Array.isArray(res.data) ? res.data : []);
+      
+      // Sorting Logic: A to Z by Name
+      const sortedData = data.sort((a, b) => {
+        if (a.name.toLowerCase() < b.name.toLowerCase()) return -1;
+        if (a.name.toLowerCase() > b.name.toLowerCase()) return 1;
+        return 0;
+      });
+
+      setStudents(sortedData);
     } catch (err) {
       console.error("Fetch Error:", err);
     } finally {
@@ -38,7 +46,6 @@ const ManageStudents = () => {
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
 
-  // 2. Handle Inputs
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -51,7 +58,6 @@ const ManageStudents = () => {
     }
   };
 
-  // 3. Register Student (Fixed Core Logic)
   const handleRegister = async () => {
     if (!formData.name || !formData.studentClass || !formData.password) {
       return alert("Name, Class and Password are required!");
@@ -60,10 +66,9 @@ const ManageStudents = () => {
     setIsRegistering(true);
 
     try {
-      // STEP A: Pehle Student Details bhejo (JSON)
       const studentPayload = {
         name: formData.name,
-        class: formData.studentClass, // Backend expects "class"
+        class: formData.studentClass, 
         password: formData.password,
         mobile: formData.mobile || null,
         address: formData.address || null,
@@ -75,10 +80,8 @@ const ManageStudents = () => {
       if (res.data.success) {
         const newId = res.data.id;
 
-        // STEP B: Agar photo hai, toh turant upload karo
         if (selectedFile) {
           const photoData = new FormData();
-          // "photo" name wahi rakho jo backend router mein upload.single('...') mein hai
           photoData.append("photo", selectedFile); 
 
           await axios.post(`${API_URL}/${newId}/profile-photo`, photoData, {
@@ -90,8 +93,7 @@ const ManageStudents = () => {
         setShowSlidePanel(false);
         fetchStudents();
         
-        // Reset Form
-        setFormData({ name: "", studentClass: "", password: "", address: "", mobile: "" });
+        setFormData({ name: "", studentClass: "", password: "", address: "", mobile: "", joining_date: "" });
         setSelectedFile(null);
         setPreviewUrl(null);
       } else {
@@ -188,7 +190,6 @@ const ManageStudents = () => {
                       </div>
                     </div>
                   </td>
-                  {/* Backend query use "class" with double quotes, so it comes as .class */}
                   <td style={ui.td}><span style={ui.deptBadge}> {s.class}</span></td>
                   <td style={ui.td}><div style={ui.contactInfo}><FaPhoneAlt size={11}/> {s.mobile || "N/A"}</div></td>
                   <td style={ui.td}><div style={ui.addressInfo}>{s.address || "No address"}</div></td>
@@ -208,7 +209,7 @@ const ManageStudents = () => {
       {/* SLIDE-OVER PANEL */}
       <div style={{...ui.sidePanel, transform: showSlidePanel ? 'translateX(0)' : 'translateX(100%)'}}>
         <div style={ui.panelHeader}>
-          <h2>Registration</h2>
+          <h2 style={{margin:0}}>Registration</h2>
           <button onClick={() => setShowSlidePanel(false)} style={ui.closePanelBtn}><FaTimes /></button>
         </div>
         <div style={ui.panelBody}>
@@ -258,7 +259,7 @@ const ManageStudents = () => {
   );
 };
 
-// ... (Baaki UI styles same hain tere purane waale)
+// UI Styles
 const ui = {
   appContainer: { background: "#fff", minHeight: "100vh", width: "100vw", overflowX: "hidden", fontFamily: "'Inter', sans-serif" },
   headerSection: { display: "flex", justifyContent: "space-between", padding: "25px 40px", background: "#0f172a", color: "#fff" },

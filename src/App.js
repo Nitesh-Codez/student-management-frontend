@@ -48,6 +48,7 @@ import ViewResults from "./pages/Results_details/ViewResults";
 
 import AdminHoliday from './pages/AdminHoliday';
 import StudentDropApply from "./pages/StudentDropApply";
+import FeesDetails from "./pages/FeesDetails";
 
 /* EXAM */
 import ExamForm from "./pages/Examination/ExamForm";
@@ -86,6 +87,7 @@ function App() {
           <Route path="add-holiday" element={<AdminHoliday />} />
           <Route path="assign-classes" element={<AssignClasses />} />
           <Route path="quiz" element={<AdminQuizPage />} />
+         <Route path="details/:session/:month" element={<FeesDetails />} />
 
         </Route>
 
@@ -113,6 +115,7 @@ function App() {
           <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
           <Route path="register-student" element={<RegisterationStudent />} />
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
+          
 
 
           <Route path="review/:quizId/:studentId" element={<QuizReview />} />
