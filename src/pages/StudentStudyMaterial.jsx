@@ -15,6 +15,7 @@ const subjectThemes = {
   English: { grad: "linear-gradient(135deg, #54A0FF 0%, #2E86DE 100%)", light: "#F0F7FF" },
   Hindi: { grad: "linear-gradient(135deg, #FECA57 0%, #FF9F43 100%)", light: "#FFF9F0" },
   Physics: { grad: "linear-gradient(135deg, #5F27CD 0%, #341F97 100%)", light: "#F5F2FF" },
+  Chemistry: { grad: "linear-gradient(135deg, #229f3b 0%, #48ac7a 100%)", light: "#F5F2FF" },
   Default: { grad: "linear-gradient(135deg, #8395A7 0%, #576574 100%)", light: "#F8F9FA" }
 };
 

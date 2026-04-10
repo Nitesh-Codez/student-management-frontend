@@ -124,6 +124,8 @@ const AdminStudyMaterial = () => {
             "History",
             "Geography",
             "Civics",
+            "Chemistry",
+            "Biology",
           ].map((sub, i) => (
             <option key={i} value={sub}>
               {sub}
