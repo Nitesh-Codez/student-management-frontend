@@ -298,6 +298,14 @@ const RegistrationStudent = () => {
                     <option value="L.K.G">L.K.G</option>
                     <option value="U.K.G">U.K.G</option>
                     <option value="1st">1st</option>
+                    <option value="2nd">10th</option>
+                    <option value="3rd">11th</option>
+                    <option value="4th">12th</option>
+                    <option value="5th">10th</option>
+                    <option value="6th">11th</option>
+                    <option value="7th">12th</option>
+                    <option value="8th">12th</option>
+                    <option value="9th">12th</option>
                   </optgroup>
                   <optgroup label="Higher">
                     <option value="10th">10th</option>
