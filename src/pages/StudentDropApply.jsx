@@ -1,277 +1,393 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+/**
+ * @component StudentDropApply
+ * @description SmartZone Official Student Holiday Portal
+ */
 const StudentDropApply = () => {
+  // --- States ---
   const [profile, setProfile] = useState(null);
+  const [previousDrops, setPreviousDrops] = useState([]);
   const [formData, setFormData] = useState({
     start_date: "",
     end_date: "",
     reason: "",
-    application_type: "Temporary Drop"
+    drop_type: ""
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [applyDate, setApplyDate] = useState("");
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
+  // --- Constants ---
   const API_URL = process.env.REACT_APP_API_URL;
   const user = JSON.parse(localStorage.getItem("user"));
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/students/profile`, {
-          params: { id: user?.id }
-        });
-        if (response.data.success) {
-          setProfile(response.data.student);
-        }
-      } catch (error) {
-        console.error("Profile Error:", error);
-      }
-    };
-    if (user?.id) fetchProfile();
-  }, [API_URL, user?.id]);
+  // --- Helpers ---
+  const handleResize = () => setWindowWidth(window.innerWidth);
 
+  useEffect(() => {
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // --- Confetti Logic ---
+  const triggerConfetti = useCallback(() => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
+    script.onload = () => {
+      window.confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+      setTimeout(() => {
+        window.confetti({
+          particleCount: 180,
+          spread: 100,
+          origin: { y: 0.7 },
+          colors: ["#ff0000", "#22c55e", "#2563eb", "#ffffff"]
+        });
+      }, 700);
+    };
+    document.body.appendChild(script);
+  }, []);
+
+  // --- Data Fetching ---
+  const fetchDrops = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await axios.get(`${API_URL}/api/drop/my-drop-requests`, {
+        params: { student_id: user.id }
+      });
+      if (res.data.success) {
+        setPreviousDrops(res.data.data);
+        // Trigger confetti only if the latest one was just approved
+        if (res.data.data[0]?.status === "approved") triggerConfetti();
+      }
+    } catch (err) {
+      console.error("Error fetching drops:", err);
+    }
+  }, [API_URL, user?.id, triggerConfetti]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    axios.get(`${API_URL}/api/students/profile`, { params: { id: user.id } })
+      .then(res => res.data.success && setProfile(res.data.student))
+      .catch(err => console.error(err));
+    fetchDrops();
+  }, [API_URL, user?.id, fetchDrops]);
+
+  // --- Event Handlers ---
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const now = new Date();
-    const formattedDate = `${now.toLocaleDateString('en-GB')} (${now.toLocaleDateString('en-US', { weekday: 'long' })})`;
-    setApplyDate(formattedDate);
-
     try {
-      const response = await axios.post(`${API_URL}/api/drop/apply-drop`, {
-        ...formData,
-        studentId: profile?.id,
-        studentName: profile?.name,
-        email: profile?.email,
-        applyDate: formattedDate 
+      const res = await axios.post(`${API_URL}/api/drop/apply-drop`, {
+        student_id: user?.id,
+        ...formData
       });
-      if (response.data.success) {
+      if (res.data.success) {
         setIsSubmitted(true);
+        fetchDrops();
+        setFormData({ start_date: "", end_date: "", reason: "", drop_type: "" });
       }
-    } catch (error) {
-      alert("Error: Connection Failed");
+    } catch (err) {
+      alert("Submission failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handlePrintPDF = () => {
-    const input = document.getElementById("full-portal-container");
-    html2canvas(input, { scale: 3, useCORS: true, backgroundColor: "#ffffff" }).then((canvas) => {
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Application_${profile?.name || 'Student'}.pdf`);
-    });
+  const formatDate = (dateString) => (dateString ? dateString.split("T")[0] : "N/A");
+
+  // --- UI Styles Object ---
+  const styles = {
+    wrapper: {
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%)",
+      fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+      paddingBottom: "80px",
+      color: "#102a43"
+    },
+    hero: {
+      background: "linear-gradient(135deg, #102a43 0%, #243b53 100%)",
+      padding: "60px 20px 100px",
+      textAlign: "center",
+      color: "#fff",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.1)"
+    },
+    brand: {
+      fontSize: "3.5rem",
+      fontWeight: "900",
+      letterSpacing: "-1px",
+      margin: "0 0 10px 0",
+      textShadow: "2px 2px 4px rgba(0,0,0,0.3)"
+    },
+    grid: {
+      maxWidth: "1200px",
+      margin: "-60px auto 0",
+      padding: "0 20px",
+      display: "grid",
+      gridTemplateColumns: windowWidth > 992 ? "1.2fr 1fr" : "1fr",
+      gap: "40px"
+    },
+    card: {
+      background: "rgba(255, 255, 255, 0.95)",
+      backdropFilter: "blur(10px)",
+      borderRadius: "24px",
+      padding: "40px",
+      boxShadow: "0 20px 40px rgba(0,0,0,0.08)",
+      border: "1px solid rgba(255,255,255,0.3)"
+    },
+    formGroup: {
+      marginBottom: "20px"
+    },
+    label: {
+      display: "block",
+      fontWeight: "600",
+      fontSize: "0.9rem",
+      color: "#486581",
+      marginBottom: "8px",
+      marginLeft: "4px"
+    },
+    input: {
+      width: "100%",
+      padding: "14px 18px",
+      borderRadius: "14px",
+      border: "2px solid #d9e2ec",
+      fontSize: "1rem",
+      transition: "all 0.3s ease",
+      boxSizing: "border-box",
+      outline: "none",
+      backgroundColor: "#f0f4f8"
+    },
+    btnPrimary: {
+      width: "100%",
+      padding: "18px",
+      background: "linear-gradient(to right, #2563eb, #1d4ed8)",
+      color: "#fff",
+      border: "none",
+      borderRadius: "14px",
+      fontSize: "1.1rem",
+      fontWeight: "700",
+      cursor: "pointer",
+      boxShadow: "0 10px 15px rgba(37, 99, 235, 0.2)",
+      transition: "transform 0.2s, box-shadow 0.2s"
+    },
+    historyItem: (status) => {
+      const colors = {
+        approved: "#22c55e",
+        rejected: "#ef4444",
+        pending: "#f59e0b"
+      };
+      return {
+        background: "#fff",
+        borderRadius: "18px",
+        padding: "20px",
+        marginBottom: "20px",
+        borderLeft: `8px solid ${colors[status] || "#cbd5e1"}`,
+        boxShadow: "0 8px 16px rgba(0,0,0,0.04)",
+        position: "relative",
+        transition: "transform 0.2s"
+      };
+    },
+    statusBadge: (status) => ({
+      fontSize: "0.75rem",
+      fontWeight: "800",
+      padding: "6px 12px",
+      borderRadius: "50px",
+      textTransform: "uppercase",
+      backgroundColor: status === "approved" ? "#dcfce7" : status === "rejected" ? "#fee2e2" : "#fef9c3",
+      color: status === "approved" ? "#166534" : status === "rejected" ? "#991b1b" : "#854d0e"
+    }),
+    marquee: {
+      position: "fixed",
+      bottom: 0,
+      left: 0,
+      width: "100%",
+      background: "#102a43",
+      color: "#9fb3c8",
+      padding: "15px 0",
+      zIndex: 1000,
+      borderTop: "2px solid #243b53"
+    }
   };
 
   return (
-    <div style={styles.pageWrapper}>
-      <div id="full-portal-container" style={styles.mainCard}>
+    <div style={styles.wrapper}>
+      {/* Global CSS for Animations */}
+      <style>
+        {`
+          @keyframes marqueeAnim { 
+            0% { transform: translateX(100%); } 
+            100% { transform: translateX(-100%); } 
+          }
+          .animate-marquee { display: inline-block; animation: marqueeAnim 30s linear infinite; white-space: nowrap; }
+          .btn-hover:hover { transform: translateY(-3px); boxShadow: 0 15px 20px rgba(37, 99, 235, 0.3); opacity: 0.9; }
+          .input-focus:focus { border-color: #2563eb !important; background: #fff !important; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+          .history-card:hover { transform: scale(1.02); }
+        `}
+      </style>
+
+      {/* Hero Header */}
+      <header style={styles.hero}>
+        <h1 style={styles.brand}>𝐒mart𝐙one</h1>
+        <p style={{ fontSize: "1.2rem", opacity: 0.8 }}>
+          Hi {profile?.name || "Student"}, Welcome to your Leave Management Dashboard
+        </p>
+      </header>
+
+      {/* Main Content Grid */}
+      <main style={styles.grid}>
         
-        {/* Modern Header */}
-        <header style={styles.header}>
-          <div style={styles.headerContent}>
-            <div style={styles.brand}>
-              <h1 style={styles.mainTitle}>SMART STUDENT</h1>
-              <p style={styles.subTitle}>Academic Management System</p>
-            </div>
-            <div style={styles.sessionPill}>
-              {profile?.session || "Session 2024-25"}
-            </div>
-          </div>
-        </header>
+        {/* Section 1: Request Form */}
+        <section>
+          <div style={styles.card}>
+            <h2 style={{ fontSize: "1.8rem", marginBottom: "30px", color: "#102a43" }}>
+              Apply for Leave
+            </h2>
 
-        <div style={styles.contentLayout}>
-          {/* Profile Section (Vertical Edge-to-Edge) */}
-          <aside style={styles.sidebar}>
-            <div style={styles.profileHero}>
-              <div style={styles.avatar}>
-                {profile?.name ? profile.name.charAt(0) : "S"}
-              </div>
-              <h2 style={styles.userName}>{profile?.name || "Loading..."}</h2>
-              <span style={styles.userId}>ID: {profile?.code || "ST-000"}</span>
-            </div>
-
-            <div style={styles.infoList}>
-              <div style={styles.infoCard}>
-                <label style={styles.infoLabel}>FATHER'S NAME</label>
-                <div style={styles.infoValue}>{profile?.father_name || "Mr. Not Provided"}</div>
-              </div>
-              <div style={styles.infoCard}>
-                <label style={styles.infoLabel}>MOTHER'S NAME</label>
-                <div style={styles.infoValue}>{profile?.mother_name || "Mrs. Not Provided"}</div>
-              </div>
-              <div style={styles.infoCard}>
-                <label style={styles.infoLabel}>CLASS & ROLL</label>
-                <div style={styles.infoValue}>{profile?.class || "N/A"}</div>
-              </div>
-              <div style={styles.infoCard}>
-                <label style={styles.infoLabel}>MOBILE NUMBER</label>
-                <div style={styles.infoValue}>+91 {profile?.mobile || "0000000000"}</div>
-              </div>
-            </div>
-          </aside>
-
-          {/* Form Section */}
-          <main style={styles.formContainer}>
             {!isSubmitted ? (
-              <form onSubmit={handleSubmit} style={styles.form}>
-                <div style={styles.sectionHeader}>
-                  <h3 style={styles.formTitle}>Apply for Leave/Drop</h3>
-                  <p style={styles.formDesc}>Please ensure all dates are correct before submitting.</p>
-                </div>
-
-                <div style={styles.field}>
+              <form onSubmit={handleSubmit}>
+                <div style={styles.formGroup}>
                   <label style={styles.label}>Application Type</label>
-                  <select name="application_type" onChange={handleChange} style={styles.select}>
-                    <option value="Temporary Drop">Temporary Drop</option>
-                    <option value="Medical Leave">Medical Leave</option>
-                    <option value="Permanent Withdrawal">Permanent Withdrawal</option>
+                  <select 
+                    name="drop_type" 
+                    className="input-focus" 
+                    style={styles.input} 
+                    onChange={handleChange} 
+                    required
+                  >
+                    <option value="">Choose leave category...</option>
+                    <option value="temporary">Temporary Holiday</option>
+                    <option value="1_day">1 Day Leave</option>
+                    <option value="permanent">Permanent Drop</option>
+                    <option value="emergency">Emergency Medical Leave</option>
                   </select>
                 </div>
 
-                {formData.application_type !== "Permanent Withdrawal" && (
-                  <div style={styles.gridRow}>
-                    <div style={styles.field}>
-                      <label style={styles.label}>Start Date</label>
-                      <input type="date" name="start_date" onChange={handleChange} required style={styles.input} />
-                    </div>
-                    <div style={styles.field}>
-                      <label style={styles.label}>Return Date</label>
-                      <input type="date" name="end_date" onChange={handleChange} required style={styles.input} />
-                    </div>
+                <div style={{ display: "flex", gap: "20px", marginBottom: "20px" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>From Date</label>
+                    <input 
+                      type="date" 
+                      name="start_date" 
+                      className="input-focus" 
+                      style={styles.input} 
+                      onChange={handleChange} 
+                      required 
+                    />
                   </div>
-                )}
-
-                <div style={styles.field}>
-                  <label style={styles.label}>Reason for Application</label>
-                  <textarea 
-                    name="reason" 
-                    rows="5" 
-                    placeholder="Write detailed reason here..." 
-                    onChange={handleChange} 
-                    required 
-                    style={styles.textarea}
-                  ></textarea>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>To Date</label>
+                    <input 
+                      type="date" 
+                      name="end_date" 
+                      className="input-focus" 
+                      style={styles.input} 
+                      onChange={handleChange} 
+                      required 
+                    />
+                  </div>
                 </div>
 
-                <button type="submit" disabled={loading} style={styles.primaryBtn}>
-                  {loading ? "PROCESSING..." : "SUBMIT APPLICATION"}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Reason for Request</label>
+                  <textarea 
+                    name="reason" 
+                    className="input-focus" 
+                    style={{ ...styles.input, height: "120px", resize: "none" }} 
+                    placeholder="Provide a detailed reason for your application..." 
+                    onChange={handleChange} 
+                    required 
+                  />
+                </div>
+
+                <button type="submit" className="btn-hover" style={styles.btnPrimary} disabled={loading}>
+                  {loading ? "Processing Application..." : "Submit My Request"}
                 </button>
               </form>
             ) : (
-              <div style={styles.successBox}>
-                <div style={styles.checkCircle}>✓</div>
-                <h2 style={styles.successTitle}>Application Submitted!</h2>
-                <div style={styles.receipt}>
-                  <div style={styles.rRow}><span>Type:</span><strong>{formData.application_type}</strong></div>
-                  <div style={styles.rRow}><span>Submitted On:</span><strong>{applyDate}</strong></div>
-                  <div style={styles.rRow}><span>Status:</span><strong style={{color:'#f39c12'}}>Awaiting Approval</strong></div>
-                </div>
-                <div style={styles.actionRow}>
-                  <button onClick={handlePrintPDF} style={styles.downloadBtn}>Download PDF Receipt</button>
-                  <button onClick={() => setIsSubmitted(false)} style={styles.backBtn}>Back</button>
-                </div>
+              <div style={{ textAlign: "center", padding: "20px" }}>
+                <div style={{ fontSize: "80px", marginBottom: "20px" }}>🚀</div>
+                <h2 style={{ color: "#2563eb", marginBottom: "10px" }}>Application Received!</h2>
+                <p style={{ color: "#486581", marginBottom: "30px" }}>Your request is currently under review by the administration.</p>
+                <button 
+                  onClick={() => setIsSubmitted(false)} 
+                  style={{ ...styles.btnPrimary, width: "auto", padding: "12px 40px", background: "#486581" }}
+                >
+                  New Request
+                </button>
               </div>
             )}
-          </main>
+          </div>
+        </section>
+
+        {/* Section 2: History List */}
+        <section>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <h3 style={{ margin: 0, fontSize: "1.5rem" }}>Recent Activity</h3>
+            <span style={{ fontSize: "0.9rem", color: "#627d98" }}>Total: {previousDrops.length}</span>
+          </div>
+
+          <div style={{ maxHeight: "750px", overflowY: "auto", paddingRight: "10px" }}>
+            {previousDrops.length > 0 ? (
+              previousDrops.map((item) => (
+                <div key={item.id} className="history-card" style={styles.historyItem(item.status)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+                    <span style={{ fontWeight: "700", color: "#243b53" }}>
+                      {item.drop_type?.replace("_", " ").toUpperCase()}
+                    </span>
+                    <span style={styles.statusBadge(item.status)}>{item.status}</span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "20px", fontSize: "0.9rem", color: "#486581", marginBottom: "15px" }}>
+                    <span>📅 <b>Start:</b> {formatDate(item.start_date)}</span>
+                    <span>📅 <b>End:</b> {formatDate(item.end_date)}</span>
+                  </div>
+
+                  <div style={{ 
+                    background: "#f0f4f8", 
+                    padding: "15px", 
+                    borderRadius: "12px", 
+                    fontSize: "0.95rem", 
+                    lineHeight: "1.5",
+                    fontStyle: "italic",
+                    border: "1px dashed #cbd5e1" 
+                  }}>
+                    "{item.reason}"
+                  </div>
+
+                  {item.status === "approved" && (
+                    <div style={{ position: "absolute", bottom: "15px", right: "15px", fontSize: "24px" }}>🎉</div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div style={{ textAlign: "center", padding: "100px 0", color: "#829ab1" }}>
+                <div style={{ fontSize: "50px" }}>📂</div>
+                <p>No previous requests found.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+
+      {/* Animated Footer Marquee */}
+      <footer style={styles.marquee}>
+        <div className="animate-marquee">
+          ✨ <b>𝐒mart𝐙one Updates:</b> Best platform for your IT Career | 
+          Check status daily for updates | 
+          Contact support for emergency cases | 
+          Stay Smart, Stay Ahead! ✨
         </div>
-      </div>
+      </footer>
     </div>
   );
-};
-
-const styles = {
-  pageWrapper: { 
-    background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)", 
-    minHeight: "100vh", 
-    padding: "clamp(10px, 3vw, 40px)",
-    fontFamily: "'Segoe UI', Roboto, sans-serif"
-  },
-  mainCard: { 
-    background: "#fff", 
-    maxWidth: "1000px", 
-    margin: "0 auto", 
-    borderRadius: "20px", 
-    boxShadow: "0 20px 40px rgba(0,0,0,0.15)", 
-    overflow: "hidden" 
-  },
-  
-  // Header
-  header: { background: "#1a2a6c", color: "#fff", padding: "30px" },
-  headerContent: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" },
-  mainTitle: { margin: 0, fontSize: "24px", fontWeight: "800", letterSpacing: "1.5px" },
-  subTitle: { margin: 0, fontSize: "12px", opacity: 0.7, textTransform: "uppercase" },
-  sessionPill: { background: "rgba(255,255,255,0.15)", padding: "8px 16px", borderRadius: "30px", fontSize: "12px", border: "1px solid rgba(255,255,255,0.3)" },
-
-  contentLayout: { display: "flex", flexWrap: "wrap" },
-
-  // Sidebar (Mobile Friendly Details)
-  sidebar: { flex: "1 1 320px", background: "#fcfcfc", borderRight: "1px solid #eee", padding: "30px" },
-  profileHero: { textAlign: "center", marginBottom: "30px" },
-  avatar: { width: "80px", height: "80px", background: "linear-gradient(45deg, #1a2a6c, #b21f1f)", color: "#fff", borderRadius: "50%", margin: "0 auto 15px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px", fontWeight: "bold", boxShadow: "0 10px 20px rgba(26,42,108,0.3)" },
-  userName: { margin: "0", fontSize: "22px", color: "#1a2a6c" },
-  userId: { fontSize: "12px", color: "#888", fontWeight: "bold" },
-
-  infoList: { display: "flex", flexDirection: "column", gap: "12px" },
-  infoCard: { 
-    background: "#fff", 
-    padding: "15px", 
-    borderRadius: "12px", 
-    border: "1px solid #efefef", 
-    boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
-    display: "flex",
-    flexDirection: "column"
-  },
-  infoLabel: { fontSize: "10px", color: "#b21f1f", fontWeight: "800", marginBottom: "4px", letterSpacing: "0.5px" },
-  infoValue: { fontSize: "15px", color: "#333", fontWeight: "600" },
-
-  // Form
-  formContainer: { flex: "2 1 400px", padding: "40px" },
-  sectionHeader: { marginBottom: "30px" },
-  formTitle: { fontSize: "24px", color: "#1a2a6c", margin: "0 0 8px 0" },
-  formDesc: { color: "#777", fontSize: "14px" },
-
-  field: { marginBottom: "20px" },
-  gridRow: { display: "flex", gap: "20px", flexWrap: "wrap" },
-  label: { display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "8px", color: "#444" },
-  input: { width: "100%", padding: "14px", border: "2px solid #eee", borderRadius: "10px", fontSize: "15px", outline: "none", transition: "all 0.3s", boxSizing: "border-box" },
-  select: { width: "100%", padding: "14px", border: "2px solid #eee", borderRadius: "10px", appearance: "none", background: "#fff", cursor: "pointer" },
-  textarea: { width: "100%", padding: "14px", border: "2px solid #eee", borderRadius: "10px", fontSize: "15px", resize: "none", boxSizing: "border-box" },
-
-  primaryBtn: { 
-    width: "100%", 
-    padding: "16px", 
-    background: "linear-gradient(to right, #1a2a6c, #b21f1f)", 
-    color: "#fff", 
-    border: "none", 
-    borderRadius: "12px", 
-    fontSize: "16px", 
-    fontWeight: "bold", 
-    cursor: "pointer", 
-    boxShadow: "0 10px 20px rgba(178,31,31,0.2)",
-    marginTop: "20px" 
-  },
-
-  // Success State
-  successBox: { textAlign: "center", padding: "20px" },
-  checkCircle: { width: "80px", height: "80px", background: "#27ae60", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "40px", margin: "0 auto 20px" },
-  successTitle: { fontSize: "28px", color: "#27ae60" },
-  receipt: { background: "#f8f9fa", padding: "20px", borderRadius: "15px", margin: "25px 0" },
-  rRow: { display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #eee" },
-  actionRow: { display: "flex", gap: "15px" },
-  downloadBtn: { flex: 2, padding: "14px", background: "#2ecc71", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" },
-  backBtn: { flex: 1, padding: "14px", background: "#ecf0f1", color: "#7f8c8d", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }
 };
 
 export default StudentDropApply;
