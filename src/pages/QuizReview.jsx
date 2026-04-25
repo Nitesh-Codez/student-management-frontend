@@ -2,10 +2,19 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FaTimes, FaChevronLeft, FaStar,
-   FaBolt, FaAward, FaChartLine,
+  FaBolt, FaAward, FaChartLine,
 } from 'react-icons/fa';
 import { motion } from "framer-motion";
 import axios from 'axios';
+
+// --- ADDED NORMALIZATION FUNCTION ---
+const normalize = (val) => {
+  if (val === null || val === undefined) return "";
+  return String(val)
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .trim();
+};
 
 const QuizReview = () => {
   const { quizId, studentId } = useParams();
@@ -21,13 +30,6 @@ const QuizReview = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Resetting body and html for true edge-to-edge
-    document.documentElement.style.margin = "0";
-    document.documentElement.style.padding = "0";
-    document.body.style.margin = "0";
-    document.body.style.padding = "0";
-    document.body.style.overflowX = "hidden";
-
     const fetchReviewData = async () => {
       try {
         setLoading(true);
@@ -44,7 +46,6 @@ const QuizReview = () => {
     fetchReviewData();
   }, [quizId, studentId]);
 
-  // SCROLL OBSERVER - Track active bubble and move it
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -52,13 +53,9 @@ const QuizReview = () => {
           if (entry.isIntersecting) {
             const index = parseInt(entry.target.getAttribute('data-index'));
             setActiveQuestion(index);
-            
-            // Auto-center the bubble in the horizontal roadmap
             if (bubbleRefs.current[index]) {
               bubbleRefs.current[index].scrollIntoView({
-                behavior: 'smooth',
-                inline: 'center',
-                block: 'nearest'
+                behavior: 'smooth', inline: 'center', block: 'nearest'
               });
             }
           }
@@ -98,8 +95,6 @@ const QuizReview = () => {
 
   return (
     <div style={styles.fullWidthWrapper}>
-      
-      {/* HEADER - Corner to Corner */}
       <header style={styles.mainHeader}>
         <div style={styles.navBar}>
           <button onClick={() => navigate(-1)} style={styles.navActionBtn}><FaChevronLeft /></button>
@@ -124,7 +119,6 @@ const QuizReview = () => {
         </div>
       </header>
 
-      {/* STATS STRIP - Perfectly Aligned */}
       <section style={styles.statsSection}>
         <div style={styles.statsGrid}>
           <div style={styles.statItem}><span style={styles.statNumber}>{totalQuestions}</span><span style={styles.statLabel}>TOTAL</span></div>
@@ -134,7 +128,7 @@ const QuizReview = () => {
         </div>
       </section>
 
-      {/* STICKY ROADMAP - Corner to Corner Scroll */}
+      {/* ROADMAP FIX: Using normalize(q.answer) */}
       <div style={styles.stickyJumpWrapper}>
         <div style={styles.mapHeader}>
           <span style={styles.sectionHeading}><FaBolt color="#f59e0b" /> Question Roadmap</span>
@@ -143,7 +137,7 @@ const QuizReview = () => {
         <div style={styles.bubbleFlex} className="no-scrollbar">
           {questions.map((q, i) => {
             const isActive = activeQuestion === i;
-            const isCorrect = student_answers[i] === (q.correct_option || q.correctAnswer);
+            const isCorrect = normalize(student_answers[i]) === normalize(q.answer);
             const isSkipped = !student_answers[i];
 
             return (
@@ -164,12 +158,12 @@ const QuizReview = () => {
         </div>
       </div>
 
-      {/* QUESTIONS CONTENT - Edge to Edge Layout */}
+      {/* QUESTION CONTENT FIX: Using normalize(q.answer) */}
       <main style={styles.contentBody}>
         {questions.map((q, index) => {
           const studentChoice = student_answers[index];
-          const correctAns = q.correct_option || q.correctAnswer;
-          const isCorrect = studentChoice === correctAns;
+          const correctAns = q.answer; // STANDARDIZED FIELD
+          const isCorrect = normalize(studentChoice) === normalize(correctAns);
 
           return (
             <div 
@@ -193,8 +187,8 @@ const QuizReview = () => {
 
               <div style={styles.optionsWrapperGrid}>
                 {q.options?.map((opt, i) => {
-                  const isCorrectOpt = opt === correctAns;
-                  const isUserOpt = opt === studentChoice;
+                  const isCorrectOpt = normalize(opt) === normalize(correctAns);
+                  const isUserOpt = normalize(opt) === normalize(studentChoice);
                   return (
                     <div key={i} style={{ 
                       ...styles.optionBoxSingle, 
@@ -214,15 +208,11 @@ const QuizReview = () => {
         })}
         <div style={{ height: "100px" }} />
       </main>
-
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        * { box-sizing: border-box; }
-      `}</style>
     </div>
   );
 };
 
+// ... Styles remain the same
 const styles = {
   fullWidthWrapper: { width: "100%", minHeight: "100vh", backgroundColor: "#fff" },
   mainHeader: { 
@@ -235,13 +225,11 @@ const styles = {
   headerInfo: { flex: 1 },
   quizMainTitle: { fontSize: "18px", fontWeight: "900", margin: 0 },
   quizSubTitle: { fontSize: "10px", opacity: 0.7, textTransform: 'uppercase' },
-  
   heroScoreContainer: { position: 'relative', display: 'inline-block' },
   starPos: { position: 'absolute', zIndex: 1 },
   trophyOuter: { margin: "0 auto 10px", width: "70px", height: "70px", background: "rgba(255,255,255,0.1)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" },
   scoreDisplay: { fontSize: "50px", fontWeight: "900", margin: 0 },
   passBadge: { display: "inline-block", padding: "6px 18px", borderRadius: "30px", fontSize: "11px", fontWeight: "900" },
-
   statsSection: { width: "100%", padding: "0 20px", marginTop: "-40px" },
   statsGrid: { 
     background: "#fff", borderRadius: "15px", padding: "20px 0px",
@@ -250,7 +238,6 @@ const styles = {
   statItem: { textAlign: "center", borderRight: "1px solid #f1f5f9" },
   statNumber: { display: "block", fontSize: "20px", fontWeight: "900" },
   statLabel: { fontSize: "9px", fontWeight: "800", opacity: 0.4 },
-
   stickyJumpWrapper: { 
     position: 'sticky', top: 0, background: '#fff', 
     zIndex: 100, padding: '15px 0', borderBottom: '1px solid #f1f5f9' 
@@ -260,7 +247,6 @@ const styles = {
   activeIndicator: { fontSize: '10px', fontWeight: '800', color: '#065f46', background: '#ecfdf5', padding: '4px 10px', borderRadius: '15px' },
   bubbleFlex: { display: "flex", gap: "12px", overflowX: "auto", padding: "5px 20px 15px 20px" },
   jumpBubble: { minWidth: "45px", height: "45px", borderRadius: "12px", border: "1.5px solid", fontSize: "15px", fontWeight: "900", display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '0.3s' },
-
   contentBody: { width: "100%" },
   qCard: { padding: "35px 20px", borderBottom: "1px solid #f1f5f9", transition: '0.3s' },
   qCardHeader: { display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: 'center' },
@@ -271,7 +257,6 @@ const styles = {
   optionBoxSingle: { padding: "16px", borderRadius: "16px", border: "2px solid", display: "flex", alignItems: "center", gap: "15px" },
   alphaPrefix: { width: "32px", height: "32px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "900" },
   optionTextContent: { flex: 1, margin: 0, fontWeight: "700", fontSize: '15px', color: '#334155' },
-
   centerFullPage: { height: "100vh", width: '100%', display: "flex", alignItems: "center", justifyContent: "center" }
 };
 

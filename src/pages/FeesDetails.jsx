@@ -136,24 +136,32 @@ const FeesDetails = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = { ...form, session, month };
-      if (form.id) {
-        await axios.put(`${API_URL}/api/fees/${form.id}`, payload);
-      } else {
-        await axios.post(`${API_URL}/api/fees`, payload);
-      }
-      setForm({
-        id: "", student_id: "", student_name: "", class_name: "", amount: "",
-        payment_date: new Date().toISOString().split("T")[0], status: "On Time"
-      });
-      setSelectedClass("");
-      fetchData();
-    } catch (err) {
-      alert("Database error while saving record.");
+  e.preventDefault();
+  try {
+    const payload = { 
+      ...form, 
+      session, 
+      month,
+      payment_time: new Date().toTimeString().split(" ")[0] // ✅ FIX
+    };
+
+    if (form.id) {
+      await axios.put(`${API_URL}/api/fees/${form.id}`, payload);
+    } else {
+      await axios.post(`${API_URL}/api/fees`, payload);
     }
-  };
+
+    setForm({
+      id: "", student_id: "", student_name: "", class_name: "", amount: "",
+      payment_date: new Date().toISOString().split("T")[0], status: "On Time"
+    });
+    setSelectedClass("");
+    fetchData();
+  } catch (err) {
+    alert("Database error while saving record.");
+  }
+};
+
 
   return (
     <div style={containerStyle}>

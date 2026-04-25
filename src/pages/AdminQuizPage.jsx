@@ -30,7 +30,6 @@ const AdminQuizPage = () => {
   const [results, setResults] = useState({});
   const [quizzes, setQuizzes] = useState([]);
   
-  // States for Filtering
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSession, setSelectedSession] = useState("2025-26");
   const [selectedStream, setSelectedStream] = useState("");
@@ -49,27 +48,21 @@ const AdminQuizPage = () => {
     catch (e) { return []; }
   };
 
-  // 1. Fetch Quizzes with Filters
+  // 1. Fetch Quizzes (Manage Tab)
   const fetchQuizzesForAdmin = async (className, session, stream) => {
-    if (!className || !session) return;
+    if (!className || !session) return alert("Select Class and Session!");
     setLoading(true);
     try {
-      // API call with query params
       const res = await axios.get(`${API_URL}/api/quiz/class/${className}`, {
         params: { session, stream }
       });
-      
-      const fullQuizzes = await Promise.all(
-        res.data.map(async (q) => {
-          const detail = await axios.get(`${API_URL}/api/quiz/${q.id}`);
-          return detail.data;
-        })
-      );
-      setQuizzes(fullQuizzes);
+      // Backend se direct questions array ke saath data aayega
+      setQuizzes(res.data);
     } catch (err) { alert("Error fetching quizzes"); } 
     finally { setLoading(false); }
   };
 
+  // 2. Handle Delete
   const handleDeleteQuiz = async (quizId) => {
     if (!window.confirm("Are you sure? All results will be deleted!")) return;
     try {
@@ -81,6 +74,7 @@ const AdminQuizPage = () => {
     finally { setLoading(false); }
   };
 
+  // 3. Edit Logic
   const startEditing = (q) => {
     setEditingQuizId(q.id);
     setTempQuizData(safeParse(q.questions));
@@ -99,6 +93,7 @@ const AdminQuizPage = () => {
   const saveUpdatedQuiz = async (quizId) => {
     try {
       setLoading(true);
+      // Backend Update Loop (Single Question at a time based on your controller)
       for(let i=0; i<tempQuizData.length; i++) {
         await axios.put(`${API_URL}/api/quiz/update/${quizId}/${i}`, tempQuizData[i]);
       }
@@ -109,9 +104,24 @@ const AdminQuizPage = () => {
     finally { setLoading(false); }
   };
 
-  // 2. Fetch Results with Filters
+  // 4. Submit New Quiz
+  const handleSubmitQuiz = async () => {
+    if (!quiz.class_name || !quiz.subject || !quiz.title || !quiz.session || quiz.questions.length === 0) {
+      alert("Please fill all details!"); return;
+    }
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/api/quiz/create`, quiz);
+      alert("Quiz Created!");
+      setQuiz({ class_name: "", subject: "", session: "2025-26", stream: "", title: "", timer_minutes: 10, questions: [] });
+      setActiveTab("edit");
+    } catch (err) { alert("Error creating quiz"); } 
+    finally { setLoading(false); }
+  };
+
+  // 5. Fetch Reports
   const fetchResults = async (className, session, stream) => {
-    if (!className || !session) return;
+    if (!className || !session) return alert("Select filters first!");
     setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/api/quiz/admin/results/${className}`, {
@@ -127,19 +137,6 @@ const AdminQuizPage = () => {
     finally { setLoading(false); }
   };
 
-  const handleSubmitQuiz = async () => {
-    if (!quiz.class_name || !quiz.subject || !quiz.title || !quiz.session || quiz.questions.length === 0) {
-      alert("Please fill all details!"); return;
-    }
-    setLoading(true);
-    try {
-      await axios.post(`${API_URL}/api/quiz/create`, quiz);
-      alert("Quiz Created!");
-      setQuiz({ class_name: "", subject: "", session: "2025-26", stream: "", title: "", timer_minutes: 10, questions: [] });
-    } catch (err) { alert("Error creating quiz"); } 
-    finally { setLoading(false); }
-  };
-
   const selectStyle = { padding: "10px", margin: "10px 5px", borderRadius: "4px", border: "1px solid #ccc", width: "210px" };
 
   return (
@@ -147,6 +144,7 @@ const AdminQuizPage = () => {
       
       <h1 style={{textAlign: 'center', color: '#1e293b', marginBottom: '30px'}}>Quiz Administration Portal</h1>
 
+      {/* Tabs Layout */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "30px", borderBottom: "2px solid #ddd" }}>
         <button onClick={() => setActiveTab("create")} style={{ ...tabBtn, background: activeTab === "create" ? "#3b82f6" : "none", color: activeTab === "create" ? "white" : "#64748b" }}>Create Quiz</button>
         <button onClick={() => setActiveTab("edit")} style={{ ...tabBtn, background: activeTab === "edit" ? "#8b5cf6" : "none", color: activeTab === "edit" ? "white" : "#64748b" }}>Manage Quizzes</button>
@@ -156,8 +154,8 @@ const AdminQuizPage = () => {
       {/* CREATE TAB */}
       {activeTab === "create" && (
         <div style={containerStyle}>
-          <h3>Add New Quiz</h3>
-          <div style={{ background: "#fff", padding: "20px", borderRadius: "8px", border: '1px solid #eee', display: 'flex', flexWrap: 'wrap' }}>
+          <h3 style={{color: '#3b82f6'}}>+ Add New Quiz</h3>
+          <div style={{ background: "#fff", padding: "20px", borderRadius: "8px", border: '1px solid #eee', display: 'flex', flexWrap: 'wrap', marginBottom: '20px' }}>
             <select style={selectStyle} value={quiz.session} onChange={(e) => setQuiz({...quiz, session: e.target.value})}>
               <option value="">Select Session</option>
               {sessions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -193,7 +191,13 @@ const AdminQuizPage = () => {
           
           {quiz.questions.map((q, i) => (
             <div key={i} style={cardStyle}>
-              <input style={inputFull} placeholder={`Question ${i+1}`} value={q.question} onChange={(e) => {
+              <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                <strong>Question {i+1}</strong>
+                <FaTrash style={{color: 'red', cursor: 'pointer'}} onClick={() => {
+                  let nq = [...quiz.questions]; nq.splice(i, 1); setQuiz({...quiz, questions: nq});
+                }} />
+              </div>
+              <input style={inputFull} placeholder="Enter Question text..." value={q.question} onChange={(e) => {
                 let nq = [...quiz.questions]; nq[i].question = e.target.value; setQuiz({...quiz, questions: nq});
               }} />
               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
@@ -203,7 +207,7 @@ const AdminQuizPage = () => {
                   }} style={inputFull} />
                 ))}
               </div>
-              <select style={{marginTop: '10px', padding: '10px', width: '100%'}} value={q.correctAnswer} onChange={(e) => {
+              <select style={{marginTop: '10px', padding: '10px', width: '100%', borderRadius: '6px'}} value={q.correctAnswer} onChange={(e) => {
                 let nq = [...quiz.questions]; nq[i].correctAnswer = e.target.value; setQuiz({...quiz, questions: nq});
               }}>
                 <option value="">Select Correct Answer</option>
@@ -211,14 +215,14 @@ const AdminQuizPage = () => {
               </select>
             </div>
           ))}
-          <button onClick={handleSubmitQuiz} style={publishBtn}>{loading ? "Publishing..." : "Publish Quiz"}</button>
+          <button onClick={handleSubmitQuiz} style={publishBtn} disabled={loading}>{loading ? "Publishing..." : "Publish Quiz"}</button>
         </div>
       )}
 
       {/* MANAGE TAB */}
       {activeTab === "edit" && (
         <div style={containerStyle}>
-          <h3>Filter Quizzes</h3>
+          <h3>Filter & Manage Quizzes</h3>
           <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px'}}>
             <select style={selectStyle} value={selectedSession} onChange={(e) => setSelectedSession(e.target.value)}>
                {sessions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -236,32 +240,69 @@ const AdminQuizPage = () => {
             <button style={addBtn} onClick={() => fetchQuizzesForAdmin(selectedClass, selectedSession, selectedStream)}>Search</button>
           </div>
 
-          {quizzes.map((q) => (
-            <div key={q.id} style={cardStyle}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <div>
-                    <h4 style={{margin: 0}}>{q.title}</h4>
-                    <small style={{color: '#666'}}>{q.subject} | {q.session} {q.stream ? `| ${q.stream}` : ''} | {safeParse(q.questions).length} Qs</small>
+          {quizzes.length === 0 && <p style={{textAlign: 'center', color: '#999'}}>No quizzes found for this filter.</p>}
+
+          {quizzes.map((q) => {
+            const qList = safeParse(q.questions);
+            return (
+              <div key={q.id} style={cardStyle}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <div>
+                      <h4 style={{margin: 0, color: '#1e293b'}}>{q.title}</h4>
+                      <small style={{color: '#666'}}>{q.subject} | {q.session} | {qList.length} Questions</small>
+                  </div>
+                  <div style={{display: 'flex', gap: '10px'}}>
+                    {editingQuizId === q.id ? (
+                        <button onClick={() => saveUpdatedQuiz(q.id)} style={{...checkBtn, background: '#10b981'}}><FaSave /> Save All</button>
+                    ) : (
+                        <button onClick={() => startEditing(q)} style={checkBtn}><FaEdit /> Edit Questions</button>
+                    )}
+                    <button onClick={() => handleDeleteQuiz(q.id)} style={deleteBtnStyle}><FaTrash /> Delete</button>
+                  </div>
                 </div>
-                <div style={{display: 'flex', gap: '10px'}}>
-                  {editingQuizId === q.id ? (
-                      <button onClick={() => saveUpdatedQuiz(q.id)} style={{...checkBtn, background: '#10b981'}}><FaSave /> Save Changes</button>
-                  ) : (
-                      <button onClick={() => startEditing(q)} style={checkBtn}><FaEdit /> Edit Questions</button>
-                  )}
-                  <button onClick={() => handleDeleteQuiz(q.id)} style={deleteBtnStyle}><FaTrash /> Delete</button>
-                </div>
+
+                {/* Inline Editing for Questions */}
+                {editingQuizId === q.id && (
+                  <div style={{marginTop: '20px', borderTop: '2px solid #f1f5f9', paddingTop: '15px'}}>
+                    {tempQuizData.map((tq, tIdx) => (
+                      <div key={tIdx} style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', marginBottom: '10px', border: '1px solid #e2e8f0'}}>
+                        <input 
+                          style={inputFull} 
+                          value={tq.question} 
+                          onChange={(e) => handleInlineChange(tIdx, 'question', e.target.value)}
+                        />
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                          {tq.options.map((opt, oIdx) => (
+                            <input 
+                              key={oIdx} 
+                              style={inputFull} 
+                              value={opt} 
+                              onChange={(e) => handleInlineChange(tIdx, 'options', e.target.value, oIdx)}
+                            />
+                          ))}
+                        </div>
+                        <select 
+                          style={{padding: '8px', width: '100%', borderRadius: '4px'}} 
+                          value={tq.correctAnswer} 
+                          onChange={(e) => handleInlineChange(tIdx, 'correctAnswer', e.target.value)}
+                        >
+                          {tq.options.map((opt, oIdx) => <option key={oIdx} value={opt}>{opt}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                    <button onClick={() => setEditingQuizId(null)} style={{background: '#ccc', border: 'none', padding: '10px', borderRadius: '6px', cursor: 'pointer'}}>Cancel</button>
+                  </div>
+                )}
               </div>
-              {/* Inline Questions Edit Logic (Already exists in your code) */}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
       {/* RESULTS TAB */}
       {activeTab === "results" && (
         <div style={containerStyle}>
-           <h3>Filter Results</h3>
+           <h3>Quiz Reports</h3>
            <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px'}}>
               <select style={selectStyle} value={selectedSession} onChange={(e) => setSelectedSession(e.target.value)}>
                 {sessions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -270,38 +311,34 @@ const AdminQuizPage = () => {
                 <option value="">Select Class</option>
                 {Object.keys(subjectsByClass).map(cls => <option key={cls} value={cls}>{cls}</option>)}
               </select>
-              {(selectedClass === "11th" || selectedClass === "12th") && (
-                <select style={selectStyle} value={selectedStream} onChange={(e) => setSelectedStream(e.target.value)}>
-                  <option value="">Select Stream</option>
-                  {streams.map(st => <option key={st} value={st}>{st}</option>)}
-                </select>
-              )}
               <button style={{...addBtn, background: '#10b981'}} onClick={() => fetchResults(selectedClass, selectedSession, selectedStream)}>Get Reports</button>
            </div>
 
            {Object.keys(results).map((quizTitle) => (
              <div key={quizTitle} style={resultGroup}>
                <div style={resultHeader}>Quiz: {quizTitle}</div>
-               <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                 <thead>
-                   <tr style={{background: '#f8f9fa'}}>
-                     <th style={tableCell}>Student Name</th>
-                     <th style={tableCell}>Score</th>
-                     <th style={tableCell}>Grade</th>
-                     <th style={tableCell}>Date</th>
-                   </tr>
-                 </thead>
-                 <tbody>
-                   {results[quizTitle].map((r, i) => (
-                     <tr key={i} style={{borderTop: '1px solid #eee'}}>
-                       <td style={tableCell}>{r.student_name}</td>
-                       <td style={tableCell}>{r.score}/{r.total_marks}</td>
-                       <td style={{...tableCell, color: r.percentage < 40 ? 'red' : 'green', fontWeight: 'bold'}}>{r.grade} ({r.percentage}%)</td>
-                       <td style={tableCell}>{new Date(r.created_at).toLocaleDateString()}</td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
+               <div style={{overflowX: 'auto'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                  <thead>
+                    <tr style={{background: '#f8f9fa'}}>
+                      <th style={tableCell}>Student Name</th>
+                      <th style={tableCell}>Score</th>
+                      <th style={tableCell}>Grade</th>
+                      <th style={tableCell}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results[quizTitle].map((r, i) => (
+                      <tr key={i} style={{borderTop: '1px solid #eee'}}>
+                        <td style={tableCell}>{r.student_name}</td>
+                        <td style={tableCell}>{r.score}/{r.total_marks}</td>
+                        <td style={{...tableCell, color: r.percentage < 40 ? 'red' : 'green', fontWeight: 'bold'}}>{r.grade} ({r.percentage}%)</td>
+                        <td style={tableCell}>{new Date(r.formatted_date).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+               </div>
              </div>
            ))}
         </div>
@@ -310,7 +347,7 @@ const AdminQuizPage = () => {
   );
 };
 
-// Styles (Same as before)
+// Styles
 const tabBtn = { padding: "12px 25px", cursor: "pointer", border: "none", fontWeight: "bold", borderRadius: "8px 8px 0 0", transition: '0.3s' };
 const containerStyle = { background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' };
 const cardStyle = { marginBottom: "15px", padding: "20px", border: "1px solid #eee", borderRadius: "12px", background: "#fff" };

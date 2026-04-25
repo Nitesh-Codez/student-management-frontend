@@ -1,16 +1,16 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
 const AttemptQuizPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   const API_URL = "https://student-management-system-4-hose.onrender.com";
   const user = JSON.parse(localStorage.getItem("user"));
   const studentId = user?.id || user?._id;
 
-  // LocalStorage Keys
   const TIMER_KEY = `quiz_expiry_${id}_${studentId}`;
   const ANSWERS_KEY = `quiz_answers_${id}_${studentId}`;
 
@@ -21,22 +21,56 @@ const AttemptQuizPage = () => {
   const [timeLeft, setTimeLeft] = useState(null);
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  
-  const timerRef = useRef(null);
+
+  // --- MATH FORMATTING LOGIC (REFINED) ---
+  const formatMath = (text) => {
+    if (!text) return "";
+    let str = text.toString();
+
+    // 1. Fractions: 3/4 -> ¾
+    const fractions = { "1/2": "½", "1/4": "¼", "3/4": "¾", "1/3": "⅓", "2/3": "⅔" };
+    Object.keys(fractions).forEach(f => {
+      str = str.replace(new RegExp(f, 'g'), fractions[f]);
+    });
+
+    // 2. Square Root: sqrt(x) -> √x
+    str = str.replace(/sqrt\((.*?)\)/g, "√$1");
+    str = str.replace(/sqrt/g, "√");
+
+    // 3. Superscripts: restricted to avoid greedy matching
+    const superscripts = {
+      '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', 
+      '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+      'n': 'ⁿ', 'x': 'ˣ', 'y': 'ʸ', '+': '⁺', '-': '⁻', '(': '⁽', ')': '⁾'
+    };
+    
+    // Regex matches ^ followed by a single char or brackets ^(abc)
+    str = str.replace(/\^(\((.*?)\)|[0-9nxy+-])/g, (match, p1, p2) => {
+      const content = p2 || p1; 
+      return content.split('').map(char => superscripts[char] || char).join('');
+    });
+
+    // 4. Other Symbols
+    str = str.replace(/pi/g, "π");
+    str = str.replace(/degree/g, "°");
+    str = str.replace(/!=/g, "≠");
+    str = str.replace(/<=/g, "≤");
+    str = str.replace(/>=/g, "≥");
+    str = str.replace(/\*/g, "×"); 
+
+    return str;
+  };
 
   // --- SUBMIT LOGIC ---
   const handleSubmit = useCallback(async (finalAnswers = answers) => {
     if (submitting) return;
     setSubmitting(true);
-    
     try {
       const res = await axios.post(`${API_URL}/api/quiz/submit`, {
         student_id: studentId,
         quiz_id: id,
         answers: finalAnswers,
       });
-      
-      // Cleanup on successful submit
       localStorage.removeItem(TIMER_KEY);
       localStorage.removeItem(ANSWERS_KEY);
       setResult(res.data.data || res.data);
@@ -48,174 +82,180 @@ const AttemptQuizPage = () => {
     }
   }, [id, studentId, answers, API_URL, submitting, TIMER_KEY, ANSWERS_KEY]);
 
-  // --- INITIAL LOAD ---
+  // --- INITIAL DATA FETCH ---
   useEffect(() => {
-    document.body.style.overflow = "auto";
-    document.body.style.backgroundColor = "#F9F9F9";
-
+    document.body.style.backgroundColor = "#46a805"; 
     axios.get(`${API_URL}/api/quiz/${id}`).then((res) => {
       const quizData = res.data;
       setQuiz(quizData);
       const q = typeof quizData.questions === 'string' ? JSON.parse(quizData.questions) : quizData.questions;
       setQuestions(q);
 
-      // 1. Load Saved Answers or Initialize
       const savedAnswers = localStorage.getItem(ANSWERS_KEY);
-      if (savedAnswers) {
-        setAnswers(JSON.parse(savedAnswers));
-      } else {
-        setAnswers(new Array(q.length).fill(null));
-      }
+      setAnswers(savedAnswers ? JSON.parse(savedAnswers) : new Array(q.length).fill(null));
 
-      // 2. Timer Persistence
       const savedExpiry = localStorage.getItem(TIMER_KEY);
-      let expiryTime;
+      let expiryTime = savedExpiry ? parseInt(savedExpiry) : Date.now() + quizData.timer_minutes * 60 * 1000;
+      if (!savedExpiry) localStorage.setItem(TIMER_KEY, expiryTime.toString());
 
-      if (savedExpiry) {
-        expiryTime = parseInt(savedExpiry);
-      } else {
-        expiryTime = Date.now() + quizData.timer_minutes * 60 * 1000;
-        localStorage.setItem(TIMER_KEY, expiryTime.toString());
-      }
-
-      const calculateTimeLeft = () => {
-        const diff = Math.floor((expiryTime - Date.now()) / 1000);
-        return diff > 0 ? diff : 0;
-      };
-
-      setTimeLeft(calculateTimeLeft());
+      setTimeLeft(Math.max(0, Math.floor((expiryTime - Date.now()) / 1000)));
     });
-  }, [id, API_URL, studentId, TIMER_KEY, ANSWERS_KEY]);
+  }, [id, API_URL, TIMER_KEY, ANSWERS_KEY]);
 
-  // --- TIMER TICK & AUTO-SUBMIT ---
+  // --- TIMER LOGIC ---
   useEffect(() => {
     if (timeLeft === null || result) return;
-
-    if (timeLeft <= 0) {
-      if (!submitting) handleSubmit();
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-
-    return () => clearInterval(timerRef.current);
+    if (timeLeft <= 0) { if (!submitting) handleSubmit(); return; }
+    const timer = setInterval(() => setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1)), 1000);
+    return () => clearInterval(timer);
   }, [timeLeft, result, handleSubmit, submitting]);
 
-  // --- SAVE ANSWERS TO LOCALSTORAGE ON CHANGE ---
   const handleOptionSelect = (opt) => {
     const newAns = [...answers];
     newAns[currentIdx] = opt;
     setAnswers(newAns);
     localStorage.setItem(ANSWERS_KEY, JSON.stringify(newAns));
+
+    if (currentIdx < questions.length - 1) {
+      setTimeout(() => {
+        setCurrentIdx(prev => prev + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 600);
+    }
   };
 
-  // --- TAB SWITCH DETECTION (Anti-Cheat) ---
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && !result && quiz) {
-        console.warn("Tab switched! Warning recorded.");
-        // Aap yahan alert ya auto-submit logic bhi dal sakte hain
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [result, quiz]);
-
   const formatTime = (s) => {
-    if (s === null) return "00:00";
     const mins = Math.floor(s / 60);
     const secs = s % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!quiz) return <div style={styles.center}>Loading Quiz...</div>;
+  if (!quiz) return <div style={styles.center}>Loading Premium Quiz Experience...</div>;
 
   if (result) return (
     <div style={styles.fullCenter}>
-      <div style={styles.resCard}>
-        <h1 style={{color: '#000', fontWeight: '900', fontSize: '32px'}}>Quiz Finished</h1>
-        <div style={styles.resCircle}>{Math.round(result.percentage)}%</div>
-        <div style={styles.resStats}>
-            <p>Score: <b>{result.score} / {quiz.total_marks}</b></p>
-            <p>Grade: <b style={{color: '#FF6B00'}}>{result.grade}</b></p>
-        </div>
-        <button onClick={() => navigate("/student/dashboard")} style={styles.finishBtn}>Go to Dashboard</button>
-      </div>
+       <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={styles.resCard}>
+         <div style={styles.resIcon}>🏆</div>
+         <h2 style={{color: '#FFF', fontSize: '28px', marginBottom: '10px'}}>Quiz Finished!</h2>
+         <p style={{color: '#94a3b8'}}>Your performance summary</p>
+         <div style={styles.resCircle}>{Math.round(result.percentage)}%</div>
+         <div style={styles.scoreRow}>
+           <span>Score: {result.score}/{quiz.total_marks}</span>
+         </div>
+         <button onClick={() => navigate("/student/dashboard")} style={styles.finishBtn}>Go to Dashboard</button>
+       </motion.div>
     </div>
   );
 
   return (
     <div style={styles.wrapper}>
       <div style={styles.header}>
-        <div style={styles.headerInner}>
-          <div style={styles.infoSide}>
+        <div style={styles.headerTop}>
+          <div style={styles.titleInfo}>
             <h2 style={styles.quizTitle}>{quiz.title}</h2>
-            <p style={styles.subjectText}>{quiz.subject} • {questions.length} Questions</p>
+            <p style={styles.subText}>{quiz.subject} • {questions.length} Questions</p>
           </div>
-          <div style={{...styles.timer, color: timeLeft < 60 ? 'red' : '#000'}}>
+          <motion.div 
+            animate={timeLeft < 60 ? { scale: [1, 1.05, 1] } : {}}
+            transition={{ repeat: Infinity, duration: 0.5 }}
+            style={{...styles.timerBox, color: timeLeft < 60 ? '#ff4d4d' : '#4ADEDE'}}
+          >
             {formatTime(timeLeft)}
-          </div>
+          </motion.div>
         </div>
-        <div style={styles.progressTrack}>
-          <div style={{...styles.progressFill, width: `${((currentIdx + 1) / questions.length) * 100}%`}}></div>
+
+        <div style={styles.bubbleScrollWrapper}>
+            <div style={styles.bubbleContainer}>
+                {questions.map((_, index) => {
+                    const isCurrent = currentIdx === index;
+                    const isAttempted = answers[index] !== null;
+                    return (
+                        <motion.div 
+                            key={index} 
+                            onClick={() => setCurrentIdx(index)}
+                            whileTap={{ scale: 0.9 }}
+                            style={{
+                                ...styles.bubble,
+                                background: isCurrent ? '#4ADEDE' : isAttempted ? '#FFF' : 'rgba(255,255,255,0.1)',
+                                color: isCurrent ? '#000' : isAttempted ? '#000' : '#FFF',
+                                border: isCurrent ? '2px solid #FFF' : '1px solid rgba(255,255,255,0.2)'
+                            }}
+                        >
+                            {index + 1}
+                        </motion.div>
+                    );
+                })}
+            </div>
         </div>
       </div>
 
       <div style={styles.mainContent}>
-        <div style={styles.qCard}>
-          <div style={styles.qHeader}>
-            <span style={styles.qCount}>QUESTION {currentIdx + 1} OF {questions.length}</span>
-          </div>
-          
-          <h3 style={styles.qText}>{questions[currentIdx]?.question}</h3>
-
-          <div style={styles.optionsContainer}>
-            {questions[currentIdx]?.options.map((opt, i) => {
-              const isSelected = answers[currentIdx] === opt;
-              return (
-                <div 
-                  key={i} 
-                  onClick={() => handleOptionSelect(opt)}
-                  style={{
-                    ...styles.optionBox,
-                    borderColor: isSelected ? '#FF6B00' : '#E0E0E0',
-                    backgroundColor: isSelected ? '#FFF9F5' : '#FFF',
-                    transform: isSelected ? 'translateY(-2px)' : 'none'
-                  }}
-                >
-                  <div style={{...styles.radioCircle, borderColor: isSelected ? '#FF6B00' : '#CCC'}}>
-                    {isSelected && <div style={styles.radioInner} />}
-                  </div>
-                  <span style={{...styles.optText, color: isSelected ? '#000' : '#333'}}>{opt}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={styles.navRow}>
-          <button 
-            disabled={currentIdx === 0}
-            onClick={() => { setCurrentIdx(currentIdx - 1); window.scrollTo(0,0); }}
-            style={{...styles.backBtn, opacity: currentIdx === 0 ? 0.3 : 1}}
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={currentIdx}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.4 }}
+            style={styles.qCard}
           >
-            Previous
-          </button>
+            <div style={styles.qBadge}>Question {currentIdx + 1}</div>
+            <h3 style={styles.qText}>{formatMath(questions[currentIdx]?.question)}</h3>
 
-          {currentIdx === questions.length - 1 ? (
-            <button onClick={() => handleSubmit()} disabled={submitting} style={styles.submitBtn}>
-              {submitting ? "Submitting..." : "Submit Test"}
-            </button>
-          ) : (
+            <div style={styles.optionsContainer}>
+              {questions[currentIdx]?.options.map((opt, i) => {
+                const isSelected = answers[currentIdx] === opt;
+                return (
+                  <motion.div 
+                    key={i} 
+                    onClick={() => handleOptionSelect(opt)}
+                    whileHover={{ x: 5 }}
+                    style={{
+                      ...styles.optionBox,
+                      background: isSelected ? '#4ADEDE' : '#FFFFFF',
+                      borderColor: isSelected ? '#FFF' : 'transparent',
+                    }}
+                  >
+                    <div style={{
+                        ...styles.radio, 
+                        borderColor: isSelected ? '#000' : '#DDD',
+                        background: isSelected ? '#000' : 'transparent'
+                    }}>
+                      {isSelected && <div style={styles.radioInner} />}
+                    </div>
+                    <span style={{
+                        ...styles.optText, 
+                        color: isSelected ? '#000' : '#333',
+                        fontWeight: isSelected ? '700' : '500'
+                    }}>{formatMath(opt)}</span>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        <div style={styles.footer}>
             <button 
-                onClick={() => { setCurrentIdx(currentIdx + 1); window.scrollTo(0,0); }} 
-                style={styles.nextBtn}
+                disabled={currentIdx === 0}
+                onClick={() => { setCurrentIdx(currentIdx - 1); window.scrollTo(0,0); }}
+                style={{...styles.navBtn, opacity: currentIdx === 0 ? 0.3 : 1}}
             >
-              Next Question
+              <span>←</span> Previous
             </button>
-          )}
+            
+            {currentIdx === questions.length - 1 ? (
+                <button onClick={() => handleSubmit()} style={styles.finalBtn}>
+                   {submitting ? "Processing..." : "Finish Quiz"}
+                </button>
+            ) : (
+                <button 
+                  onClick={() => { setCurrentIdx(currentIdx + 1); window.scrollTo(0,0); }} 
+                  style={styles.nextBtn}
+                >
+                  Skip / Next <span>→</span>
+                </button>
+            )}
         </div>
       </div>
     </div>
@@ -223,35 +263,36 @@ const AttemptQuizPage = () => {
 };
 
 const styles = {
-  // Styles same as before with minor tweaks for mobile feel
-  wrapper: { width: "100%", minHeight: "100vh", display: "flex", flexDirection: "column" },
-  header: { position: "sticky", top: 0, background: "#FFF", zIndex: 10, borderBottom: "1px solid #EEE" },
-  headerInner: { maxWidth: "800px", margin: "0 auto", padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  quizTitle: { margin: 0, fontSize: "20px", fontWeight: "900", color: "#000" },
-  subjectText: { margin: "2px 0 0 0", fontSize: "12px", color: "#888", fontWeight: "600" },
-  timer: { fontSize: "20px", fontWeight: "900", fontFamily: "monospace", padding: "8px 15px", background: "#F5F5F5", borderRadius: "12px" },
-  progressTrack: { height: "4px", background: "#EEE", width: "100%" },
-  progressFill: { height: "100%", background: "#FF6B00", transition: "width 0.3s ease" },
-  mainContent: { maxWidth: "800px", margin: "0 auto", width: "100%", padding: "20px" },
-  qCard: { background: "#FFF", borderRadius: "20px", padding: "25px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)", border: "1px solid #F1F1F1" },
-  qHeader: { marginBottom: "10px" },
-  qCount: { fontSize: "11px", fontWeight: "800", color: "#AAA", letterSpacing: "1px" },
-  qText: { fontSize: "20px", fontWeight: "800", color: "#000", lineHeight: "1.4", marginBottom: "25px" },
-  optionsContainer: { display: "flex", flexDirection: "column", gap: "12px" },
-  optionBox: { display: "flex", alignItems: "center", gap: "12px", padding: "18px", borderRadius: "15px", border: "2px solid", cursor: "pointer", transition: "0.2s" },
-  radioCircle: { width: "18px", height: "18px", borderRadius: "50%", border: "2px solid", display: "flex", justifyContent: "center", alignItems: "center" },
-  radioInner: { width: "9px", height: "9px", borderRadius: "50%", background: "#FF6B00" },
-  optText: { fontSize: "16px", fontWeight: "600" },
-  navRow: { display: "flex", gap: "15px", marginTop: "25px" },
-  backBtn: { flex: 1, padding: "16px", borderRadius: "14px", border: "1px solid #DDD", background: "#FFF", fontWeight: "800", cursor: "pointer" },
-  nextBtn: { flex: 1, padding: "16px", borderRadius: "14px", border: "none", background: "#000", color: "#FFF", fontWeight: "800", cursor: "pointer" },
-  submitBtn: { flex: 1, padding: "16px", borderRadius: "14px", border: "none", background: "#FF6B00", color: "#FFF", fontWeight: "800", cursor: "pointer" },
-  fullCenter: { height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", textAlign: "center", background: "#FFF" },
-  resCard: { padding: "30px", maxWidth: "400px", width: "90%", background: "#FFF", borderRadius: "30px", boxShadow: "0 20px 40px rgba(0,0,0,0.1)" },
-  resCircle: { width: "120px", height: "120px", borderRadius: "50%", background: "#F0F0F0", color: "#FF6B00", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "32px", fontWeight: "900", margin: "20px auto", border: "5px solid #FF6B00" },
-  resStats: { marginBottom: "25px", fontSize: "18px" },
-  finishBtn: { background: "#000", color: "#FFF", width: "100%", padding: "16px", borderRadius: "14px", border: "none", fontWeight: "800", cursor: "pointer" },
-  center: { display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", fontWeight: "900", color: "#FF6B00", fontSize: "20px" }
+  wrapper: { width: "100%", minHeight: "100vh", background: "#4f7b31", fontFamily: "'Inter', sans-serif" },
+  header: { background: "#0f172a", padding: "20px 0 15px 0", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 20px rgba(0,0,0,0.3)" },
+  headerTop: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 20px", marginBottom: "15px" },
+  titleInfo: { textAlign: "left" },
+  quizTitle: { color: "#4ADEDE", margin: 0, fontSize: "20px", fontWeight: "800", letterSpacing: "-0.5px" },
+  subText: { color: "#64748b", margin: 0, fontSize: "13px", fontWeight: "500" },
+  timerBox: { background: "rgba(255,255,255,0.05)", padding: "10px 18px", borderRadius: "14px", fontSize: "18px", fontWeight: "800", border: "1px solid rgba(255,255,255,0.1)" },
+  bubbleScrollWrapper: { width: "100%", overflowX: "auto", paddingBottom: "5px" },
+  bubbleContainer: { display: "flex", gap: "10px", padding: "0 20px" },
+  bubble: { minWidth: "35px", height: "35px", borderRadius: "10px", display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", fontSize: "14px", fontWeight: "700", transition: "0.3s all cubic-bezier(0.4, 0, 0.2, 1)" },
+  mainContent: { width: "100%", maxWidth: "800px", margin: "0 auto" }, 
+  qCard: { padding: "40px 20px", minHeight: "55vh" },
+  qBadge: { display: "inline-block", padding: "6px 12px", background: "rgba(255,255,255,0.15)", borderRadius: "8px", color: "#FFF", fontSize: "11px", fontWeight: "900", textTransform: "uppercase", marginBottom: "15px" },
+  qText: { color: "#FFF", fontSize: "26px", marginTop: "10px", lineHeight: "1.35", fontWeight: "700" },
+  optionsContainer: { marginTop: "35px", display: "flex", flexDirection: "column", gap: "14px" },
+  optionBox: { display: "flex", alignItems: "center", gap: "15px", padding: "22px", borderRadius: "24px", cursor: "pointer", transition: "0.2s all", boxShadow: "0 8px 20px rgba(0,0,0,0.15)", border: "2px solid transparent" },
+  radio: { width: "24px", height: "24px", borderRadius: "50%", border: "2px solid", display: "flex", justifyContent: "center", alignItems: "center" },
+  radioInner: { width: "10px", height: "10px", borderRadius: "50%", background: "#4ADEDE" },
+  optText: { fontSize: "18px" },
+  footer: { display: "flex", gap: "12px", padding: "30px 20px 50px 20px" },
+  navBtn: { flex: 1, padding: "18px", borderRadius: "20px", border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: "#FFF", cursor: "pointer", fontSize: "16px", fontWeight: "600", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" },
+  nextBtn: { flex: 1, padding: "18px", borderRadius: "20px", border: "none", background: "rgba(255,255,255,0.1)", color: "#FFF", fontWeight: "600", cursor: "pointer", fontSize: "16px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" },
+  finalBtn: { flex: 2, padding: "18px", borderRadius: "20px", border: "none", background: "#000", color: "#FFF", fontWeight: "800", cursor: "pointer", fontSize: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.4)" },
+  center: { height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#46a805", color: "#FFF", fontWeight: "bold" },
+  fullCenter: { height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#0f172a" },
+  resCard: { textAlign: "center", background: "#1e293b", padding: "50px 30px", borderRadius: "40px", width: "90%", maxWidth: "450px", border: "1px solid rgba(255,255,255,0.1)" },
+  resIcon: { fontSize: "60px", marginBottom: "15px" },
+  resCircle: { fontSize: "65px", fontWeight: "900", color: "#4ADEDE", margin: "30px 0", textShadow: "0 0 20px rgba(74, 222, 222, 0.4)" },
+  scoreRow: { fontSize: "18px", color: "#94a3b8", marginBottom: "35px" },
+  finishBtn: { width: "100%", background: "#4ADEDE", border: "none", padding: "20px", borderRadius: "18px", fontWeight: "800", color: "#000", cursor: "pointer", fontSize: "16px" }
 };
 
 export default AttemptQuizPage;
