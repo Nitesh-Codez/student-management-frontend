@@ -1008,7 +1008,7 @@ try {
 >
   📝 Practice Quiz
 </Link>
-                <Link to="chat" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("chat"))}>
+                <Link to="student-chat" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("student-chat"))}>
                   <FaComments /> Connect Chat
                 </Link>
                 <Link to="drop-apply" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("drop-apply"))}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Line } from "react-chartjs-2";
-import { motion, AnimatePresence } from "framer-motion"; // Added for animation
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -89,9 +89,20 @@ const StudentMarks = () => {
           const currentIds = currentLocalMarks.map((m) => m.id);
           const newEntries = fetchedData.filter((m) => !currentIds.includes(m.id));
 
-          if (newEntries.length > 0 && currentLocalMarks.length > 0) {
+          if (newEntries.length > 0) {
             const names = [...new Set(newEntries.map((m) => m.subject))].join(", ");
             setNewSubjectNames(names);
+            
+            // Sync new items to notification view history instantly
+            const historyStore = JSON.parse(localStorage.getItem("latestCheckHistory")) || {};
+            const existingLatest = historyStore[userRef.current.id] || [];
+            const updatedLatest = [...newEntries, ...existingLatest].slice(0, 10);
+            
+            setLatestCheckedMarks(updatedLatest);
+            historyStore[userRef.current.id] = updatedLatest;
+            localStorage.setItem("latestCheckHistory", JSON.stringify(historyStore));
+            
+            // Trigger popup informing about the update
             setShowPrePopup(true);
           }
         }
@@ -100,7 +111,7 @@ const StudentMarks = () => {
   };
 
   /**
-   * HOOK: INITIAL LOAD
+   * HOOK: INITIAL LOAD (Auto loads by default)
    */
   useEffect(() => {
     generateCaptcha();
@@ -112,16 +123,19 @@ const StudentMarks = () => {
     const savedLatest = JSON.parse(localStorage.getItem("latestCheckHistory")) || {};
     const lastEntries = savedLatest[studentId] || [];
     
-    if (userRef.current && localMarks.length > 0) {
+    // Default load existing state profiles instantly
+    if (localMarks.length > 0) {
       setMarks(localMarks);
     }
     
     setLatestCheckedMarks(lastEntries);
+    
+    // Quiet check to look for updates over the cloud
     checkForNewMarks(localMarks);
   }, []);
 
   /**
-   * ACTION: MANUAL MARKS UPDATE
+   * ACTION: MANUAL MARKS UPDATE WITH CAPTCHA Verification
    */
   const handleCheckMarks = () => {
     if (captchaInput !== captcha) {
@@ -140,7 +154,6 @@ const StudentMarks = () => {
         if (res.data.success && res.data.data.length > 0) {
           const fetchedData = res.data.data;
           const currentIds = marks.map((m) => m.id);
-          
           const newOnes = fetchedData.filter((m) => !currentIds.includes(m.id));
           
           const oldAvg = parseFloat(calculateAverage(marks));
@@ -155,13 +168,10 @@ const StudentMarks = () => {
 
           setMarks(fetchedData);
           
-          // Updated Logic: Keep previous latest marks and add new ones (No deletion)
           if (newOnes.length > 0) {
             const historyStore = JSON.parse(localStorage.getItem("latestCheckHistory")) || {};
             const existingLatest = historyStore[userRef.current.id] || [];
-            
-            // Combine old latest with new ones, avoiding duplicates
-            const updatedLatest = [...newOnes, ...existingLatest].slice(0, 10); // Keep last 10 for UI cleaness
+            const updatedLatest = [...newOnes, ...existingLatest].slice(0, 10);
             
             setLatestCheckedMarks(updatedLatest);
             historyStore[userRef.current.id] = updatedLatest;
@@ -252,7 +262,7 @@ const StudentMarks = () => {
 
   const overallPercentage = calculateAverage(marks);
   const getRemark = (p) => {
-    if (p <= 0) return ""; // 0 par message nahi aayega
+    if (p <= 0) return ""; 
     if (p >= 95) return "Outstanding! Truly exceptional work done.";
     if (p >= 90) return "Excellent! Keep up your efforts.";
     if (p >= 85) return "Elite Performance! You did great.";
@@ -264,9 +274,6 @@ const StudentMarks = () => {
     if (p >= 33) return "Barely Passing. Need more focus.";
     return "Requires Immediate Focus. Work immediately.";
   };
-
-  const dashArray = 2 * Math.PI * 45;
-  const dashOffset = dashArray - (dashArray * overallPercentage) / 100;
 
   const grouped = marks.reduce((acc, m) => {
     if (!acc[m.subject]) acc[m.subject] = [];
@@ -315,6 +322,7 @@ const StudentMarks = () => {
 
   return (
     <div style={styles.container}>
+      {/* TRIGGER POPUP UPON BACKGROUND SYNC DETECTING NEW SCORES */}
       <AnimatePresence>
         {showPrePopup && (
           <motion.div 
@@ -338,10 +346,10 @@ const StudentMarks = () => {
                 onClick={() => setShowPrePopup(false)}
                 style={{
                   background: "#3498DB", color: "#fff", border: "none",
-                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold"
+                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold", cursor: "pointer"
                 }}
               >
-                Okay, Let me check
+                Please Check Marks
               </button>
             </motion.div>
           </motion.div>
@@ -368,7 +376,7 @@ const StudentMarks = () => {
                 onClick={() => setShowPostPopup(false)}
                 style={{
                   background: "#2b5876", color: "#fff", border: "none",
-                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold"
+                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold", cursor: "pointer"
                 }}
               >
                 Show My Report
@@ -385,7 +393,7 @@ const StudentMarks = () => {
         </p>
       </div>
 
-      {/* RECENT MARKS WITH COMPARISON */}
+      {/* RECENT NEW MARKS ALWAYS ON TOP */}
       {latestCheckedMarks.length > 0 && (
         <motion.div 
           initial={{ x: -50, opacity: 0 }} 
@@ -492,7 +500,7 @@ const StudentMarks = () => {
         <h3 style={{ marginTop: "20px", fontSize: "20px", textAlign: 'center' }}>{getRemark(overallPercentage)}</h3>
       </motion.div>
 
-      {/* CAPTCHA SECTION */}
+      {/* MANUAL CAPTCHA SYSTEM REVERSED AS SECONDARY VERIFICATION */}
       <div style={{ padding: "0 12px" }}>
         <div style={{ background: "#fff", borderRadius: "18px", padding: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
           <div style={{ padding: "18px", background: "#f8f9fa", borderRadius: "10px", textAlign: "center", fontWeight: "700", letterSpacing: "8px", fontSize: "20px", border: "2px dashed #3498DB", color: "#2b5876", marginBottom: "15px" }}>
@@ -503,14 +511,14 @@ const StudentMarks = () => {
               <input type="text" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} placeholder="Type Code" style={{ padding: "14px", borderRadius: "12px", flex: 2, border: "1px solid #dcdde1", fontSize: "16px", outline: "none" }} />
           </div>
           <button onClick={handleCheckMarks} style={{ padding: "16px", background: "#2ECC71", color: "#fff", borderRadius: "12px", border: "none", width: "100%", fontSize: "17px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 15px rgba(46, 204, 113, 0.3)" }}>
-            Fetch Latest Marks
+            Fetch Live Database Update
           </button>
         </div>
       </div>
 
       {message && <p style={{ color: message.includes("successfully") ? "#27ae60" : "#e74c3c", textAlign: "center", fontWeight: "bold", marginTop: "15px" }}>{message}</p>}
 
-      {/* CHART SECTION */}
+      {/* PERFORMANCE CHART */}
       {marks.length > 0 && (
         <div style={{ ...styles.tableWrapper, marginTop: "30px" }}>
           <h4 style={{ margin: "0 0 15px 0", color: "#2f3640" }}>Performance Trajectory</h4>
@@ -520,7 +528,7 @@ const StudentMarks = () => {
         </div>
       )}
 
-      {/* DETAILED TABLES */}
+      {/* DETAILED SUBJECT GRIDS */}
       {Object.keys(grouped).map((subject, idx) => (
         <motion.div 
           initial={{ opacity: 0 }} 
