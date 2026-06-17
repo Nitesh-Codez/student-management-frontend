@@ -631,4 +631,4 @@ const StudentMarks = () => {
   );
 };
 
-export default StudentMarks;  full diitto ishi ko de sahi krke
+export default StudentMarks;  
