@@ -41,7 +41,7 @@ const ExamForm = () => {
     // 5th to 9th Class (With Sanskrit)
     const isMiddleOrHighSchool = ["5", "6", "7", "8", "9"].some(num => studentClass.includes(num));
     if (isMiddleOrHighSchool && !studentClass.includes("10")) {
-      return ["Science", "Maths", "Social Science", "Hindi", "English", "Sanskrit"];
+      return ["Hindi", "Maths", "Social Science", "Science", "English", "English Communication"];
     }
 
     // 10th Class (डिफ़ॉल्ट या जब क्लास "10" हो - No Sanskrit)
