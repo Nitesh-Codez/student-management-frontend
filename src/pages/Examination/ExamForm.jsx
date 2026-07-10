@@ -5,6 +5,7 @@ import { FaGraduationCap, FaPrint, FaCheckCircle, FaLock, FaSync, FaUserAlt } fr
 const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
 
 const ExamForm = () => {
+  // सीधे localStorage से यूजर ऑब्जेक्ट निकाला
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const currentYear = new Date().getFullYear();
   const academicSession = `${currentYear}-${currentYear + 1}`;
@@ -16,56 +17,41 @@ const ExamForm = () => {
   const [loading, setLoading] = useState(true);
   const [agreed, setAgreed] = useState({ detailsCorrect: false, subjectsVerified: false, noDues: false });
 
-  // Function to filter and structure subjects based on class and stream
-  const processSubjects = (fetchedSubjects = []) => {
-    const studentClass = user.class ? user.class.toLowerCase() : "";
+  // लोकल क्लास के आधार पर सब्जेक्ट्स दिखाने का फुल-प्रूफ लॉजिक
+  const getSubjectsByLocalClass = () => {
+    const studentClass = user.class ? user.class.toString().toLowerCase().trim() : "";
     const streamStr = user.stream || "";
 
-    // 12th Class Dynamic Handling
-    if (studentClass.includes("12")) {
+    // 11th & 12th Class
+    if (studentClass.includes("12") || studentClass.includes("11") || studentClass.includes("xi") || studentClass.includes("xii")) {
       let subjectsList = [];
-      
       if (streamStr.toLowerCase().includes("chemistry") && streamStr.toLowerCase().includes("maths")) {
         subjectsList = ["Chemistry", "Maths"];
       } else if (streamStr) {
         subjectsList = streamStr.split(",").map(s => s.trim()).filter(Boolean);
       } else {
-        subjectsList = fetchedSubjects;
+        subjectsList = ["Physics", "Chemistry", "Maths"]; // Default Fallback for 11-12th
       }
-
-      // Append English Communication if not already present
       if (!subjectsList.some(s => s.toLowerCase() === "english communication")) {
         subjectsList.push("English Communication");
       }
       return subjectsList;
     }
 
-    // 10th Class Dynamic Handling
-    if (studentClass.includes("10")) {
-      let subjectsList = fetchedSubjects.length > 0 ? [...fetchedSubjects] : ["Science", "Maths", "Social Science", "Hindi", "English"];
-      
-      // Remove Sanskrit if present
-      subjectsList = subjectsList.filter(s => s.toLowerCase() !== "sanskrit");
-
-      // Append English Communication if not already present
-      if (!subjectsList.some(s => s.toLowerCase() === "english communication")) {
-        subjectsList.push("English Communication");
-      }
-      return subjectsList;
+    // 5th to 9th Class (With Sanskrit)
+    const isMiddleOrHighSchool = ["5", "6", "7", "8", "9"].some(num => studentClass.includes(num));
+    if (isMiddleOrHighSchool && !studentClass.includes("10")) {
+      return ["Science", "Maths", "Social Science", "Hindi", "English", "Sanskrit"];
     }
 
-    // Default fallback (For other classes)
-    return fetchedSubjects;
+    // 10th Class (डिफ़ॉल्ट या जब क्लास "10" हो - No Sanskrit)
+    return ["Science", "Maths", "Social Science", "Hindi", "English", "English Communication"];
   };
 
   // Load Data
   const loadFullData = async () => {
     if (!user.id) return;
     setLoading(true);
-    
-    let subjectSourceType = examType;
-    if (examType === "REAPPEAR-1") subjectSourceType = "PRE-FINAL";
-    if (examType === "REAPPEAR-2") subjectSourceType = "FINAL";
 
     try {
       const [profileRes, examRes] = await Promise.all([
@@ -77,26 +63,13 @@ const ExamForm = () => {
 
       setProfile(profileRes.data.student);
       
-      if (examRes.data?.data?.status === 'Submitted') {
-        // Safe check for already submitted subjects
-        const savedSubs = examRes.data.data.subjects || [];
-        setExamData({
-          ...examRes.data.data,
-          subjects: processSubjects(savedSubs)
-        });
-      } else {
-        const subRes = await axios.get(`${API_URL}/api/students/my-exam-details`, {
-          params: { student_id: user.id, exam_type: subjectSourceType }
-        });
+      // अगर पहले से सबमिट हो चुका है तो सबमिटेड स्टेटस दिखाएगा, लेकिन सब्जेक्ट्स लोकल वाले ही रहेंगे
+      setExamData({
+        ...examRes.data?.data,
+        subjects: getSubjectsByLocalClass(),
+        status: examRes.data?.data?.status || 'Not Applied'
+      });
 
-        const rawSubjects = subRes.data?.data?.subjects || [];
-        
-        setExamData({
-          ...examRes.data?.data,
-          subjects: processSubjects(rawSubjects),
-          status: examRes.data?.data?.status || 'Not Applied'
-        });
-      }
     } catch (err) {
       console.error("Initialization Error:", err);
     } finally {
@@ -175,7 +148,7 @@ const ExamForm = () => {
                 <InfoItem label="NAME OF STUDENT" value={profile?.name?.toUpperCase()} />
                 <InfoItem label="ENROLLMENT / ROLL NO" value={profile?.code} />
                 <InfoItem label="FATHER'S NAME" value={profile?.father_name?.toUpperCase()} />
-                <InfoItem label="COURSE & YEAR" value={`${profile?.class || 'N/A'} (${academicSession})`} />
+                <InfoItem label="COURSE & YEAR" value={`${profile?.class || user.class || 'N/A'} (${academicSession})`} />
                 <InfoItem label="MOBILE NUMBER" value={profile?.mobile} />
                 <InfoItem label="GENDER" value={profile?.gender} />
               </div>
@@ -204,7 +177,7 @@ const ExamForm = () => {
                 </tr>
               </thead>
               <tbody>
-                {examData?.subjects?.length > 0 ? (
+                {examData?.subjects && examData.subjects.length > 0 ? (
                   examData.subjects.map((s, i) => (
                     <tr key={i} style={styles.tr}>
                       <td style={styles.td}>10{i+1}</td>
@@ -213,7 +186,7 @@ const ExamForm = () => {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="3" style={styles.noData}>Loading subjects for {examType}...</td></tr>
+                  <tr><td colSpan="3" style={styles.noData}>No subjects configured.</td></tr>
                 )}
               </tbody>
             </table>
@@ -317,6 +290,7 @@ const styles = {
   section: { marginBottom: "35px" },
   typeSelector: { display: "flex", alignItems: "center", gap: "20px", background: "#f8fafc", padding: "15px", borderRadius: "8px", border: "1px solid #e2e8f0" },
   docSelect: { padding: "8px 15px", fontSize: "15px", fontWeight: "bold", border: "2px solid #1a237e", borderRadius: "5px", color: "#1a237e", width: "300px" },
+  boldLabel: { fontWeight: "bold", fontSize: "14px", color: "#1a237e" },
   lockBadge: { background: "#e11d48", color: "#fff", fontSize: "12px", padding: "6px 12px", borderRadius: "5px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "5px" },
   sectionTitle: { fontSize: "13px", fontWeight: "900", background: "#f1f5f9", padding: "10px 15px", borderLeft: "5px solid #1a237e", marginBottom: "20px" },
   mainInfoWrapper: { display: "flex", gap: "30px", justifyContent: "space-between" },
@@ -332,6 +306,7 @@ const styles = {
   thRow: { background: "#1a237e", color: "#fff" },
   th: { padding: "12px", fontSize: "12px" },
   td: { padding: "15px", border: "1px solid #e2e8f0", fontSize: "14px", textAlign: "center" },
+  noData: { padding: "20px", color: "#64748b", fontStyle: "italic", textAlign: "center" },
   footerSection: { marginTop: "50px" },
   authSignatures: { display: "flex", justifyContent: "space-between", marginTop: "60px", textAlign: "center" },
   signBox: { width: "180px" },
@@ -339,6 +314,7 @@ const styles = {
   cursive: { fontFamily: "'Dancing Script', cursive", fontSize: "24px", color: "#1a237e" },
   signLine: { borderBottom: "1.5px solid #000", margin: "5px 0" },
   signName: { margin: 0, fontWeight: "bold", fontSize: "13px" },
+  signPost: { margin: 0, fontSize: "11px", color: "#64748b" },
   sealBox: { width: "100px" },
   roundSeal: { width: "90px", height: "90px", margin: "0 auto" },
   sealText: { fontSize: "9px", fontWeight: "bold", fill: "#1a237e" },
