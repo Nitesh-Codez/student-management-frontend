@@ -5,14 +5,14 @@ const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const AdminAddNewMarks = () => {
   const subjectsByClass = {
-    "5th": ["Math", "English", "Hindi", "EVS"],
-    "6th": ["Math", "English", "Hindi", "Science"],
-    "7th": ["Math", "English", "Hindi", "Science", "Civics", "Geography", "Economics", "History"],
-    "8th": ["Math", "English", "Science", "Hindi", "Civics", "Geography", "Economics", "History"],
-    "9th": ["Math", "English", "Hindi", "Science", "S.S.T"],
-    "10th": ["Math", "English", "Hindi", "Science", "S.S.T"],
-    "11th": ["Chemistry", "Math", "English", "Physics", "Biology"],
-    "12th": ["Chemistry", "Math", "English", "Physics", "Biology","Hindi",""],
+    "5th": ["Math", "English", "Hindi", "EVS","English Communication"],
+    "6th": ["Math", "English", "Hindi", "Science","English Communication"],
+    "7th": ["Math", "English", "Hindi", "Science", "Civics", "Geography", "Economics", "History","English Communication"],
+    "8th": ["Math", "English", "Science", "Hindi", "Civics", "Geography", "Economics", "History","English Communication"],
+    "9th": ["Math", "English", "Hindi", "Science", "S.S.T","English Communication"],
+    "10th": ["Math", "English", "Hindi", "Science", "S.S.T","English Communication"],
+    "11th": ["Chemistry", "Math", "English", "Physics", "Biology","English Communication"],
+    "12th": ["Chemistry", "Math", "English", "Physics", "Biology","Hindi","English Communication"],
   };
 
   const [classes, setClasses] = useState([]);
