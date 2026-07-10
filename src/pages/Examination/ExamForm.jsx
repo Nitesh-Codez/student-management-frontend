@@ -16,12 +16,53 @@ const ExamForm = () => {
   const [loading, setLoading] = useState(true);
   const [agreed, setAgreed] = useState({ detailsCorrect: false, subjectsVerified: false, noDues: false });
 
+  // Function to filter and structure subjects based on class and stream
+  const processSubjects = (fetchedSubjects = []) => {
+    const studentClass = user.class ? user.class.toLowerCase() : "";
+    const streamStr = user.stream || "";
+
+    // 12th Class Dynamic Handling
+    if (studentClass.includes("12")) {
+      let subjectsList = [];
+      
+      if (streamStr.toLowerCase().includes("chemistry") && streamStr.toLowerCase().includes("maths")) {
+        subjectsList = ["Chemistry", "Maths"];
+      } else if (streamStr) {
+        subjectsList = streamStr.split(",").map(s => s.trim()).filter(Boolean);
+      } else {
+        subjectsList = fetchedSubjects;
+      }
+
+      // Append English Communication if not already present
+      if (!subjectsList.some(s => s.toLowerCase() === "english communication")) {
+        subjectsList.push("English Communication");
+      }
+      return subjectsList;
+    }
+
+    // 10th Class Dynamic Handling
+    if (studentClass.includes("10")) {
+      let subjectsList = fetchedSubjects.length > 0 ? [...fetchedSubjects] : ["Science", "Maths", "Social Science", "Hindi", "English"];
+      
+      // Remove Sanskrit if present
+      subjectsList = subjectsList.filter(s => s.toLowerCase() !== "sanskrit");
+
+      // Append English Communication if not already present
+      if (!subjectsList.some(s => s.toLowerCase() === "english communication")) {
+        subjectsList.push("English Communication");
+      }
+      return subjectsList;
+    }
+
+    // Default fallback (For other classes)
+    return fetchedSubjects;
+  };
+
   // Load Data
   const loadFullData = async () => {
     if (!user.id) return;
     setLoading(true);
     
-    // Logic: Agar Reappear hai toh subject list PRE-FINAL/FINAL wali hi uthayega
     let subjectSourceType = examType;
     if (examType === "REAPPEAR-1") subjectSourceType = "PRE-FINAL";
     if (examType === "REAPPEAR-2") subjectSourceType = "FINAL";
@@ -36,18 +77,23 @@ const ExamForm = () => {
 
       setProfile(profileRes.data.student);
       
-      // SUBJECT FETCHING LOGIC: 
-      // Agar current status Submitted hai toh wahi data dikhao, 
-      // warna mapping ke hisaab se default subjects fetch karo.
       if (examRes.data?.data?.status === 'Submitted') {
-        setExamData(examRes.data.data);
+        // Safe check for already submitted subjects
+        const savedSubs = examRes.data.data.subjects || [];
+        setExamData({
+          ...examRes.data.data,
+          subjects: processSubjects(savedSubs)
+        });
       } else {
         const subRes = await axios.get(`${API_URL}/api/students/my-exam-details`, {
           params: { student_id: user.id, exam_type: subjectSourceType }
         });
+
+        const rawSubjects = subRes.data?.data?.subjects || [];
+        
         setExamData({
           ...examRes.data?.data,
-          subjects: subRes.data?.data?.subjects || [],
+          subjects: processSubjects(rawSubjects),
           status: examRes.data?.data?.status || 'Not Applied'
         });
       }
@@ -86,7 +132,6 @@ const ExamForm = () => {
 
   return (
     <div style={styles.pageBackground}>
-      {/* Horizontal & Vertical Scroll Wrapper */}
       <div style={styles.scrollContainer}>
         <div className="print-area" style={styles.a4Sheet}>
           
@@ -102,7 +147,7 @@ const ExamForm = () => {
             <div style={styles.doubleDivider}></div>
           </header>
 
-          {/* EXAM SELECTION - Ab sirf Submitted wala lock hoga */}
+          {/* EXAM SELECTION */}
           <section style={styles.section}>
             <div style={styles.typeSelector}>
               <div style={{flex: 1}}>
@@ -122,7 +167,7 @@ const ExamForm = () => {
             </div>
           </section>
 
-          {/* STUDENT DETAILS + PHOTO BOX */}
+          {/* STUDENT DETAILS */}
           <section style={styles.section}>
             <h3 style={styles.sectionTitle}>I. CANDIDATE PARTICULARS</h3>
             <div style={styles.mainInfoWrapper}>
@@ -135,7 +180,6 @@ const ExamForm = () => {
                 <InfoItem label="GENDER" value={profile?.gender} />
               </div>
               
-              {/* Photo Box Integration */}
               <div style={styles.photoContainer}>
                 <div style={styles.photoBox}>
                   {profile?.profile_photo ? (
@@ -201,9 +245,9 @@ const ExamForm = () => {
 
             <div style={styles.authSignatures}>
               <div style={styles.signBox}>
-                <div style={styles.signImage}><span style={styles.cursive}>Nitesh Kushwah</span></div>
+                <div style={styles.signImage}><span style={styles.cursive}>Vandana Kushwah</span></div>
                 <div style={styles.signLine}></div>
-                <p style={styles.signName}>NITESH KUSHWAH</p>
+                <p style={styles.signName}>Vandana KUSHWAH</p>
                 <p style={styles.signPost}>Exam Controller</p>
               </div>
 
@@ -258,7 +302,7 @@ const CheckItem = ({ checked, onChange, label }) => (
 );
 
 const styles = {
-  pageBackground: { background: "#4a4a4a",width: "1050px", minHeight: "100vh", padding: "40px 15px", overflow: "hidden" },
+  pageBackground: { background: "#4a4a4a", width: "1050px", minHeight: "100vh", padding: "40px 15px", overflow: "hidden" },
   scrollContainer: { width: "100%", overflowX: "auto", overflowY: "auto", display: "flex", justifyContent: "flex-start", paddingBottom: "20px" },
   a4Sheet: { 
     background: "#fff", width: "950px", minHeight: "1150px", margin: "0 auto",
