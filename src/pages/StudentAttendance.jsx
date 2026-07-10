@@ -11,6 +11,10 @@ const StudentAttendance = () => {
   const [marks, setMarks] = useState(0);
   const [todayStatus, setTodayStatus] = useState(null);
 
+  // --- NEW STATES FOR MONTHLY BREAKDOWN & FINAL AVERAGE ---
+  const [monthlyBreakdown, setMonthlyBreakdown] = useState([]);
+  const [finalAverageMarks, setFinalAverageMarks] = useState(0);
+
   const colors = {
     present: "#28a745",
     absent: "#dc3545",
@@ -77,6 +81,55 @@ const StudentAttendance = () => {
     
     setPercentage(perc.toFixed(1));
     setMarks(perc <= 75 ? 0 : Math.ceil((perc - 75) / 5));
+
+    // ----------------------------------------------------
+    // DYNAMIC CALCULATION: April se lekar Selected Month tak har month ke marks
+    // ----------------------------------------------------
+    if (attendance.length > 0) {
+      const startMonthIdx = 3; // April (0-indexed)
+      const currentYear = y;
+      const targetMonthIndex = m - 1; // Selected Month
+
+      let totalCalculatedMarks = 0;
+      let monthCountInvolved = 0;
+      let tempBreakdown = [];
+
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June", 
+        "July", "August", "September", "October", "November", "December"
+      ];
+
+      // April se lekar chosen month tak har month ka loop chalega
+      for (let monthIdx = startMonthIdx; monthIdx <= targetMonthIndex; monthIdx++) {
+        const monthData = attendance.filter((a) => {
+          const d = new Date(a.date);
+          return d.getFullYear() === currentYear && d.getMonth() === monthIdx;
+        });
+
+        // Sirf un mahino ko target karenge jinka database me data exist karta hai
+        if (monthData.length > 0) {
+          const vDays = monthData.filter((a) => a.status === "Present" || a.status === "Absent").length;
+          const pDays = monthData.filter((a) => a.status === "Present").length;
+          const monthlyPerc = vDays === 0 ? 0 : (pDays / vDays) * 100;
+          const monthlyMark = monthlyPerc <= 75 ? 0 : Math.ceil((monthlyPerc - 75) / 5);
+
+          totalCalculatedMarks += monthlyMark;
+          monthCountInvolved++;
+
+          tempBreakdown.push({
+            monthName: monthNames[monthIdx],
+            percentage: monthlyPerc.toFixed(1),
+            marks: monthlyMark
+          });
+        }
+      }
+
+      const avgMarks = monthCountInvolved === 0 ? 0 : (totalCalculatedMarks / monthCountInvolved);
+      
+      setMonthlyBreakdown(tempBreakdown);
+      setFinalAverageMarks(avgMarks.toFixed(1));
+    }
+
   }, [month, attendance]);
 
   const formatDate = (iso) => {
@@ -95,8 +148,8 @@ const StudentAttendance = () => {
   return (
     <div style={pageWrapper}>
       <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { overflow-x: hidden; width: 100%; -webkit-font-smoothing: antialiased; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Georgia", "Times New Roman", serif; }
+        body { overflow-x: hidden; width: 100%; -webkit-font-smoothing: antialiased; background: #fafafa; }
         .progress-ring__circle {
           transition: stroke-dashoffset 0.8s ease-in-out;
           transform: rotate(-90deg);
@@ -108,8 +161,8 @@ const StudentAttendance = () => {
       <div style={headerSection}>
         <div style={{display: 'flex', flexDirection: 'column'}}>
           <span style={headerTag}>SMART STUDENTS CLASSES </span>
-          <h1 style={mainTitle}>Attendance</h1>
-          <p style={subTitle}>Tracking Attendance for <span style={{fontWeight: '700', color: colors.primary}}>{user?.name}</span></p>
+          <h1 style={mainTitle}>Attendance Report</h1>
+          <p style={subTitle}>Tracking Attendance for <span style={{color: colors.primary}}>{user?.name}</span></p>
         </div>
         <div style={monthPickerWrapper}>
           <input
@@ -125,27 +178,25 @@ const StudentAttendance = () => {
       <div style={heroCard}>
         <div style={heroText}>
           <div style={classBadge}>Batch: {user?.class || "N/A"}</div>
-          <h2 style={{fontSize: '38px', margin: '12px 0 4px 0', fontWeight: '900', letterSpacing: '-1px'}}>{percentage}%</h2>
+          <h2 style={{fontSize: '36px', margin: '12px 0 4px 0', letterSpacing: '-1px', fontWeight: "normal"}}>{percentage}%</h2>
           <div style={marksLabelLine}>Monthly Attendance Score</div>
         </div>
         
         {/* Animated Circular Progress */}
         <div style={{ position: "relative", width: "110px", height: "110px", display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <svg width="110" height="110">
-            {/* Background Circle */}
             <circle
               stroke="rgba(255,255,255,0.1)"
-              strokeWidth="8"
+              strokeWidth="6"
               fill="transparent"
               r={radius}
               cx="55"
               cy="55"
             />
-            {/* Live Filling Circle */}
             <circle
               className="progress-ring__circle"
               stroke={getPercentageColor(percentage)}
-              strokeWidth="8"
+              strokeWidth="6"
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
               strokeLinecap="round"
@@ -155,12 +206,38 @@ const StudentAttendance = () => {
               cy="55"
             />
           </svg>
-          {/* Marks in Center */}
           <div style={{ position: "absolute", textAlign: "center", display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '24px', fontWeight: '900', color: '#fff', lineHeight: '1' }}>{marks}</span>
-            <span style={{ fontSize: '9px', fontWeight: '700', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Marks</span>
+            <span style={{ fontSize: '22px', color: '#fff', lineHeight: '1' }}>{marks}</span>
+            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Marks</span>
           </div>
         </div>
+      </div>
+
+      {/* --- NEW SECTION: CLASSIC MONTHLY BREAKDOWN & FINAL AVERAGE --- */}
+      <div style={breakdownContainer}>
+        <h3 style={sectionHeading}>Academic Attendance Ledger (From April)</h3>
+        <table style={classicTable}>
+          <thead>
+            <tr>
+              <th style={tableTh}>Month</th>
+              <th style={tableTh}>Attendance %</th>
+              <th style={tableTh}>Scored Marks</th>
+            </tr>
+          </thead>
+          <tbody>
+            {monthlyBreakdown.map((item, index) => (
+              <tr key={index} style={tableTr}>
+                <td style={tableTd}>{item.monthName}</td>
+                <td style={tableTd}>{item.percentage}%</td>
+                <td style={tableTd}>{item.marks}</td>
+              </tr>
+            ))}
+            <tr style={finalRowStyle}>
+              <td colSpan="2" style={{...tableTd, textAlign: "right", fontStyle: "italic"}}>Final Attendance Marks (Average):</td>
+              <td style={{...tableTd, color: "#1e3a8a", fontWeight: "600"}}>{finalAverageMarks}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {/* --- STATS ROW --- */}
@@ -169,7 +246,7 @@ const StudentAttendance = () => {
           <span style={{...statNum, color: colors.present}}>{filtered.filter(a => a.status === "Present").length}</span>
           <span style={statLabel}>Present</span>
         </div>
-        <div style={{...statBox, borderLeft: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9'}}>
+        <div style={{...statBox, borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0'}}>
           <span style={{...statNum, color: colors.absent}}>{filtered.filter(a => a.status === "Absent").length}</span>
           <span style={statLabel}>Absent</span>
         </div>
@@ -182,10 +259,10 @@ const StudentAttendance = () => {
       {/* --- LOG SECTION --- */}
       <div style={logContainer}>
         <div style={logHeader}>
-          <h3 style={{fontSize: '13px', fontWeight: '900', letterSpacing: '0.5px', color: '#475569'}}>RECENT ACTIVITY</h3>
-          <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
+          <h3 style={{fontSize: '14px', color: '#475569', letterSpacing: '0.5px'}}>RECENT ACTIVITY LOG</h3>
+          <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
              <div style={{width: '6px', height: '6px', borderRadius: '50%', background: todayStatus === "Present" ? colors.present : colors.accent}}></div>
-             <span style={{fontSize: '11px', color: colors.accent, fontWeight: '800'}}>
+             <span style={{fontSize: '11px', color: colors.accent}}>
                 {todayStatus === "Not Marked" ? "STATUS PENDING" : todayStatus?.toUpperCase()}
              </span>
           </div>
@@ -193,7 +270,7 @@ const StudentAttendance = () => {
         
         <div style={listWrapper}>
           {filtered.length === 0 ? (
-            <div style={emptyState}>No attendance records for this month.</div>
+            <div style={emptyState}>No attendance records verified for this month.</div>
           ) : (
             [...filtered]
               .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -206,23 +283,23 @@ const StudentAttendance = () => {
                 let rowBg = "transparent";
                 let leftBorder = "none";
 
-                if (isHoliday) { rowBg = colors.lightYellow; leftBorder = `6px solid ${colors.holiday}`; }
+                if (isHoliday) { rowBg = colors.lightYellow; leftBorder = `4px solid ${colors.holiday}`; }
                 else if (isToday) {
                     rowBg = isPresent ? colors.lightGreen : (isAbsent ? colors.lightRed : colors.todayDefault);
-                    leftBorder = `6px solid ${isPresent ? colors.present : (isAbsent ? colors.absent : colors.accent)}`;
-                } else if (isAbsent) { rowBg = colors.lightRed; leftBorder = `6px solid ${colors.absent}`; }
+                    leftBorder = `4px solid ${isPresent ? colors.present : (isAbsent ? colors.absent : colors.accent)}`;
+                } else if (isAbsent) { rowBg = colors.lightRed; leftBorder = `4px solid ${colors.absent}`; }
 
                 return (
                   <div key={i} style={{ ...attendanceItem, backgroundColor: rowBg, borderLeft: leftBorder }}>
                     <div style={dateSection}>
                       <div style={{...dateText, color: "#1e293b"}}>
-                        {formatDate(a.date)} {isToday && <span style={{color: colors.accent, fontSize: '10px', marginLeft: '4px'}}>• TODAY</span>}
+                        {formatDate(a.date)} {isToday && <span style={{color: colors.accent, fontSize: '11px', marginLeft: '4px'}}>• TODAY</span>}
                       </div>
                       <div style={dayText}>{new Date(a.date).toLocaleDateString('en-US', { weekday: 'long' })}</div>
                     </div>
                     <div style={{
                       ...statusPill,
-                      backgroundColor: getStatusColor(a.status, colors) + "22",
+                      backgroundColor: getStatusColor(a.status, colors) + "15",
                       color: getStatusColor(a.status, colors),
                     }}>
                       {a.status}
@@ -238,59 +315,63 @@ const StudentAttendance = () => {
 };
 
 // --- STYLES ---
-const pageWrapper = { width: "110%", minHeight: "100vh", background: "#fff", paddingBottom: "60px", overflowX: "hidden" };
+const pageWrapper = { width: "100%", minHeight: "100vh", background: "#fff", paddingBottom: "60px" };
 
-const headerSection = { padding: "35px 20px 25px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", width: "100%", borderBottom: "1px solid #f1f5f9" };
+const headerSection = { padding: "30px 20px 20px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", width: "100%", borderBottom: "1px solid #e2e8f0" };
 const headerTag = {
-  background: "linear-gradient(135deg, #0f172a 0%, #334155 100%)",
+  background: "#0f172a",
   color: "#ffffff",
-  padding: "6px 15px",
-  borderRadius: "12px",
-  fontSize: "16px",
-  fontWeight: "900",
+  padding: "4px 12px",
+  borderRadius: "4px",
+  fontSize: "12px",
   width: "fit-content",
-  letterSpacing: "2px",
+  letterSpacing: "1px",
   display: "inline-block",
   whiteSpace: "nowrap" ,
-  marginBottom: "10px",
-  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.2)",
-  textTransform: "uppercase",
-  borderLeft: "4px solid #3b82f6"
+  marginBottom: "8px",
+  textTransform: "uppercase"
 };
-const mainTitle = { fontSize: "28px", fontWeight: "900", margin: 0, color: "#0f172a", lineHeight: '1' };
-const subTitle = { fontSize: "20px", color: "#000000", marginTop: "6px" };
+const mainTitle = { fontSize: "26px", margin: 0, color: "#0f172a", fontWeight: "normal" };
+const subTitle = { fontSize: "16px", color: "#475569", marginTop: "4px" };
 
-const monthPickerWrapper = { background: "#f8fafc", padding: "10px 12px", borderRadius: "12px", border: "1px solid #e2e8f0" };const monthInput = { 
+const monthPickerWrapper = { background: "#fff", padding: "8px 12px", borderRadius: "4px", border: "1px solid #cbd5e1" };
+const monthInput = { 
   border: "none", 
   background: "transparent", 
-  fontWeight: "800", 
   outline: "none", 
   fontSize: "13px", 
   color: "#0f172a", 
-  cursor: "pointer",
-  marginRight: "27px", // Ye isko left side shift rakhega
-  display: "block" 
+  cursor: "pointer"
 };
 
-const heroCard = { width: "100%", background: "#0f172a", padding: "35px 25px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" };
+const heroCard = { width: "100%", background: "#1e293b", padding: "30px 20px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" };
 const heroText = { display: "flex", flexDirection: "column", flex: 1 };
-const classBadge = { background: "rgba(255,255,255,0.1)", padding: "5px 10px", borderRadius: "6px", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", width: "fit-content" };
-const marksLabelLine = { fontSize: "18px", color: "#5eff00", fontWeight: "500" };
+const classBadge = { background: "rgba(255,255,255,0.15)", padding: "3px 8px", borderRadius: "3px", fontSize: "11px", textTransform: "uppercase", width: "fit-content" };
+const marksLabelLine = { fontSize: "15px", color: "#cbd5e1", marginTop: "4px" };
 
-const statsRow = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", width: "100%", background: "#fff", borderBottom: "1px solid #f1f5f9" };
-const statBox = { padding: "22px 10px", textAlign: "center" };
-const statNum = { fontSize: "22px", fontWeight: "900", display: "block" };
-const statLabel = { fontSize: "10px", color: "#64748b", fontWeight: "800", textTransform: "uppercase", marginTop: '4px' };
+// --- NEW CLASSIC TABLE STYLES ---
+const breakdownContainer = { padding: "25px 20px", background: "#fff", borderBottom: "1px solid #e2e8f0" };
+const sectionHeading = { fontSize: "16px", color: "#0f172a", marginBottom: "12px", fontWeight: "normal", fontStyle: "italic" };
+const classicTable = { width: "100%", borderCollapse: "collapse", fontSize: "14px", textAlign: "left" };
+const tableTh = { borderBottom: "2px solid #0f172a", padding: "8px 10px", color: "#0f172a", fontWeight: "600" };
+const tableTr = { borderBottom: "1px solid #e2e8f0" };
+const tableTd = { padding: "10px", color: "#334155" };
+const finalRowStyle = { background: "#f8fafc", borderTop: "2px dashed #0f172a" };
+
+const statsRow = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", width: "100%", background: "#fff", borderBottom: "1px solid #e2e8f0" };
+const statBox = { padding: "16px 10px", textAlign: "center" };
+const statNum = { fontSize: "20px", display: "block" };
+const statLabel = { fontSize: "11px", color: "#64748b", textTransform: "uppercase", marginTop: '2px' };
 
 const logContainer = { width: "100%" };
-const logHeader = { padding: "20px", background: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: 'center', borderBottom: "1px solid #e2e8f0" };
+const logHeader = { padding: "16px 20px", background: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: 'center', borderBottom: "1px solid #e2e8f0" };
 const listWrapper = { display: "flex", flexDirection: "column", width: "100%" };
-const attendanceItem = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: "1px solid #f1f5f9", width: "100%", transition: 'background 0.3s' };
+const attendanceItem = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #e2e8f0", width: "100%" };
 const dateSection = { display: "flex", flexDirection: "column" };
-const dateText = { fontSize: "16px", fontWeight: "800", letterSpacing: '-0.2px' };
-const dayText = { fontSize: "12px", color: "#94a3b8", fontWeight: '500' };
-const statusPill = { padding: "7px 14px", borderRadius: "10px", fontSize: "11px", fontWeight: "900", textTransform: "uppercase", letterSpacing: '0.3px' };
-const emptyState = { textAlign: "center", padding: "60px 20px", color: "#cbd5e1", fontWeight: '600', fontSize: '14px' };
+const dateText = { fontSize: "15px" };
+const dayText = { fontSize: "12px", color: "#64748b" };
+const statusPill = { padding: "4px 10px", borderRadius: "4px", fontSize: "11px", textTransform: "uppercase" };
+const emptyState = { textAlign: "center", padding: "40px 20px", color: "#94a3b8", fontStyle: 'italic', fontSize: '14px' };
 
 const getStatusColor = (status, colors) => {
   switch (status) {

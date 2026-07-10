@@ -561,8 +561,8 @@ const styles = {
     fontWeight: "800"
   },
 
-  dateText: { display: "flex", alignItems: "center", gap: "18px",fontSize: "20px", color: "#1e293b" },
-  testTag: { background: "#ffffff", padding: "4px 10px", borderRadius: "8px", color: "#0f172a", border: "1px solid", fontSize: "16px", fontWeight: "900" },
+  dateText: { display: "flex", alignItems: "center", gap: "8px", color: "#1e293b" },
+  testTag: { background: "#ffffff", padding: "4px 10px", borderRadius: "6px", color: "#0f172a", border: "1px solid", fontSize: "13px", fontWeight: "800" },
   
   studentsBlock: { padding: "4px 0" },
   studentRow: { padding: "14px 16px", fontSize: "16px", borderBottom: "1px solid #f1f5f9", transition: "all 0.2s ease" },
