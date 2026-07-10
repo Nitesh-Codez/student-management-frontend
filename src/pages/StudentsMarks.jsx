@@ -81,9 +81,9 @@ const StudentMarks = () => {
   };
 
   /**
-   * BACKGROUND SYNC: NEW MARKS DETECTOR (With Seen/Unseen Logic)
+   * AUTO RECOVERY & BACKGROUND SYNC (No Top List Modification Here)
    */
-  const checkForNewMarks = (currentLocalMarks) => {
+  const autoFetchAndSyncMarks = (currentLocalMarks) => {
     if (!userRef.current?.id) return;
 
     axios.post(`${API_URL}/api/marks/check`, {
@@ -95,39 +95,36 @@ const StudentMarks = () => {
         if (res.data.success && res.data.data.length > 0) {
           const fetchedData = res.data.data;
           
-          // Get IDs of marks that the user has already acknowledged/seen in the past
+          // 1. Automatically restore/update active marks state if screen was empty on login
+          if (currentLocalMarks.length === 0) {
+            setMarks(fetchedData);
+            const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
+            savedMarks[userRef.current.id] = fetchedData;
+            localStorage.setItem("userMarks", JSON.stringify(savedMarks));
+          }
+
+          // 2. Seen/Unseen filter for strict notification alerts
           const seenStore = JSON.parse(localStorage.getItem("seenMarksIds")) || {};
           const studentSeenIds = seenStore[userRef.current.id] || [];
-
           const currentIds = currentLocalMarks.map((m) => m.id);
           
-          // Filter strictly new items that are neither in local marks nor in seen history
           const newEntries = fetchedData.filter(
             (m) => !currentIds.includes(m.id) && !studentSeenIds.includes(m.id)
           );
 
-          if (newEntries.length > 0) {
+          // 3. Trigger notification pop-up alert ONLY if new database entries are present
+          if (newEntries.length > 0 && currentLocalMarks.length > 0) {
             const names = [...new Set(newEntries.map((m) => m.subject))].join(", ");
             setNewSubjectNames(names);
-            
-            const historyStore = JSON.parse(localStorage.getItem("latestCheckHistory")) || {};
-            const existingLatest = historyStore[userRef.current.id] || [];
-            const updatedLatest = [...newEntries, ...existingLatest].slice(0, 10);
-            
-            setLatestCheckedMarks(updatedLatest);
-            historyStore[userRef.current.id] = updatedLatest;
-            localStorage.setItem("latestCheckHistory", JSON.stringify(historyStore));
-            
-            // Trigger popup ONLY if there are unseen marks
             setShowPrePopup(true);
           }
         }
       })
-      .catch((err) => console.error("Silent background sync failed", err));
+      .catch((err) => console.error("Silent recovery dashboard sync failed", err));
   };
 
   /**
-   * HOOK: INITIAL LOAD
+   * HOOK: INITIAL LOAD & BOOT UP RESTORATION
    */
   useEffect(() => {
     generateCaptcha();
@@ -142,34 +139,29 @@ const StudentMarks = () => {
       setMarks(localMarks);
     }
     
+    // Recovery of last session checked badges on initial load
     setLatestCheckedMarks(lastEntries);
-    checkForNewMarks(localMarks);
+    
+    autoFetchAndSyncMarks(localMarks);
   }, [studentId]);
 
   /**
-   * ACTION: MARK ALL CURRENTLY FOUND MARKS AS SEEN / CHECKED
+   * ACTION: MARK NEW DATA AS SEEN
    */
-  const markCurrentMarksAsSeen = (dataList) => {
+  const acknowledgeNewMarksAsSeen = (dataList) => {
     if (!userRef.current?.id) return;
     const seenStore = JSON.parse(localStorage.getItem("seenMarksIds")) || {};
     const studentSeenIds = seenStore[userRef.current.id] || [];
     
-    // Merge existing seen IDs with newly fetched IDs
     const currentIds = dataList.map((m) => m.id);
     const updatedSeenIds = [...new Set([...studentSeenIds, ...currentIds])];
     
     seenStore[userRef.current.id] = updatedSeenIds;
     localStorage.setItem("seenMarksIds", JSON.stringify(seenStore));
-    
-    // Clear the top danger alert section since user has processed them
-    setLatestCheckedMarks([]);
-    const historyStore = JSON.parse(localStorage.getItem("latestCheckHistory")) || {};
-    historyStore[userRef.current.id] = [];
-    localStorage.setItem("latestCheckHistory", JSON.stringify(historyStore));
   };
 
   /**
-   * ACTION: MANUAL MARKS UPDATE WITH CAPTCHA & BUTTON STATES
+   * ACTION: MANUAL MARKS UPDATE WITH CAPTCHA (Updates Top Persistent Badge Section)
    */
   const handleCheckMarks = () => {
     if (captchaInput !== captcha) {
@@ -178,7 +170,7 @@ const StudentMarks = () => {
       return;
     }
 
-    setIsFetching(true); // Button Loading Starts
+    setIsFetching(true); 
     setMessage("Connecting to live database...");
 
     axios
@@ -201,15 +193,34 @@ const StudentMarks = () => {
               : `Your average dropped by ${Math.abs(diff)}%. Focus more!`
           );
 
+          // Get IDs of old marks to strictly find out what newly arrived *right now*
+          const currentIds = marks.map((m) => m.id);
+          const freshCheckedEntries = fetchedData.filter((m) => !currentIds.includes(m.id));
+
           setMarks(fetchedData);
           
-          // Save updated dashboard marks to localStorage
           const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
           savedMarks[userRef.current.id] = fetchedData;
           localStorage.setItem("userMarks", JSON.stringify(savedMarks));
 
-          // Critical Fix: Immediately clear notifications and mark them as checked
-          markCurrentMarksAsSeen(fetchedData);
+          acknowledgeNewMarksAsSeen(fetchedData);
+
+          // --- TRIGGER NEW BADGES TOP UPDATE ON COMPLETED CHECK ACTION ---
+          const historyStore = JSON.parse(localStorage.getItem("latestCheckHistory")) || {};
+          
+          // Agar database me such me kuch naya mila toh use top list me sabse aage append karein
+          let updatedTopBadges = [];
+          if (freshCheckedEntries.length > 0) {
+            const oldSavedBadges = historyStore[userRef.current.id] || [];
+            updatedTopBadges = [...freshCheckedEntries, ...oldSavedBadges].slice(0, 10);
+          } else {
+            // Agar sab up-to-date tha, toh jo list pehle chal rhi thi wahi maintain rahegi
+            updatedTopBadges = historyStore[userRef.current.id] || [...fetchedData].sort((a, b) => new Date(b.test_date) - new Date(a.test_date)).slice(0, 5);
+          }
+
+          setLatestCheckedMarks(updatedTopBadges);
+          historyStore[userRef.current.id] = updatedTopBadges;
+          localStorage.setItem("latestCheckHistory", JSON.stringify(historyStore));
 
           setMessage("Dashboard updated successfully!");
           setShowPrePopup(false);
@@ -222,14 +233,13 @@ const StudentMarks = () => {
       })
       .catch(() => setMessage("Failed to connect to server."))
       .finally(() => {
-        setIsFetching(false); // Reset button loading state
+        setIsFetching(false); 
       });
   };
 
-  // Close Pre Popup handler that marks existing items as seen to avoid recurrent pops
   const handleClosePrePopup = () => {
     setShowPrePopup(false);
-    markCurrentMarksAsSeen(marks);
+    acknowledgeNewMarksAsSeen(marks);
   };
 
   const sorted = [...marks].sort(
@@ -438,17 +448,17 @@ const StudentMarks = () => {
         </p>
       </div>
 
-      {/* RECENT NEW MARKS ALWAYS ON TOP */}
+      {/* RECENT MARKS RECORD TRACKING COMPONENT (ALWAYS PERSISTENT ON TOP) */}
       {latestCheckedMarks.length > 0 && (
         <motion.div 
           initial={{ x: -50, opacity: 0 }} 
           animate={{ x: 0, opacity: 1 }} 
           style={styles.latestSection}
         >
-          <p style={{ margin: "0 0 10px 0", fontSize: "12px", fontWeight: "bold", color: "#E74C3C", textTransform: "uppercase" }}>
-            New & Unchecked Scores:
+          <p style={{ margin: "0 0 10px 0", fontSize: "12px", fontWeight: "bold", color: "#2b5876", textTransform: "uppercase" }}>
+            Last Verified Test Records:
           </p>
-          <div style={{ display: "flex", overflowX: "auto", paddingBottom: "5px" }}>
+          <div style={{ display: "flex", overflowX: "auto", paddingBottom: "5px", gap: "10px" }}>
             {latestCheckedMarks.map((m, i) => {
               const prevMarks = marks
                 .filter((old) => old.subject === m.subject && old.id !== m.id)
@@ -456,22 +466,24 @@ const StudentMarks = () => {
 
               let currentPct = (m.obtained_marks / m.total_marks) * 100;
               let prevPct = prevMarks ? (prevMarks.obtained_marks / prevMarks.total_marks) * 100 : null;
+              let formattedTestDate = new Date(m.test_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 
               return (
                 <motion.div 
-                  whileHover={{ y: -5 }}
+                  whileHover={{ y: -3 }}
                   key={i} 
                   style={styles.latestBadge}
                 >
-                  <div style={{ fontWeight: "bold" }}>
-                    {m.subject}: {m.obtained_marks}/{m.total_marks}
+                  <div style={{ fontWeight: "bold", fontSize: '13px' }}>
+                    {m.subject}: {m.obtained_marks}/{m.total_marks} 
+                    <span style={{ fontSize: '10px', marginLeft: '8px', opacity: 0.8, fontWeight: 'normal' }}>({formattedTestDate})</span>
                   </div>
-                  <div style={{ fontSize: "11px", marginTop: "4px", color: "#fff" }}>
+                  <div style={{ fontSize: "11px", marginTop: "4px", color: "rgba(255,255,255,0.9)", fontWeight: 'normal' }}>
                     {prevPct !== null ? (
-                      currentPct > prevPct ? "↑ Improving!" :
-                      currentPct < prevPct ? "↓ Needs Focus!" :
-                      "→ Same as last time!"
-                    ) : "🎉 First attempt recorded!"}
+                      currentPct > prevPct ? "↑ Improved Score" :
+                      currentPct < prevPct ? "↓ Target Area" :
+                      "→ Maintained Line"
+                    ) : "🎉 Base attempt"}
                   </div>
                 </motion.div>
               );
@@ -545,7 +557,7 @@ const StudentMarks = () => {
         <h3 style={{ marginTop: "20px", fontSize: "20px", textAlign: 'center' }}>{getRemark(overallPercentage)}</h3>
       </motion.div>
 
-      {/* MANUAL CAPTCHA SYSTEM */}
+      {/* MANUAL CAPTCHA SYSTEM SYSTEM */}
       <div style={{ padding: "0 12px" }}>
         <div style={{ background: "#fff", borderRadius: "18px", padding: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
           <div style={{ padding: "18px", background: "#f8f9fa", borderRadius: "10px", textAlign: "center", fontWeight: "700", letterSpacing: "8px", fontSize: "20px", border: "2px dashed #3498DB", color: "#2b5876", marginBottom: "15px" }}>
