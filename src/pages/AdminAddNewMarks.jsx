@@ -94,7 +94,7 @@ const AdminAddNewMarks = () => {
     setSubject(""); 
   }, [selectedClass, fromClass, toClass, selectionMode, classes]);
 
-  // Fetch Students + Attendance for all active classes
+  // Fetch Students + Attendance + Check Existing Filled Marks to avoid Double Entries
   useEffect(() => {
     const activeClasses = getActiveClasses();
     if (activeClasses.length === 0) {
@@ -131,26 +131,49 @@ const AdminAddNewMarks = () => {
           viva: "",
           attendance: 0,
           obtained: 0,
+          isSaved: false // Track real-time saved state for color changes
         }));
 
         list = await Promise.all(
           list.map(async student => {
             try {
-              // 🔄 Updated API Endpoint for Attendance Marks
+              // 1. Fetch current attendance marks
               const attRes = await axios.get(
                 `${API_URL}/api/new-marks/attendance/current-marks`,
-                {
-                  params: {
-                    studentId: student.studentId
-                  }
-                }
+                { params: { studentId: student.studentId } }
               );
 
               if (attRes.data.success) {
                 student.attendance = attRes.data.attendanceMarks;
               }
+
+              // 2. Prevent Double Entry: Auto check if marks for this criteria are already filled
+              if (subject && examType) {
+                const existingMarksRes = await axios.post(`${API_URL}/api/new-marks/check`, {
+                  studentId: student.studentId,
+                  studentName: student.name
+                });
+
+                if (existingMarksRes.data.success && existingMarksRes.data.data.length > 0) {
+                  // Filter out match for exact subject, exam type, session and test date
+                  const match = existingMarksRes.data.data.find(m => 
+                    m.subject?.toUpperCase() === subject.toUpperCase() &&
+                    m.exam_type?.toUpperCase() === examType.toUpperCase() &&
+                    m.session === session
+                  );
+
+                  if (match) {
+                    student.theory = match.theory_marks ?? "";
+                    student.viva = match.viva_marks ?? "";
+                    if (match.total_marks && !globalTotal) {
+                      setGlobalTotal(match.total_marks); 
+                    }
+                    student.isSaved = true; // Mark as saved so row color turns green instantly
+                  }
+                }
+              }
             } catch (err) {
-              console.log("Attendance error", err);
+              console.log("Error checking duplicate/attendance details:", err);
             }
             return student;
           })
@@ -177,7 +200,7 @@ const AdminAddNewMarks = () => {
     };
 
     fetchData();
-  }, [selectedClass, fromClass, toClass, selectionMode, testDate, classes]);
+  }, [selectedClass, fromClass, toClass, selectionMode, testDate, classes, subject, examType, session]);
 
   // handle change (blocked if attendance < 1)
   const handleChange = (i, field, value) => {
@@ -192,6 +215,7 @@ const AdminAddNewMarks = () => {
     }
 
     updated[i][field] = value;
+    updated[i].isSaved = false; // Reset saved state when user types new values
 
     const t = Number(updated[i].theory || 0);
     const v = Number(updated[i].viva || 0);
@@ -202,7 +226,7 @@ const AdminAddNewMarks = () => {
   };
 
   // Save Marks
-  const saveMarks = async (s) => {
+  const saveMarks = async (s, index) => {
     if (!subject || !globalTotal || !examType) {
       alert("Exam Type, Subject & Total Marks required");
       return;
@@ -221,7 +245,14 @@ const AdminAddNewMarks = () => {
         date: testDate
       });
 
-      setMessage(`${s.name} (${s.className}): ${res.data.message}`);
+      if (res.data.success || res.status === 200) {
+        // Update specific row tracking state to trigger live background color change
+        const updatedData = [...marksData];
+        updatedData[index].isSaved = true;
+        setMarksData(updatedData);
+      }
+
+      setMessage(`${s.name} (${s.className}): ${res.data.message || "Saved Successfully!"}`);
     } catch {
       setMessage(`${s.name} (${s.className}): Error saving marks`);
     }
@@ -311,7 +342,13 @@ const AdminAddNewMarks = () => {
                 const absent = Number(s.attendance) < 1;
 
                 return (
-                  <tr key={`${s.studentId}-${s.className}`}>
+                  <tr 
+                    key={`${s.studentId}-${s.className}`} 
+                    style={{ 
+                      backgroundColor: s.isSaved ? "#d4edda" : "transparent",
+                      transition: "background-color 0.4s ease" 
+                    }}
+                  >
                     <td>{i + 1}</td>
                     <td style={{ fontWeight: "bold", color: "#e67e22" }}>{s.className}</td>
                     <td>{s.name}</td>
@@ -336,7 +373,15 @@ const AdminAddNewMarks = () => {
                     <td className="obtained">{s.obtained}</td>
                     <td>{globalTotal || "-"}</td>
                     <td>
-                      <button onClick={() => saveMarks(s)}>Save</button>
+                      <button 
+                        onClick={() => saveMarks(s, i)}
+                        style={{
+                          backgroundColor: s.isSaved ? "#28a745" : "#2c7be5",
+                          borderColor: s.isSaved ? "#28a745" : "#2c7be5"
+                        }}
+                      >
+                        {s.isSaved ? "Saved ✓" : "Save"}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -391,12 +436,12 @@ const AdminAddNewMarks = () => {
           min-width:1000px;
         }
 
-        th,td { border:1px solid #e1e1e1; padding:10px; text-align:center; }
+        th,td { border:1px solid #e1e1e1; padding:10px; text-align:center; transition: background-color 0.3s ease; }
         th { background:#eef2f7; }
         .obtained { font-weight:bold; color:#2c7be5; }
-        button { padding:6px 14px; background:#2c7be5; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+        button { padding:6px 14px; background:#2c7be5; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight: 600; transition: all 0.2s ease; }
 
-        .msg { margin-top:15px; text-align:center; font-weight:bold; }
+        .msg { margin-top:15px; text-align:center; font-weight:bold; color: #2c3e50; }
 
         @media(max-width:768px){ .marksTable { min-width:900px; } }
       `}</style>
