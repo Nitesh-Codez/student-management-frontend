@@ -51,6 +51,23 @@ const StudentAttendance = () => {
     setMonth(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
   }, []);
 
+  // Fetch cumulative attendance average from backend
+  useEffect(() => {
+    if (!user) return;
+
+    fetch(
+        `${API_URL}/api/new-marks/attendance/current-marks?studentId=${user.id}`
+    )
+    .then(res => res.json())
+    .then(data => {
+        if(data.success){
+            setFinalAverageMarks(data.attendanceMarks);
+        }
+    })
+    .catch(console.error);
+
+  }, [user]);
+
   useEffect(() => {
     if (!month) return;
     const [y, m] = month.split("-").map(Number);
@@ -83,16 +100,11 @@ const StudentAttendance = () => {
     setPercentage(perc.toFixed(1));
     setMarks(perc <= 75 ? 0 : Math.ceil((perc - 75) / 5));
 
-    // ----------------------------------------------------
-    // LIVE TRACKING CALCULATION
-    // ----------------------------------------------------
+    // Dynamic calculation for Month-wise Breakdown UI
     if (attendance.length > 0) {
       const startMonthIdx = 3; // April (0-indexed)
       const currentYear = y;
       const targetMonthIndex = m - 1; 
-
-      let totalCalculatedMarks = 0;
-      let monthCountInvolved = 0;
       let tempBreakdown = [];
 
       const monthNames = [
@@ -112,9 +124,6 @@ const StudentAttendance = () => {
           const monthlyPerc = vDays === 0 ? 0 : (pDays / vDays) * 100;
           const monthlyMark = monthlyPerc <= 75 ? 0 : Math.ceil((monthlyPerc - 75) / 5);
 
-          totalCalculatedMarks += monthlyMark;
-          monthCountInvolved++;
-
           tempBreakdown.push({
             monthName: monthNames[monthIdx],
             percentage: monthlyPerc.toFixed(1),
@@ -122,11 +131,7 @@ const StudentAttendance = () => {
           });
         }
       }
-
-      const avgMarks = monthCountInvolved === 0 ? 0 : (totalCalculatedMarks / monthCountInvolved);
-      
       setMonthlyBreakdown(tempBreakdown);
-      setFinalAverageMarks(avgMarks.toFixed(1));
     }
 
   }, [month, attendance]);
