@@ -294,7 +294,7 @@ const ExaminationResult = () => {
               <div style={{ width: "110px" }}><img src="/logo.png" alt="Logo" style={{ width: "100px" }} onError={(e) => e.target.style.display='none'}/></div>
               <div style={{ flex: 1, textAlign: "center" }}>
                 <h1 style={academyName}>SMART STUDENTS CLASSES</h1>
-                <p style={subHeader}>GWALIOR'S PREMIER EDUCATIONAL INSTITUTE</p>
+                <p style={subHeader}> PREMIER EDUCATIONAL INSTITUTE</p>
                 <div style={examBadge}>{currentExamType} PERFORMANCE REPORT ({session})</div>
               </div>
               <div style={{ width: "125px", textAlign: "right" }}>
@@ -323,19 +323,19 @@ const ExaminationResult = () => {
 
             {filteredMarks.length > 0 ? (
               <table style={marksTable}>
-                <thead>
-                  <tr style={tableHeaderRow}>
-                    <th style={th}>SR. NO</th>
-                    <th style={{ ...th, textAlign: "left" }}>SUBJECT NAME</th>
-                    <th style={th}>MAX MARKS</th>
-                    <th style={th}>THEORY</th>
-                    <th style={th}>VIVA</th>
-                    <th style={th}>ATTENDANCE</th>
-                    <th style={th}>TASK</th>
-                    <th style={th}>OBTAINED</th>
-                    <th style={th}>REMARK</th>
-                  </tr>
-                </thead>
+               <thead>
+  <tr style={tableHeaderRow}>
+    <th style={{ ...th, width: "60px", padding: "10px 5px" }}>SR. NO</th>
+    <th style={{ ...th, textAlign: "left", width: "220px", padding: "10px 10px" }}>SUBJECT NAME</th>
+    <th style={{ ...th, width: "90px", padding: "10px 5px" }}>MAX MARKS</th>
+    <th style={{ ...th, width: "100px", padding: "10px 5px" }}>THEORY<br />(75)</th>
+    <th style={{ ...th, width: "140px", padding: "10px 5px" }}>VIVA / BEHAVIOUR<br />(10)</th>
+    <th style={{ ...th, width: "110px", padding: "10px 5px" }}>ATTENDANCE<br />(5)</th>
+    <th style={{ ...th, width: "90px", padding: "10px 5px" }}>TASK<br />(10)</th>
+    <th style={{ ...th, width: "110px", padding: "10px 5px" }}>OBTAINED<br />(100)</th>
+    <th style={{ ...th, width: "100px", padding: "10px 5px" }}>REMARK</th>
+  </tr>
+</thead>
                 <tbody>
                   {filteredMarks.map((m, i) => {
                     const perc = (m.obtained_marks / m.total_marks) * 100;
@@ -350,7 +350,7 @@ const ExaminationResult = () => {
                         <td style={td}>{m.task || "0"}</td>
                         <td style={{ ...td, fontWeight: "900", color: "#1a237e" }}>{m.obtained_marks}</td>
                         <td style={td}>
-                          <span style={{ color: perc >= 33 ? "#27ae60" : "#c0392b", fontWeight: "bold" }}>
+                          <span style={{ color: perc >= 33 ? "#159349" : "#c0392b", fontWeight: "bold" }}>
                             {perc >= 85 ? "DISTINCTION" : perc >= 33 ? "PASSED" : "FAIL"}
                           </span>
                         </td>
@@ -365,7 +365,7 @@ const ExaminationResult = () => {
                     <td style={td}>
                       <span style={{
                         padding: "4px 10px",
-                        background: overall.p >= 33 ? "#27ae60" : "#c0392b",
+                        background: overall.p >= 33 ? "#0e4826" : "#c0392b",
                         color: "#fff",
                         borderRadius: "4px",
                         fontSize: "0.8rem"
