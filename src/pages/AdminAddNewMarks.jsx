@@ -18,12 +18,12 @@ const AdminAddNewMarks = () => {
   const classOrder = ["5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th"];
 
   const [classes, setClasses] = useState([]);
-  const [selectionMode, setSelectionMode] = useState("single"); // 'single' or 'range'
+  const [selectionMode, setSelectionMode] = useState("single"); 
   const [selectedClass, setSelectedClass] = useState("");
   const [fromClass, setFromClass] = useState("");
   const [toClass, setToClass] = useState("");
   
-  const [examType, setExamType] = useState("PRE-FINAL"); // Default set to PRE-FINAL
+  const [examType, setExamType] = useState("PRE-FINAL"); 
   const [subject, setSubject] = useState("");
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [marksData, setMarksData] = useState([]);
@@ -59,7 +59,6 @@ const AdminAddNewMarks = () => {
       .catch(console.error);
   }, []);
 
-  // Determine active classes based on selection mode
   const getActiveClasses = () => {
     if (selectionMode === "single") {
       return selectedClass ? [selectedClass] : [];
@@ -72,7 +71,7 @@ const AdminAddNewMarks = () => {
     }
   };
 
-  // Update Available Subjects based on active classes
+  // Update Available Subjects
   useEffect(() => {
     const activeClasses = getActiveClasses();
     if (activeClasses.length === 0) {
@@ -94,7 +93,7 @@ const AdminAddNewMarks = () => {
     setSubject(""); 
   }, [selectedClass, fromClass, toClass, selectionMode, classes]);
 
-  // Fetch Students + Attendance + Check Existing Filled Marks to avoid Double Entries
+  // Fetch Students + Attendance + Check Existing Records from DB
   useEffect(() => {
     const activeClasses = getActiveClasses();
     if (activeClasses.length === 0) {
@@ -129,15 +128,16 @@ const AdminAddNewMarks = () => {
           className: s.className,
           theory: "",
           viva: "",
+          task: "", // 🔄 Sync complete structure with backend 'task' field
           attendance: 0,
           obtained: 0,
-          isSaved: false // Track real-time saved state for color changes
+          isSaved: false 
         }));
 
         list = await Promise.all(
           list.map(async student => {
             try {
-              // 1. Fetch current attendance marks
+              // 1. Attendance marks fetch karo
               const attRes = await axios.get(
                 `${API_URL}/api/new-marks/attendance/current-marks`,
                 { params: { studentId: student.studentId } }
@@ -147,48 +147,51 @@ const AdminAddNewMarks = () => {
                 student.attendance = attRes.data.attendanceMarks;
               }
 
-              // 2. Prevent Double Entry: Auto check if marks for this criteria are already filled
-              if (subject && examType) {
+              // 2. Exact controller schema check logic for existing rows matching date
+              if (subject && examType && testDate) {
                 const existingMarksRes = await axios.post(`${API_URL}/api/new-marks/check`, {
                   studentId: student.studentId,
                   studentName: student.name
                 });
 
                 if (existingMarksRes.data.success && existingMarksRes.data.data.length > 0) {
-                  // Filter out match for exact subject, exam type, session and test date
+                  // Apne backend controllers database columns response ke sath structure match karein (test_date & task)
                   const match = existingMarksRes.data.data.find(m => 
                     m.subject?.toUpperCase() === subject.toUpperCase() &&
                     m.exam_type?.toUpperCase() === examType.toUpperCase() &&
-                    m.session === session
+                    m.session === session &&
+                    (m.test_date ? m.test_date.split("T")[0] === testDate : true)
                   );
 
                   if (match) {
                     student.theory = match.theory_marks ?? "";
                     student.viva = match.viva_marks ?? "";
+                    student.task = match.task ?? ""; // 🔄 Fetching accurate key from controller
                     if (match.total_marks && !globalTotal) {
                       setGlobalTotal(match.total_marks); 
                     }
-                    student.isSaved = true; // Mark as saved so row color turns green instantly
+                    student.isSaved = true; 
                   }
                 }
               }
             } catch (err) {
-              console.log("Error checking duplicate/attendance details:", err);
+              console.log("Error checking duplicate entries:", err);
             }
             return student;
           })
         );
 
-        // 🔒 attendance < 1 -> all marks 0
+        // 🔒 Attendance logic gate mapping
         list = list.map(s => {
           if (Number(s.attendance) < 1) {
-            return { ...s, theory: 0, viva: 0, obtained: 0 };
+            return { ...s, theory: 0, viva: 0, task: 0, obtained: 0 };
           }
           return {
             ...s,
             obtained:
               Number(s.theory || 0) +
               Number(s.viva || 0) +
+              Number(s.task || 0) + 
               Number(s.attendance || 0),
           };
         });
@@ -202,30 +205,31 @@ const AdminAddNewMarks = () => {
     fetchData();
   }, [selectedClass, fromClass, toClass, selectionMode, testDate, classes, subject, examType, session]);
 
-  // handle change (blocked if attendance < 1)
   const handleChange = (i, field, value) => {
     const updated = [...marksData];
 
     if (Number(updated[i].attendance) < 1) {
       updated[i].theory = 0;
       updated[i].viva = 0;
+      updated[i].task = 0;
       updated[i].obtained = 0;
       setMarksData(updated);
       return;
     }
 
     updated[i][field] = value;
-    updated[i].isSaved = false; // Reset saved state when user types new values
+    updated[i].isSaved = false; 
 
     const t = Number(updated[i].theory || 0);
     const v = Number(updated[i].viva || 0);
+    const tk = Number(updated[i].task || 0); 
     const a = Number(updated[i].attendance || 0);
 
-    updated[i].obtained = t + v + a;
+    updated[i].obtained = t + v + tk + a;
     setMarksData(updated);
   };
 
-  // Save Marks
+  // Save Marks (Single individual student workflow)
   const saveMarks = async (s, index) => {
     if (!subject || !globalTotal || !examType) {
       alert("Exam Type, Subject & Total Marks required");
@@ -233,28 +237,33 @@ const AdminAddNewMarks = () => {
     }
 
     try {
-      const res = await axios.post(`${API_URL}/api/new-marks/add`, {
+      // 🛠️ Payloads are perfectly synched to controller destructuring: (studentId, subject, theoryMarks, vivaMarks, attendanceMarks, task, totalMarks, examType, session, date)
+      const payload = {
         studentId: s.studentId,
-        examType, 
-        session,
-        subject,
-        theoryMarks: Number(s.attendance < 1 ? 0 : s.theory),
-        vivaMarks: Number(s.attendance < 1 ? 0 : s.viva),
+        subject: subject,
+        theoryMarks: Number(!s.theory || s.attendance < 1 ? 0 : s.theory),
+        vivaMarks: Number(!s.viva || s.attendance < 1 ? 0 : s.viva),
         attendanceMarks: Number(s.attendance),
+        task: Number(!s.task || s.attendance < 1 ? 0 : s.task), // 🔄 Named accurately to match backend controller object key
         totalMarks: Number(globalTotal),
+        examType: examType,
+        session: session,
         date: testDate
-      });
+      };
+
+      const res = await axios.post(`${API_URL}/api/new-marks/add`, payload);
 
       if (res.data.success || res.status === 200) {
-        // Update specific row tracking state to trigger live background color change
         const updatedData = [...marksData];
         updatedData[index].isSaved = true;
         setMarksData(updatedData);
+        setMessage(`${s.name} (${s.className}): Marks added successfully!`);
+      } else {
+        setMessage(`${s.name} (${s.className}): ${res.data.message || "Error saving marks"}`);
       }
-
-      setMessage(`${s.name} (${s.className}): ${res.data.message || "Saved Successfully!"}`);
-    } catch {
-      setMessage(`${s.name} (${s.className}): Error saving marks`);
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Server Error while processing request";
+      setMessage(`${s.name} (${s.className}): ${errMsg}`);
     }
   };
 
@@ -262,7 +271,6 @@ const AdminAddNewMarks = () => {
     <div className="page">
       <h2 className="title">📘 Examination Marks Sheet</h2>
 
-      {/* Mode Selection Toggles */}
       <div className="mode-selector">
         <label>
           <input 
@@ -285,7 +293,6 @@ const AdminAddNewMarks = () => {
       </div>
 
       <div className="filters">
-        {/* Exam Type Dropdown */}
         <select value={examType} onChange={e => setExamType(e.target.value)}>
           <option value="PRE-FINAL">PRE-FINAL</option>
           <option value="FINAL">FINAL</option>
@@ -331,6 +338,7 @@ const AdminAddNewMarks = () => {
                 <th>Subject</th>
                 <th>Theory</th>
                 <th>Viva</th>
+                <th>Task Marks</th> 
                 <th>Attendance</th>
                 <th>Obtained</th>
                 <th>Total</th>
@@ -367,6 +375,15 @@ const AdminAddNewMarks = () => {
                         value={s.viva}
                         disabled={absent}
                         onChange={e => handleChange(i, "viva", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        placeholder=""
+                        value={s.task}
+                        disabled={absent}
+                        onChange={e => handleChange(i, "task", e.target.value)}
                       />
                     </td>
                     <td>{s.attendance}</td>

@@ -331,6 +331,7 @@ const ExaminationResult = () => {
                     <th style={th}>THEORY</th>
                     <th style={th}>VIVA</th>
                     <th style={th}>ATTENDANCE</th>
+                    <th style={th}>TASK</th>
                     <th style={th}>OBTAINED</th>
                     <th style={th}>REMARK</th>
                   </tr>
@@ -346,6 +347,7 @@ const ExaminationResult = () => {
                         <td style={td}>{m.theory_marks}</td>
                         <td style={td}>{m.viva_marks || "0"}</td>
                         <td style={td}>{m.attendance_marks || "0"}</td>
+                        <td style={td}>{m.task || "0"}</td>
                         <td style={{ ...td, fontWeight: "900", color: "#1a237e" }}>{m.obtained_marks}</td>
                         <td style={td}>
                           <span style={{ color: perc >= 33 ? "#27ae60" : "#c0392b", fontWeight: "bold" }}>
@@ -358,7 +360,7 @@ const ExaminationResult = () => {
                   <tr style={{ background: "#f1f3f9", fontWeight: "900" }}>
                     <td colSpan="2" style={td}>GRAND TOTAL</td>
                     <td style={td}>{overall.t}</td>
-                    <td colSpan="3" style={td}>PERCENTAGE: {overall.p}%</td>
+                    <td colSpan="4" style={td}>PERCENTAGE: {overall.p}%</td>
                     <td style={{ ...td, color: "#1a237e", fontWeight: "900" }}>{overall.o}</td>
                     <td style={td}>
                       <span style={{
@@ -446,7 +448,7 @@ const miniBtn = { padding: '10px 18px', color: '#fff', border: 'none', borderRad
 const drawBtn = { fontSize: '0.65rem', marginTop: '8px', cursor: 'pointer', background: '#34495e', color: '#fff', border: "none", padding: '4px 10px', borderRadius: "4px" };
 const marksheetPageWrapper = { background: "#1e272e", minHeight: "100vh", padding: "40px 0", fontFamily: "'Segoe UI', Roboto, sans-serif" };
 const horizontalScrollContainer = { width: "100%", overflowX: "auto" };
-const marksheetFrame = { width: "1050px", margin: "0 auto", background: "#fff", padding: "25px", boxShadow: "0 15px 40px rgba(0,0,0,0.6)", borderRadius: "8px" };
+const marksheetFrame = { width: "930px", margin: "0 auto", background: "#fff", padding: "25px", boxShadow: "0 15px 40px rgba(0,0,0,0.6)", borderRadius: "8px" };
 const outerBorder = { border: "4px double #1a237e", padding: "30px", minHeight: "850px", position: "relative" };
 const headerSection = { display: "flex", alignItems: "center", borderBottom: "3px solid #1a237e", paddingBottom: "15px", marginBottom: "25px" };
 const academyName = { margin: 0, color: "#1a237e", fontSize: "2.6rem", fontWeight: "900", letterSpacing: "0.5px" };
