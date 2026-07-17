@@ -42,7 +42,7 @@ const theme = {
   gradients: {
     primary: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
     success: "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)",
-    warning: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
+    warning: "linear-gradient(135deg, #85c700 0%, #c15f1ed3 100%)",
     info: "linear-gradient(135deg, #0ea5e9 0%, #2dd4bf 100%)",
     purple: "linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)",
     dark: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
@@ -502,7 +502,8 @@ useEffect(() => {
       justifyContent: 'space-between', 
       alignItems: 'center', 
       padding: '12px 15px', 
-      backgroundColor: '#fff'
+      backgroundColor: '#e0daff',
+      border: '1px solid Black'
   }}>
     <div style={{ display: 'flex', border: '1px solid #ccc', borderRadius: '4px', overflow: 'hidden' }}>
       <button 
@@ -544,8 +545,8 @@ useEffect(() => {
   {/* DAY HEADER */}
   <div style={{ 
       padding: '10px 15px', 
-      backgroundColor: '#fff', 
-      borderTop: '1px solid #f1f1f1',
+      backgroundColor: '#ffffff', 
+      borderTop: '1px solid #351616',
       borderBottom: '1px solid #f1f1f1', 
       fontWeight: 'bold', 
       color: '#000',
@@ -568,7 +569,7 @@ useEffect(() => {
           {/* Time Slot */}
           <div style={{ 
               minWidth: '90px', 
-              color: '#008ba3', 
+              color: '#033841', 
               fontWeight: '500', 
               fontSize: '14px',
               textAlign: 'center'
@@ -583,7 +584,7 @@ useEffect(() => {
     width: '55px', 
     height: '55px', 
     borderRadius: '50%', 
-    backgroundColor: '#f1f5f9', 
+    backgroundColor: '#05ff44', 
     overflow: 'hidden', 
     flexShrink: 0, 
     border: '1px solid #e2e8f0' 
@@ -617,11 +618,11 @@ boxShadow:'0 0 2px rgba(0,0,0,0.2)',
 marginLeft: '110px',
 marginTop:'30px',
 }}/>
-            <div style={{ fontWeight: 'bold', color: '#4b0082', fontSize: '14px', textTransform: 'uppercase' }}>
+            <div style={{ fontWeight: 'bold', color: '#4b0082', fontSize: '20px', textTransform: 'uppercase' }}>
               {cls.subject_name}
             </div>
-            <div style={{ fontSize: '13px', color: '#4b0082', marginTop: '2px' }}>
-              {cls.teacher_name} <span style={{color: '#777'}}>[{cls.teacher_code || cls.teacher_id || 'ID'}]</span>
+            <div style={{ fontSize: '14px', color: '#6300a9',fontWeight:'bold', marginTop: '2px' }}>
+              {cls.teacher_name} <span style={{color: '#74d702'}}>[{cls.teacher_code || cls.teacher_id || 'ID'}]</span>
             </div>
             <div style={{ fontSize: '12px', color: '#4b0082', fontWeight: '500' }}>
               {cls.room_no || 'HOME'}
