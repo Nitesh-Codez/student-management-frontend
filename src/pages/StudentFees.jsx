@@ -6,10 +6,9 @@ const StudentFees = ({ user }) => {
 
   // States
   const [fees, setFees] = useState([]);
-  const [selectedFee, setSelectedFee] = useState(null);
-  const [showSheet, setShowSheet] = useState(false);
+  const [groupedFees, setGroupedFees] = useState({});
   const [isPending, setIsPending] = useState(false);
-  const [isNewStudent, setIsNewStudent] = useState(false); 
+  const [isNewStudent, setIsNewStudent] = useState(false);
   const [dynamicFee, setDynamicFee] = useState("1000");
 
   const months = [
@@ -30,31 +29,46 @@ const StudentFees = ({ user }) => {
         if (res.data.success) {
           let feesData = res.data.fees.map(f => {
             const d = new Date(f.payment_date);
-            let month = d.getMonth() - 1; 
+            let month = d.getMonth() - 1;
             let year = d.getFullYear();
             if (month === -1) { month = 11; year -= 1; }
-            
-            const isLate = d.getDate() > 5; 
-            return { 
-                ...f, 
-                feeMonth: month, 
-                feeYear: year, 
-                isLate, 
-                payDay: d.getDate(),
-                formattedDate: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-                mode: f.payment_mode || "Online" 
+
+            const isLate = d.getDate() > 5;
+            return {
+              ...f,
+              feeMonth: month,
+              feeYear: year,
+              isLate,
+              payDay: d.getDate(),
+              formattedDate: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+              mode: f.payment_mode || "Online"
             };
           });
 
-          // --- DYNAMIC FILTER BASED ON LOCAL USER SESSION ---
-          // Local user object se session (e.g., "2025-26") check karke filter
           const currentSessionFees = feesData.filter(f => {
-            // Agar record ka session user ke current session se match karta hai
-            return f.session === user.session; 
+            if (!f.session || !user.session) return true;
+            return f.session === user.session;
           });
-          
+
           currentSessionFees.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
           setFees(currentSessionFees);
+
+          // Grouping transactions by Month & Year to catch installments
+          const groups = {};
+          currentSessionFees.forEach(f => {
+            const key = `${f.feeMonth}_${f.feeYear}`;
+            if (!groups[key]) {
+              groups[key] = {
+                monthName: months[f.feeMonth],
+                year: f.feeYear,
+                totalAmount: 0,
+                transactions: []
+              };
+            }
+            groups[key].totalAmount += Number(f.amount);
+            groups[key].transactions.push(f);
+          });
+          setGroupedFees(groups);
 
           setIsPending(res.data.showPopup);
           setIsNewStudent(res.data.isNewStudent);
@@ -68,203 +82,446 @@ const StudentFees = ({ user }) => {
       }
     };
     fetchFees();
-  }, [user.id, user.session]); // Dependency mein user.session add kiya
+  }, [user.id, user.session]);
 
   const handlePayment = (mName) => {
     const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartZone&am=${dynamicFee}&cu=INR&tn=Fees_For_${mName}`;
     window.location.href = upiUrl;
   };
 
+  // --- PRINT COMPUTERIZED MONTHLY STATEMENT / TRANSACTION RECEIPT ---
+  const handlePrintMonthlyReceipt = (groupKey) => {
+    const group = groupedFees[groupKey];
+    if (!group) return;
+
+    const printWindow = window.open("", "_blank");
+    
+    // Installment details generation
+    let txRows = group.transactions.map((t, idx) => `
+      <tr>
+        <td style="padding: 10px; border: 1px solid #1a237e; text-align: center;">${idx + 1}</td>
+        <td style="padding: 10px; border: 1px solid #1a237e; font-family: monospace;">${t.merchant_txn_id || "TXN_CASH_DIR"}</td>
+        <td style="padding: 10px; border: 1px solid #1a237e; text-align: center;">${t.formattedDate}</td>
+        <td style="padding: 10px; border: 1px solid #1a237e; text-align: center; font-weight: 600;">${t.mode}</td>
+        <td style="padding: 10px; border: 1px solid #1a237e; text-align: center; color: ${t.isLate ? '#c0392b' : '#159349'}; font-weight: bold;">
+          ${t.isLate ? 'Late Deposit' : 'Standard'}
+        </td>
+        <td style="padding: 10px; border: 1px solid #1a237e; text-align: right; font-weight: bold;">₹${t.amount}</td>
+      </tr>
+    `).join("");
+
+    const isInstallment = group.transactions.length > 1;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>FeeReceipt_${group.monthName}_${user?.name || 'Student'}</title>
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; background: #fff; color: #333; }
+            .receipt-box { max-width: 800px; margin: 0 auto; border: 4px double #1a237e; padding: 25px; position: relative; }
+            .header-table { width: 100%; border-bottom: 3px solid #1a237e; padding-bottom: 15px; margin-bottom: 20px; }
+            .title { font-size: 26px; font-weight: 900; color: #1a237e; margin: 0; }
+            .subtitle { font-size: 11px; color: #c0392b; font-weight: bold; letter-spacing: 1px; margin-top: 2px; }
+            .doc-type { background: #1a237e; color: #fff; padding: 5px 15px; font-size: 12px; font-weight: bold; display: inline-block; border-radius: 3px; margin-top: 5px; }
+            
+            .info-grid { width: 100%; border-collapse: collapse; background: #f8f9fa; border: 1px solid #ddd; margin-bottom: 20px; }
+            .info-grid td { padding: 8px 12px; font-size: 13px; color: #2c3e50; }
+            
+            .tx-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            .tx-table th { background: #1a237e; color: #fff; padding: 10px; font-size: 12px; border: 1px solid #1a237e; }
+            
+            .summary-box { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px; background: #f1f3f9; padding: 15px; border: 1px solid #1a237e; }
+            
+            .footer-sig { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; text-align: center; }
+            .sig-line { border-top: 1.5px solid #000; width: 180px; margin-top: 40px; padding-top: 5px; font-size: 12px; font-weight: bold; }
+            .seal-circle { width: 90px; height: 90px; border: 2px dashed #1a237e; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: #1a237e; transform: rotate(-5deg); }
+            
+            @media print {
+              body { padding: 0; }
+              .receipt-box { border: 4px double #1a237e !important; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-box">
+            <table class="header-table">
+              <tr>
+                <td>
+                  <div class="title">SMART STUDENTS CLASSES</div>
+                  <div class="subtitle">OFFICIAL ACADEMIC FEE RECEIPT / LEDGER</div>
+                  <div class="doc-type">MONTHLY STATEMENT: ${group.monthName.toUpperCase()} ${group.year}</div>
+                </td>
+                <td style="text-align: right; font-size: 12px; color: #555;">
+                  <strong>System Gen ID:</strong> #FEE-${groupKey}<br/>
+                  <strong>Print Date:</strong> ${new Date().toLocaleDateString('en-IN')}
+                </td>
+              </tr>
+            </table>
+
+            <table class="info-grid">
+              <tr>
+                <td><strong>Student Name:</strong> ${user?.name?.toUpperCase() || "N/A"}</td>
+                <td><strong>Roll Number / ID:</strong> #${user?.id || "N/A"}</td>
+              </tr>
+              <tr>
+                <td><strong>Class / Course:</strong> Class ${user?.class || "Smart Group"}</td>
+                <td><strong>Active Session:</strong> ${user?.session || "2026-2027"}</td>
+              </tr>
+              <tr>
+                <td><strong>Payment Breakdown:</strong> ${isInstallment ? '⚠️ MULTIPLE PARTIAL INSTALLMENTS' : '⚡ SINGLE ON-TIME PAYMENT'}</td>
+                <td><strong>Status:</strong> <span style="color: green; font-weight: bold;">💸 VERIFIED & RECORDED</span></td>
+              </tr>
+            </table>
+
+            <h4 style="margin: 10px 0 5px 0; color: #1a237e; font-size: 14px;">TRANSACTION BREAKDOWN</h4>
+            <table class="tx-table">
+              <thead>
+                <tr>
+                  <th>SR.</th>
+                  <th>TRANSACTION / REFERENCE ID</th>
+                  <th>PAYMENT DATE</th>
+                  <th>MODE</th>
+                  <th>TIMELINE</th>
+                  <th style="text-align: right;">AMOUNT PAID</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${txRows}
+                <tr style="background: #eef2ff; font-weight: bold;">
+                  <td colSpan="5" style="padding: 10px; border: 1px solid #1a237e; text-align: right; color: #1a237e;">TOTAL FEES COLLECTED:</td>
+                  <td style="padding: 10px; border: 1px solid #1a237e; text-align: right; font-size: 15px; color: #1a237e;">₹${group.totalAmount}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="summary-box">
+              <div style="font-size: 11px; color: #555; max-width: 60%;">
+                <strong>Note:</strong> This is a verified electronic computerized statement generated by SmartZone accounts terminal. No physical signature is mandatory unless disputed.
+              </div>
+              <div style="text-align: right; font-size: 13px;">
+                <strong>Payment Type:</strong> ${isInstallment ? 'Installment Plan' : 'Full Clear Plan'}<br/>
+                <strong>Gross Received:</strong> <span style="font-weight: 900; color: #1a237e;">₹${group.totalAmount}</span>
+              </div>
+            </div>
+
+            <div class="footer-sig">
+              <div class="seal-circle">
+                <div>SMART ZONE</div>
+                <div style="font-size:7px; margin-top:2px;">OFFICIAL</div>
+                <div style="font-size:8px;">ACCOUNTS</div>
+              </div>
+              <div>
+                <div style="font-family: 'Courier New', monospace; font-style: italic; font-size: 14px; color: #1a237e; font-weight: bold;">Nitesh Kushwah</div>
+                <div class="sig-line">Authorized Controller</div>
+              </div>
+            </div>
+          </div>
+          <script>window.print(); window.close();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  // --- PRINT ALL CONSOLIDATED HISTORY ---
+  const handlePrintAll = () => {
+    const printWindow = window.open("", "_blank");
+    let ledgerItems = fees.map((f, idx) => `
+      <tr>
+        <td style="padding: 8px; border: 1px solid #1a237e; text-align:center;">${idx+1}</td>
+        <td style="padding: 8px; border: 1px solid #1a237e; font-weight:bold;">${months[f.feeMonth]} ${f.feeYear}</td>
+        <td style="padding: 8px; border: 1px solid #1a237e; font-family:monospace;">#${f.id || 'N/A'}</td>
+        <td style="padding: 8px; border: 1px solid #1a237e; text-align:center;">${f.formattedDate}</td>
+        <td style="padding: 8px; border: 1px solid #1a237e; text-align:center;">${f.mode}</td>
+        <td style="padding: 8px; border: 1px solid #1a237e; text-align:center; color:${f.isLate ? '#c0392b':'#159349'}; font-weight:600;">${f.isLate ? 'Late':'On-Time'}</td>
+        <td style="padding: 8px; border: 1px solid #1a237e; text-align:right; font-weight:bold;">₹${f.amount}</td>
+      </tr>
+    `).join("");
+
+    const totalSessionFees = fees.reduce((acc, curr) => acc + Number(curr.amount), 0);
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Consolidated_Statement_${user?.name || 'Student'}</title>
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; }
+            .container { border: 4px double #1a237e; padding: 25px; }
+            .header { border-bottom: 3px solid #1a237e; padding-bottom: 10px; margin-bottom: 20px; }
+            .title { font-size: 24px; font-weight: 900; color: #1a237e; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th { background: #1a237e; color: #fff; padding: 8px; font-size: 12px; border: 1px solid #1a237e; }
+            .footer { display: flex; justify-content: space-between; margin-top: 50px; }
+            .sig-line { border-top: 1.5px solid #000; width: 180px; text-align: center; padding-top: 5px; font-weight: bold; font-size: 12px;}
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="title">SMART STUDENTS CLASSES</div>
+              <div style="font-size:12px; font-weight:bold; color:#c0392b;">CONSOLIDATED ACADEMIC FEE LEDGER STATEMENT</div>
+              <div style="font-size:11px; margin-top:5px; color:#555;">Generated for Session: ${user?.session || '2026-27'} | Date: ${new Date().toLocaleDateString('en-IN')}</div>
+            </div>
+
+            <table style="width:100%; margin-bottom:20px; background:#f9f9f9; border:1px solid #ddd;">
+              <tr>
+                <td style="padding:8px; font-size:13px;"><strong>Student Name:</strong> ${user?.name?.toUpperCase() || "N/A"}</td>
+                <td style="padding:8px; font-size:13px;"><strong>Roll No / ID:</strong> #${user?.id || "N/A"}</td>
+                <td style="padding:8px; font-size:13px;"><strong>Class:</strong> Class ${user?.class || "N/A"}</td>
+              </tr>
+            </table>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>SR.</th>
+                  <th>FEE MONTH</th>
+                  <th>RECEIPT ID</th>
+                  <th>PAYMENT DATE</th>
+                  <th>MODE</th>
+                  <th>TIMELINE</th>
+                  <th style="text-align:right;">AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${ledgerItems}
+                <tr style="background:#f1f3f9; font-weight:900;">
+                  <td colSpan="6" style="padding:10px; border:1px solid #1a237e; text-align:right;">SESSION GRAND TOTAL COLLECTED:</td>
+                  <td style="padding:10px; border:1px solid #1a237e; text-align:right; font-size:14px; color:#1a237e;">₹${totalSessionFees}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="footer">
+              <div style="border: 2px dashed #1a237e; width:90px; height:90px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; color:#1a237e;">OFFICIAL SEAL</div>
+              <div>
+                <div style="font-family: 'Courier New', monospace; font-style: italic; font-weight:bold; color:#1a237e; text-align:center;">Nitesh Kushwah</div>
+                <div class="sig-line">Authorized Signatory</div>
+              </div>
+            </div>
+          </div>
+          <script>window.print(); window.close();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
     <div style={styles.appWrapper}>
-      {/* --- UI HEADER --- */}
+      {/* --- PROFESSIONAL CLEAN WHITE DASHBOARD WRAPPER --- */}
       <div style={styles.header}>
-        <div style={styles.statusBar}>
-          <span>{now.getHours()}:{now.getMinutes() < 10 ? '0'+now.getMinutes() : now.getMinutes()}</span>
-          <div style={{ display: 'flex', gap: '8px' }}>📶 🔋</div>
+        <div style={styles.brandingZone}>
+          <h2 style={styles.brandTitle}>SMART STUDENTS CLASSES</h2>
+          <p style={styles.brandSub}>Accounts Ledger Management Terminal</p>
         </div>
-        
-        <div style={styles.monthStack}>
-          <div style={styles.monthLabelSmall}>{months[currM === 0 ? 11 : currM - 1]}</div>
-          <div style={styles.monthLabelBig}>{months[currM]} {currY}</div>
-          <div style={styles.monthLabelSmall}>{months[currM === 11 ? 0 : currM + 1]}</div>
+        <div style={styles.sessionBox}>
+          <span>Active Session: <b>{user?.session || "2026-27"}</b></span>
         </div>
       </div>
 
       <div style={styles.contentArea}>
-        {/* --- PREVIOUS RECORD NOTICE --- */}
-        <div style={styles.noticeBanner}>
-            <span>⚠️ For previous record statement, contact your HOC</span>
-        </div>
-
-        <div style={styles.topRow}>
-          <div style={styles.dropdown}>
-            {user?.class || "Smart"} Billing ▾
+        {/* --- SYSTEM STATS & INFO BAR --- */}
+        <div style={styles.infoBarRow}>
+          <div style={styles.profileIndicator}>
+            <span style={styles.dotAccent}></span>
+            <strong>{user?.name || "Student"}</strong> (Class {user?.class || "Smart Group"})
           </div>
-          <div style={styles.performanceBadge}>
-             Session: {user?.session || "Current"}
+          {fees.length > 0 && (
+            <button onClick={handlePrintAll} style={styles.btnPrintAll}>
+              🖨️ Print Full Ledger Statement
+            </button>
+          )}
+        </div>
+
+        {/* --- CASE 1: PENDING DUES ALERT --- */}
+        {isPending && (
+          <div style={styles.overdueCard}>
+            <div style={styles.cardMain}>
+              <div style={styles.iconBoxRed}>⚠️</div>
+              <div style={{ flex: 1 }}>
+                <div style={styles.cardTitle}>Outstanding Due Found!</div>
+                <div style={styles.cardSub}>Pending fees statement generated for recent academic period.</div>
+              </div>
+              <div style={styles.cardPrice}>
+                <span style={styles.badgeRed}>DUE STATUS</span>
+                <div style={styles.priceText}>₹{dynamicFee}</div>
+              </div>
+            </div>
+            <div style={styles.cardActions}>
+              <button onClick={() => handlePayment(months[currM - 1])} style={styles.btnPayRed}>Proceed to Instant UPI Settlement</button>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div style={styles.scrollArea}>
-          
-          {/* CASE 1: PENDING FEES */}
-          {isPending && (
-            <div style={styles.overdueCard}>
-              <div style={styles.cardMain}>
-                <div style={styles.iconBoxRed}>💰</div>
-                <div style={{flex: 1}}>
-                  <div style={styles.cardTitle}>Due: {months[currM === 0 ? 11 : currM - 1]}</div>
-                  <div style={styles.cardSub}>Kindly clear your pending dues.</div>
-                </div>
-                <div style={styles.cardPrice}>
-                  <div style={styles.badgeRed}>PENDING</div>
-                  <div style={styles.priceText}>₹{dynamicFee}</div>
-                </div>
-              </div>
-              <div style={styles.cardActions}>
-                <button onClick={() => handlePayment(months[currM - 1])} style={styles.btnPayRed}>Pay Now</button>
-                <button style={styles.btnDismiss} onClick={() => setIsPending(false)}>Dismiss</button>
+        {/* --- CASE 2: NEW JOINING WELCOME --- */}
+        {!isPending && isNewStudent && (
+          <div style={styles.newStudentCard}>
+            <div style={styles.cardMain}>
+              <div style={styles.iconBoxGold}>🎓</div>
+              <div style={{ flex: 1 }}>
+                <div style={styles.cardTitle}>Welcome Setup Initiated</div>
+                <div style={styles.cardSub}>Accounts ledger database config ready for Class {user?.class}.</div>
               </div>
             </div>
-          )}
+            <div style={styles.welcomeFooter}>Accounts structure synced successfully. Regular logs will appear below.</div>
+          </div>
+        )}
 
-          {/* CASE 2: NEW JOINING WELCOME */}
-          {!isPending && isNewStudent && (
-            <div style={styles.newStudentCard}>
-              <div style={styles.cardMain}>
-                <div style={styles.iconBoxGold}>✨</div>
-                <div style={{flex: 1}}>
-                  <div style={styles.cardTitle}>Welcome to SmartZone!</div>
-                  <div style={styles.cardSub}>Student Class: {user?.class}</div>
+        {/* --- CASE 3: PUNCTUAL DUES CLEARED --- */}
+        {!isPending && !isNewStudent && (
+          <div style={styles.successNote}>
+            <div style={styles.shieldVerify}>✓</div>
+            <div style={{ textAlign: 'left' }}>
+              <strong style={{ fontSize: '15px', color: '#159349' }}>All Session Accounts Balanced</strong>
+              <div style={{ fontSize: '12px', color: '#555', marginTop: '1px' }}>No active outstanding invoices detected on this server.</div>
+            </div>
+          </div>
+        )}
+
+        {/* --- COMPUTERIZED MONTHLY LOG VIEW (VERTICAL COMPONENT DETAILS) --- */}
+        <div style={styles.ledgerHeading}>VERIFIED MONTHLY TRANSACTION STACKS</div>
+        
+        {Object.keys(groupedFees).length > 0 ? (
+          <div style={styles.stackContainer}>
+            {Object.keys(groupedFees).map((key) => {
+              const group = groupedFees[key];
+              const hasMultipleInstallments = group.transactions.length > 1;
+
+              return (
+                <div key={key} style={styles.monthCard}>
+                  {/* Vertical Details Block */}
+                  <div style={styles.monthMetaBlock}>
+                    <div style={styles.monthNameTag}>{group.monthName.toUpperCase()} {group.year}</div>
+                    <div style={styles.paymentStructureBadge}>
+                      {hasMultipleInstallments ? "📋 Paid in Installments" : "⚡ Single Clean Payment"}
+                    </div>
+                  </div>
+
+                  <div style={styles.verticalTxDetails}>
+                    <div style={styles.totalCollectedLabel}>
+                      Gross Fees Logged: <strong style={{color: '#1a237e', fontSize: '16px'}}>₹{group.totalAmount}</strong>
+                    </div>
+
+                    {/* Collapsed view of installments inside the card */}
+                    <div style={styles.miniTxLogsContainer}>
+                      {group.transactions.map((t, idx) => (
+                        <div key={idx} style={styles.miniTxRow}>
+                          <span style={styles.miniTxBullet}>▪</span>
+                          <span style={styles.miniTxMode}>{t.mode}: </span>
+                          <span style={styles.miniTxDate}>Paid ₹{t.amount} on {t.formattedDate}</span>
+                          <span style={t.isLate ? styles.lateTextLabel : styles.ontimeTextLabel}>
+                            ({t.isLate ? 'Late' : 'Standard'})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={styles.monthActionBlock}>
+                    <button 
+                      onClick={() => handlePrintMonthlyReceipt(key)} 
+                      style={styles.btnGetReceiptComputer}
+                    >
+                      📄 Computerized Receipt
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div style={styles.welcomeFooter}>Enjoy your learning journey! 🚀</div>
-            </div>
-          )}
-
-          {/* CASE 3: PUNCTUAL STUDENT */}
-          {!isPending && !isNewStudent && (
-            <div style={styles.successNote}>
-              <div style={{fontSize: "24px", marginBottom: "5px"}}>🏆</div>
-              <strong>Great Job, {user?.name || 'Student'}!</strong><br/>
-              <span style={{fontSize: "12px", opacity: 0.8}}>Dues for session {user?.session} are clear.</span>
-            </div>
-          )}
-
-          <div style={styles.historyHeading}>PAYMENT HISTORY ({user?.session})</div>
-
-          {fees.length > 0 ? (
-            fees.map((f, i) => (
-              <div key={i} style={styles.historyRow} onClick={() => {setSelectedFee(f); setShowSheet(true);}}>
-                <div style={f.isLate ? styles.iconBoxLate : styles.iconBoxGreen}>{f.isLate ? "⌛" : "✓"}</div>
-                <div style={{flex: 1}}>
-                  <div style={styles.historyTitle}>{months[f.feeMonth]} Fee</div>
-                  <div style={f.isLate ? styles.lateSub : styles.historySub}>Paid on {f.payDay}th</div>
-                </div>
-                <div style={styles.historyPrice}>₹{f.amount}</div>
-                <div style={styles.chevron}>›</div>
-              </div>
-            ))
-          ) : (
-            <div style={{textAlign: 'center', padding: '40px 20px', color: '#bdc3c7', fontSize: '14px'}}>
-              No records found for session {user?.session}.
-            </div>
-          )}
-          
-          <div style={{ height: "100px" }}></div>
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={styles.emptyState}>
+            <div style={{ fontSize: '30px', marginBottom: '8px' }}>📂</div>
+            No validated transaction ledgers tracked for Session {user?.session || 'Current'}.
+          </div>
+        )}
       </div>
-
-      {/* --- DETAILED RECEIPT SHEET --- */}
-      {showSheet && selectedFee && (
-        <div style={styles.overlay} onClick={() => setShowSheet(false)}>
-          <div style={styles.sheet} onClick={e => e.stopPropagation()}>
-            <div style={styles.handle}></div>
-            <div style={styles.receiptBox}>
-              <div style={selectedFee.isLate ? styles.checkCircleLate : styles.checkCircle}>
-                {selectedFee.isLate ? "!" : "✓"}
-              </div>
-              <div style={styles.receiptAmt}>₹{selectedFee.amount}</div>
-              <div style={styles.receiptStatus}>
-                {selectedFee.isLate ? "LATE SUBMISSION" : "PUNCTUAL PAYMENT"}
-              </div>
-
-              <div style={styles.detailsGrid}>
-                <div style={styles.detailItem}>
-                    <span>Session</span>
-                    <strong>{selectedFee.session}</strong>
-                </div>
-                <div style={styles.detailItem}>
-                    <span>For Month</span>
-                    <strong>{months[selectedFee.feeMonth]} {selectedFee.feeYear}</strong>
-                </div>
-                <div style={styles.detailItem}>
-                    <span>Payment Date</span>
-                    <strong>{selectedFee.formattedDate}</strong>
-                </div>
-                <div style={styles.detailItem}>
-                    <span>Mode</span>
-                    <strong style={{color: '#2d3785'}}>{selectedFee.mode}</strong>
-                </div>
-              </div>
-            </div>
-            <button style={styles.closeBtn} onClick={() => setShowSheet(false)}>Close Receipt</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
+/* ============= OFFICIAL ACCOUNT TERMINAL DESIGN SYSTEM ============= */
 const styles = {
-  appWrapper: { width: "100vw", height: "100vh", backgroundColor: "#fff", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, fontFamily: 'sans-serif' },
-  header: { background: "linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d)", padding: "40px 25px 60px 25px", color: "#fff", flexShrink: 0 },
-  statusBar: { display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: "700", marginBottom: "30px" },
-  monthStack: { display: "flex", flexDirection: "column" },
-  monthLabelSmall: { fontSize: "22px", fontWeight: "800", opacity: 0.3 },
-  monthLabelBig: { fontSize: "38px", fontWeight: "900", letterSpacing: "-1px" },
-  contentArea: { flex: 1, backgroundColor: "#fff", marginTop: "-40px", borderTopLeftRadius: "45px", borderTopRightRadius: "45px", padding: "20px 25px 0 25px", display: "flex", flexDirection: "column", overflow: "hidden" },
-  noticeBanner: { background: "#fff9e6", color: "#856404", padding: "12px", borderRadius: "15px", fontSize: "12px", fontWeight: "700", marginBottom: "15px", border: "1px solid #ffeeba", textAlign: "center" },
-  topRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" },
-  dropdown: { color: "#2d3785", fontSize: "19px", fontWeight: "800" },
-  performanceBadge: { fontSize: "11px", fontWeight: "800", background: "#f8f9fa", padding: "4px 12px", borderRadius: "12px", color: "#2d3785" },
-  scrollArea: { flex: 1, overflowY: "auto" },
-  overdueCard: { background: "#fff", borderRadius: "30px", padding: "22px", marginBottom: "20px", boxShadow: "0 15px 35px rgba(255, 71, 87, 0.1)", borderLeft: "6px solid #ff4757" },
-  newStudentCard: { background: "linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)", borderRadius: "30px", padding: "22px", marginBottom: "20px", color: "#fff" },
-  welcomeFooter: { marginTop: "15px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.2)", fontSize: "12px", fontStyle: "italic" },
-  cardMain: { display: "flex", alignItems: "center", gap: "15px" },
-  iconBoxRed: { width: "50px", height: "50px", background: "#fff5f5", borderRadius: "16px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "22px" },
-  iconBoxGold: { width: "50px", height: "50px", background: "rgba(255,255,255,0.2)", borderRadius: "16px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "22px" },
-  cardTitle: { fontWeight: "800", fontSize: "17px" },
-  cardSub: { fontSize: "12px", opacity: 0.8 },
-  cardPrice: { textAlign: "right" },
-  badgeRed: { background: "#ff4757", color: "#fff", padding: "4px 8px", borderRadius: "8px", fontSize: "10px", fontWeight: "900" },
-  priceText: { fontSize: "22px", fontWeight: "900", marginTop: "4px" },
-  cardActions: { display: "flex", gap: "10px", marginTop: "15px" },
-  btnPayRed: { flex: 1, padding: "14px", borderRadius: "18px", border: "none", background: "#ff4757", color: "#fff", fontWeight: "800" },
-  btnDismiss: { flex: 1, padding: "14px", borderRadius: "18px", border: "1px solid #eee", background: "transparent", color: "#bdc3c7", fontWeight: "800" },
-  successNote: { padding: "25px", borderRadius: "30px", background: "#f1fdf4", color: "#1b5e20", textAlign: "center", marginBottom: "20px", border: "1px dashed #c8e6c9" },
-  historyHeading: { padding: "10px 0", fontSize: "12px", fontWeight: "800", color: "#bdc3c7", letterSpacing: "1px" },
-  historyRow: { display: "flex", alignItems: "center", gap: "15px", padding: "18px 0", borderBottom: "1px solid #f8f9fa", cursor: 'pointer' },
-  iconBoxGreen: { width: "42px", height: "42px", background: "#e8f5e9", color: "#4caf50", borderRadius: "14px", display: "flex", justifyContent: "center", alignItems: "center" },
-  iconBoxLate: { width: "42px", height: "42px", background: "#fff9e6", color: "#f39c12", borderRadius: "14px", display: "flex", justifyContent: "center", alignItems: "center" },
-  historyTitle: { fontWeight: "700", fontSize: "16px", color: "#2d3436" },
-  historySub: { fontSize: "12px", color: "#4caf50", fontWeight: "600" },
-  lateSub: { fontSize: "12px", color: "#f39c12", fontWeight: "600" },
-  historyPrice: { fontSize: "17px", fontWeight: "800", color: "#2d3436" },
-  chevron: { color: "#eee", fontSize: "20px" },
-  overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-end" },
-  sheet: { width: "100%", background: "#fff", borderTopLeftRadius: "40px", borderTopRightRadius: "40px", padding: "20px 25px 40px 25px", boxShadow: '0 -10px 25px rgba(0,0,0,0.1)' },
-  handle: { width: "40px", height: "5px", background: "#eee", borderRadius: "10px", margin: "0 auto 20px auto" },
-  receiptBox: { textAlign: 'center' },
-  checkCircle: { width: "60px", height: "60px", background: "#4caf50", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 15px auto", fontSize: "30px" },
-  checkCircleLate: { width: "60px", height: "60px", background: "#f39c12", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 15px auto", fontSize: "30px" },
-  receiptAmt: { fontSize: "40px", fontWeight: "900", color: "#2d3436" },
-  receiptStatus: { fontSize: "11px", color: "#4caf50", fontWeight: "900", letterSpacing: "2px", marginBottom: "25px" },
-  detailsGrid: { background: "#f8f9fa", padding: "20px", borderRadius: "25px", textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '12px' },
-  detailItem: { display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid #f1f2f6', paddingBottom: '8px' },
-  closeBtn: { width: "100%", padding: "16px", borderRadius: "20px", background: "#f1f2f6", border: "none", color: "#2d3436", fontWeight: "800", marginTop: "20px" }
+  appWrapper: { 
+    width: "100%", 
+    minHeight: "100vh", 
+    backgroundColor: "#f4f6f9", 
+    display: "flex", 
+    flexDirection: "column", 
+    fontFamily: "'Segoe UI', Roboto, Helvetica, sans-serif",
+  },
+  header: { 
+    background: "#fff", 
+    padding: "20px 24px", 
+    color: "#333", 
+    borderBottom: "3px solid #1a237e",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+  },
+  brandingZone: { textAlign: "left" },
+  brandTitle: { margin: 0, color: "#1a237e", fontWeight: "900", fontSize: "1.6rem", letterSpacing: "0.5px" },
+  brandSub: { margin: "2px 0 0 0", color: "#c0392b", fontSize: "0.8rem", fontWeight: "bold", letterSpacing: "1px" },
+  sessionBox: { background: "#f1f3f9", padding: "6px 14px", border: "1px solid #ddd", borderRadius: "4px", fontSize: "0.85rem", color: "#2c3e50" },
+  
+  contentArea: { 
+    flex: 1, 
+    padding: "24px", 
+    display: "flex", 
+    flexDirection: "column",
+    maxWidth: "1000px",
+    width: "100%",
+    margin: "0 auto",
+    boxSizing: "border-box"
+  },
+  infoBarRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" },
+  profileIndicator: { fontSize: "0.95rem", color: "#333", display: "flex", alignItems: "center", gap: "8px" },
+  dotAccent: { width: "8px", height: "8px", backgroundColor: "#159349", borderRadius: "50%" },
+  btnPrintAll: { padding: "8px 16px", background: "#1a237e", color: "#fff", borderRadius: "4px", border: "none", fontWeight: "bold", fontSize: "0.8rem", cursor: "pointer", boxShadow: "0 2px 5px rgba(26,35,126,0.2)" },
+  
+  overdueCard: { background: "#fff", borderRadius: "6px", padding: "20px", marginBottom: "20px", border: "1px solid #ddd", borderLeft: "5px solid #c0392b", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" },
+  cardMain: { display: "flex", alignItems: "center", gap: "14px" },
+  iconBoxRed: { width: "40px", height: "40px", background: "#fde8e8", color: "#c0392b", borderRadius: "4px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "18px", fontWeight: "bold" },
+  cardTitle: { fontWeight: "bold", fontSize: "1rem", color: "#111" },
+  cardSub: { fontSize: "0.8rem", color: "#666", marginTop: "2px" },
+  cardPrice: { textAlign: "right", marginLeft: "auto" },
+  badgeRed: { background: "#c0392b", color: "#fff", padding: "2px 6px", borderRadius: "3px", fontSize: "0.65rem", fontWeight: "bold" },
+  priceText: { fontSize: "1.4rem", fontWeight: "900", marginTop: "2px", color: "#c0392b" },
+  cardActions: { marginTop: "15px", display: "flex" },
+  btnPayRed: { width: "100%", padding: "10px", borderRadius: "4px", border: "none", background: "#c0392b", color: "#fff", fontWeight: "bold", fontSize: "0.9rem", cursor: "pointer" },
+
+  newStudentCard: { background: "#f8f9fa", border: "1px solid #ddd", borderLeft: "5px solid #f39c12", borderRadius: "6px", padding: "20px", marginBottom: "20px" },
+  iconBoxGold: { width: "40px", height: "40px", background: "#fef9ec", borderRadius: "4px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "18px" },
+  welcomeFooter: { marginTop: "10px", paddingTop: "8px", borderTop: "1px dashed #ddd", fontSize: "0.75rem", color: "#666" },
+
+  successNote: { display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderRadius: "6px", background: "#edf7ed", marginBottom: "20px", border: "1px solid #c8e6c9" },
+  shieldVerify: { width: "24px", height: "24px", backgroundColor: "#159349", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContext: "center", justifyContent: "center", fontWeight: "bold", fontSize: "12px" },
+
+  ledgerHeading: { fontSize: "0.75rem", fontWeight: "bold", color: "#777", letterSpacing: "1px", marginBottom: "10px", textTransform: "uppercase" },
+  stackContainer: { display: "flex", flexDirection: "column", gap: "14px" },
+  
+  /* Modern High-Tech Compact Month Card Layout */
+  monthCard: { background: "#fff", border: "1px solid #ddd", borderRadius: "6px", padding: "16px", display: "flex", flexDirection: "column", gap: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.02)" },
+  monthMetaBlock: { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #eee", paddingBottom: "8px" },
+  monthNameTag: { fontValues: "sans-serif", fontWeight: "900", color: "#1a237e", fontSize: "1.1rem" },
+  paymentStructureBadge: { fontSize: "0.7rem", fontWeight: "bold", background: "#eef2ff", color: "#1a237e", padding: "4px 8px", borderRadius: "4px", border: "1px solid #c7d2fe" },
+  
+  verticalTxDetails: { display: "flex", flexDirection: "column", gap: "8px", textAlign: "left" },
+  totalCollectedLabel: { fontSize: "0.85rem", color: "#555" },
+  miniTxLogsContainer: { background: "#f8f9fa", padding: "8px 12px", borderRadius: "4px", border: "1px solid #edf2f7" },
+  miniTxRow: { fontSize: "0.8rem", color: "#444", display: "flex", alignItems: "center", gap: "6px", padding: "3px 0" },
+  miniTxBullet: { color: "#1a237e" },
+  miniTxMode: { fontWeight: "bold", color: "#333" },
+  miniTxDate: { color: "#666" },
+  lateTextLabel: { color: "#c0392b", fontWeight: "bold", fontSize: "0.75rem", marginLeft: "4px" },
+  ontimeTextLabel: { color: "#159349", fontWeight: "bold", fontSize: "0.75rem", marginLeft: "4px" },
+
+  monthActionBlock: { display: "flex", justifyContent: "flex-end", borderTop: "1px solid #eee", paddingTop: "10px" },
+  btnGetReceiptComputer: { background: "#fff", color: "#1a237e", border: "1px solid #1a237e", padding: "6px 14px", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s" },
+
+  emptyState: { textAlign: "center", padding: "40px 20px", color: "#999", fontSize: "0.85rem", background: "#fff", border: "1px dashed #ccc", borderRadius: "6px" }
 };
 
 export default StudentFees;

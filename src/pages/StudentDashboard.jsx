@@ -40,13 +40,13 @@ const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const theme = {
   gradients: {
-    primary: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+    primary: "linear-gradient(135deg, #b6b7ff 0%, #8a28e5 100%)",
     success: "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)",
     warning: "linear-gradient(135deg, #85c700 0%, #c15f1ed3 100%)",
     info: "linear-gradient(135deg, #0ea5e9 0%, #2dd4bf 100%)",
-    purple: "linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)",
-    dark: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
-    danger: "linear-gradient(135deg, #ff4b2b 0%, #ff416c 100%)",
+    purple: "linear-gradient(135deg, #f4cdd8 0%, #d946ef 100%)",
+    dark: "linear-gradient(135deg, #11b611 0%, #0f172a 100%)",
+    danger: "linear-gradient(135deg, #b5fe6d 0%, #ff416c 100%)",
   }
 };
 
@@ -360,7 +360,7 @@ useEffect(() => {
         <div style={{ zIndex: 2 }}>
             <h2 style={{ margin: 0, fontSize: '28px', fontWeight: 900 }}>{greeting}, {user?.name?.split(" ")[0]}!</h2>
             <div style={quoteContainer}>
-                <FaQuoteLeft style={{fontSize: '12px', color: '#fff', opacity: 0.8, marginBottom: '5px'}} />
+                <FaQuoteLeft style={{fontSize: '12px', color: '#5ff528', opacity: 0.8, marginBottom: '5px'}} />
                 <p style={quoteTextStyle}>{randomQuote}</p>
             </div>
             <div style={statusPillRow}>
@@ -635,12 +635,6 @@ marginTop:'30px',
         <p style={{ fontSize: '16px' }}>No classes scheduled for this day.</p>
       </div>
     )}
-
-
-    
-
-
-    
     
   </div>
   
@@ -932,7 +926,7 @@ try {
   return (
    <div style={masterWrapper}>
   {/* --- UPDATED MAIN HEADER --- */}
-  <header style={{...headerWrapper, position: 'sticky', top: 0, zIndex: 1000, background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)'}}>
+  <header style={{...headerWrapper, position: 'sticky', top: 0, zIndex: 1000, background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)'}}>
     <div style={headerContent}>
       <div style={headerLeft}>
         <motion.div 
@@ -950,9 +944,29 @@ try {
             {notifications.length > 0 && <span style={redBadgePulse}>{notifications.length}</span>}
          </div>
         <div style={profileTrigger} onClick={() => setIsPhotoOpen(true)}>
-          <div style={{padding: '2px', background: 'linear-gradient(45deg, #6366f1, #a855f7)', borderRadius: '10px'}}>
-            <img src={user.photo || "/default-profile.png"} style={{...headerAvatar, display: 'block'}} alt="user" />
-          </div>
+          <div style={{
+  width: '55px', // Overall size thoda badha diya taaki avatar properly visible ho
+  height: '55px', 
+  padding: '1.5px', // Padding kam karne se inner circle bada ho gaya
+  background: 'linear-gradient(135deg, #220047, #2575fc)', 
+  borderRadius: '50%', 
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxShadow: '0 0 12px rgba(215, 171, 255, 0.4)', 
+}}>
+  <img 
+    src={user.photo || "/default-profile.png"} 
+    alt="user" 
+    style={{
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      borderRadius: '50%',
+      border: '1px solid #1a1a2e', // Sleek thin separation border
+    }} 
+  />
+</div>
         </div>
       </div>
     </div>
@@ -1014,12 +1028,7 @@ try {
                 </Link>
                 <Link to="drop-apply" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("drop-apply"))}>
                   <FaComments /> Apply Drop
-                </Link>
-                
-
-
-                
-                
+                </Link>    
 
             {/* ===== SIDEBAR DROPDOWN ===== */}
 <div
