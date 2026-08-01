@@ -84,7 +84,7 @@ function App() {
           <Route path="admin-chat" element={<AdminChat />} />
           <Route path="add-teacher" element={<AddTeacher />} />
           <Route path="teachers" element={<TeacherList />} />
-          <Route path="add-holiday" element={<AdminHoliday />} />
+        
           <Route path="assign-classes" element={<AssignClasses />} />
           <Route path="quiz" element={<AdminQuizPage />} />
          <Route path="details/:session/:month" element={<FeesDetails />} />

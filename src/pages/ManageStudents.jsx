@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
 import { 
   FaUserPlus, FaTrashAlt, FaSearch, FaMicrophone, 
-  FaUserGraduate, FaPhoneAlt, FaTimes, 
-  FaCheckCircle, FaCamera, FaIdBadge
+  FaPhoneAlt, FaTimes, FaCheckCircle, FaCamera, FaIdBadge,
+  FaLock, FaUnlock
 } from "react-icons/fa";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com/api/students";
@@ -14,6 +14,7 @@ const ManageStudents = () => {
   const [isListening, setIsListening] = useState(false);
   const [showSlidePanel, setShowSlidePanel] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showEncryptedPhones, setShowEncryptedPhones] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "", studentClass: "", password: "", address: "", mobile: "", joining_date: ""   
@@ -21,6 +22,19 @@ const ManageStudents = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // Helper function to encrypt/mask phone numbers
+  const maskPhoneNumber = (phone) => {
+    if (!phone) return "—";
+    if (showEncryptedPhones) return phone; // Show original if unlocked
+    // Masking logic: Keeps country code/prefix if present, hides middle digits
+    const cleaned = phone.trim();
+    if (cleaned.length > 4) {
+      const visibleEnd = cleaned.slice(-4);
+      return `••••-••${visibleEnd}`;
+    }
+    return "••••••••";
+  };
 
   // 1. Fetch Students
   const fetchStudents = useCallback(async () => {
@@ -163,7 +177,18 @@ const ManageStudents = () => {
               <tr style={ui.tableHeaderRow}>
                 <th style={{...ui.th, width: '25%'}}>Student Profile</th>
                 <th style={{...ui.th, width: '10%'}}>Batch/Class</th>
-                <th style={{...ui.th, width: '15%'}}>Contact No.</th>
+                <th style={{...ui.th, width: '15%'}}>
+                  <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                    <span>Contact No.</span>
+                    <button 
+                      onClick={() => setShowEncryptedPhones(!showEncryptedPhones)} 
+                      style={ui.decryptToggleBtn}
+                      title={showEncryptedPhones ? "Click to encrypt/mask contacts" : "Click to reveal contacts"}
+                    >
+                      {showEncryptedPhones ? <FaUnlock color="#10b981" /> : <FaLock color="#f59e0b" />}
+                    </button>
+                  </div>
+                </th>
                 <th style={{...ui.th, width: '25%'}}>Address</th>
                 <th style={{...ui.th, width: '15%'}}>Verification</th>
                 <th style={{...ui.th, width: '10%'}}>Action</th>
@@ -188,7 +213,7 @@ const ManageStudents = () => {
                     </div>
                   </td>
                   <td style={ui.td}><span style={ui.deptBadge}>{s.class}</span></td>
-                  <td style={ui.td}><div style={ui.contactInfo}><FaPhoneAlt size={11} color="#6366f1"/> {s.mobile || "—"}</div></td>
+                  <td style={ui.td}><div style={ui.contactInfo}><FaPhoneAlt size={11} color="#6366f1"/> {maskPhoneNumber(s.mobile)}</div></td>
                   <td style={ui.td}><div style={ui.addressInfo}>{s.address || "N/A"}</div></td>
                   <td style={ui.td}><span style={ui.statusTag}><FaCheckCircle size={10}/> Active Student</span></td>
                   <td style={ui.td}>
@@ -280,7 +305,7 @@ const ui = {
   searchCluster: { flex: 0.7 },
   voiceSearchWrapper: { position: "relative", display: "flex", alignItems: "center" },
   searchIcon: { position: "absolute", left: "15px", color: "#64748b" },
-  searchField: { width: "100%", padding: "12px 45px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#f1f5f9", outline: "none", fontSize: "15px", transition: "0.3s focus", ":focus": { border: "1px solid #6366f1" } },
+  searchField: { width: "100%", padding: "12px 45px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#f1f5f9", outline: "none", fontSize: "15px", transition: "0.3s focus" },
   micBtn: { position: "absolute", right: "15px", background: "none", border: "none", cursor: "pointer", fontSize: "18px" },
   newRegBtn: { background: "#6366f1", color: "#fff", border: "none", padding: "12px 28px", borderRadius: "10px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "0.2s" },
   gridWrapper: { width: "100%", padding: "0 5%" },
@@ -299,7 +324,8 @@ const ui = {
   contactInfo: { fontSize: "13px", color: "#334155", fontWeight: "500", display: "flex", alignItems: "center", gap: "8px" },
   addressInfo: { fontSize: "13px", color: "#64748b", maxWidth: "300px", lineHeight: "1.4" },
   statusTag: { padding: "6px 12px", background: "#f0fdf4", color: "#166534", borderRadius: "8px", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px", border: "1px solid #dcfce7" },
-  rowActionBtn: { background: "#fef2f2", border: "none", color: "#ef4444", padding: "10px", borderRadius: "8px", cursor: "pointer", transition: "0.2s hover", ":hover": { background: "#fee2e2" } },
+  rowActionBtn: { background: "#fef2f2", border: "none", color: "#ef4444", padding: "10px", borderRadius: "8px", cursor: "pointer", transition: "0.2s hover" },
+  decryptToggleBtn: { background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", fontSize: "14px", padding: "4px" },
   sidePanel: { position: "fixed", top: 0, right: 0, width: "450px", height: "100%", background: "#fff", zIndex: 1000, transition: "0.4s cubic-bezier(0.4, 0, 0.2, 1)", boxShadow: "-20px 0 50px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column" },
   panelHeader: { padding: "24px", background: "#1e293b", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" },
   closePanelBtn: { background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", width: "32px", height: "32px", borderRadius: "8px", cursor: "pointer" },

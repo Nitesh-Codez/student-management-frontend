@@ -67,7 +67,7 @@ const AdminDashboard = () => {
     { title: "Manage Fees", path: "manage-fees", icon: <FaMoneyBillWave />, color: "#10b981", category: "Finance" },
     { title: "Mark Attendance", path: "mark-attendance", icon: <FaClipboardCheck />, color: "#f59e0b", category: "Daily" },
     { title: "View Attendance", path: "attendance-view", icon: <FaChartBar />, color: "#8b5cf6", category: "Reports" },
-    { title: "Upload Homework", path: "upload-homework", icon: <FaUpload />, color: "#ef4444", category: "Academic" },
+    { title: "Suspend Students", path: "upload-homework", icon: <FaUpload />, color: "#ef4444", category: "Academic" },
     { title: "Add Marks", path: "add-marks", icon: <FaStar />, color: "#ec4899", category: "Exams" },
     { title: "Reports", path: "reports", icon: <FaChartBar />, color: "#475569", category: "Reports" },
     { title: "Add Teacher", path: "add-teacher", icon: <FaUserGraduate />, color: "#0ea5e9", category: "Management" },
