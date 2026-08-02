@@ -19,7 +19,7 @@ import StudentProfile from "./StudentProfile";
 import StudentStudyMaterial from "./StudentStudyMaterial";
 import StudentPage from "./StudentPage";
 import StudentFeedback from "./StudentFeedback";
-import StudentChat from "./StudentChat";
+import StudentPerformanceTree from "./StudentPerformanceTree";
 import ApplyCorrection from "./ApplyCorrection";
 /*============Record previous classes=============*/
 import StudentResult from "./Results_details/StudentResult";
@@ -1023,8 +1023,8 @@ try {
 >
   📝 Practice Quiz
 </Link>
-                <Link to="student-chat" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("student-chat"))}>
-                  <FaComments /> Connect Chat
+                <Link to="Check-performance" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("Check-performance"))}>
+                  <FaComments /> Check performance
                 </Link>
                 <Link to="drop-apply" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("drop-apply"))}>
                   <FaComments /> Apply Drop
@@ -1126,7 +1126,7 @@ try {
           <Route path="study-material" element={<StudentStudyMaterial />} />
           <Route path="task-update" element={<StudentPage studentId={user.id} />} />
           <Route path="feedback" element={<StudentFeedback studentId={user.id} />} />
-          <Route path="chat" element={<StudentChat user={user} />} />
+          <Route path="Check-performance" element={<StudentPerformanceTree user={user} />} />
           <Route path="apply-correction" element={<ApplyCorrection />} />
 
           <Route path="submit-results" element={<StudentResult />} />

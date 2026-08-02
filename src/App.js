@@ -24,6 +24,7 @@ import AddTeacher from "./pages/AddTeacher";
 import TeacherList from "./pages/TeacherList";
 import AssignClasses from "./pages/AssignClasses";
 import AdminQuizPage from "./pages/AdminQuizPage";
+import AdminStudentStars from './pages/AdminStudentStars';
 
 /* STUDENT */
 import StudentDashboard from "./pages/StudentDashboard";
@@ -35,7 +36,7 @@ import StudentsMarks from "./pages/StudentsMarks";
 import StudentFeedback from "./pages/StudentFeedback";
 import StudentStudyMaterial from "./pages/StudentStudyMaterial";
 import StudentPage from "./pages/StudentPage";
-import StudentChat from "./pages/StudentChat";
+import StudentPerformanceTree from "./pages/StudentPerformanceTree";
 import ApplyCorrection from "./pages/ApplyCorrection";
 import StudentQuizDashboard from "./pages/StudentQuizDashboard";
 import AttemptQuizPage from "./pages/AttemptQuizPage";
@@ -84,10 +85,11 @@ function App() {
           <Route path="admin-chat" element={<AdminChat />} />
           <Route path="add-teacher" element={<AddTeacher />} />
           <Route path="teachers" element={<TeacherList />} />
-        
+          
           <Route path="assign-classes" element={<AssignClasses />} />
           <Route path="quiz" element={<AdminQuizPage />} />
-         <Route path="details/:session/:month" element={<FeesDetails />} />
+          <Route path="student-stars" element={<AdminStudentStars />} />
+          <Route path="details/:session/:month" element={<FeesDetails />} />
 
         </Route>
 
@@ -104,7 +106,7 @@ function App() {
           <Route path="feedback" element={<StudentFeedback />} />
           <Route path="task-update" element={<StudentPage studentId={101} />} />
           <Route path="study-material" element={<StudentStudyMaterial />} />
-          <Route path="student-chat" element={<StudentChat />} />
+          <Route path="Check-performance" element={<StudentPerformanceTree/>} />
           <Route path="exam-form" element={<ExamForm />} />
           <Route path="generate-admit" element={<GenerateAdmitCard />} />
           <Route path="exam-result" element={<ExaminationResult />} />
