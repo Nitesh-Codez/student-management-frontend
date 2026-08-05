@@ -12,7 +12,7 @@ const API_URL = `${API_BASE}/api/students`;
 
 const ManageStudents = () => {
   const [students, setStudents] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState();
   const [isListening, setIsListening] = useState(false);
   const [showModal, setShowModal] = useState(false); // Changed from slide panel to professional center modal
   const [loading, setLoading] = useState(true);
@@ -355,7 +355,7 @@ const ManageStudents = () => {
                   {previewUrl ? <img src={previewUrl} style={ui.avatarImg} alt="Preview" /> : <FaCamera size={34} color="#94a3b8" />}
                 </div>
                 <label style={ui.squareUploadLabel}>
-                  {previewUrl ? "Change Square Photo" : "Upload Square Photo"}
+                  {previewUrl ? "Change Photo" : "Upload Photo"}
                   <input type="file" hidden accept="image/*" onChange={handleFileChange} />
                 </label>
               </div>
@@ -364,20 +364,27 @@ const ManageStudents = () => {
               <div style={ui.formVerticalGroup}>
                 <div style={ui.fieldBlock}>
                   <label style={ui.labelStyle}><FaUser size={11} /> Full Name *</label>
-                  <input name="name" style={ui.panelInput} value={formData.name} onChange={handleInputChange} placeholder="e.g. Bhumika Kushwah" />
+                  <input name="name" style={ui.panelInput} value={formData.name} onChange={handleInputChange} placeholder="Students Name" />
                 </div>
 
                 <div style={ui.fieldBlock}>
                   <label style={ui.labelStyle}><FaGraduationCap size={11} /> Class *</label>
                   <select name="class" style={ui.panelInput} value={formData.class} onChange={handleInputChange}>
                     <option value="">Select Class / Standard</option>
-                    <option value="6th">6th Standard</option>
-                    <option value="7th">7th Standard</option>
-                    <option value="8th">8th Standard</option>
-                    <option value="9th">9th Standard</option>
-                    <option value="10th">10th Standard</option>
-                    <option value="11th">11th Standard</option>
-                    <option value="12th">12th Standard</option>
+                    <option value="LKG">L.K.G</option>
+<option value="UKG">U.K.G</option>
+<option value="1st">1st</option>
+<option value="2nd">2nd</option>
+<option value="3rd">3rd</option>
+<option value="4th">4th</option>
+<option value="5th">5th</option>
+<option value="6th">6th</option>
+<option value="7th">7th</option>
+<option value="8th">8th</option>
+<option value="9th">9th</option>
+<option value="10th">10th</option>
+<option value="11th">11th</option>
+<option value="12th">12th</option>
                   </select>
                 </div>
 
@@ -388,17 +395,17 @@ const ManageStudents = () => {
 
                 <div style={ui.fieldBlock}>
                   <label style={ui.labelStyle}><FaPhoneAlt size={11} /> Mobile Number</label>
-                  <input name="mobile" style={ui.panelInput} value={formData.mobile} onChange={handleInputChange} placeholder="8103820285" />
+                  <input name="mobile" style={ui.panelInput} value={formData.mobile} onChange={handleInputChange} placeholder="10 digit mobile number" />
                 </div>
 
                 <div style={ui.fieldBlock}>
                   <label style={ui.labelStyle}><FaUser size={11} /> Father's Name</label>
-                  <input name="father_name" style={ui.panelInput} value={formData.father_name} onChange={handleInputChange} placeholder="Mr. Patiram Kushwah" />
+                  <input name="father_name" style={ui.panelInput} value={formData.father_name} onChange={handleInputChange} placeholder="Fathers Name" />
                 </div>
 
                 <div style={ui.fieldBlock}>
                   <label style={ui.labelStyle}><FaUser size={11} /> Mother's Name</label>
-                  <input name="mother_name" style={ui.panelInput} value={formData.mother_name} onChange={handleInputChange} placeholder="Mrs. Maya Kushwah" />
+                  <input name="mother_name" style={ui.panelInput} value={formData.mother_name} onChange={handleInputChange} placeholder="Mothers Name" />
                 </div>
 
                 <div style={ui.fieldBlock}>
