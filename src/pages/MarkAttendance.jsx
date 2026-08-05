@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
+import { motion, AnimatePresence } from "framer-motion";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -24,6 +25,7 @@ const MarkAttendance = () => {
   const [editAllowed, setEditAllowed] = useState(true);
   const [infoMsg, setInfoMsg] = useState("");
   const [batchType, setBatchType] = useState("4pm");
+  const [searchQuery, setSearchQuery] = useState("");
 
   function getFormattedDate(date = new Date()) {
     return (
@@ -94,12 +96,14 @@ const MarkAttendance = () => {
 
         setStudents(list);
 
+        const hasExistingRecords = list.some((s) => s.status && s.status !== "Absent");
         const allAbsent = list.length === 0 || list.every((s) => s.status === "Absent");
-        setIsFirstTime(allAbsent);
+        
+        setIsFirstTime(!hasExistingRecords && allAbsent);
 
         const initAtt = {};
         list.forEach((s) => {
-          initAtt[s.id] = allAbsent ? "Present" : s.status;
+          initAtt[s.id] = s.status || "Absent";
         });
         setAttendance(initAtt);
 
@@ -134,6 +138,14 @@ const MarkAttendance = () => {
 
   const handleChange = (id, status) =>
     setAttendance((prev) => ({ ...prev, [id]: status }));
+
+  const handleMarkAll = (status, currentBatchList) => {
+    const updated = { ...attendance };
+    currentBatchList.forEach((s) => {
+      updated[s.id] = status;
+    });
+    setAttendance(updated);
+  };
 
   const sendAttendance = async (action = "submit") => {
     setBtnDisabled(true);
@@ -177,6 +189,7 @@ const MarkAttendance = () => {
 
       setSuccessMsg(msg);
       setSummaryData({ totalStudents, totalPresent, totalAbsent, totalHoliday });
+      setIsFirstTime(false);
       setShowTable(false);
     } catch (err) {
       console.error("Submit Error:", err);
@@ -205,82 +218,149 @@ const MarkAttendance = () => {
         parseInt(s.class, 10) >= 6)
   );
 
-  const renderTable = (title, list) => (
-    <div className="table-wrapper">
-      <h2 style={{ marginTop: "18px", fontSize: "18px", color: "#111827" }}>
-        {title} ({list.length})
-      </h2>
-      {list.length === 0 ? (
-        <p style={{ marginTop: 6, color: "#6b7280" }}>No active students found in this batch.</p>
-      ) : (
-        <table className="attendance-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Class</th>
-              <th>Present</th>
-              <th>Absent</th>
-              <th>Holiday</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((s) => (
-              <tr
-                key={s.id}
-                style={{
-                  backgroundColor:
-                    attendance[s.id] === "Present"
-                      ? "#d1fae5" // Darker Green
-                      : attendance[s.id] === "Absent"
-                      ? "#f19d9d" // Darker Red
-                      : "#f0e6a0", // Darker Yellow
-                }}
-              >
-                <td>{s.id}</td>
-                <td>{s.name}</td>
-                <td>{s.class}</td>
-                <td>
-                  <input
-                    type="radio"
-                    name={`att-${s.id}`}
-                    checked={attendance[s.id] === "Present"}
-                    onChange={() => handleChange(s.id, "Present")}
-                    disabled={!editAllowed}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="radio"
-                    name={`att-${s.id}`}
-                    checked={attendance[s.id] === "Absent"}
-                    onChange={() => handleChange(s.id, "Absent")}
-                    disabled={!editAllowed}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="radio"
-                    name={`att-${s.id}`}
-                    checked={attendance[s.id] === "Holiday"}
-                    onChange={() => handleChange(s.id, "Holiday")}
-                    disabled={!editAllowed}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+  // Combined totals for both batches
+  const totalCombinedStudents = students.length;
+  const totalCombinedPresent = students.filter((s) => (attendance[s.id] || "Absent") === "Present").length;
+  const totalCombinedAbsent = students.filter((s) => (attendance[s.id] || "Absent") === "Absent").length;
+  const totalCombinedHoliday = students.filter((s) => (attendance[s.id] || "Absent") === "Holiday").length;
+
+  const filterBySearch = (list) => {
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        String(s.id).toLowerCase().includes(q) ||
+        String(s.class).toLowerCase().includes(q)
+    );
+  };
+
+  const renderTable = (title, list) => {
+    const filteredList = filterBySearch(list);
+    const presentCount = list.filter((s) => (attendance[s.id] || "Absent") === "Present").length;
+    const absentCount = list.filter((s) => (attendance[s.id] || "Absent") === "Absent").length;
+    const holidayCount = list.filter((s) => (attendance[s.id] || "Absent") === "Holiday").length;
+
+    return (
+      <div className="table-wrapper">
+        <div className="table-header-row">
+          <div>
+            <h2 style={{ margin: 0, fontSize: "18px", color: "#111827" }}>
+              {title} ({list.length})
+            </h2>
+            <div className="quick-stats-pills">
+              <span className="pill green">🟢 Total Present: {presentCount}</span>
+              <span className="pill red">🔴 Total Absent: {absentCount}</span>
+              <span className="pill yellow">🟡 Total Holiday: {holidayCount}</span>
+            </div>
+          </div>
+          
+          <div className="table-actions-group">
+            <input
+              type="text"
+              placeholder="🔍 Search student name/ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            {editAllowed && (
+              <div className="bulk-buttons">
+                <button type="button" className="bulk-btn green" onClick={() => handleMarkAll("Present", list)}>All Present</button>
+                <button type="button" className="bulk-btn red" onClick={() => handleMarkAll("Absent", list)}>All Absent</button>
+                <button type="button" className="bulk-btn yellow" onClick={() => handleMarkAll("Holiday", list)}>All Holiday</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {filteredList.length === 0 ? (
+          <p style={{ marginTop: 15, textAlign: "center", color: "#6b7280" }}>No matching active students found.</p>
+        ) : (
+          <div className="table-container-scroll">
+            <table className="attendance-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Student Name</th>
+                  <th>Class</th>
+                  <th>Present</th>
+                  <th>Absent</th>
+                  <th>Holiday</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredList.map((s) => {
+                  const status = attendance[s.id] || "Absent";
+                  return (
+                    <motion.tr
+                      key={s.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      style={{
+                        backgroundColor:
+                          status === "Present"
+                            ? "#50eca6" 
+                            : status === "Absent"
+                            ? "#f8b8b8" 
+                            : "#ccf0b2", 
+                      }}
+                    >
+                      <td style={{ fontWeight: "600", color: "#4b5563" }}>#{s.id}</td>
+                      <td style={{ fontWeight: "600", color: "#1f2937" }}>{s.name}</td>
+                      <td><span className="class-badge">Class {s.class}</span></td>
+                      <td>
+                        <label className={`radio-label green ${status === "Present" ? "selected" : ""}`}>
+                          <input
+                            type="radio"
+                            name={`att-${s.id}`}
+                            checked={status === "Present"}
+                            onChange={() => handleChange(s.id, "Present")}
+                            disabled={!editAllowed}
+                          />
+                          <span>Present</span>
+                        </label>
+                      </td>
+                      <td>
+                        <label className={`radio-label red ${status === "Absent" ? "selected" : ""}`}>
+                          <input
+                            type="radio"
+                            name={`att-${s.id}`}
+                            checked={status === "Absent"}
+                            onChange={() => handleChange(s.id, "Absent")}
+                            disabled={!editAllowed}
+                          />
+                          <span>Absent</span>
+                        </label>
+                      </td>
+                      <td>
+                        <label className={`radio-label yellow ${status === "Holiday" ? "selected" : ""}`}>
+                          <input
+                            type="radio"
+                            name={`att-${s.id}`}
+                            checked={status === "Holiday"}
+                            onChange={() => handleChange(s.id, "Holiday")}
+                            disabled={!editAllowed}
+                          />
+                          <span>Holiday</span>
+                        </label>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="attendance-container">
       <div className="header-banner">
         <h1>Smart Student Attendance Portal</h1>
-        <p style={{fontSize:'25px'}}>
-          Manage daily attendance for your batches (4:00 PM and 5:30 PM). 
+        <p>
+          Manage daily attendance seamlessly for your batches (4:00 PM and 5:30 PM). 
           Today's attendance can be marked after 4:00 PM, and records can be updated for up to the past 5 days. 
           Suspended or banned students are automatically filtered out.
         </p>
@@ -288,28 +368,30 @@ const MarkAttendance = () => {
 
       <div className="controls-row">
         <div className="batch-selector">
-          <span
+          <button
+            type="button"
             className={`batch-link ${batchType === "4pm" ? "active" : ""}`}
             onClick={() => {
               setBatchType("4pm");
               setShowTable(true);
             }}
           >
-            4:00 PM Batch
-          </span>
-          <span
+            ⏰ 4:00 PM Batch
+          </button>
+          <button
+            type="button"
             className={`batch-link ${batchType === "530pm" ? "active" : ""}`}
             onClick={() => {
               setBatchType("530pm");
               setShowTable(true);
             }}
           >
-            5:30 PM Batch
-          </span>
+            ⏰ 5:30 PM Batch
+          </button>
         </div>
 
         <div className="date-picker">
-          <label htmlFor="att-date">Select Date: </label>
+          <label htmlFor="att-date">📅 Select Date: </label>
           <input
             id="att-date"
             type="date"
@@ -321,82 +403,121 @@ const MarkAttendance = () => {
       </div>
 
       {loading ? (
-        <p className="loading-text">Loading student records...</p>
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p className="loading-text">Loading student records securely...</p>
+        </div>
       ) : infoMsg ? (
-        <div className="info-msg">{infoMsg}</div>
+        <div className="info-msg">⚠️ {infoMsg}</div>
       ) : showTable ? (
-        <>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           {batchType === "4pm" && renderTable("Batch 4:00 PM (Classes: LKG, UKG, 1st to 5th)", batch4)}
           {batchType === "530pm" && renderTable("Batch 5:30 PM (Classes: 6th and above)", batch530)}
 
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+            <button className="secondary-btn" onClick={() => setShowTable(false)}>
+              ⬅ Back to Overview
+            </button>
             {isFirstTime ? (
-              <button className="submit-btn" onClick={submitAttendance} disabled={btnDisabled}>
-                Submit Attendance
+              <button className="submit-btn" onClick={submitAttendance} disabled={btnDisabled || !editAllowed}>
+                {btnDisabled ? "Submitting..." : "🚀 Submit Attendance"}
               </button>
             ) : (
-              <button className="submit-btn" onClick={updateAttendance} disabled={!editAllowed || btnDisabled}>
-                Update Attendance
+              <button className="submit-btn update" onClick={updateAttendance} disabled={!editAllowed || btnDisabled}>
+                {btnDisabled ? "Updating..." : "🔄 Update Attendance"}
               </button>
             )}
           </div>
-        </>
+        </motion.div>
       ) : (
-        <div className="action-card-prompt">
-          <p>Selected Date: <strong>{selectedDate}</strong></p>
-          <button className="submit-btn" onClick={() => setShowTable(true)} disabled={btnDisabled}>
-            {selectedDate === getFormattedDate() ? "Mark Today's Attendance Now" : "View / Edit Attendance"}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="action-card-prompt">
+          <div className="prompt-badge">Selected Date: <strong>{selectedDate}</strong></div>
+          <p>Ready to manage attendance logs for this session? Click below to load batch lists.</p>
+          <button className="submit-btn large" onClick={() => setShowTable(true)} disabled={btnDisabled}>
+            {isFirstTime ? (selectedDate === getFormattedDate() ? "⚡ Mark Today's Attendance Now" : "📂 Mark Attendance") : "✏️ Edit Attendance"}
           </button>
-        </div>
+
+          {/* Combined Overview Stats placed directly under the Edit / Mark button */}
+          {!loading && students.length > 0 && (
+            <div className="overview-combined-card">
+              <h4>📋 Combined Batches Overview ({selectedDate})</h4>
+              <div className="overview-grid">
+                <div className="overview-item total">
+                  <span>Total Students</span>
+                  <strong>{totalCombinedStudents}</strong>
+                </div>
+                <div className="overview-item present">
+                  <span>Total Present</span>
+                  <strong>{totalCombinedPresent}</strong>
+                </div>
+                <div className="overview-item absent">
+                  <span>Total Absent</span>
+                  <strong>{totalCombinedAbsent}</strong>
+                </div>
+                <div className="overview-item holiday">
+                  <span>Total Holiday</span>
+                  <strong>{totalCombinedHoliday}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+        </motion.div>
       )}
 
       {summaryData && (
-        <div className="summary-card">
-          <h3>Attendance Summary Report ({batchType === "4pm" ? "4:00 PM Batch" : "5:30 PM Batch"})</h3>
-          <div className="summary-grid">
-            <div className="summary-item total">
-              <span>Total Students</span>
-              <strong>{summaryData.totalStudents}</strong>
+        <AnimatePresence>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            className="summary-card"
+          >
+            <h3>📊 Attendance Summary Report ({batchType === "4pm" ? "4:00 PM Batch" : "5:30 PM Batch"})</h3>
+            <div className="summary-grid">
+              <div className="summary-item total">
+                <span>Total Students</span>
+                <strong>{summaryData.totalStudents}</strong>
+              </div>
+              <div className="summary-item present">
+                <span>Total Present</span>
+                <strong>{summaryData.totalPresent}</strong>
+              </div>
+              <div className="summary-item absent">
+                <span>Total Absent</span>
+                <strong>{summaryData.totalAbsent}</strong>
+              </div>
+              <div className="summary-item holiday">
+                <span>Total Holiday</span>
+                <strong>{summaryData.totalHoliday}</strong>
+              </div>
             </div>
-            <div className="summary-item present">
-              <span>Present</span>
-              <strong>{summaryData.totalPresent}</strong>
-            </div>
-            <div className="summary-item absent">
-              <span>Absent</span>
-              <strong>{summaryData.totalAbsent}</strong>
-            </div>
-            <div className="summary-item holiday">
-              <span>Holiday</span>
-              <strong>{summaryData.totalHoliday}</strong>
-            </div>
-          </div>
-          {successMsg && <div className="success-msg">{successMsg}</div>}
-        </div>
+            {successMsg && <div className="success-msg">🎉 {successMsg}</div>}
+          </motion.div>
+        </AnimatePresence>
       )}
 
       <style>{`
         .attendance-container { 
           width: 95%; 
-          max-width: 1000px; 
-          margin: 24px auto; 
+          max-width: 1050px; 
+          margin: 30px auto; 
           font-family: 'Inter', system-ui, sans-serif; 
           color: #1f2937;
           background: #ffffff;
-          padding: 28px;
-          border-radius: 16px;
+          padding: 32px;
+          border-radius: 20px;
           border: 1px solid #e5e7eb;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.04);
         }
         .header-banner {
           background: linear-gradient(135deg, #1d166a 0%, #6d28d9 100%);
           color: #ffffff;
-          padding: 20px 24px;
-          border-radius: 12px;
-          margin-bottom: 20px;
+          padding: 24px 28px;
+          border-radius: 14px;
+          margin-bottom: 24px;
+          box-shadow: 0 4px 15px rgba(109,40,217,0.2);
         }
-        .header-banner h1 { font-size: 22px; font-weight: 700; margin: 0 0 8px 0; }
-        .header-banner p { font-size: 13px; margin: 0; color: #e0e7ff; line-height: 1.5; }
+        .header-banner h1 { font-size: 24px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px; }
+        .header-banner p { font-size: 14px; margin: 0; color: #e0e7ff; line-height: 1.6; }
         
         .controls-row {
           display: flex;
@@ -404,60 +525,128 @@ const MarkAttendance = () => {
           align-items: center;
           flex-wrap: wrap;
           gap: 16px;
-          margin-bottom: 20px;
+          margin-bottom: 24px;
           background: #f9fafb;
-          padding: 12px 16px;
-          border-radius: 10px;
+          padding: 16px 20px;
+          border-radius: 12px;
           border: 1px solid #e5e7eb;
         }
-        .batch-selector { display: flex; gap: 10px; }
-        .batch-link { cursor: pointer; color: #4338ca; font-weight: 600; font-size: 13px; padding: 8px 14px; background: #ede9fe; border-radius: 6px; transition: 0.2s; border: 1px solid #ddd6fe; }
-        .batch-link.active { background: #4338ca; color: #fff; border-color: #4338ca; }
+        .batch-selector { display: flex; gap: 12px; }
+        .batch-link { 
+          cursor: pointer; color: #4338ca; font-weight: 700; font-size: 14px; 
+          padding: 10px 18px; background: #ede9fe; border-radius: 8px; 
+          transition: all 0.2s ease; border: 1px solid #ddd6fe; 
+          display: inline-flex; align-items: center; gap: 6px;
+        }
+        .batch-link:hover { background: #ddd6fe; transform: translateY(-1px); }
+        .batch-link.active { background: #4338ca; color: #fff; border-color: #4338ca; box-shadow: 0 4px 12px rgba(67,56,202,0.3); }
         
-        .date-picker { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; color: #4b5563; }
-        .date-picker input { padding: 7px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; background: #ffffff; color: #1f2937; }
+        .date-picker { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; color: #4b5563; }
+        .date-picker input { padding: 9px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; background: #ffffff; color: #1f2937; transition: border 0.2s; }
+        .date-picker input:focus { border-color: #4338ca; box-shadow: 0 0 0 3px rgba(67,56,202,0.1); }
         
         .action-card-prompt {
           text-align: center;
-          padding: 30px;
-          background: #f9fafb;
-          border-radius: 10px;
-          border: 1px dashed #cbd5e1;
+          padding: 35px 20px;
+          background: #f8fafc;
+          border-radius: 14px;
+          border: 2px dashed #cbd5e1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
         }
-        .action-card-prompt p { margin: 0 0 14px 0; font-size: 14px; color: #4b5563; }
+        .prompt-badge { background: #e0e7ff; color: #3730a3; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+        .action-card-prompt p { margin: 0; font-size: 15px; color: #4b5563; }
 
-        .attendance-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        .attendance-table th, .attendance-table td { border: 1px solid #d1d5db; padding: 10px; text-align: center; font-size: 14px; }
-        .attendance-table th { background-color: #3730a3; color: white; font-weight: 600; }
+        .overview-combined-card {
+          width: 100%;
+          max-width: 650px;
+          margin-top: 15px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 18px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        }
+        .overview-combined-card h4 { margin: 0 0 12px 0; font-size: 15px; font-weight: 700; color: #1e293b; }
+        .overview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .overview-item { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px; text-align: center; }
+        .overview-item span { font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .overview-item strong { font-size: 18px; color: #1e293b; }
+        .overview-item.present strong { color: #059669; }
+        .overview-item.absent strong { color: #dc2626; }
+        .overview-item.holiday strong { color: #d97706; }
+
+        .table-wrapper { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .table-header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; border-bottom: 1px solid #f3f4f6; padding-bottom: 16px; }
         
-        .submit-btn { padding: 10px 22px; background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%); color: white; border: none; cursor: pointer; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(67,56,202,0.25); transition: 0.2s; }
-        .submit-btn:hover { opacity: 0.95; transform: translateY(-1px); }
-        .submit-btn:disabled { background: #9ca3af; cursor: not-allowed; box-shadow: none; }
+        .quick-stats-pills { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+        .pill { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; background: #f3f4f6; }
+        .pill.green { background: #d1fae5; color: #065f46; }
+        .pill.red { background: #fee2e2; color: #991b1b; }
+        .pill.yellow { background: #fef3c7; color: #92400e; }
+
+        .table-actions-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .search-input { padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; outline: none; width: 220px; }
+        .search-input:focus { border-color: #4338ca; box-shadow: 0 0 0 3px rgba(67,56,202,0.1); }
+
+        .bulk-buttons { display: flex; gap: 6px; }
+        .bulk-btn { font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 6px; border: none; cursor: pointer; transition: 0.15s; }
+        .bulk-btn.green { background: #a7f3d0; color: #065f46; }
+        .bulk-btn.red { background: #fecaca; color: #991b1b; }
+        .bulk-btn.yellow { background: #fde68a; color: #92400e; }
+        .bulk-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+        .table-container-scroll { max-height: none; overflow-y: visible; border-radius: 8px; border: 1px solid #e5e7eb; }
+        .attendance-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .attendance-table th, .attendance-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
+        .attendance-table th { background-color: #3730a3; color: white; font-weight: 600; position: static; }
         
-        .success-msg { color: #047857; font-weight: 600; margin-top: 12px; font-size: 14px; }
-        .info-msg { margin-top: 16px; padding: 12px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; font-weight: 600; font-size: 14px; border-radius: 8px; }
-        .loading-text { font-size: 14px; color: #6b7280; margin-top: 10px; text-align: center; padding: 20px; }
+        .class-badge { background: #f3f4f6; color: #374151; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+
+        .radio-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 10px; border-radius: 6px; transition: 0.15s; }
+        .radio-label input { accent-color: #3730a3; cursor: pointer; width: 16px; height: 16px; }
+        .radio-label.green.selected { background: #d1fae5; color: #065f46; }
+        .radio-label.red.selected { background: #fee2e2; color: #991b1b; }
+        .radio-label.yellow.selected { background: #fef3c7; color: #92400e; }
+
+        .submit-btn { padding: 12px 26px; background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%); color: white; border: none; cursor: pointer; border-radius: 10px; font-weight: 700; font-size: 15px; box-shadow: 0 4px 15px rgba(67,56,202,0.3); transition: 0.2s; }
+        .submit-btn.update { background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 4px 15px rgba(16,185,129,0.3); }
+        .submit-btn.large { padding: 16px 36px; font-size: 16px; }
+        .submit-btn:hover { opacity: 0.95; transform: translateY(-2px); }
+        .submit-btn:disabled { background: #9ca3af; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        .secondary-btn { padding: 12px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; cursor: pointer; border-radius: 10px; font-weight: 600; font-size: 14px; transition: 0.2s; }
+        .secondary-btn:hover { background: #e5e7eb; }
+        
+        .success-msg { color: #047857; font-weight: 700; margin-top: 14px; font-size: 14px; background: #ecfdf5; padding: 10px; border-radius: 8px; border: 1px solid #a7f3d0; text-align: center; }
+        .info-msg { margin-top: 16px; padding: 14px 18px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-weight: 600; font-size: 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; }
+        
+        .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; gap: 12px; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #e0e7ff; border-top: 4px solid #4338ca; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .loading-text { font-size: 14px; color: #6b7280; font-weight: 600; }
         
         .summary-card {
           margin-top: 24px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 20px;
-          animation: fadeIn 0.3s ease-in-out;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 24px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.02);
         }
-        .summary-card h3 { margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #111827; }
-        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
-        .summary-item { background: #ffffff; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 4px; text-align: center; }
-        .summary-item span { font-size: 12px; color: #4b5563; font-weight: 600; text-transform: uppercase; }
-        .summary-item strong { font-size: 20px; color: #111827; }
-        .summary-item.present strong { color: #047857; }
-        .summary-item.absent strong { color: #b91c1c; }
-        .summary-item.holiday strong { color: #b45309; }
+        .summary-card h3 { margin: 0 0 16px 0; font-size: 17px; font-weight: 700; color: #111827; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+        .summary-item { background: #ffffff; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
+        .summary-item span { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .summary-item strong { font-size: 22px; color: #1e293b; }
+        .summary-item.present strong { color: #059669; }
+        .summary-item.absent strong { color: #dc2626; }
+        .summary-item.holiday strong { color: #d97706; }
         
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </div>

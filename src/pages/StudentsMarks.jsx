@@ -54,6 +54,7 @@ const StudentMarks = () => {
   const [showPostPopup, setShowPostPopup] = useState(false);
   const [newSubjectNames, setNewSubjectNames] = useState("");
   const [performanceMsg, setPerformanceMsg] = useState("");
+  const [lastUploadedSubjectDetail, setLastUploadedSubjectDetail] = useState(null);
   
   // STATE FOR "LAST CHECKED" MARKS DIV
   const [latestCheckedMarks, setLatestCheckedMarks] = useState([]);
@@ -114,6 +115,11 @@ const StudentMarks = () => {
 
           // 3. Trigger notification pop-up alert ONLY if new database entries are present
           if (newEntries.length > 0 && currentLocalMarks.length > 0) {
+            // Sort new entries by date/id descending to pick strictly the very last one
+            const sortedNew = [...newEntries].sort((a, b) => new Date(b.test_date) - new Date(a.test_date));
+            const latestOne = sortedNew[0];
+            setLastUploadedSubjectDetail(latestOne);
+
             const names = [...new Set(newEntries.map((m) => m.subject))].join(", ");
             setNewSubjectNames(names);
             setShowPrePopup(true);
@@ -197,6 +203,15 @@ const StudentMarks = () => {
           const currentIds = marks.map((m) => m.id);
           const freshCheckedEntries = fetchedData.filter((m) => !currentIds.includes(m.id));
 
+          if (freshCheckedEntries.length > 0) {
+            const sortedFresh = [...freshCheckedEntries].sort((a, b) => new Date(b.test_date) - new Date(a.test_date));
+            setLastUploadedSubjectDetail(sortedFresh[0]);
+          } else {
+            // Fallback to absolute latest fetched record if no brand new entry was added right this second
+            const sortedFetched = [...fetchedData].sort((a, b) => new Date(b.test_date) - new Date(a.test_date));
+            setLastUploadedSubjectDetail(sortedFetched[0]);
+          }
+
           setMarks(fetchedData);
           
           const savedMarks = JSON.parse(localStorage.getItem("userMarks")) || {};
@@ -208,13 +223,11 @@ const StudentMarks = () => {
           // --- TRIGGER NEW BADGES TOP UPDATE ON COMPLETED CHECK ACTION ---
           const historyStore = JSON.parse(localStorage.getItem("latestCheckHistory")) || {};
           
-          // Agar database me such me kuch naya mila toh use top list me sabse aage append karein
           let updatedTopBadges = [];
           if (freshCheckedEntries.length > 0) {
             const oldSavedBadges = historyStore[userRef.current.id] || [];
             updatedTopBadges = [...freshCheckedEntries, ...oldSavedBadges].slice(0, 10);
           } else {
-            // Agar sab up-to-date tha, toh jo list pehle chal rhi thi wahi maintain rahegi
             updatedTopBadges = historyStore[userRef.current.id] || [...fetchedData].sort((a, b) => new Date(b.test_date) - new Date(a.test_date)).slice(0, 5);
           }
 
@@ -330,6 +343,19 @@ const StudentMarks = () => {
     return "Requires Immediate Focus. Work immediately.";
   };
 
+  // Helper function to calculate remark specific to an individual subject mark percentage
+  const getSubjectSpecificRemark = (p) => {
+    if (p >= 95) return "🏆 Outstanding! Masterpiece performance!";
+    if (p >= 90) return "🌟 Excellent! Phenomenal execution!";
+    if (p >= 85) return "🎖️ Elite Result! Keep shining!";
+    if (p >= 80) return "👏 Very Good! Strong command!";
+    if (p >= 70) return "👍 Good Job! Consistent progress!";
+    if (p >= 60) return "💡 Decent Effort! Steady on track.";
+    if (p >= 50) return "⚠️ Average Score! Room for improvement.";
+    if (p >= 33) return "⚡ Needs Focus! Push harder next time.";
+    return "🚨 Critical Attention Needed! Work closely.";
+  };
+
   const grouped = marks.reduce((acc, m) => {
     if (!acc[m.subject]) acc[m.subject] = [];
     acc[m.subject].push(m);
@@ -349,7 +375,7 @@ const StudentMarks = () => {
     },
     popupContent: {
       background: "#fff", padding: "30px", borderRadius: "20px",
-      textAlign: "center", maxWidth: "400px", width: "100%",
+      textAlign: "center", maxWidth: "420px", width: "100%",
       boxShadow: "0 20px 40px rgba(0,0,0,0.4)"
     },
     latestSection: {
@@ -391,20 +417,37 @@ const StudentMarks = () => {
               animate={{ scale: 1, y: 0 }} 
               style={styles.popupContent}
             >
-              <div style={{ fontSize: "50px", marginBottom: "10px" }}>🔔</div>
-              <h2 style={{ color: "#2b5876" }}>New Marks Uploaded!</h2>
-              <p style={{ color: "#666", margin: "15px 0" }}>
-                Teacher has updated marks for: <br/>
-                <strong style={{ color: "#D4AF37", fontSize: "18px" }}>{newSubjectNames}</strong>
+              <div style={{ fontSize: "50px", marginBottom: "10px" }}>🔔✨</div>
+              <h2 style={{ color: "#2b5876" }}>New Marks Uploaded! 🎉</h2>
+              <p style={{ color: "#666", margin: "15px 0 10px 0" }}>
+                Teacher has updated scores. Latest evaluation:
               </p>
+
+              {lastUploadedSubjectDetail && (() => {
+                const subPct = ((lastUploadedSubjectDetail.obtained_marks / lastUploadedSubjectDetail.total_marks) * 100).toFixed(1);
+                return (
+                  <div style={{ background: "#f1f6fa", padding: "12px", borderRadius: "12px", marginBottom: "15px", border: "1px dashed #2b5876" }}>
+                    <div style={{ fontSize: "16px", fontWeight: "bold", color: "#2b5876" }}>
+                      📚 {lastUploadedSubjectDetail.subject}
+                    </div>
+                    <div style={{ fontSize: "18px", fontWeight: "900", color: "#D4AF37", margin: "4px 0" }}>
+                      Marks: {lastUploadedSubjectDetail.obtained_marks} / {lastUploadedSubjectDetail.total_marks} ({subPct}%)
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: "bold", color: "#27ae60", marginTop: "6px" }}>
+                      {getSubjectSpecificRemark(subPct)}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <button 
                 onClick={handleClosePrePopup}
                 style={{
                   background: "#3498DB", color: "#fff", border: "none",
-                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold", cursor: "pointer"
+                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 12px rgba(52, 152, 219, 0.3)"
                 }}
               >
-                Please Check Marks
+                🚀 Please Check Marks
               </button>
             </motion.div>
           </motion.div>
@@ -424,17 +467,35 @@ const StudentMarks = () => {
               style={styles.popupContent}
             >
               <h2 style={{ color: performanceMsg.includes("improved") ? "#2ECC71" : "#E74C3C" }}>
-                {performanceMsg.includes("improved") ? "Well Done! 🎉" : "Keep Trying! 💪"}
+                {performanceMsg.includes("improved") ? "Well Done! 🎉🚀" : "Keep Trying! 💪🔥"}
               </h2>
-              <p style={{ margin: "20px 0", fontSize: "17px", lineHeight: "1.6" }}>{performanceMsg}</p>
+              <p style={{ margin: "15px 0", fontSize: "16px", lineHeight: "1.5", color: "#333" }}>{performanceMsg}</p>
+
+              {lastUploadedSubjectDetail && (() => {
+                const subPct = ((lastUploadedSubjectDetail.obtained_marks / lastUploadedSubjectDetail.total_marks) * 100).toFixed(1);
+                return (
+                  <div style={{ background: "#f8f9fa", padding: "12px", borderRadius: "12px", marginBottom: "20px", border: "1px solid #dcdde1" }}>
+                    <div style={{ fontSize: "15px", fontWeight: "bold", color: "#2f3640" }}>
+                      📖 Latest Subject: <span style={{ color: "#2b5876" }}>{lastUploadedSubjectDetail.subject}</span>
+                    </div>
+                    <div style={{ fontSize: "17px", fontWeight: "900", color: "#e67e22", margin: "4px 0" }}>
+                      Score: {lastUploadedSubjectDetail.obtained_marks} / {lastUploadedSubjectDetail.total_marks} ({subPct}%)
+                    </div>
+                    <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2980b9", marginTop: "5px" }}>
+                      {getSubjectSpecificRemark(subPct)}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <button 
                 onClick={() => setShowPostPopup(false)}
                 style={{
                   background: "#2b5876", color: "#fff", border: "none",
-                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold", cursor: "pointer"
+                  padding: "14px", borderRadius: "12px", width: "100%", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 12px rgba(43, 88, 118, 0.3)"
                 }}
               >
-                Show My Report
+                📊 Show My Report
               </button>
             </motion.div>
           </motion.div>
@@ -557,7 +618,7 @@ const StudentMarks = () => {
         <h3 style={{ marginTop: "20px", fontSize: "20px", textAlign: 'center' }}>{getRemark(overallPercentage)}</h3>
       </motion.div>
 
-      {/* MANUAL CAPTCHA SYSTEM SYSTEM */}
+      {/* MANUAL CAPTCHA SYSTEM */}
       <div style={{ padding: "0 12px" }}>
         <div style={{ background: "#fff", borderRadius: "18px", padding: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
           <div style={{ padding: "18px", background: "#f8f9fa", borderRadius: "10px", textAlign: "center", fontWeight: "700", letterSpacing: "8px", fontSize: "20px", border: "2px dashed #3498DB", color: "#2b5876", marginBottom: "15px" }}>
