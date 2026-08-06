@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import {  FaShieldAlt  } from "react-icons/fa";
+import { FaShieldAlt } from "react-icons/fa";
 
 const Login = () => {
   const [name, setName] = useState("");
@@ -14,9 +14,11 @@ const Login = () => {
   const [pendingUser, setPendingUser] = useState(null);
   const [pattern, setPattern] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
   const [patternError, setPatternError] = useState("");
   const [patternSuccess, setPatternSuccess] = useState("");
 
+  const gridRef = useRef(null);
   const navigate = useNavigate();
 
   const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
@@ -35,31 +37,31 @@ const Login = () => {
       if (data.success) {
         const user = data.user;
 
-        // --- ADMIN LOGIN: DIRECT REDIRECT ---
         if (user.role === "admin") {
           storeUserData(user);
           navigate("/admin");
           return;
         }
 
-        // --- STUDENT LOGIN: CHECK PATTERN STATUS ---
         try {
-          const patternCheck = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
+          const res = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
             studentId: user.id,
-            pattern: "dummy_check" // Just to check if enabled or exists
+            pattern: "check_if_enabled"
           });
-          // If server responds or throws, we manage flow below
+          
+          if (res.data.message === "Pattern not set.") {
+            setPendingUser(user);
+            setShowPatternModal(true);
+            setLoading(false);
+          } else {
+            storeUserData(user);
+            navigate("/student");
+          }
         } catch (err) {
-          // If pattern is not set or needs setup, trigger the popup
+          setPendingUser(user);
+          setShowPatternModal(true);
+          setLoading(false);
         }
-
-        // Fetch student detailed pattern status or force setup if first time
-        // Let's check database record via a lightweight check or state
-        setPendingUser(user);
-        
-        // If it's a student, let's prompt for pattern lock setup/verification popup
-        setShowPatternModal(true);
-        setLoading(false);
 
       } else {
         setError(data.message);
@@ -90,12 +92,95 @@ const Login = () => {
     }
   };
 
-  // --- Pattern Grid Interaction Handlers ---
-  const handleDotTouch = (dotIndex) => {
-    if (!isDrawing) return;
-    if (!pattern.includes(dotIndex)) {
-      setPattern([...pattern, dotIndex]);
+  // --- Exact Dot Center Coordinates for Grid ---
+  const getDotCenter = (index) => {
+    const row = Math.floor(index / 3);
+    const col = index % 3;
+    const spacing = 72;
+    const startOffset = 31;
+    return {
+      x: startOffset + col * spacing,
+      y: startOffset + row * spacing
+    };
+  };
+
+  // --- Strict Dot-to-Dot Touch & Mouse Interaction ---
+  const handleStart = (index, e) => {
+    e.stopPropagation();
+    setIsDrawing(true);
+    setPattern([index]);
+    setPatternError("");
+    const center = getDotCenter(index);
+    setCurrentPos(center);
+  };
+
+  const handleEnter = (index) => {
+    if (isDrawing && !pattern.includes(index)) {
+      setPattern((prev) => [...prev, index]);
+      const center = getDotCenter(index);
+      setCurrentPos(center);
     }
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDrawing || !gridRef.current) return;
+    const touch = e.touches[0];
+    const rect = gridRef.current.getBoundingClientRect();
+    
+    setCurrentPos({
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    });
+
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (target && target.dataset && target.dataset.id !== undefined) {
+      const dotIndex = parseInt(target.dataset.id, 10);
+      if (!pattern.includes(dotIndex)) {
+        setPattern((prev) => [...prev, dotIndex]);
+      }
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDrawing || !gridRef.current) return;
+    const rect = gridRef.current.getBoundingClientRect();
+    setCurrentPos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  const handleEnd = () => {
+    setIsDrawing(false);
+    if (pattern.length > 0) {
+      setCurrentPos(getDotCenter(pattern[pattern.length - 1]));
+    }
+  };
+
+  // --- Smooth Cubic Bezier / Smooth Wave Path Generator ---
+  const generateSmoothPath = () => {
+    if (pattern.length === 0) return "";
+    
+    let path = `M ${getDotCenter(pattern[0]).x} ${getDotCenter(pattern[0]).y}`;
+    
+    for (let i = 1; i < pattern.length; i++) {
+      const prev = getDotCenter(pattern[i - 1]);
+      const curr = getDotCenter(pattern[i]);
+      // Creates a soft, elegant curve wave between precise dots
+      const midX = (prev.x + curr.x) / 2;
+      const midY = (prev.y + curr.y) / 2;
+      path += ` Q ${midX} ${midY}, ${curr.x} ${curr.y}`;
+    }
+
+    // Add trailing smooth wave line to finger/cursor if currently dragging
+    if (isDrawing && pattern.length > 0) {
+      const last = getDotCenter(pattern[pattern.length - 1]);
+      const midX = (last.x + currentPos.x) / 2;
+      const midY = (last.y + currentPos.y) / 2;
+      path += ` Q ${midX} ${midY}, ${currentPos.x} ${currentPos.y}`;
+    }
+
+    return path;
   };
 
   const handleSavePattern = async () => {
@@ -195,41 +280,55 @@ const Login = () => {
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard}>
             <div style={styles.modalHeader}>
-              <FaShieldAlt style={{ color: "#6366f1", fontSize: "24px" }} />
+              <FaShieldAlt style={{ color: "#6366f1", fontSize: "20px" }} />
               <h3 style={styles.modalTitle}>Set Your Security Lock</h3>
             </div>
             <p style={styles.modalSubText}>
-              For enhanced security, please set up a gesture pattern lock for your account.
+             For enhanced security, please set up a pattern lock for your account.
             </p>
 
             {patternError && <p style={styles.errorStyle}>{patternError}</p>}
             {patternSuccess && <p style={styles.successStyle}>{patternSuccess}</p>}
 
-            {/* Pattern Grid Container */}
+            {/* Pattern Grid Container with Soft SVG Wave Lines */}
             <div 
+              ref={gridRef}
               style={styles.patternGrid}
-              onMouseUp={() => setIsDrawing(false)}
-              onTouchEnd={() => setIsDrawing(false)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleEnd}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleEnd}
             >
+              {/* SVG Canvas for Smooth Curved Wave Lines between Dots */}
+              <svg style={styles.svgOverlay}>
+                {pattern.length > 0 && (
+                  <path
+                    d={generateSmoothPath()}
+                    fill="none"
+                    stroke="#6366f1"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ filter: "drop-shadow(0px 2px 4px rgba(99, 102, 241, 0.4))" }}
+                  />
+                )}
+              </svg>
+
               {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => {
                 const isSelected = pattern.includes(index);
                 return (
                   <div
                     key={index}
+                    data-id={index}
                     style={{
                       ...styles.patternDot,
-                      background: isSelected ? "#6366f1" : "#e2e8f0",
-                      transform: isSelected ? "scale(1.2)" : "scale(1)",
+                      background: isSelected ? "#6366f1" : "#cbd5e1",
+                      transform: isSelected ? "scale(1.3)" : "scale(1)",
+                      boxShadow: isSelected ? "0 0 12px rgba(99, 102, 241, 0.8)" : "none",
                     }}
-                    onMouseDown={() => {
-                      setIsDrawing(true);
-                      handleDotTouch(index);
-                    }}
-                    onMouseEnter={() => handleDotTouch(index)}
-                    onTouchStart={() => {
-                      setIsDrawing(true);
-                      handleDotTouch(index);
-                    }}
+                    onMouseDown={(e) => handleStart(index, e)}
+                    onMouseEnter={() => handleEnter(index)}
+                    onTouchStart={(e) => handleStart(index, e)}
                   />
                 );
               })}
@@ -240,6 +339,7 @@ const Login = () => {
                 style={styles.secondaryButton} 
                 onClick={() => {
                   setPattern([]);
+                  setIsDrawing(false);
                   setPatternError("");
                 }}
               >
@@ -436,9 +536,9 @@ const styles = {
   },
   modalCard: {
     width: "90%",
-    maxWidth: "360px",
+    maxWidth: "320px",
     background: "#fff",
-    padding: "25px",
+    padding: "20px",
     borderRadius: "24px",
     boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
     textAlign: "center",
@@ -446,43 +546,54 @@ const styles = {
   },
   modalHeader: {
     display: "flex",
-    alignItem: "center",
+    alignItems: "center",
     justifyContent: "center",
-    gap: "10px",
-    marginBottom: "10px",
+    gap: "8px",
+    marginBottom: "4px",
   },
   modalTitle: {
-    fontSize: "20px",
+    fontSize: "17px",
     fontWeight: "800",
     color: "#1e293b",
     margin: 0,
   },
   modalSubText: {
-    fontSize: "13px",
+    fontSize: "12px",
     color: "#64748b",
-    marginBottom: "20px",
+    marginBottom: "12px",
   },
   patternGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "20px",
-    width: "220px",
-    height: "220px",
-    margin: "0 auto 20px auto",
+    gap: "18px",
+    width: "190px",
+    height: "190px",
+    margin: "0 auto 15px auto",
     background: "#f1f5f9",
-    padding: "20px",
+    padding: "16px",
     borderRadius: "16px",
+    position: "relative",
+    touchAction: "none",
+    userSelect: "none",
     justifyItems: "center",
     alignItems: "center",
-    userSelect: "none",
+  },
+  svgOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    pointerEvents: "none",
+    zIndex: 1,
   },
   patternDot: {
-    width: "36px",
-    height: "36px",
+    width: "18px",
+    height: "18px",
     borderRadius: "50%",
     cursor: "pointer",
-    transition: "all 0.2s ease",
-    boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
+    zIndex: 2,
+    transition: "transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease",
   },
   modalActions: {
     display: "flex",
