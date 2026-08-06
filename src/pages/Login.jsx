@@ -11,6 +11,7 @@ const Login = () => {
   
   // --- Pattern Lock Modal States ---
   const [showPatternModal, setShowPatternModal] = useState(false);
+  const [modalType, setModalType] = useState("set"); // "set" or "verify"
   const [pendingUser, setPendingUser] = useState(null);
   const [pattern, setPattern] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -36,13 +37,9 @@ const Login = () => {
 
       if (data.success) {
         const user = data.user;
+        setPendingUser(user);
 
-        if (user.role === "admin") {
-          storeUserData(user);
-          navigate("/admin");
-          return;
-        }
-
+        // Check if pattern is already configured for this user (both admin and student)
         try {
           const res = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
             studentId: user.id,
@@ -50,14 +47,18 @@ const Login = () => {
           });
           
           if (res.data.message === "Pattern not set.") {
-            setPendingUser(user);
+            setModalType("set");
             setShowPatternModal(true);
             setLoading(false);
           } else {
-            storeUserData(user);
-            navigate("/student");
+            // Pattern is already set, prompt user to draw pattern every time on login
+            setModalType("verify");
+            setPattern([]);
+            setShowPatternModal(true);
+            setLoading(false);
           }
         } catch (err) {
+          setModalType("set");
           setPendingUser(user);
           setShowPatternModal(true);
           setLoading(false);
@@ -157,7 +158,7 @@ const Login = () => {
     }
   };
 
-  // --- Smooth Cubic Bezier / Smooth Wave Path Generator ---
+  // --- Smooth Cubic Bezier Path Generator with Light Grey Tracking Line ---
   const generateSmoothPath = () => {
     if (pattern.length === 0) return "";
     
@@ -166,21 +167,21 @@ const Login = () => {
     for (let i = 1; i < pattern.length; i++) {
       const prev = getDotCenter(pattern[i - 1]);
       const curr = getDotCenter(pattern[i]);
-      // Creates a soft, elegant curve wave between precise dots
       const midX = (prev.x + curr.x) / 2;
       const midY = (prev.y + curr.y) / 2;
       path += ` Q ${midX} ${midY}, ${curr.x} ${curr.y}`;
     }
 
-    // Add trailing smooth wave line to finger/cursor if currently dragging
-    if (isDrawing && pattern.length > 0) {
-      const last = getDotCenter(pattern[pattern.length - 1]);
-      const midX = (last.x + currentPos.x) / 2;
-      const midY = (last.y + currentPos.y) / 2;
-      path += ` Q ${midX} ${midY}, ${currentPos.x} ${currentPos.y}`;
-    }
-
     return path;
+  };
+
+  // --- Smooth Live Tracking Line (Light Grey) from last selected dot to cursor/finger ---
+  const generateLivePath = () => {
+    if (!isDrawing || pattern.length === 0) return "";
+    const last = getDotCenter(pattern[pattern.length - 1]);
+    const midX = (last.x + currentPos.x) / 2;
+    const midY = (last.y + currentPos.y) / 2;
+    return `M ${last.x} ${last.y} Q ${midX} ${midY}, ${currentPos.x} ${currentPos.y}`;
   };
 
   const handleSavePattern = async () => {
@@ -198,10 +199,46 @@ const Login = () => {
       setPatternSuccess("Security lock configured successfully!");
       setTimeout(() => {
         storeUserData(pendingUser);
-        navigate("/student");
+        if (pendingUser.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/student");
+        }
       }, 1000);
     } catch (err) {
       setPatternError("Failed to save pattern. Try again.");
+    }
+  };
+
+  const handleVerifyPattern = async () => {
+    if (pattern.length < 3) {
+      setPatternError("Connect at least 3 dots!");
+      return;
+    }
+
+    try {
+      const res = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
+        studentId: pendingUser.id,
+        pattern: pattern.join("-")
+      });
+
+      if (res.data.success) {
+        setPatternSuccess("Access Granted!");
+        setTimeout(() => {
+          storeUserData(pendingUser);
+          if (pendingUser.role === "admin") {
+            navigate("/admin");
+          } else {
+            navigate("/student");
+          }
+        }, 800);
+      } else {
+        setPatternError("Incorrect Pattern! Try again.");
+        setPattern([]);
+      }
+    } catch (err) {
+      setPatternError("Invalid Pattern. Try again.");
+      setPattern([]);
     }
   };
 
@@ -275,22 +312,26 @@ const Login = () => {
         </form>
       </div>
 
-      {/* --- FIRST TIME SECURITY PATTERN POPUP MODAL --- */}
+      {/* --- SECURITY PATTERN POPUP MODAL (SET OR VERIFY EVERY TIME) --- */}
       {showPatternModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard}>
             <div style={styles.modalHeader}>
               <FaShieldAlt style={{ color: "#6366f1", fontSize: "20px" }} />
-              <h3 style={styles.modalTitle}>Set Your Security Lock</h3>
+              <h3 style={styles.modalTitle}>
+                {modalType === "set" ? "Set Your Security Lock" : "Draw Pattern Lock"}
+              </h3>
             </div>
             <p style={styles.modalSubText}>
-             For enhanced security, please set up a pattern lock for your account.
+              {modalType === "set"
+                ? "For enhanced security, please set up a pattern lock."
+                : "Enter your gesture lock to complete login."}
             </p>
 
             {patternError && <p style={styles.errorStyle}>{patternError}</p>}
             {patternSuccess && <p style={styles.successStyle}>{patternSuccess}</p>}
 
-            {/* Pattern Grid Container with Soft SVG Wave Lines */}
+            {/* Pattern Grid Container with Soft SVG Wave Lines & Light Grey Live Tracking */}
             <div 
               ref={gridRef}
               style={styles.patternGrid}
@@ -299,8 +340,9 @@ const Login = () => {
               onMouseMove={handleMouseMove}
               onMouseUp={handleEnd}
             >
-              {/* SVG Canvas for Smooth Curved Wave Lines between Dots */}
+              {/* SVG Canvas for Smooth Curved Wave Lines */}
               <svg style={styles.svgOverlay}>
+                {/* Committed Smooth Wave Line (Indigo) */}
                 {pattern.length > 0 && (
                   <path
                     d={generateSmoothPath()}
@@ -310,6 +352,17 @@ const Login = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     style={{ filter: "drop-shadow(0px 2px 4px rgba(99, 102, 241, 0.4))" }}
+                  />
+                )}
+                {/* Live Soft Wave Tracking Line (Light Grey) */}
+                {isDrawing && pattern.length > 0 && (
+                  <path
+                    d={generateLivePath()}
+                    fill="none"
+                    stroke="#cbd5e1"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 )}
               </svg>
@@ -347,9 +400,9 @@ const Login = () => {
               </button>
               <button 
                 style={styles.button} 
-                onClick={handleSavePattern}
+                onClick={modalType === "set" ? handleSavePattern : handleVerifyPattern}
               >
-                Save & Continue
+                {modalType === "set" ? "Save & Continue" : "Verify & Login"}
               </button>
             </div>
           </div>
