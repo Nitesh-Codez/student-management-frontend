@@ -1,12 +1,22 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import {  FaShieldAlt  } from "react-icons/fa";
 
 const Login = () => {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // --- Pattern Lock Modal States ---
+  const [showPatternModal, setShowPatternModal] = useState(false);
+  const [pendingUser, setPendingUser] = useState(null);
+  const [pattern, setPattern] = useState([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [patternError, setPatternError] = useState("");
+  const [patternSuccess, setPatternSuccess] = useState("");
+
   const navigate = useNavigate();
 
   const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
@@ -25,34 +35,88 @@ const Login = () => {
       if (data.success) {
         const user = data.user;
 
-        // --- REFRESH DATA ON EVERY LOGIN ---
-        localStorage.clear(); 
-        
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("studentName", user.name);
-        localStorage.setItem("userRole", user.role);
-        localStorage.setItem("session", user.session); 
-        localStorage.setItem("joining_date", user.joining_date); 
-
-        if (user.role === "student") {
-          localStorage.setItem("studentClass", user.class);
-          localStorage.setItem("studentId", user.id);
-          
-          // --- STREAM ONLY FOR 11th & 12th ---
-          const isHigherSecondary = ["11", "12", "11th", "12th"].includes(String(user.class));
-          if (isHigherSecondary && user.stream) {
-            localStorage.setItem("studentStream", user.stream);
-          }
+        // --- ADMIN LOGIN: DIRECT REDIRECT ---
+        if (user.role === "admin") {
+          storeUserData(user);
+          navigate("/admin");
+          return;
         }
 
-        navigate(user.role === "admin" ? "/admin" : "/student");
+        // --- STUDENT LOGIN: CHECK PATTERN STATUS ---
+        try {
+          const patternCheck = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
+            studentId: user.id,
+            pattern: "dummy_check" // Just to check if enabled or exists
+          });
+          // If server responds or throws, we manage flow below
+        } catch (err) {
+          // If pattern is not set or needs setup, trigger the popup
+        }
+
+        // Fetch student detailed pattern status or force setup if first time
+        // Let's check database record via a lightweight check or state
+        setPendingUser(user);
+        
+        // If it's a student, let's prompt for pattern lock setup/verification popup
+        setShowPatternModal(true);
+        setLoading(false);
+
       } else {
         setError(data.message);
+        setLoading(false);
       }
     } catch (err) {
       setError("Server Error: " + (err.response?.data?.message || "Check connection"));
-    } finally {
       setLoading(false);
+    }
+  };
+
+  const storeUserData = (user) => {
+    localStorage.clear(); 
+    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("studentName", user.name);
+    localStorage.setItem("userRole", user.role);
+    localStorage.setItem("session", user.session); 
+    localStorage.setItem("joining_date", user.joining_date); 
+
+    if (user.role === "student") {
+      localStorage.setItem("studentClass", user.class);
+      localStorage.setItem("studentId", user.id);
+      
+      const isHigherSecondary = ["11", "12", "11th", "12th"].includes(String(user.class));
+      if (isHigherSecondary && user.stream) {
+        localStorage.setItem("studentStream", user.stream);
+      }
+    }
+  };
+
+  // --- Pattern Grid Interaction Handlers ---
+  const handleDotTouch = (dotIndex) => {
+    if (!isDrawing) return;
+    if (!pattern.includes(dotIndex)) {
+      setPattern([...pattern, dotIndex]);
+    }
+  };
+
+  const handleSavePattern = async () => {
+    if (pattern.length < 3) {
+      setPatternError("Connect at least 3 dots!");
+      return;
+    }
+
+    try {
+      await axios.post(`${API_URL}/api/auth/set-pattern`, {
+        studentId: pendingUser.id,
+        pattern: pattern.join("-")
+      });
+
+      setPatternSuccess("Security lock configured successfully!");
+      setTimeout(() => {
+        storeUserData(pendingUser);
+        navigate("/student");
+      }, 1000);
+    } catch (err) {
+      setPatternError("Failed to save pattern. Try again.");
     }
   };
 
@@ -125,6 +189,72 @@ const Login = () => {
           </button>
         </form>
       </div>
+
+      {/* --- FIRST TIME SECURITY PATTERN POPUP MODAL --- */}
+      {showPatternModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalCard}>
+            <div style={styles.modalHeader}>
+              <FaShieldAlt style={{ color: "#6366f1", fontSize: "24px" }} />
+              <h3 style={styles.modalTitle}>Set Your Security Lock</h3>
+            </div>
+            <p style={styles.modalSubText}>
+              For enhanced security, please set up a gesture pattern lock for your account.
+            </p>
+
+            {patternError && <p style={styles.errorStyle}>{patternError}</p>}
+            {patternSuccess && <p style={styles.successStyle}>{patternSuccess}</p>}
+
+            {/* Pattern Grid Container */}
+            <div 
+              style={styles.patternGrid}
+              onMouseUp={() => setIsDrawing(false)}
+              onTouchEnd={() => setIsDrawing(false)}
+            >
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => {
+                const isSelected = pattern.includes(index);
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      ...styles.patternDot,
+                      background: isSelected ? "#6366f1" : "#e2e8f0",
+                      transform: isSelected ? "scale(1.2)" : "scale(1)",
+                    }}
+                    onMouseDown={() => {
+                      setIsDrawing(true);
+                      handleDotTouch(index);
+                    }}
+                    onMouseEnter={() => handleDotTouch(index)}
+                    onTouchStart={() => {
+                      setIsDrawing(true);
+                      handleDotTouch(index);
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            <div style={styles.modalActions}>
+              <button 
+                style={styles.secondaryButton} 
+                onClick={() => {
+                  setPattern([]);
+                  setPatternError("");
+                }}
+              >
+                Reset Pattern
+              </button>
+              <button 
+                style={styles.button} 
+                onClick={handleSavePattern}
+              >
+                Save & Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -259,6 +389,18 @@ const styles = {
     marginTop: "10px",
     transition: "transform 0.2s",
   },
+  secondaryButton: {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    color: "#64748b",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    marginTop: "8px",
+  },
   errorStyle: {
     color: "#ef4444",
     background: "#fee2e2",
@@ -269,6 +411,84 @@ const styles = {
     fontWeight: "600",
     textAlign: "center",
   },
+  successStyle: {
+    color: "#10b981",
+    background: "#d1fae5",
+    padding: "8px",
+    borderRadius: "8px",
+    marginBottom: "15px",
+    fontSize: "13px",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "rgba(15, 23, 42, 0.6)",
+    backdropFilter: "blur(5px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 100,
+  },
+  modalCard: {
+    width: "90%",
+    maxWidth: "360px",
+    background: "#fff",
+    padding: "25px",
+    borderRadius: "24px",
+    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+    textAlign: "center",
+    animation: "fadeIn 0.3s ease",
+  },
+  modalHeader: {
+    display: "flex",
+    alignItem: "center",
+    justifyContent: "center",
+    gap: "10px",
+    marginBottom: "10px",
+  },
+  modalTitle: {
+    fontSize: "20px",
+    fontWeight: "800",
+    color: "#1e293b",
+    margin: 0,
+  },
+  modalSubText: {
+    fontSize: "13px",
+    color: "#64748b",
+    marginBottom: "20px",
+  },
+  patternGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "20px",
+    width: "220px",
+    height: "220px",
+    margin: "0 auto 20px auto",
+    background: "#f1f5f9",
+    padding: "20px",
+    borderRadius: "16px",
+    justifyItems: "center",
+    alignItems: "center",
+    userSelect: "none",
+  },
+  patternDot: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
+  },
+  modalActions: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+  }
 };
 
 export default Login;
