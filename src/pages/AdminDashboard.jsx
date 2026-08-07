@@ -75,7 +75,7 @@ const AdminDashboard = () => {
     { title: "Results", path: "results", icon: <FaChartBar />, color: "#475569", category: "Reports" },
     { title: "Teacher List", path: "teachers", icon: <FaUserGraduate />, color: "#f97316", category: "Management" },
     { title: "Student Stars", path: "student-stars", icon: <FaStar />, color: "#eab308", category: "Academic" },
-    { title: "Student Chat", path: "admin-chat", icon: <FaComments />, color: "#2dd4bf", category: "Support" },
+    { title: "Check ExamForms", path: "check-examform", icon: <FaComments />, color: "#2dd4bf", category: "Management" },
     {
   title: "Manage Quiz",
   path: "quiz",
@@ -84,7 +84,7 @@ const AdminDashboard = () => {
   category: "Exams"
 },
   ];
-
+//check-examform
   const filteredLinks = links.filter(link =>
     link.title.toLowerCase().includes(searchTerm.toLowerCase())
   );

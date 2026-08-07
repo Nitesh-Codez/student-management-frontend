@@ -25,6 +25,7 @@ import TeacherList from "./pages/TeacherList";
 import AssignClasses from "./pages/AssignClasses";
 import AdminQuizPage from "./pages/AdminQuizPage";
 import AdminStudentStars from './pages/AdminStudentStars';
+import AdminExamFormDetails from "./pages/AdminExamformdetails";
 
 /* STUDENT */
 import StudentDashboard from "./pages/StudentDashboard";
@@ -90,6 +91,7 @@ function App() {
           <Route path="quiz" element={<AdminQuizPage />} />
           <Route path="student-stars" element={<AdminStudentStars />} />
           <Route path="details/:session/:month" element={<FeesDetails />} />
+          <Route path="check-examform" element={<AdminExamFormDetails/>}/>
 
         </Route>
 
