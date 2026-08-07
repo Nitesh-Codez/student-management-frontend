@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FaGraduationCap, FaPrint, FaCheckCircle, FaLock, FaSync, FaUserAlt } from "react-icons/fa";
+import { FaGraduationCap, FaPrint, FaCheckCircle, FaLock, FaSync, FaUserAlt, FaFilePdf, FaEdit, FaPlusCircle, FaExclamationTriangle } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
 
 const ExamForm = () => {
-  // सीधे localStorage से यूजर ऑब्जेक्ट निकाला
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const currentYear = new Date().getFullYear();
   const academicSession = `${currentYear}-${currentYear + 1}`;
@@ -15,14 +14,14 @@ const ExamForm = () => {
   const [profile, setProfile] = useState(null);
   const [examData, setExamData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeMenuOption, setActiveMenuOption] = useState("FORM"); // "FORM", "VIEW_PDF", "SUBJECTS", "SUBMIT_ANOTHER", "SUPPLEMENTARY"
   const [agreed, setAgreed] = useState({ detailsCorrect: false, subjectsVerified: false, noDues: false });
 
-  // लोकल क्लास के आधार पर सब्जेक्ट्स दिखाने का फुल-प्रूफ लॉजिक
+  // Subjects mapping logic based on class/stream
   const getSubjectsByLocalClass = () => {
     const studentClass = user.class ? user.class.toString().toLowerCase().trim() : "";
     const streamStr = user.stream || "";
 
-    // 11th & 12th Class
     if (studentClass.includes("12") || studentClass.includes("11") || studentClass.includes("xi") || studentClass.includes("xii")) {
       let subjectsList = [];
       if (streamStr.toLowerCase().includes("chemistry") && streamStr.toLowerCase().includes("maths")) {
@@ -30,7 +29,7 @@ const ExamForm = () => {
       } else if (streamStr) {
         subjectsList = streamStr.split(",").map(s => s.trim()).filter(Boolean);
       } else {
-        subjectsList = ["Physics", "Chemistry", "Maths"]; // Default Fallback for 11-12th
+        subjectsList = ["Physics", "Chemistry", "Maths"];
       }
       if (!subjectsList.some(s => s.toLowerCase() === "english communication")) {
         subjectsList.push("English Communication");
@@ -38,17 +37,14 @@ const ExamForm = () => {
       return subjectsList;
     }
 
-    // 5th to 9th Class (With Sanskrit)
     const isMiddleOrHighSchool = ["5", "6", "7", "8", "9"].some(num => studentClass.includes(num));
     if (isMiddleOrHighSchool && !studentClass.includes("10")) {
       return ["Hindi", "Maths", "Social Science", "Science", "English", "English Communication"];
     }
 
-    // 10th Class (डिफ़ॉल्ट या जब क्लास "10" हो - No Sanskrit)
     return ["Science", "Maths", "Social Science", "Hindi", "English", "English Communication"];
   };
 
-  // Load Data
   const loadFullData = async () => {
     if (!user.id) return;
     setLoading(true);
@@ -63,12 +59,22 @@ const ExamForm = () => {
 
       setProfile(profileRes.data.student);
       
-      // अगर पहले से सबमिट हो चुका है तो सबमिटेड स्टेटस दिखाएगा, लेकिन सब्जेक्ट्स लोकल वाले ही रहेंगे
+      const serverExamData = examRes.data?.data;
+      const isRecordSubmitted = serverExamData?.status === 'Submitted' || serverExamData?.status === 'Applied';
+
       setExamData({
-        ...examRes.data?.data,
-        subjects: getSubjectsByLocalClass(),
-        status: examRes.data?.data?.status || 'Not Applied'
+        ...serverExamData,
+        subjects: serverExamData?.subjects || getSubjectsByLocalClass(),
+        status: isRecordSubmitted ? 'Submitted' : 'Not Applied',
+        applied_at: serverExamData?.applied_at || null
       });
+
+      // If already submitted for this specific exam type, default to option menu view immediately
+      if (isRecordSubmitted) {
+        setActiveMenuOption("OPTIONS_HUB");
+      } else {
+        setActiveMenuOption("FORM");
+      }
 
     } catch (err) {
       console.error("Initialization Error:", err);
@@ -86,17 +92,32 @@ const ExamForm = () => {
     if (!agreed.detailsCorrect || !agreed.subjectsVerified || !agreed.noDues) 
       return alert("Please verify all declarations.");
     
-    if (!window.confirm(`Finalize ${examType} registration? Other exam types will remain open.`)) return;
+    if (!window.confirm(`Finalize ${examType} registration? Once submitted, it will be locked for the ${academicSession} session.`)) return;
     
     try {
-      await axios.post(`${API_URL}/api/students/finalize-exam`, {
+      const response = await axios.post(`${API_URL}/api/students/finalize-exam`, {
         student_id: user.id, 
+        student_name: profile?.name || user.name,
+        student_class: profile?.class || user.class,
+        session_year: academicSession,
         exam_type: examType,
         subjects: examData?.subjects
       });
-      alert(`✅ ${examType} Registration Successful!`);
-      loadFullData();
-    } catch (err) { alert("❌ Submission failed."); }
+      
+      alert(`✅ ${examType} Registration Successful! Form locked.`);
+      
+      // Update local state instantly to reflect submission and transition to options view
+      setExamData(prev => ({
+        ...prev,
+        status: 'Submitted',
+        applied_at: response.data?.data?.applied_at || new Date().toISOString()
+      }));
+      
+      setActiveMenuOption("OPTIONS_HUB");
+    } catch (err) { 
+      console.error(err);
+      alert("❌ Submission failed."); 
+    }
   };
 
   if (loading) return <div style={styles.loader}>Initializing Secure Portal...</div>;
@@ -106,154 +127,304 @@ const ExamForm = () => {
   return (
     <div style={styles.pageBackground}>
       <div style={styles.scrollContainer}>
-        <div className="print-area" style={styles.a4Sheet}>
-          
-          <header style={styles.docHeader}>
-            <div style={styles.headerTop}>
-              <div style={styles.logoBox}><FaGraduationCap size={55} color="#1a237e" /></div>
-              <div style={{ textAlign: 'right' }}>
-                <h1 style={styles.instName}>SMART STUDENTS CLASSES</h1>
-                <p style={styles.instSub}>GWALIOR'S PREMIER EDUCATIONAL INSTITUTE</p>
-                <p style={styles.sessionText}>Academic Session: {academicSession} <FaSync size={10} /></p>
-              </div>
-            </div>
-            <div style={styles.doubleDivider}></div>
-          </header>
+        
+        {/* NAVIGATION / SELECTION TABS FOR OPTIONS HUB */}
+        <div style={styles.topControlBar}>
+          <div style={styles.examTypePickerWrapper}>
+            <label style={styles.boldLabel}>EXAM CYCLE:</label>
+            <select 
+              value={examType} 
+              onChange={(e) => setExamType(e.target.value)} 
+              style={styles.docSelect}
+            >
+              <option value="PRE-FINAL">PRE-FINAL EXAM {currentYear}</option>
+              <option value="FINAL">FINAL TERM EXAM {currentYear}</option>
+              <option value="REAPPEAR-1">RE-APPEARANCE FOR PRE-FINAL</option>
+              <option value="REAPPEAR-2">RE-APPEARANCE FOR FINAL TERM</option>
+            </select>
+          </div>
 
-          {/* EXAM SELECTION */}
-          <section style={styles.section}>
-            <div style={styles.typeSelector}>
-              <div style={{flex: 1}}>
-                <label style={styles.boldLabel}>EXAMINATION TYPE:</label>
-                <select 
-                  value={examType} 
-                  onChange={(e) => setExamType(e.target.value)} 
-                  style={styles.docSelect}
-                >
-                  <option value="PRE-FINAL">PRE-FINAL EXAM {currentYear}</option>
-                  <option value="FINAL">FINAL TERM EXAM {currentYear}</option>
-                  <option value="REAPPEAR-1">RE-APPEARANCE FOR PRE-FINAL</option>
-                  <option value="REAPPEAR-2">RE-APPEARANCE FOR FINAL TERM</option>
-                </select>
-              </div>
-              {isSubmitted && <span style={styles.lockBadge}><FaLock /> {examType} LOCKED</span>}
+          {isSubmitted && (
+            <div style={styles.navMenuButtons}>
+              <button 
+                onClick={() => setActiveMenuOption("OPTIONS_HUB")} 
+                style={activeMenuOption === "OPTIONS_HUB" ? styles.activeTabBtn : styles.tabBtn}
+              >
+                📋 Dashboard Hub
+              </button>
+              <button 
+                onClick={() => setActiveMenuOption("VIEW_PDF")} 
+                style={activeMenuOption === "VIEW_PDF" ? styles.activeTabBtn : styles.tabBtn}
+              >
+                1. Submitted Form PDF
+              </button>
+              <button 
+                onClick={() => setActiveMenuOption("SUBJECTS")} 
+                style={activeMenuOption === "SUBJECTS" ? styles.activeTabBtn : styles.tabBtn}
+              >
+                2. Prefinal Subjects
+              </button>
+              <button 
+                onClick={() => setActiveMenuOption("SUBMIT_ANOTHER")} 
+                style={activeMenuOption === "SUBMIT_ANOTHER" ? styles.activeTabBtn : styles.tabBtn}
+              >
+                3. Submit Another Exam
+              </button>
+              <button 
+                onClick={() => setActiveMenuOption("SUPPLEMENTARY")} 
+                style={activeMenuOption === "SUPPLEMENTARY" ? styles.activeTabBtn : styles.tabBtn}
+              >
+                4. Submit Supplementary
+              </button>
             </div>
-          </section>
+          )}
+        </div>
 
-          {/* STUDENT DETAILS */}
-          <section style={styles.section}>
-            <h3 style={styles.sectionTitle}>I. CANDIDATE PARTICULARS</h3>
-            <div style={styles.mainInfoWrapper}>
-              <div style={styles.grid}>
-                <InfoItem label="NAME OF STUDENT" value={profile?.name?.toUpperCase()} />
-                <InfoItem label="ENROLLMENT / ROLL NO" value={profile?.code} />
-                <InfoItem label="FATHER'S NAME" value={profile?.father_name?.toUpperCase()} />
-                <InfoItem label="COURSE & YEAR" value={`${profile?.class || user.class || 'N/A'} (${academicSession})`} />
-                <InfoItem label="MOBILE NUMBER" value={profile?.mobile} />
-                <InfoItem label="GENDER" value={profile?.gender} />
+        {/* CONDITIONAL RENDERING BASED ON SUBMISSION & ACTIVE MENU CHOICE */}
+        {isSubmitted && activeMenuOption === "OPTIONS_HUB" ? (
+          <div style={styles.hubContainer}>
+            <div style={styles.hubCard}>
+              <div style={styles.hubHeader}>
+                <FaCheckCircle color="#059669" size={40} />
+                <div>
+                  <h2 style={styles.hubTitle}>{examType} Examination Form Successfully Submitted</h2>
+                  <p style={styles.hubTimestamp}>
+                    Timestamp: {examData?.applied_at ? new Date(examData.applied_at).toLocaleString('en-IN', { dateStyle: 'full', timeStyle: 'medium' }) : "Just Now"}
+                  </p>
+                </div>
               </div>
-              
-              <div style={styles.photoContainer}>
-                <div style={styles.photoBox}>
-                  {profile?.profile_photo ? (
-                    <img src={profile.profile_photo} alt="Student" style={styles.img} />
-                  ) : (
-                    <div style={styles.photoPlaceholder}><FaUserAlt size={40} color="#ccc" /><br/>PHOTO</div>
-                  )}
+              <p style={styles.hubDesc}>
+                Your application has been locked for session <b>{academicSession}</b>. Choose an option below to proceed:
+              </p>
+
+              <div style={styles.optionsList}>
+                <div style={styles.optionItem} onClick={() => setActiveMenuOption("VIEW_PDF")}>
+                  <div style={styles.optionIconBox}><FaFilePdf size={22} color="#1a237e" /></div>
+                  <div style={styles.optionTextContent}>
+                    <h4>1. Submitted Exam Form PDF</h4>
+                    <p>View, print, or download your verified digital application form copy.</p>
+                  </div>
+                </div>
+
+                <div style={styles.optionItem} onClick={() => setActiveMenuOption("SUBJECTS")}>
+                  <div style={styles.optionIconBox}><FaGraduationCap size={22} color="#1a237e" /></div>
+                  <div style={styles.optionTextContent}>
+                    <h4>2. Prefinal Subjects List</h4>
+                    <p>Review registered course mappings, code descriptions, and max marks.</p>
+                  </div>
+                </div>
+
+                <div style={styles.optionItem} onClick={() => setActiveMenuOption("SUBMIT_ANOTHER")}>
+                  <div style={styles.optionIconBox}><FaPlusCircle size={22} color="#1a237e" /></div>
+                  <div style={styles.optionTextContent}>
+                    <h4>3. Submit Another Exam Form</h4>
+                    <p>Switch to Final Term or alternative exam cycles to submit pending applications.</p>
+                  </div>
+                </div>
+
+                <div style={styles.optionItem} onClick={() => setActiveMenuOption("SUPPLEMENTARY")}>
+                  <div style={styles.optionIconBox}><FaExclamationTriangle size={22} color="#d97706" /></div>
+                  <div style={styles.optionTextContent}>
+                    <h4>4. Submit Supplementary / Re-appearance Exam Form</h4>
+                    <p>Register for re-appearance or make supplemental credit submissions.</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </section>
-
-          {/* SUBJECT TABLE */}
-          <section style={styles.section}>
-            <h3 style={styles.sectionTitle}>II. COURSE MAPPING & SUBJECTS</h3>
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.thRow}>
-                  <th style={styles.th}>CODE</th>
-                  <th style={{...styles.th, textAlign: 'left'}}>SUBJECT DESCRIPTION</th>
-                  <th style={styles.th}>MAX MARKS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {examData?.subjects && examData.subjects.length > 0 ? (
-                  examData.subjects.map((s, i) => (
+          </div>
+        ) : isSubmitted && activeMenuOption === "SUBJECTS" ? (
+          <div style={styles.hubContainer}>
+            <div style={styles.hubCard}>
+              <h3 style={styles.sectionTitle}>REGISTERED SUBJECTS FOR {examType} ({academicSession})</h3>
+              <table style={styles.table}>
+                <thead>
+                  <tr style={styles.thRow}>
+                    <th style={styles.th}>CODE</th>
+                    <th style={{...styles.th, textAlign: 'left'}}>SUBJECT DESCRIPTION</th>
+                    <th style={styles.th}>MAX MARKS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {examData?.subjects?.map((s, i) => (
                     <tr key={i} style={styles.tr}>
                       <td style={styles.td}>10{i+1}</td>
                       <td style={{...styles.td, textAlign: 'left', fontWeight: 'bold'}}>{s.toUpperCase()}</td>
                       <td style={styles.td}>100</td>
                     </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="3" style={styles.noData}>No subjects configured.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </section>
-
-          {/* ATTESTATION & FOOTER */}
-          <section style={styles.footerSection}>
-            <div style={styles.declarationZone}>
-              {!isSubmitted ? (
-                <div style={styles.verifyBox}>
-                  <h4 style={{margin: '0 0 10px 0', fontSize: '14px', color: '#1a237e'}}>III. ATTESTATION & SUBMIT</h4>
-                  <CheckItem checked={agreed.detailsCorrect} onChange={(v) => setAgreed({...agreed, detailsCorrect: v})} label="I verify that my particulars are correct." />
-                  <CheckItem checked={agreed.subjectsVerified} onChange={(v) => setAgreed({...agreed, subjectsVerified: v})} label="I confirm my subjects for this cycle." />
-                  <CheckItem checked={agreed.noDues} onChange={(v) => setAgreed({...agreed, noDues: v})} label="I have no outstanding dues." />
-                  <button onClick={handleFinalSubmit} disabled={!agreed.detailsCorrect || !agreed.subjectsVerified || !agreed.noDues} style={styles.submitBtn}>
-                    SUBMIT {examType} FORM
-                  </button>
+                  ))}
+                </tbody>
+              </table>
+              <button style={styles.backHubBtn} onClick={() => setActiveMenuOption("OPTIONS_HUB")}>← Back to Options Dashboard</button>
+            </div>
+          </div>
+        ) : isSubmitted && activeMenuOption === "SUBMIT_ANOTHER" ? (
+          <div style={styles.hubContainer}>
+            <div style={styles.hubCard}>
+              <h3 style={styles.sectionTitle}>SUBMIT ANOTHER EXAM FORM</h3>
+              <p>Select another exam type dropdown from the top bar (e.g., Final Term Exam) to submit forms for other active cycles in session {academicSession}.</p>
+              <div style={{marginTop: '20px', display: 'flex', gap: '15px'}}>
+                <button style={styles.submitBtn} onClick={() => { setExamType("FINAL"); setActiveMenuOption("FORM"); }}>Switch to Final Term Exam</button>
+                <button style={styles.backHubBtn} onClick={() => setActiveMenuOption("OPTIONS_HUB")}>Back to Dashboard</button>
+              </div>
+            </div>
+          </div>
+        ) : isSubmitted && activeMenuOption === "SUPPLEMENTARY" ? (
+          <div style={styles.hubContainer}>
+            <div style={styles.hubCard}>
+              <h3 style={styles.sectionTitle}>SUPPLEMENTARY & RE-APPEARANCE SUBMISSION PORTAL</h3>
+              <p>Use this option to file re-appearance papers for PRE-FINAL or FINAL term tests for session {academicSession}.</p>
+              <div style={{marginTop: '20px', display: 'flex', gap: '15px'}}>
+                <button style={styles.submitBtn} onClick={() => { setExamType("REAPPEAR-1"); setActiveMenuOption("FORM"); }}>Open Re-Appearance Form</button>
+                <button style={styles.backHubBtn} onClick={() => setActiveMenuOption("OPTIONS_HUB")}>Back to Dashboard</button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* STANDARD A4 APPLICATION FORM VIEW (For Unsubmitted or when viewing PDF) */
+          <div className="print-area" style={styles.a4Sheet}>
+            
+            <header style={styles.docHeader}>
+              <div style={styles.headerTop}>
+                <div style={styles.logoBox}><FaGraduationCap size={55} color="#1a237e" /></div>
+                <div style={{ textAlign: 'right' }}>
+                  <h1 style={styles.instName}>SMART STUDENTS CLASSES</h1>
+                  <p style={styles.instSub}>GWALIOR'S PREMIER EDUCATIONAL INSTITUTE</p>
+                  <p style={styles.sessionText}>Academic Session: {academicSession} <FaSync size={10} /></p>
                 </div>
-              ) : (
-                <div style={styles.successAttest}>
-                  <FaCheckCircle color="#059669" size={24} />
-                  <div style={{textAlign: 'left'}}>
-                    <b style={{display: 'block'}}>Digitally Verified & Registered</b>
-                    <small>Registration for {examType} is finalized.</small>
+              </div>
+              <div style={styles.doubleDivider}></div>
+            </header>
+
+            {/* EXAM SELECTION HEADER IN FORM */}
+            <section style={styles.section}>
+              <div style={styles.typeSelector}>
+                <div style={{flex: 1}}>
+                  <label style={styles.boldLabel}>EXAMINATION TYPE:</label>
+                  <span style={{marginLeft: '10px', fontSize: '15px', fontWeight: 'bold', color: '#1a237e'}}>{examType}</span>
+                </div>
+                {isSubmitted && <span style={styles.lockBadge}><FaLock /> {examType} LOCKED & SUBMITTED</span>}
+                {isSubmitted && (
+                  <button style={styles.backHubBtnSmall} onClick={() => setActiveMenuOption("OPTIONS_HUB")}>Hub Menu</button>
+                )}
+              </div>
+            </section>
+
+            {/* STUDENT DETAILS */}
+            <section style={styles.section}>
+              <h3 style={styles.sectionTitle}>I. CANDIDATE PARTICULARS</h3>
+              <div style={styles.mainInfoWrapper}>
+                <div style={styles.grid}>
+                  <InfoItem label="NAME OF STUDENT" value={profile?.name?.toUpperCase()} />
+                  <InfoItem label="ENROLLMENT / ROLL NO" value={profile?.code} />
+                  <InfoItem label="FATHER'S NAME" value={profile?.father_name?.toUpperCase()} />
+                  <InfoItem label="COURSE & YEAR" value={`${profile?.class || user.class || 'N/A'} (${academicSession})`} />
+                  <InfoItem label="MOBILE NUMBER" value={profile?.mobile} />
+                  <InfoItem label="GENDER" value={profile?.gender} />
+                </div>
+                
+                <div style={styles.photoContainer}>
+                  <div style={styles.photoBox}>
+                    {profile?.profile_photo ? (
+                      <img src={profile.profile_photo} alt="Student" style={styles.img} />
+                    ) : (
+                      <div style={styles.photoPlaceholder}><FaUserAlt size={40} color="#ccc" /><br/>PHOTO</div>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            </section>
 
-            <div style={styles.authSignatures}>
-              <div style={styles.signBox}>
-                <div style={styles.signImage}><span style={styles.cursive}>Vandana Kushwah</span></div>
-                <div style={styles.signLine}></div>
-                <p style={styles.signName}>Vandana KUSHWAH</p>
-                <p style={styles.signPost}>Exam Controller</p>
+            {/* SUBJECT TABLE */}
+            <section style={styles.section}>
+              <h3 style={styles.sectionTitle}>II. COURSE MAPPING & SUBJECTS</h3>
+              <table style={styles.table}>
+                <thead>
+                  <tr style={styles.thRow}>
+                    <th style={styles.th}>CODE</th>
+                    <th style={{...styles.th, textAlign: 'left'}}>SUBJECT DESCRIPTION</th>
+                    <th style={styles.th}>MAX MARKS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {examData?.subjects && examData.subjects.length > 0 ? (
+                    examData.subjects.map((s, i) => (
+                      <tr key={i} style={styles.tr}>
+                        <td style={styles.td}>10{i+1}</td>
+                        <td style={{...styles.td, textAlign: 'left', fontWeight: 'bold'}}>{s.toUpperCase()}</td>
+                        <td style={styles.td}>100</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="3" style={styles.noData}>No subjects configured.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </section>
+
+            {/* ATTESTATION & FOOTER */}
+            <section style={styles.footerSection}>
+              <div style={styles.declarationZone}>
+                {isSubmitted ? (
+                  <div style={styles.successAttest}>
+                    <FaCheckCircle color="#059669" size={24} />
+                    <div style={{textAlign: 'left'}}>
+                      <b style={{display: 'block'}}>Digitally Verified & Registered on {examData?.applied_at ? new Date(examData.applied_at).toLocaleString() : "Current Session"}</b>
+                      <small>Registration for {examType} is finalized and locked.</small>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={styles.verifyBox}>
+                    <h4 style={{margin: '0 0 10px 0', fontSize: '14px', color: '#1a237e'}}>III. ATTESTATION & SUBMIT</h4>
+                    <CheckItem checked={agreed.detailsCorrect} onChange={(v) => setAgreed({...agreed, detailsCorrect: v})} label="I verify that my particulars are correct." />
+                    <CheckItem checked={agreed.subjectsVerified} onChange={(v) => setAgreed({...agreed, subjectsVerified: v})} label="I confirm my subjects for this cycle." />
+                    <CheckItem checked={agreed.noDues} onChange={(v) => setAgreed({...agreed, noDues: v})} label="I have no outstanding dues." />
+                    <button onClick={handleFinalSubmit} disabled={!agreed.detailsCorrect || !agreed.subjectsVerified || !agreed.noDues} style={styles.submitBtn}>
+                      SUBMIT {examType} FORM
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div style={styles.sealBox}>
-                <div style={styles.roundSeal}>
-                  <svg viewBox="0 0 100 100">
-                    <path id="circlePath" d="M 50, 50 m -37, 0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0" fill="transparent" />
-                    <text style={styles.sealText}><textPath xlinkHref="#circlePath">SMART STUDENTS CLASSES • GWALIOR •</textPath></text>
-                    <circle cx="50" cy="50" r="25" fill="none" stroke="#1a237e" strokeWidth="0.5" />
-                    <text x="50" y="52" textAnchor="middle" style={styles.sealInner}>OFFICIAL</text>
-                    <text x="50" y="60" textAnchor="middle" style={styles.sealInner}>SEAL</text>
-                  </svg>
+              <div style={styles.authSignatures}>
+                <div style={styles.signBox}>
+                  <div style={styles.signImage}><span style={styles.cursive}>Vandana Kushwah</span></div>
+                  <div style={styles.signLine}></div>
+                  <p style={styles.signName}>Vandana KUSHWAH</p>
+                  <p style={styles.signPost}>Exam Controller</p>
+                </div>
+
+                <div style={styles.sealBox}>
+                  <div style={styles.roundSeal}>
+                    <svg viewBox="0 0 100 100">
+                      <path id="circlePath" d="M 50, 50 m -37, 0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0" fill="transparent" />
+                      <text style={styles.sealText}><textPath xlinkHref="#circlePath">SMART STUDENTS CLASSES • GWALIOR •</textPath></text>
+                      <circle cx="50" cy="50" r="25" fill="none" stroke="#1a237e" strokeWidth="0.5" />
+                      <text x="50" y="52" textAnchor="middle" style={styles.sealInner}>OFFICIAL</text>
+                      <text x="50" y="60" textAnchor="middle" style={styles.sealInner}>SEAL</text>
+                    </svg>
+                  </div>
+                </div>
+
+                <div style={styles.signBox}>
+                  <div style={styles.signImage}><span style={styles.cursive}>Nitesh Kushwah</span></div>
+                  <div style={styles.signLine}></div>
+                  <p style={styles.signName}>NITESH KUSHWAH</p>
+                  <p style={styles.signPost}>Principal</p>
                 </div>
               </div>
+            </section>
 
-              <div style={styles.signBox}>
-                <div style={styles.signImage}><span style={styles.cursive}>Nitesh Kushwah</span></div>
-                <div style={styles.signLine}></div>
-                <p style={styles.signName}>NITESH KUSHWAH</p>
-                <p style={styles.signPost}>Principal</p>
-              </div>
-            </div>
-          </section>
+            <footer style={styles.docFooter}>
+              <p>* This is a computer-generated document for {academicSession}. Discrepancies should be reported within 48 hours.</p>
+            </footer>
+          </div>
+        )}
 
-          <footer style={styles.docFooter}>
-            <p>* This is a computer-generated document for {academicSession}. Discrepancies should be reported within 48 hours.</p>
-          </footer>
-        </div>
       </div>
       
       {isSubmitted && (
         <button onClick={() => window.print()} style={styles.floatingPrint}>
-          <FaPrint /> Print {examType} Form
+          <FaPrint /> Print / Save PDF
         </button>
       )}
     </div>
@@ -276,7 +447,24 @@ const CheckItem = ({ checked, onChange, label }) => (
 
 const styles = {
   pageBackground: { background: "#4a4a4a", width: "1050px", minHeight: "100vh", padding: "40px 15px", overflow: "hidden" },
-  scrollContainer: { width: "100%", overflowX: "auto", overflowY: "auto", display: "flex", justifyContent: "flex-start", paddingBottom: "20px" },
+  scrollContainer: { width: "100%", overflowX: "auto", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", paddingBottom: "20px" },
+  topControlBar: { width: "950px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e293b", padding: "15px 20px", borderRadius: "8px", marginBottom: "20px" },
+  examTypePickerWrapper: { display: "flex", alignItems: "center", gap: "10px" },
+  navMenuButtons: { display: "flex", gap: "8px", flexWrap: "wrap" },
+  tabBtn: { background: "#334155", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "5px", fontSize: "12px", cursor: "pointer", fontWeight: "bold" },
+  activeTabBtn: { background: "#059669", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "5px", fontSize: "12px", cursor: "pointer", fontWeight: "bold" },
+  hubContainer: { width: "950px", background: "#fff", padding: "40px", borderRadius: "10px", minHeight: "500px", boxShadow: "0 0 30px rgba(0,0,0,0.3)" },
+  hubCard: { display: "flex", flexDirection: "column", gap: "20px" },
+  hubHeader: { display: "flex", alignItems: "center", gap: "20px", borderBottom: "2px solid #f1f5f9", paddingBottom: "20px" },
+  hubTitle: { margin: 0, color: "#1a237e", fontSize: "22px" },
+  hubTimestamp: { margin: "5px 0 0 0", color: "#64748b", fontSize: "13px", fontWeight: "600" },
+  hubDesc: { color: "#475569", fontSize: "15px" },
+  optionsList: { display: "flex", flexDirection: "column", gap: "15px", marginTop: "10px" },
+  optionItem: { display: "flex", alignItems: "center", gap: "20px", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "20px", borderRadius: "8px", cursor: "pointer", transition: "all 0.2s" },
+  optionIconBox: { width: "50px", height: "50px", background: "#e0e7ff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" },
+  optionTextContent: { flex: 1 },
+  backHubBtn: { background: "#1a237e", color: "#fff", border: "none", padding: "12px 20px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", width: "fit-content" },
+  backHubBtnSmall: { background: "#1a237e", color: "#fff", border: "none", padding: "5px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" },
   a4Sheet: { 
     background: "#fff", width: "950px", minHeight: "1150px", margin: "0 auto",
     padding: "60px", boxShadow: "0 0 40px rgba(0,0,0,0.5)", position: "relative", flexShrink: 0
@@ -290,7 +478,7 @@ const styles = {
   section: { marginBottom: "35px" },
   typeSelector: { display: "flex", alignItems: "center", gap: "20px", background: "#f8fafc", padding: "15px", borderRadius: "8px", border: "1px solid #e2e8f0" },
   docSelect: { padding: "8px 15px", fontSize: "15px", fontWeight: "bold", border: "2px solid #1a237e", borderRadius: "5px", color: "#1a237e", width: "300px" },
-  boldLabel: { fontWeight: "bold", fontSize: "14px", color: "#1a237e" },
+  boldLabel: { fontWeight: "bold", fontSize: "14px", color: "#fff" },
   lockBadge: { background: "#e11d48", color: "#fff", fontSize: "12px", padding: "6px 12px", borderRadius: "5px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "5px" },
   sectionTitle: { fontSize: "13px", fontWeight: "900", background: "#f1f5f9", padding: "10px 15px", borderLeft: "5px solid #1a237e", marginBottom: "20px" },
   mainInfoWrapper: { display: "flex", gap: "30px", justifyContent: "space-between" },
