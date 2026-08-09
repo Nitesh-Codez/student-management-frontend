@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { 
   FaUserPlus, FaTrashAlt, FaSearch, FaMicrophone, 
   FaPhoneAlt, FaTimes, FaCheckCircle, FaCamera, FaIdBadge,
@@ -7,8 +7,6 @@ import {
   FaUser, FaEnvelope, FaGraduationCap, FaVenusMars, FaHome, FaCity, FaMapPin, FaLayerGroup
 } from "react-icons/fa";
 
-const API_BASE = "https://student-management-system-4-hose.onrender.com";
-const API_URL = `${API_BASE}/api/students`;
 
 const ManageStudents = () => {
   const [students, setStudents] = useState([]);
@@ -69,7 +67,7 @@ const ManageStudents = () => {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(API_URL);
+      const res = await api.get("/api/students");
       let data = res.data.success ? res.data.students : (Array.isArray(res.data) ? res.data : []);
       
       const sortedData = data.sort((a, b) => 
@@ -92,7 +90,7 @@ const ManageStudents = () => {
     setShowDetailDrawer(true);
     setSelectedStudent(null);
     try {
-      const res = await axios.get(`${API_BASE}/api/students/profile?id=${userId}`);
+     const res = await api.get(`/api/students/profile?id=${userId}`);
       if (res.data && res.data.success) {
         setSelectedStudent(res.data.student || res.data.data || res.data);
       } else {
@@ -160,14 +158,17 @@ const ManageStudents = () => {
         stream: formData.stream || null
       };
 
-      const res = await axios.post(API_URL, studentPayload);
+     const res = await api.post("/api/students", studentPayload);
 
       if (res.data.success) {
         const newStudentId = res.data.id || res.data.student?.id;
         if (selectedFile && newStudentId) {
           const photoData = new FormData();
           photoData.append("photo", selectedFile); 
-          await axios.post(`${API_URL}/${newStudentId}/profile-photo`, photoData);
+          await api.post(
+  `/api/students/${newStudentId}/profile-photo`,
+  photoData
+);
         }
         alert("Student Registered Successfully!");
         setShowModal(false);
@@ -193,7 +194,7 @@ const ManageStudents = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Permanent deletion of record. Proceed?")) {
       try {
-        await axios.delete(`${API_URL}/${id}`);
+     await api.delete(`/api/students/${id}`);
         fetchStudents();
         if (selectedStudent && String(selectedStudent.id) === String(id)) {
           setShowDetailDrawer(false);

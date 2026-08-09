@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { 
   FaGraduationCap, FaSave, FaEdit, FaPlusCircle, FaFilter, 
-  FaTrash, FaUsers, FaCalendarAlt, FaLaptop, FaMobileAlt, FaStar, FaCheckCircle
+   FaUsers, FaCalendarAlt, FaLaptop, FaMobileAlt, FaStar
 } from "react-icons/fa";
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const AdminAddMarks = () => {
   const subjectsByClass = {
@@ -76,7 +75,7 @@ const AdminAddMarks = () => {
   const [viewMode, setViewMode] = useState("laptop");
 
   useEffect(() => {
-    axios.get(`${API_URL}/api/students`).then(res => {
+    api.get("/api/students").then(res => {
       if (res.data.success) {
         setAllStudents(res.data.students);
         setClasses([...new Set(res.data.students.map(s => s.class))]);
@@ -89,7 +88,7 @@ const AdminAddMarks = () => {
   }, [selectedClass, allStudents]);
 
   const fetchAllMarks = async () => {
-    const res = await axios.get(`${API_URL}/api/marks/admin/marks`);
+   const res = await api.get("/api/marks/admin/marks");
     if (res.data.success) setAllMarks(res.data.data);
   };
 
@@ -112,7 +111,7 @@ const AdminAddMarks = () => {
     if (!selectedStudent || !subject || !marks) {
       return setMessage({ text: "Please fill all fields!", type: "error" });
     }
-    const res = await axios.post(`${API_URL}/api/marks/add`, {
+    const res = await api.post("/api/marks/add", {
       studentId: selectedStudent, subject, marks: +marks, maxMarks: +maxMarks, date: testDate
     });
     if (res.data.success) {
@@ -125,16 +124,18 @@ const AdminAddMarks = () => {
 
   const handleUpdate = async (record) => {
     try {
-      await axios.put(
-        `${API_URL}/api/marks/admin/marks/${record.id}`,
-        {
-          subject: editSubject || record.subject,
-          marks: +editMarks,
-          maxMarks: +editTotal,
-          date: editDate || record.test_date
-        },
-        { headers: { "x-head-secret": secretKey } }
-      );
+      await api.put(
+  `/api/marks/admin/marks/${record.id}`,
+  {
+    subject: editSubject || record.subject,
+    marks: +editMarks,
+    maxMarks: +editTotal,
+    date: editDate || record.test_date
+  },
+  {
+    headers: { "x-head-secret": secretKey }
+  }
+);
       setEditId(null);
       setSecretKey("");
       fetchAllMarks();
@@ -151,9 +152,9 @@ const AdminAddMarks = () => {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`${API_URL}/api/marks/admin/marks/${id}`, {
-        headers: { "x-head-secret": secretKey }
-      });
+      await api.delete(`/api/marks/admin/marks/${id}`, {
+  headers: { "x-head-secret": secretKey }
+});
       setMessage({ text: "Record Deleted Successfully!", type: "success" });
       fetchAllMarks();
       setTimeout(() => setMessage({ text: "", type: "" }), 3000);
