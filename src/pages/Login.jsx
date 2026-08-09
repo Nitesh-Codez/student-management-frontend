@@ -13,6 +13,7 @@ const Login = () => {
   const [showPatternModal, setShowPatternModal] = useState(false);
   const [modalType, setModalType] = useState("set"); // "set" or "verify"
   const [pendingUser, setPendingUser] = useState(null);
+  const [authToken, setAuthToken] = useState(""); // Temporary state to hold JWT during login flow
   const [pattern, setPattern] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
@@ -38,12 +39,20 @@ const Login = () => {
       if (data.success) {
         const user = data.user;
         setPendingUser(user);
+        
+        // Save token temporarily for pattern verification/setup requests
+        const token = data.token;
+        setAuthToken(token);
 
         // Check if pattern is already configured for this user (both admin and student)
         try {
           const res = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
             studentId: user.id,
             pattern: "check_if_enabled"
+          }, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           });
           
           if (res.data.message === "Pattern not set.") {
@@ -74,8 +83,9 @@ const Login = () => {
     }
   };
 
-  const storeUserData = (user) => {
+  const storeUserData = (user, token) => {
     localStorage.clear(); 
+    if (token) localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     localStorage.setItem("studentName", user.name);
     localStorage.setItem("userRole", user.role);
@@ -194,11 +204,15 @@ const Login = () => {
       await axios.post(`${API_URL}/api/auth/set-pattern`, {
         studentId: pendingUser.id,
         pattern: pattern.join("-")
+      }, {
+        headers: {
+          Authorization: `Bearer ${authToken}`
+        }
       });
 
       setPatternSuccess("Security lock configured successfully!");
       setTimeout(() => {
-        storeUserData(pendingUser);
+        storeUserData(pendingUser, authToken);
         if (pendingUser.role === "admin") {
           navigate("/admin");
         } else {
@@ -220,12 +234,16 @@ const Login = () => {
       const res = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
         studentId: pendingUser.id,
         pattern: pattern.join("-")
+      }, {
+        headers: {
+          Authorization: `Bearer ${authToken}`
+        }
       });
 
       if (res.data.success) {
         setPatternSuccess("Access Granted!");
         setTimeout(() => {
-          storeUserData(pendingUser);
+          storeUserData(pendingUser, authToken);
           if (pendingUser.role === "admin") {
             navigate("/admin");
           } else {
@@ -312,7 +330,7 @@ const Login = () => {
         </form>
       </div>
 
-      {/* --- SECURITY PATTERN POPUP MODAL (SET OR VERIFY EVERY TIME) --- */}
+      {/* --- SECURITY PATTERN POPUP MODAL --- */}
       {showPatternModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard}>
@@ -331,7 +349,6 @@ const Login = () => {
             {patternError && <p style={styles.errorStyle}>{patternError}</p>}
             {patternSuccess && <p style={styles.successStyle}>{patternSuccess}</p>}
 
-            {/* Pattern Grid Container with Soft SVG Wave Lines & Light Grey Live Tracking */}
             <div 
               ref={gridRef}
               style={styles.patternGrid}
@@ -340,9 +357,7 @@ const Login = () => {
               onMouseMove={handleMouseMove}
               onMouseUp={handleEnd}
             >
-              {/* SVG Canvas for Smooth Curved Wave Lines */}
               <svg style={styles.svgOverlay}>
-                {/* Committed Smooth Wave Line (Indigo) */}
                 {pattern.length > 0 && (
                   <path
                     d={generateSmoothPath()}
@@ -354,7 +369,6 @@ const Login = () => {
                     style={{ filter: "drop-shadow(0px 2px 4px rgba(99, 102, 241, 0.4))" }}
                   />
                 )}
-                {/* Live Soft Wave Tracking Line (Light Grey) */}
                 {isDrawing && pattern.length > 0 && (
                   <path
                     d={generateLivePath()}
@@ -656,4 +670,3 @@ const styles = {
 };
 
 export default Login;
-

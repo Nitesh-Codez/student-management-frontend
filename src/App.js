@@ -26,6 +26,7 @@ import AssignClasses from "./pages/AssignClasses";
 import AdminQuizPage from "./pages/AdminQuizPage";
 import AdminStudentStars from './pages/AdminStudentStars';
 import AdminExamFormDetails from "./pages/AdminExamformdetails";
+import InternalMarksSheet from "./pages/StudentInternalmarks";
 
 /* STUDENT */
 import StudentDashboard from "./pages/StudentDashboard";
@@ -92,6 +93,7 @@ function App() {
           <Route path="student-stars" element={<AdminStudentStars />} />
           <Route path="details/:session/:month" element={<FeesDetails />} />
           <Route path="check-examform" element={<AdminExamFormDetails/>}/>
+          <Route path="admin-internal-marks" element={<InternalMarksSheet/>}/>
 
         </Route>
 

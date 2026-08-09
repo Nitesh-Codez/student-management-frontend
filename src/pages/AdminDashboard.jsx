@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
+  FaUserGraduate, FaMoneyBillWave, FaClipboardCheck,FaUpload,
   FaBookOpen, FaFileUpload, FaStar, FaComments, FaChartBar,
   FaArrowRight, FaThLarge, FaSearch, FaBell, FaBars, FaChevronLeft,FaQuestionCircle,FaCheck, FaTimes,
   FaChalkboardTeacher
@@ -75,7 +75,8 @@ const AdminDashboard = () => {
     { title: "Results", path: "results", icon: <FaChartBar />, color: "#475569", category: "Reports" },
     { title: "Teacher List", path: "teachers", icon: <FaUserGraduate />, color: "#f97316", category: "Management" },
     { title: "Student Stars", path: "student-stars", icon: <FaStar />, color: "#eab308", category: "Academic" },
-    { title: "Check ExamForms", path: "check-examform", icon: <FaComments />, color: "#2dd4bf", category: "Management" },
+    { title: "Check ExamForms", path: "check-examform", icon: <FaUserGraduate />, color: "#07106e", category: "Management" },
+    { title: "Internal Marks", path: "admin-internal-marks", icon: <FaBookOpen />, color: "#22e456", category: "Management" },
     {
   title: "Manage Quiz",
   path: "quiz",
@@ -84,7 +85,7 @@ const AdminDashboard = () => {
   category: "Exams"
 },
   ];
-//check-examform
+//admin-internal-marks
   const filteredLinks = links.filter(link =>
     link.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
