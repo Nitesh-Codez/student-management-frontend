@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { 
   FaClock, FaCheckCircle, FaChevronDown, FaChevronUp, FaTimes, 
   FaTrash, FaBookOpen, FaAward, FaCalendarAlt, 
@@ -9,10 +9,9 @@ import {
 /**
  * API CONFIGURATION
  */
-const API_URL = "https://student-management-system-4-hose.onrender.com";
-const ASSIGNMENTS_API = `${API_URL}/api/assignments/class`;
-const SUBMIT_API = `${API_URL}/api/assignments/student/upload`;
-const DELETE_API = `${API_URL}/api/assignments`;
+const ASSIGNMENTS_API = "/api/assignments/class";
+const SUBMIT_API = "/api/assignments/student/upload";
+const DELETE_API = "/api/assignments";
 
 export default function StudentPage() {
   // STATE MANAGEMENT
@@ -46,7 +45,7 @@ export default function StudentPage() {
     if (!studentClass || !studentId) return;
     try {
       setLoading(true);
-      const res = await axios.get(`${ASSIGNMENTS_API}/${studentClass}/${studentId}`);
+      const res = await api.get(`${ASSIGNMENTS_API}/${studentClass}/${studentId}`);
       if (res.data.success) {
         setTasks(res.data.assignments);
       }
@@ -137,7 +136,7 @@ export default function StudentPage() {
     if (task.deadline) formData.append("deadline", task.deadline);
 
     try {
-      const res = await axios.post(SUBMIT_API, formData, {
+      const res = await api.post(SUBMIT_API, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (res.data.success) {
@@ -159,7 +158,7 @@ export default function StudentPage() {
   const handleDelete = async (subId) => {
     if (!window.confirm("🗑️ This will permanently remove your submission. Continue?")) return;
     try {
-      await axios.delete(`${DELETE_API}/${subId}`);
+      await api.delete(`${DELETE_API}/${subId}`);
       fetchTasks();
     } catch {
       alert("⚠️ Unable to delete at this moment.");

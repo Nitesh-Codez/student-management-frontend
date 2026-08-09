@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
+
 
 export default function AdminPage() {
   const [file, setFile] = useState(null);
@@ -29,7 +29,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     // Fetch classes
-    axios.get(`${API_URL}/api/new-marks/classes`)
+    api.get("/api/new-marks/classes")
       .then(res => {
         if (res.data.success) {
           setClasses(res.data.classes);
@@ -40,7 +40,7 @@ export default function AdminPage() {
       }).catch(err => console.error(err));
 
     // Fetch students
-    axios.get(`${API_URL}/api/students`)
+    api.get("{API_URL}/api/students")
       .then(res => { if (res.data.success) setStudents(res.data.students); })
       .catch(err => console.error(err));
   }, []);
@@ -49,11 +49,11 @@ export default function AdminPage() {
     if (!viewClass) { setTaskSubmissions({}); return; }
     const fetchAll = async () => {
       try {
-        const taskRes = await axios.get(`${API_URL}/api/assignments/admin/tasks/${viewClass}`);
+        const taskRes = await api.get("/api/assignments/admin/tasks/${viewClass}");
         if (!taskRes.data.success) return;
         const result = {};
         for (let task of taskRes.data.tasks) {
-          const subRes = await axios.get(`${API_URL}/api/assignments/admin/submissions/${encodeURIComponent(task.task_title)}?class=${viewClass}`);
+          const subRes = await api.get("/api/assignments/admin/submissions/${encodeURIComponent(task.task_title)}?class=${viewClass}");
           result[task.task_title] = subRes.data.success ? subRes.data.submissions : [];
         }
         setTaskSubmissions(result);
@@ -80,7 +80,7 @@ export default function AdminPage() {
     formData.append("deadline", new Date(deadline).toISOString());
 
     try {
-      const res = await axios.post(`${API_URL}/api/assignments/admin/upload`, formData);
+      const res = await api.post("/api/assignments/admin/upload", formData);
       alert(res.data.success ? "Assignment Uploaded!" : "Upload Failed");
 
       // reset fields
@@ -112,7 +112,7 @@ export default function AdminPage() {
     formData.append("deadline", new Date(editDeadline).toISOString());
 
     try {
-      const res = await axios.put(`${API_URL}/api/assignments/admin/assignment/${editingAssignment.id}`, formData);
+      const res = await api.put("/api/assignments/admin/assignment/${editingAssignment.id}", formData);
       if (res.data.success) {
         alert("Assignment updated successfully!");
         setEditingAssignment(null);
@@ -129,7 +129,7 @@ export default function AdminPage() {
   const handleDelete = async (assignmentId) => {
     if (!window.confirm("Are you sure you want to delete this submission?")) return;
     try {
-      const res = await axios.delete(`${API_URL}/api/assignments/${assignmentId}`);
+      const res = await api.delete("/api/assignments/${assignmentId}");
       if (res.data.success) {
         alert("Submission deleted ✅");
         setViewClass(prev => prev); // refresh submissions
@@ -140,7 +140,7 @@ export default function AdminPage() {
   // ================= HANDLE RATING =================
   const handleRating = async (submissionId, value) => {
     try {
-      const res = await axios.put(`${API_URL}/api/assignments/rating/${submissionId}`, { rating: value });
+      const res = await api.put("/api/assignments/rating/${submissionId}", { rating: value });
       if (res.data.success) {
         setTaskSubmissions(prev => {
           const newSubs = { ...prev };
@@ -161,7 +161,7 @@ export default function AdminPage() {
     formData.append("photo", photoFile);
 
     try {
-      const res = await axios.post(`${API_URL}/api/students/${selectedStudent}/profile-photo`, formData);
+      const res = await api.post("/api/students/${selectedStudent}/profile-photo", formData);
       if (res.data.success) {
         alert("Photo uploaded!");
         const studentIdNum = parseInt(selectedStudent);
