@@ -23,7 +23,7 @@ const Login = () => {
   const gridRef = useRef(null);
   const navigate = useNavigate();
 
-  // Configuration for the sleek grid layout
+  // Configuration for the grid layout
   const GRID_SIZE = 200; 
   const DOT_COUNT = 9;
 
@@ -118,9 +118,10 @@ const Login = () => {
     };
   };
 
-  // Increased radius threshold for easier touch detection near dots
-  const getDotIndexFromPoint = (x, y) => {
-    const radiusThreshold = 35; 
+  // Hit detection: If it's the very first dot, use a larger radius (easier to start anywhere nearby). 
+  // For subsequent dots, use normal stricter threshold.
+  const getDotIndexFromPoint = (x, y, isFirstDotSelection) => {
+    const radiusThreshold = isFirstDotSelection ? 50 : 25; 
     for (let i = 0; i < DOT_COUNT; i++) {
       const center = getDotCenter(i);
       const dist = Math.sqrt(Math.pow(x - center.x, 2) + Math.pow(y - center.y, 2));
@@ -145,16 +146,12 @@ const Login = () => {
     const relativeX = clientX - rect.left;
     const relativeY = clientY - rect.top;
 
-    if (relativeX < 0 || relativeX > GRID_SIZE || relativeY < 0 || relativeY > GRID_SIZE) {
-      return;
-    }
-
     setCurrentPos({ x: relativeX, y: relativeY });
 
-    const hoveredDot = getDotIndexFromPoint(relativeX, relativeY);
+    // Since pattern already has at least 1 item when moving, subsequent dots use normal strict detection (false)
+    const hoveredDot = getDotIndexFromPoint(relativeX, relativeY, false);
     if (hoveredDot !== -1 && !pattern.includes(hoveredDot)) {
       setPattern(prev => [...prev, hoveredDot]);
-      setCurrentPos(getDotCenter(hoveredDot));
     }
   };
 
@@ -164,8 +161,6 @@ const Login = () => {
     if (isDrawing) {
       setIsDrawing(false);
       if (pattern.length > 0) {
-        setCurrentPos(getDotCenter(pattern[pattern.length - 1]));
-        // Auto-trigger verification/saving action when finger lifts up
         if (modalType === "set") {
           handleSavePattern();
         } else {
@@ -177,15 +172,14 @@ const Login = () => {
 
   const onTouchMove = (e) => {
     e.preventDefault(); 
-    handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    const touch = e.touches[0];
+    handleMove(touch.clientX, touch.clientY);
   };
 
   const onTouchEnd = () => {
     if (isDrawing) {
       setIsDrawing(false);
       if (pattern.length > 0) {
-        setCurrentPos(getDotCenter(pattern[pattern.length - 1]));
-        // Auto-trigger verification/saving action when touch ends
         if (modalType === "set") {
           handleSavePattern();
         } else {
@@ -195,7 +189,39 @@ const Login = () => {
     }
   };
 
-  // --- Smooth Path Generator (SVG) ---
+  // --- Grid Container Mouse/Touch Down to catch start near dots if not directly clicking dot element ---
+  const handleGridMouseDown = (e) => {
+    if (!gridRef.current) return;
+    const rect = gridRef.current.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    const relativeY = e.clientY - rect.top;
+
+    const clickedDot = getDotIndexFromPoint(relativeX, relativeY, true); // true for generous first dot check
+    if (clickedDot !== -1 && pattern.length === 0) {
+      setIsDrawing(true);
+      setPattern([clickedDot]);
+      setPatternError("");
+      setCurrentPos(getDotCenter(clickedDot));
+    }
+  };
+
+  const handleGridTouchStart = (e) => {
+    if (!gridRef.current || e.touches.length === 0) return;
+    const rect = gridRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const relativeX = touch.clientX - rect.left;
+    const relativeY = touch.clientY - rect.top;
+
+    const clickedDot = getDotIndexFromPoint(relativeX, relativeY, true); // true for generous first dot check
+    if (clickedDot !== -1 && pattern.length === 0) {
+      setIsDrawing(true);
+      setPattern([clickedDot]);
+      setPatternError("");
+      setCurrentPos(getDotCenter(clickedDot));
+    }
+  };
+
+  // --- Smooth Flow Path Generator (SVG) ---
   const generatePathData = () => {
     if (pattern.length === 0) return "";
     const points = pattern.map(getDotCenter);
@@ -375,6 +401,8 @@ const Login = () => {
             <div 
               ref={gridRef}
               style={styles.patternGrid}
+              onMouseDown={handleGridMouseDown}
+              onTouchStart={handleGridTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
               onMouseMove={onMouseMove}
@@ -386,7 +414,7 @@ const Login = () => {
                     d={generatePathData()}
                     fill="none"
                     stroke="#6366f1"
-                    strokeWidth="3.5"
+                    strokeWidth="4"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     style={{ filter: "drop-shadow(0px 2px 6px rgba(99, 102, 241, 0.4))" }}
@@ -404,7 +432,7 @@ const Login = () => {
                       ...styles.patternDot,
                       background: isSelected ? "#6366f1" : "#cbd5e1",
                       transform: isSelected ? "scale(1.4)" : "scale(1)",
-                      boxShadow: isSelected ? "0 0 10px rgba(99, 102, 241, 0.6)" : "none",
+                      boxShadow: isSelected ? "0 0 12px rgba(99, 102, 241, 0.6)" : "none",
                     }}
                     onMouseDown={(e) => handleStart(index, e)}
                     onTouchStart={(e) => handleStart(index, e)}
@@ -661,8 +689,8 @@ const styles = {
     zIndex: 1,
   },
   patternDot: {
-    width: "12px",
-    height: "12px",
+    width: "16px",
+    height: "16px",
     borderRadius: "50%",
     cursor: "pointer",
     zIndex: 2,
