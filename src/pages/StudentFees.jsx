@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import jsPDF from "jspdf";
+import api from "../services/api";
 import html2canvas from "html2canvas";
 import { FaLock, FaTimes, FaCheck, FaDownload, FaEye } from "react-icons/fa";
 
 const StudentFees = ({ user }) => {
-  const API_URL = "https://student-management-system-4-hose.onrender.com";
+ 
 
   // --- Dot Pattern Lock States (Matched with reference image layout) ---
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -142,7 +142,7 @@ const StudentFees = ({ user }) => {
 
     setAuthLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
+      const res = await api.post(`/api/auth/verify-pattern`, {
         studentId: user?.id,
         pattern: dotsArray.join("-")
       });
@@ -180,7 +180,7 @@ const StudentFees = ({ user }) => {
 
     const fetchFees = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/fees/student/${user.id}`);
+        const res = await api.get(`/api/fees/student/${user.id}`);
         if (res.data.success) {
           let feesData = res.data.fees.map(f => {
             const d = new Date(f.payment_date);
