@@ -48,7 +48,6 @@ import RegisterationStudent from "./pages/RegisterationStudent";
 import StudentResult from "./pages/Results_details/StudentResult";
 import ViewResults from "./pages/Results_details/ViewResults";
 
-
 import AdminHoliday from './pages/AdminHoliday';
 import StudentDropApply from "./pages/StudentDropApply";
 import FeesDetails from "./pages/FeesDetails";
@@ -57,6 +56,26 @@ import FeesDetails from "./pages/FeesDetails";
 import ExamForm from "./pages/Examination/ExamForm";
 import GenerateAdmitCard from "./pages/Examination/GenerateAdmitCard";
 import ExaminationResult from "./pages/Examination/ExaminationResult";
+
+// ==========================================
+// PROTECTED ROUTE COMPONENT
+// ==========================================
+const ProtectedRoute = ({ children, allowedRole }) => {
+  const token = localStorage.getItem("token"); // Ya sessionStorage / Context jo aap use krte ho
+  const userRole = localStorage.getItem("role"); // "admin" ya "student" (Login ke waqt save krna hoga)
+
+  // 1. Agar token hi nahi hai, matlab user logged-in nahi hai
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
+
+  // 2. Agar role match nahi hota, toh unauthorized access
+  if (allowedRole && userRole !== allowedRole) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
 
 function App() {
   return (
@@ -69,9 +88,15 @@ function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/refund_policy" element={<Refund />} />
 
-        {/* ADMIN */}
-        <Route path="/admin" element={<AdminDashboard />}>
-
+        {/* ADMIN (Protected for Admin role only) */}
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="manage-students" />} />
 
           <Route path="manage-students" element={<ManageStudents />} />
@@ -87,45 +112,45 @@ function App() {
           <Route path="admin-chat" element={<AdminChat />} />
           <Route path="add-teacher" element={<AddTeacher />} />
           <Route path="teachers" element={<TeacherList />} />
-          
           <Route path="assign-classes" element={<AssignClasses />} />
           <Route path="quiz" element={<AdminQuizPage />} />
           <Route path="student-stars" element={<AdminStudentStars />} />
           <Route path="details/:session/:month" element={<FeesDetails />} />
-          <Route path="check-examform" element={<AdminExamFormDetails/>}/>
-          <Route path="admin-internal-marks" element={<InternalMarksSheet/>}/>
-
+          <Route path="check-examform" element={<AdminExamFormDetails />} />
+          <Route path="admin-internal-marks" element={<InternalMarksSheet />} />
+          <Route path="holidays" element={<AdminHoliday />} />
         </Route>
 
-        {/* STUDENT */}
-        <Route path="/student" element={<StudentDashboard />}>
-
+        {/* STUDENT (Protected for Student role only) */}
+        <Route 
+          path="/student" 
+          element={
+            <ProtectedRoute allowedRole="student">
+              <StudentDashboard />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="profile" />} />
 
           <Route path="profile" element={<StudentProfile />} />
           <Route path="fees" element={<StudentFees />} />
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="marks" element={<StudentsMarks />} />
-          
           <Route path="feedback" element={<StudentFeedback />} />
           <Route path="task-update" element={<StudentPage studentId={101} />} />
           <Route path="study-material" element={<StudentStudyMaterial />} />
-          <Route path="Check-performance" element={<StudentPerformanceTree/>} />
+          <Route path="Check-performance" element={<StudentPerformanceTree />} />
           <Route path="exam-form" element={<ExamForm />} />
           <Route path="generate-admit" element={<GenerateAdmitCard />} />
           <Route path="exam-result" element={<ExaminationResult />} />
           <Route path="apply-correction" element={<ApplyCorrection />} />
           <Route path="submit-results" element={<StudentResult />} />
           <Route path="view-results" element={<ViewResults />} />
-         <Route path="drop-apply" element={<StudentDropApply />} />
+          <Route path="drop-apply" element={<StudentDropApply />} />
           <Route path="quiz-dashboard" element={<StudentQuizDashboard />} />
           <Route path="register-student" element={<RegisterationStudent />} />
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
-          
-
-
           <Route path="review/:quizId/:studentId" element={<QuizReview />} />
-
         </Route>
 
         {/* 404 */}

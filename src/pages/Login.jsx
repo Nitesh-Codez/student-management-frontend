@@ -86,9 +86,13 @@ const Login = () => {
   const storeUserData = (user, token) => {
     localStorage.clear(); 
     if (token) localStorage.setItem("token", token);
+    
+    // Yahan "role" aur "userRole" dono save kar rahe hain taaki koi confusion na ho
+    localStorage.setItem("role", user.role); 
+    localStorage.setItem("userRole", user.role); 
+    
     localStorage.setItem("user", JSON.stringify(user));
     localStorage.setItem("studentName", user.name);
-    localStorage.setItem("userRole", user.role);
     localStorage.setItem("session", user.session); 
     localStorage.setItem("joining_date", user.joining_date); 
 
