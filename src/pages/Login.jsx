@@ -13,7 +13,7 @@ const Login = () => {
   const [showPatternModal, setShowPatternModal] = useState(false);
   const [modalType, setModalType] = useState("set"); // "set" or "verify"
   const [pendingUser, setPendingUser] = useState(null);
-  const [authToken, setAuthToken] = useState(""); // Temporary state to hold JWT during login flow
+  const [authToken, setAuthToken] = useState(""); 
   const [pattern, setPattern] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
@@ -22,6 +22,10 @@ const Login = () => {
 
   const gridRef = useRef(null);
   const navigate = useNavigate();
+
+  // Configuration for the sleek grid layout
+  const GRID_SIZE = 200; 
+  const DOT_COUNT = 9;
 
   const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
 
@@ -40,11 +44,9 @@ const Login = () => {
         const user = data.user;
         setPendingUser(user);
         
-        // Save token temporarily for pattern verification/setup requests
         const token = data.token;
         setAuthToken(token);
 
-        // Check if pattern is already configured for this user (both admin and student)
         try {
           const res = await axios.post(`${API_URL}/api/auth/verify-pattern`, {
             studentId: user.id,
@@ -58,14 +60,12 @@ const Login = () => {
           if (res.data.message === "Pattern not set.") {
             setModalType("set");
             setShowPatternModal(true);
-            setLoading(false);
           } else {
-            // Pattern is already set, prompt user to draw pattern every time on login
             setModalType("verify");
             setPattern([]);
             setShowPatternModal(true);
-            setLoading(false);
           }
+          setLoading(false);
         } catch (err) {
           setModalType("set");
           setPendingUser(user);
@@ -103,100 +103,123 @@ const Login = () => {
     }
   };
 
-  // --- Exact Dot Center Coordinates for Grid ---
+  // --- Responsive Coordinate Calculation ---
   const getDotCenter = (index) => {
+    const padding = 35; 
+    const effectiveSize = GRID_SIZE - (padding * 2);
+    const spacing = effectiveSize / 2;
+
     const row = Math.floor(index / 3);
     const col = index % 3;
-    const spacing = 72;
-    const startOffset = 31;
+    
     return {
-      x: startOffset + col * spacing,
-      y: startOffset + row * spacing
+      x: padding + col * spacing,
+      y: padding + row * spacing
     };
   };
 
-  // --- Strict Dot-to-Dot Touch & Mouse Interaction ---
+  // Increased radius threshold for easier touch detection near dots
+  const getDotIndexFromPoint = (x, y) => {
+    const radiusThreshold = 35; 
+    for (let i = 0; i < DOT_COUNT; i++) {
+      const center = getDotCenter(i);
+      const dist = Math.sqrt(Math.pow(x - center.x, 2) + Math.pow(y - center.y, 2));
+      if (dist < radiusThreshold) return i;
+    }
+    return -1;
+  };
+
+  // --- Interaction Handlers ---
   const handleStart = (index, e) => {
-    e.stopPropagation();
+    e.preventDefault(); 
     setIsDrawing(true);
     setPattern([index]);
     setPatternError("");
-    const center = getDotCenter(index);
-    setCurrentPos(center);
+    setCurrentPos(getDotCenter(index));
   };
 
-  const handleEnter = (index) => {
-    if (isDrawing && !pattern.includes(index)) {
-      setPattern((prev) => [...prev, index]);
-      const center = getDotCenter(index);
-      setCurrentPos(center);
+  const handleMove = (clientX, clientY) => {
+    if (!isDrawing || !gridRef.current) return;
+    const rect = gridRef.current.getBoundingClientRect();
+    
+    const relativeX = clientX - rect.left;
+    const relativeY = clientY - rect.top;
+
+    if (relativeX < 0 || relativeX > GRID_SIZE || relativeY < 0 || relativeY > GRID_SIZE) {
+      return;
+    }
+
+    setCurrentPos({ x: relativeX, y: relativeY });
+
+    const hoveredDot = getDotIndexFromPoint(relativeX, relativeY);
+    if (hoveredDot !== -1 && !pattern.includes(hoveredDot)) {
+      setPattern(prev => [...prev, hoveredDot]);
+      setCurrentPos(getDotCenter(hoveredDot));
     }
   };
 
-  const handleTouchMove = (e) => {
-    if (!isDrawing || !gridRef.current) return;
-    const touch = e.touches[0];
-    const rect = gridRef.current.getBoundingClientRect();
-    
-    setCurrentPos({
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top
-    });
-
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (target && target.dataset && target.dataset.id !== undefined) {
-      const dotIndex = parseInt(target.dataset.id, 10);
-      if (!pattern.includes(dotIndex)) {
-        setPattern((prev) => [...prev, dotIndex]);
+  const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
+  
+  const onMouseUp = () => {
+    if (isDrawing) {
+      setIsDrawing(false);
+      if (pattern.length > 0) {
+        setCurrentPos(getDotCenter(pattern[pattern.length - 1]));
+        // Auto-trigger verification/saving action when finger lifts up
+        if (modalType === "set") {
+          handleSavePattern();
+        } else {
+          handleVerifyPattern();
+        }
       }
     }
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDrawing || !gridRef.current) return;
-    const rect = gridRef.current.getBoundingClientRect();
-    setCurrentPos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
+  const onTouchMove = (e) => {
+    e.preventDefault(); 
+    handleMove(e.touches[0].clientX, e.touches[0].clientY);
   };
 
-  const handleEnd = () => {
-    setIsDrawing(false);
-    if (pattern.length > 0) {
-      setCurrentPos(getDotCenter(pattern[pattern.length - 1]));
+  const onTouchEnd = () => {
+    if (isDrawing) {
+      setIsDrawing(false);
+      if (pattern.length > 0) {
+        setCurrentPos(getDotCenter(pattern[pattern.length - 1]));
+        // Auto-trigger verification/saving action when touch ends
+        if (modalType === "set") {
+          handleSavePattern();
+        } else {
+          handleVerifyPattern();
+        }
+      }
     }
   };
 
-  // --- Smooth Cubic Bezier Path Generator with Light Grey Tracking Line ---
-  const generateSmoothPath = () => {
+  // --- Smooth Path Generator (SVG) ---
+  const generatePathData = () => {
     if (pattern.length === 0) return "";
+    const points = pattern.map(getDotCenter);
     
-    let path = `M ${getDotCenter(pattern[0]).x} ${getDotCenter(pattern[0]).y}`;
+    let path = `M ${points[0].x} ${points[0].y}`;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const current = points[i];
+      const next = points[i+1];
+      const midX = (current.x + next.x) / 2;
+      const midY = (current.y + next.y) / 2;
+      path += ` Q ${current.x} ${current.y}, ${midX} ${midY} T ${next.x} ${next.y}`;
+    }
     
-    for (let i = 1; i < pattern.length; i++) {
-      const prev = getDotCenter(pattern[i - 1]);
-      const curr = getDotCenter(pattern[i]);
-      const midX = (prev.x + curr.x) / 2;
-      const midY = (prev.y + curr.y) / 2;
-      path += ` Q ${midX} ${midY}, ${curr.x} ${curr.y}`;
+    if (isDrawing) {
+      path += ` L ${currentPos.x} ${currentPos.y}`;
     }
 
     return path;
   };
 
-  // --- Smooth Live Tracking Line (Light Grey) from last selected dot to cursor/finger ---
-  const generateLivePath = () => {
-    if (!isDrawing || pattern.length === 0) return "";
-    const last = getDotCenter(pattern[pattern.length - 1]);
-    const midX = (last.x + currentPos.x) / 2;
-    const midY = (last.y + currentPos.y) / 2;
-    return `M ${last.x} ${last.y} Q ${midX} ${midY}, ${currentPos.x} ${currentPos.y}`;
-  };
-
   const handleSavePattern = async () => {
-    if (pattern.length < 3) {
-      setPatternError("Connect at least 3 dots!");
+    if (pattern.length < 4) {
+      setPatternError("Connect at least 4 dots for security.");
       return;
     }
 
@@ -210,23 +233,21 @@ const Login = () => {
         }
       });
 
-      setPatternSuccess("Security lock configured successfully!");
+      setPatternSuccess("Security lock configured!");
       setTimeout(() => {
         storeUserData(pendingUser, authToken);
-        if (pendingUser.role === "admin") {
-          navigate("/admin");
-        } else {
-          navigate("/student");
-        }
+        navigate(pendingUser.role === "admin" ? "/admin" : "/student");
       }, 1000);
     } catch (err) {
-      setPatternError("Failed to save pattern. Try again.");
+      setPatternError("Failed to save. Try again.");
+      setPattern([]);
     }
   };
 
   const handleVerifyPattern = async () => {
-    if (pattern.length < 3) {
-      setPatternError("Connect at least 3 dots!");
+    if (pattern.length < 4) {
+      setPatternError("Draw the complete pattern.");
+      setPattern([]);
       return;
     }
 
@@ -244,19 +265,21 @@ const Login = () => {
         setPatternSuccess("Access Granted!");
         setTimeout(() => {
           storeUserData(pendingUser, authToken);
-          if (pendingUser.role === "admin") {
-            navigate("/admin");
-          } else {
-            navigate("/student");
-          }
+          navigate(pendingUser.role === "admin" ? "/admin" : "/student");
         }, 800);
       } else {
-        setPatternError("Incorrect Pattern! Try again.");
-        setPattern([]);
+        setPatternError("Incorrect Pattern. Try again.");
+        setTimeout(() => {
+          setPattern([]);
+          setPatternError("");
+        }, 800);
       }
     } catch (err) {
       setPatternError("Invalid Pattern. Try again.");
-      setPattern([]);
+      setTimeout(() => {
+        setPattern([]);
+        setPatternError("");
+      }, 800);
     }
   };
 
@@ -352,31 +375,21 @@ const Login = () => {
             <div 
               ref={gridRef}
               style={styles.patternGrid}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleEnd}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleEnd}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              onMouseMove={onMouseMove}
+              onMouseUp={onMouseUp}
             >
               <svg style={styles.svgOverlay}>
                 {pattern.length > 0 && (
                   <path
-                    d={generateSmoothPath()}
+                    d={generatePathData()}
                     fill="none"
                     stroke="#6366f1"
-                    strokeWidth="4"
+                    strokeWidth="3.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    style={{ filter: "drop-shadow(0px 2px 4px rgba(99, 102, 241, 0.4))" }}
-                  />
-                )}
-                {isDrawing && pattern.length > 0 && (
-                  <path
-                    d={generateLivePath()}
-                    fill="none"
-                    stroke="#cbd5e1"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    style={{ filter: "drop-shadow(0px 2px 6px rgba(99, 102, 241, 0.4))" }}
                   />
                 )}
               </svg>
@@ -390,11 +403,10 @@ const Login = () => {
                     style={{
                       ...styles.patternDot,
                       background: isSelected ? "#6366f1" : "#cbd5e1",
-                      transform: isSelected ? "scale(1.3)" : "scale(1)",
-                      boxShadow: isSelected ? "0 0 12px rgba(99, 102, 241, 0.8)" : "none",
+                      transform: isSelected ? "scale(1.4)" : "scale(1)",
+                      boxShadow: isSelected ? "0 0 10px rgba(99, 102, 241, 0.6)" : "none",
                     }}
                     onMouseDown={(e) => handleStart(index, e)}
-                    onMouseEnter={() => handleEnter(index)}
                     onTouchStart={(e) => handleStart(index, e)}
                   />
                 );
@@ -411,12 +423,6 @@ const Login = () => {
                 }}
               >
                 Reset Pattern
-              </button>
-              <button 
-                style={styles.button} 
-                onClick={modalType === "set" ? handleSavePattern : handleVerifyPattern}
-              >
-                {modalType === "set" ? "Save & Continue" : "Verify & Login"}
               </button>
             </div>
           </div>
@@ -630,18 +636,18 @@ const styles = {
     marginBottom: "12px",
   },
   patternGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "18px",
-    width: "190px",
-    height: "190px",
+    width: "200px",
+    height: "200px",
     margin: "0 auto 15px auto",
-    background: "#f1f5f9",
-    padding: "16px",
-    borderRadius: "16px",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "20px",
     position: "relative",
     touchAction: "none",
     userSelect: "none",
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateRows: "repeat(3, 1fr)",
     justifyItems: "center",
     alignItems: "center",
   },
@@ -655,8 +661,8 @@ const styles = {
     zIndex: 1,
   },
   patternDot: {
-    width: "18px",
-    height: "18px",
+    width: "12px",
+    height: "12px",
     borderRadius: "50%",
     cursor: "pointer",
     zIndex: 2,
