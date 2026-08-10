@@ -5,9 +5,9 @@ import {
   FaBolt, FaAward, FaChartLine,
 } from 'react-icons/fa';
 import { motion } from "framer-motion";
-import axios from 'axios';
+import api from "../services/api";
 
-// --- ADDED NORMALIZATION FUNCTION ---
+// --- NORMALIZATION FUNCTION ---
 const normalize = (val) => {
   if (val === null || val === undefined) return "";
   return String(val)
@@ -26,14 +26,12 @@ const QuizReview = () => {
   const questionRefs = useRef([]);
   const bubbleRefs = useRef([]);
 
-  const API_BASE_URL = "https://student-management-system-4-hose.onrender.com";
-
   useEffect(() => {
     window.scrollTo(0, 0);
     const fetchReviewData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/api/quiz/review/${quizId}/${studentId}`);
+        const response = await api.get(`/api/quiz/review/${quizId}/${studentId}`);
         if (response.data && response.data.success) {
           setReviewData(response.data.data);
         }
@@ -69,7 +67,7 @@ const QuizReview = () => {
 
   const scrollToQuestion = (index) => {
     if (questionRefs.current[index]) {
-      const yOffset = -130; 
+      const yOffset = -140; 
       const element = questionRefs.current[index];
       const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
@@ -100,7 +98,7 @@ const QuizReview = () => {
           <button onClick={() => navigate(-1)} style={styles.navActionBtn}><FaChevronLeft /></button>
           <div style={styles.headerInfo}>
             <h1 style={styles.quizMainTitle}>{quiz_info.title}</h1>
-            <p style={styles.quizSubTitle}>Assessment Performance</p>
+            <p style={styles.quizSubTitle}>Assessment Performance Review</p>
           </div>
           <button onClick={() => navigate(-1)} style={styles.navActionBtn}><FaTimes /></button>
         </div>
@@ -128,7 +126,7 @@ const QuizReview = () => {
         </div>
       </section>
 
-      {/* ROADMAP FIX: Using normalize(q.answer) */}
+      {/* STICKY ROADMAP WIDE CONTAINER */}
       <div style={styles.stickyJumpWrapper}>
         <div style={styles.mapHeader}>
           <span style={styles.sectionHeading}><FaBolt color="#f59e0b" /> Question Roadmap</span>
@@ -149,7 +147,7 @@ const QuizReview = () => {
                   ...styles.jumpBubble, 
                   background: isActive ? "#065f46" : (isSkipped ? "#f1f5f9" : (isCorrect ? "#ecfdf5" : "#fef2f2")),
                   color: isActive ? "#fff" : (isSkipped ? "#64748b" : (isCorrect ? "#10b981" : "#ef4444")),
-                  borderColor: isActive ? "#065f46" : "currentColor",
+                  borderColor: isActive ? "#065f46" : (isSkipped ? "#cbd5e1" : (isCorrect ? "#10b981" : "#ef4444")),
                   boxShadow: isActive ? "0 4px 12px rgba(6, 95, 70, 0.3)" : "none"
                 }}
               >{i + 1}</button>
@@ -158,11 +156,11 @@ const QuizReview = () => {
         </div>
       </div>
 
-      {/* QUESTION CONTENT FIX: Using normalize(q.answer) */}
+      {/* MAIN WIDE CONTENT BODY */}
       <main style={styles.contentBody}>
         {questions.map((q, index) => {
           const studentChoice = student_answers[index];
-          const correctAns = q.answer; // STANDARDIZED FIELD
+          const correctAns = q.answer; 
           const isCorrect = normalize(studentChoice) === normalize(correctAns);
 
           return (
@@ -172,56 +170,57 @@ const QuizReview = () => {
               ref={el => (questionRefs.current[index] = el)} 
               style={{
                 ...styles.qCard,
-                backgroundColor: activeQuestion === index ? '#fff' : '#fafafa',
+                backgroundColor: activeQuestion === index ? '#ffffff' : '#fafafa',
                 borderLeft: activeQuestion === index ? '8px solid #065f46' : '8px solid transparent'
               }}
             >
-              <div style={styles.qCardHeader}>
-                <span style={styles.qCircleIndex}>Question {index + 1}</span>
-                <span style={{...styles.statusTag, color: !studentChoice ? '#64748b' : (isCorrect ? '#10b981' : '#ef4444')}}>
-                  {!studentChoice ? 'SKIPPED' : (isCorrect ? 'CORRECT' : 'INCORRECT')}
-                </span>
-              </div>
+              <div style={styles.qCardInnerContainer}>
+                <div style={styles.qCardHeader}>
+                  <span style={styles.qCircleIndex}>Question {index + 1}</span>
+                  <span style={{...styles.statusTag, color: !studentChoice ? '#64748b' : (isCorrect ? '#10b981' : '#ef4444')}}>
+                    {!studentChoice ? 'SKIPPED' : (isCorrect ? 'CORRECT' : 'INCORRECT')}
+                  </span>
+                </div>
 
-              <h3 style={styles.questionTextTitle}>{q.question_text || q.question}</h3>
+                <h3 style={styles.questionTextTitle}>{q.question_text || q.question}</h3>
 
-              <div style={styles.optionsWrapperGrid}>
-                {q.options?.map((opt, i) => {
-                  const isCorrectOpt = normalize(opt) === normalize(correctAns);
-                  const isUserOpt = normalize(opt) === normalize(studentChoice);
-                  return (
-                    <div key={i} style={{ 
-                      ...styles.optionBoxSingle, 
-                      backgroundColor: isCorrectOpt ? "#ecfdf5" : (isUserOpt ? "#fef2f2" : "#fff"), 
-                      borderColor: isCorrectOpt ? "#10b981" : (isUserOpt ? "#ef4444" : "#e2e8f0") 
-                    }}>
-                      <div style={{...styles.alphaPrefix, backgroundColor: isCorrectOpt ? '#10b981' : (isUserOpt ? '#ef4444' : '#f1f5f9'), color: (isCorrectOpt || isUserOpt) ? '#fff' : '#64748b'}}>
-                        {String.fromCharCode(65 + i)}
+                <div style={styles.optionsWrapperGrid}>
+                  {q.options?.map((opt, i) => {
+                    const isCorrectOpt = normalize(opt) === normalize(correctAns);
+                    const isUserOpt = normalize(opt) === normalize(studentChoice);
+                    return (
+                      <div key={i} style={{ 
+                        ...styles.optionBoxSingle, 
+                        backgroundColor: isCorrectOpt ? "#ecfdf5" : (isUserOpt ? "#fef2f2" : "#fff"), 
+                        borderColor: isCorrectOpt ? "#10b981" : (isUserOpt ? "#ef4444" : "#e2e8f0") 
+                      }}>
+                        <div style={{...styles.alphaPrefix, backgroundColor: isCorrectOpt ? '#10b981' : (isUserOpt ? '#ef4444' : '#f1f5f9'), color: (isCorrectOpt || isUserOpt) ? '#fff' : '#64748b'}}>
+                          {String.fromCharCode(65 + i)}
+                        </div>
+                        <p style={styles.optionTextContent}>{opt}</p>
                       </div>
-                      <p style={styles.optionTextContent}>{opt}</p>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           );
         })}
-        <div style={{ height: "100px" }} />
+        <div style={{ height: "120px" }} />
       </main>
     </div>
   );
 };
 
-// ... Styles remain the same
 const styles = {
-  fullWidthWrapper: { width: "100%", minHeight: "100vh", backgroundColor: "#fff" },
+  fullWidthWrapper: { width: "100%", minHeight: "100vh", backgroundColor: "#fff", boxSizing: "border-box" },
   mainHeader: { 
     background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)", 
     padding: "50px 20px 80px 20px", textAlign: "center", color: "#fff",
     borderBottomLeftRadius: '40px', borderBottomRightRadius: '40px'
   },
-  navBar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: '15px' },
-  navActionBtn: { background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", width: "42px", height: "42px", borderRadius: "12px", display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  navBar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: '15px', maxWidth: "900px", margin: "0 auto 15px auto" },
+  navActionBtn: { background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", width: "42px", height: "42px", borderRadius: "12px", display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerInfo: { flex: 1 },
   quizMainTitle: { fontSize: "18px", fontWeight: "900", margin: 0 },
   quizSubTitle: { fontSize: "10px", opacity: 0.7, textTransform: 'uppercase' },
@@ -230,32 +229,41 @@ const styles = {
   trophyOuter: { margin: "0 auto 10px", width: "70px", height: "70px", background: "rgba(255,255,255,0.1)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" },
   scoreDisplay: { fontSize: "50px", fontWeight: "900", margin: 0 },
   passBadge: { display: "inline-block", padding: "6px 18px", borderRadius: "30px", fontSize: "11px", fontWeight: "900" },
-  statsSection: { width: "100%", padding: "0 20px", marginTop: "-40px" },
+  
+  statsSection: { width: "100%", padding: "0 20px", marginTop: "-40px", boxSizing: "border-box" },
   statsGrid: { 
-    background: "#fff", borderRadius: "15px", padding: "20px 0px",
+    maxWidth: "900px", margin: "0 auto",
+    background: "#fff", borderRadius: "16px", padding: "20px 0px",
     display: "grid", gridTemplateColumns: "repeat(4, 1fr)", boxShadow: "0 10px 30px rgba(0,0,0,0.12)" 
   },
   statItem: { textAlign: "center", borderRight: "1px solid #f1f5f9" },
   statNumber: { display: "block", fontSize: "20px", fontWeight: "900" },
   statLabel: { fontSize: "9px", fontWeight: "800", opacity: 0.4 },
+
   stickyJumpWrapper: { 
     position: 'sticky', top: 0, background: '#fff', 
-    zIndex: 100, padding: '15px 0', borderBottom: '1px solid #f1f5f9' 
+    zIndex: 100, padding: '15px 0', borderBottom: '1px solid #f1f5f9',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
   },
-  mapHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', marginBottom: '10px' },
+  mapHeader: { maxWidth: "900px", margin: "0 auto 10px auto", display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px' },
   sectionHeading: { fontSize: '13px', fontWeight: '900', color: '#1e293b' },
   activeIndicator: { fontSize: '10px', fontWeight: '800', color: '#065f46', background: '#ecfdf5', padding: '4px 10px', borderRadius: '15px' },
-  bubbleFlex: { display: "flex", gap: "12px", overflowX: "auto", padding: "5px 20px 15px 20px" },
-  jumpBubble: { minWidth: "45px", height: "45px", borderRadius: "12px", border: "1.5px solid", fontSize: "15px", fontWeight: "900", display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '0.3s' },
-  contentBody: { width: "100%" },
-  qCard: { padding: "35px 20px", borderBottom: "1px solid #f1f5f9", transition: '0.3s' },
+  bubbleFlex: { 
+    maxWidth: "900px", margin: "0 auto", 
+    display: "flex", gap: "12px", overflowX: "auto", padding: "5px 20px 15px 20px" 
+  },
+  jumpBubble: { minWidth: "45px", height: "45px", borderRadius: "12px", border: "1.5px solid", fontSize: "15px", fontWeight: "900", display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '0.3s', cursor: 'pointer' },
+  
+  contentBody: { width: "100%", padding: "20px 0", boxSizing: "border-box" },
+  qCard: { width: "100%", borderBottom: "1px solid #f1f5f9", transition: '0.3s', padding: "35px 20px", boxSizing: "border-box" },
+  qCardInnerContainer: { maxWidth: "900px", margin: "0 auto", width: "100%", boxSizing: "border-box" },
   qCardHeader: { display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: 'center' },
   qCircleIndex: { fontWeight: "900", color: "#065f46", fontSize: '13px', background: '#ecfdf5', padding: '5px 12px', borderRadius: '8px' },
   statusTag: { fontSize: "11px", fontWeight: "900" },
   questionTextTitle: { fontSize: "19px", fontWeight: "800", color: "#1e293b", marginBottom: "25px", lineHeight: '1.5' },
   optionsWrapperGrid: { display: "flex", flexDirection: "column", gap: "12px" },
-  optionBoxSingle: { padding: "16px", borderRadius: "16px", border: "2px solid", display: "flex", alignItems: "center", gap: "15px" },
-  alphaPrefix: { width: "32px", height: "32px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "900" },
+  optionBoxSingle: { padding: "16px", borderRadius: "16px", border: "2px solid", display: "flex", alignItems: "center", gap: "15px", transition: "all 0.2s ease" },
+  alphaPrefix: { width: "32px", height: "32px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "900", flexShrink: 0 },
   optionTextContent: { flex: 1, margin: 0, fontWeight: "700", fontSize: '15px', color: '#334155' },
   centerFullPage: { height: "100vh", width: '100%', display: "flex", alignItems: "center", justifyContent: "center" }
 };

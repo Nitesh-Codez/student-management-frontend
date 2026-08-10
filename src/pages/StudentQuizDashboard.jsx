@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import { useNavigate } from "react-router-dom";
+import jsPDF from "jspdf";
 
 const StudentQuizDashboard = () => {
   const navigate = useNavigate();
-
 
   // User session details
   const user = JSON.parse(localStorage.getItem("user"));
@@ -20,35 +20,50 @@ const StudentQuizDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const now = new Date();
-
   useEffect(() => {
-    // Injecting High-Tech Animations
+    // Injecting Professional Clean Typography & Hover Animations
     const styleSheet = document.createElement("style");
     styleSheet.innerText = `
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-      body { margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background-color: #FF6B00; }
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+      body { margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background-color: #F8FAFC; color: #1E293B; }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       
-      @keyframes fadeInScale {
-        0% { transform: scale(0.9); opacity: 0; }
-        100% { transform: scale(1); opacity: 1; }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
       }
-      .quiz-card { animation: fadeInScale 0.4s ease-out forwards; }
+      .quiz-card { 
+        animation: fadeIn 0.35s ease-out forwards; 
+        transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; 
+      }
+      .quiz-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.08);
+        border-color: #CBD5E1;
+      }
       
-      @keyframes pulseDark {
-        0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(255, 107, 0, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); }
+      .hover-text-transition {
+        transition: color 0.3s ease, transform 0.3s ease;
       }
-      .active-tab { animation: pulseDark 2s infinite; }
-      
-      @keyframes loaderSpin {
-        0% { transform: rotate(0deg) scale(1); }
-        50% { transform: rotate(180deg) scale(1.2); }
-        100% { transform: rotate(360deg) scale(1); }
+      .hover-text-transition:hover {
+        color: #4F46E5;
+        transform: translateX(4px);
       }
-      .loader-icon { animation: loaderSpin 1.5s infinite linear; }
+
+      .certificate-btn {
+        transition: all 0.2s ease;
+      }
+      .certificate-btn:hover {
+        background-color: #047857 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .spinner { animation: spin 1s linear infinite; }
     `;
     document.head.appendChild(styleSheet);
 
@@ -96,93 +111,260 @@ const StudentQuizDashboard = () => {
     setFilteredQuizzes(sub === "All" ? quizzes : quizzes.filter(q => q.subject === sub));
   };
 
+  // Professional Certificate Generator PDF Function
+  const generateCertificate = (quizTitle, scorePercent, grade) => {
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4"
+    });
+
+    // Outer Border Frame
+    doc.setLineWidth(1.5);
+    doc.setDrawColor(15, 23, 42); // Slate 900
+    doc.rect(10, 10, 277, 190);
+
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(79, 70, 229); // Indigo 600
+    doc.rect(13, 13, 271, 184);
+
+    // Header Branding
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(15, 23, 42);
+    doc.text("SMART STUDENT CLASSES", 148, 28, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text("EXCELLENCE IN ACADEMIC ASSESSMENT & ACHIEVEMENT", 148, 35, { align: "center" });
+
+    // Certificate Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(30);
+    doc.setTextColor(79, 70, 229);
+    doc.text("CERTIFICATE OF MERIT", 148, 52, { align: "center" });
+
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(12);
+    doc.setTextColor(100, 116, 139);
+    doc.text("This prestigious award is proudly presented to", 148, 62, { align: "center" });
+
+    // Student Name
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(26);
+    doc.setTextColor(15, 23, 42);
+    doc.text(user?.name || "Valued Student", 148, 76, { align: "center" });
+
+    // Description text
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(71, 85, 105);
+    doc.text(
+      `For exceptional performance, dedication, and successfully clearing the assessment module`,
+      148, 88, { align: "center" }
+    );
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`"${quizTitle}"`, 148, 97, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(71, 85, 105);
+    doc.text(
+      `with a remarkable score of ${scorePercent}% (Grade: ${grade}), demonstrating outstanding mastery.`,
+      148, 106, { align: "center" }
+    );
+
+    // Stats / Badges box layout
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(64, 118, 168, 22, 3, 3, "FD");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(79, 70, 229);
+    doc.text(`CLASS: ${userClass || 'N/A'}`, 90, 131, { align: "center" });
+    doc.text(`FINAL SCORE: ${scorePercent}%`, 148, 131, { align: "center" });
+    doc.text(`GRADE ACHIEVED: ${grade}`, 210, 131, { align: "center" });
+
+    // Footer Signatures & Authority
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Date of Issue: " + new Date().toLocaleDateString(), 55, 172, { align: "center" });
+    doc.line(30, 166, 80, 166);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text("Student Record", 55, 178, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Authorized Signature", 242, 172, { align: "center" });
+    doc.line(215, 166, 267, 166);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text("Smart Student Classes Authority", 242, 178, { align: "center" });
+
+    // Save PDF
+    doc.save(`Certificate_${(user?.name || "Student").replace(/\s+/g, "_")}_${quizTitle.replace(/\s+/g, "_")}.pdf`);
+  };
+
+  // Calculations for Stats Summary
+  const totalQuizzes = quizzes.length;
+  const completedQuizzes = quizzes.filter(q => q.attempted).length;
+  const pendingQuizzes = totalQuizzes - completedQuizzes;
+
   if (loading) return (
     <div style={styles.center}>
-      <div className="loader-icon" style={{fontSize: '50px'}}>⚡</div>
-      <p style={{fontWeight: '800', color: '#FF6B00', marginTop: '10px'}}>Syncing Assignments...</p>
+      <div className="spinner" style={styles.spinnerIcon}></div>
+      <p style={{ fontWeight: '700', color: '#242341', marginTop: '16px', fontSize: '15px' }}>Loading your learning hub...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div style={styles.center}>
+      <p style={{ fontWeight: '700', color: '#EF4444', fontSize: '15px' }}>{error}</p>
     </div>
   );
 
   return (
     <div style={styles.appContainer}>
-      {/* MODERN HEADER */}
+      {/* ULTRA CLEAN PROFESSIONAL WHITE HEADER WITH ACCENT GLOW */}
       <header style={styles.header}>
-        <div style={styles.topBar}>
-          <span>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          <div style={{display: 'flex', gap: '8px'}}>📶 🔋</div>
-        </div>
-        <div style={styles.headerBody}>
-          <span style={styles.greeting}>Good Day, 👋</span>
-          <h1 style={styles.userName}>{user?.name || "Smart Student"}</h1>
-          <div style={styles.pillContainer}>
-            <span style={styles.pill}>Class {userClass}</span>
-            <span style={styles.pill}>{userSession}</span>
+        <div style={styles.headerContentWrapper}>
+          <div style={styles.headerLeft}>
+            <span style={styles.welcomeText}>🚀 Welcome back, Champion!</span>
+            <h1 style={styles.userName}>{user?.name || "Smart Student"}</h1>
+            <p style={styles.headerSubtitle}>"Excellence is not an act, but a habit. Conquer your tests & win amazing prizes today!"</p>
+            <div style={styles.metaRow}>
+              <span style={styles.metaBadge}>Class {userClass}</span>
+              {userSession && <span style={styles.metaBadge}>Session {userSession}</span>}
+              {userStream && <span style={styles.metaBadge}>{userStream}</span>}
+            </div>
+          </div>
+          
+          <div style={styles.statsContainer}>
+            <div style={styles.statBox}>
+              <span style={styles.statNumber}>{totalQuizzes}</span>
+              <span style={styles.statLabel}>Total Quizzes</span>
+            </div>
+            <div style={styles.statBox}>
+              <span style={{...styles.statNumber,backgroundColor: "#abff58", color: '#116c4f'}}>{completedQuizzes}</span>
+              <span style={styles.statLabel}>Completed</span>
+            </div>
+            <div style={styles.statBox}>
+              <span style={{...styles.statNumber,backgroundColor: "#ff6df3", color: '#64ff30'}}>{pendingQuizzes}</span>
+              <span style={styles.statLabel}>Pending</span>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* INTERACTIVE CONTENT */}
-      <main style={styles.contentArea}>
-        <div style={styles.dragHandle}></div>
-        
-        {/* SUBJECT TABS */}
-        <section style={styles.tabSection} className="no-scrollbar">
-          {subjects.map((sub, i) => (
-            <button
-              key={i}
-              onClick={() => handleSubjectFilter(sub)}
-              className={activeSubject === sub ? "active-tab" : ""}
-              style={{
-                ...styles.tab,
-                backgroundColor: activeSubject === sub ? "#FF6B00" : "#FFF",
-                color: activeSubject === sub ? "#FFF" : "#636E72",
-                border: activeSubject === sub ? 'none' : '1px solid #E0E0E0'
-              }}
-            >
-              {sub}
-            </button>
-          ))}
-        </section>
-
-        <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>{activeSubject} Quizzes</h2>
-          <span style={styles.countBadge}>{filteredQuizzes.length}</span>
+      {/* MAIN CONTENT AREA */}
+      <main style={styles.mainContent}>
+        {/* FILTERS AND TITLE BAR */}
+        <div style={styles.controlBar}>
+          <div>
+            <h2 style={styles.sectionTitle}>{activeSubject} Assessments & Prizes</h2>
+            <p style={styles.sectionSubtitle}>Score 85% or above to instantly download your official Smart Student Merit Certificate!</p>
+          </div>
+          
+          {/* SUBJECT TABS */}
+          <div style={styles.tabSection} className="no-scrollbar">
+            {subjects.map((sub, i) => (
+              <button
+                key={i}
+                onClick={() => handleSubjectFilter(sub)}
+                style={{
+                  ...styles.tab,
+                  backgroundColor: activeSubject === sub ? '#0F172A' : '#FFFFFF',
+                  color: activeSubject === sub ? '#FFFFFF' : '#475569',
+                  boxShadow: activeSubject === sub ? '0 4px 12px rgba(15, 23, 42, 0.2)' : 'none',
+                  border: activeSubject === sub ? 'none' : '1px solid #E2E8F0',
+                }}
+              >
+                {sub}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* QUIZ LIST */}
-        <section style={styles.quizList} className="no-scrollbar">
+        {/* QUIZ LIST WITH PRIZE & CERTIFICATE INTEGRATION */}
+        <div style={styles.quizList}>
           {filteredQuizzes.length > 0 ? (
             filteredQuizzes.map((quiz, idx) => {
               const isDone = quiz.attempted;
-              const scorePercent = isDone ? Math.round((quiz.result.score / quiz.total_marks) * 100) : 0;
+              const scorePercent = isDone && quiz.total_marks ? Math.round((quiz.result.score / quiz.total_marks) * 100) : 0;
+              const quizPrize = quiz.prize || "Exciting Certificate";
+              const canGetCertificate = isDone && scorePercent >= 85;
 
               return (
                 <div key={idx} style={styles.card} className="quiz-card">
-                  <div style={styles.cardMain}>
-                    <div style={isDone ? styles.iconBoxDone : styles.iconBoxTodo}>
-                      {isDone ? "⭐" : "🔥"}
+                  <div style={styles.cardLeft}>
+                    <div style={isDone ? styles.statusIconDone : styles.statusIconPending}>
+                      {isDone ? "🏆" : "🔥"}
                     </div>
-                    <div style={{flex: 1}}>
+                    <div>
+                      <div style={styles.tagSubject}>{quiz.subject}</div>
                       <h3 style={styles.quizTitle}>{quiz.title}</h3>
-                      <p style={styles.quizMeta}>{quiz.subject} • {quiz.timer_minutes} Mins</p>
+                      <div style={styles.quizMetaInfo}>
+                        <span>⏱️ {quiz.timer_minutes} mins</span>
+                        <span>•</span>
+                        <span>📋 {quiz.total_marks || 0} Marks</span>
+                      </div>
+                      <div style={styles.prizeBadge}>
+                        📜 <strong>Win Certificate:</strong> {quizPrize}
+                      </div>
                     </div>
+                  </div>
+
+                  <div style={styles.cardRight}>
                     {isDone ? (
-                      <div style={styles.scoreBox}>
-                        <span style={styles.scoreValue}>{scorePercent}%</span>
-                        <span style={styles.gradeLabel}>{quiz.result.grade}</span>
+                      <div style={styles.scoreBlock}>
+                        <div style={styles.scoreValue}>{scorePercent}%</div>
+                        <div style={styles.gradeBadge}>Grade: {quiz.result?.grade || 'N/A'}</div>
                       </div>
                     ) : (
                       <button 
                         onClick={() => navigate(`/student/attempt/${quiz.id}`)}
                         style={styles.startButton}
                       >
-                        Start
+                        Start Test ⚡
                       </button>
                     )}
                   </div>
+
                   {isDone && (
-                    <div style={styles.reviewLink} onClick={() => navigate(`/student/review/${quiz.id}/${studentId}`)}>
-                      View Detailed Feedback <span>→</span>
+                    <div style={styles.cardFooter}>
+                      <span style={styles.feedbackText}>
+                        {scorePercent >= 85 ? "🌟 Target Achieved! Certificate Unlocked!" : `🌟 Completed! (Score ${scorePercent}% - Need 85% for Certificate)`}
+                      </span>
+                      
+                      <div style={styles.footerActionGroup}>
+                        {canGetCertificate && (
+                          <button
+                            onClick={() => generateCertificate(quiz.title, scorePercent, quiz.result?.grade || 'A')}
+                            style={styles.certificateButton}
+                            className="certificate-btn"
+                          >
+                            🎓 Download Certificate (PDF)
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => navigate(`/student/review/${quiz.id}/${studentId}`)}
+                          style={styles.reviewButton}
+                          className="hover-text-transition"
+                        >
+                          View Analytics &rarr;
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -190,54 +372,328 @@ const StudentQuizDashboard = () => {
             })
           ) : (
             <div style={styles.emptyState}>
-              <div style={{fontSize: '40px'}}>🎯</div>
-              <p>Everything is complete!</p>
+              <div style={{ fontSize: '40px', marginBottom: '10px' }}>🎯</div>
+              <p style={{ margin: 0, fontWeight: '700', color: '#1E293B', fontSize: '16px' }}>All caught up!</p>
+              <p style={{ margin: '5px 0 0 0', color: '#64748B', fontSize: '13px' }}>No pending tasks under this category. Great job!</p>
             </div>
           )}
-          <div style={{height: '100px'}}></div>
-        </section>
+        </div>
       </main>
     </div>
   );
 };
 
 const styles = {
-  appContainer: { width: "100%", height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" },
-  header: { background: "#FF6B00", padding: "20px 25px 50px 25px", color: "#FFF" },
-  topBar: { display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "600", marginBottom: "20px", opacity: 0.8 },
-  headerBody: { display: "flex", flexDirection: "column", gap: "5px" },
-  greeting: { fontSize: "14px", fontWeight: "400" },
-  userName: { fontSize: "28px", fontWeight: "800", margin: 0, letterSpacing: "-0.5px" },
-  pillContainer: { display: "flex", gap: "10px", marginTop: "10px" },
-  pill: { background: "rgba(255,255,255,0.2)", padding: "5px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "700" },
-
-  contentArea: { flex: 1, background: "#F8F9FA", marginTop: "-30px", borderRadius: "35px 35px 0 0", display: "flex", flexDirection: "column", boxShadow: "0 -10px 20px rgba(0,0,0,0.05)" },
-  dragHandle: { width: "40px", height: "5px", background: "#DDD", borderRadius: "10px", margin: "15px auto" },
-  
-  tabSection: { display: "flex", overflowX: "auto", padding: "10px 20px", gap: "12px" },
-  tab: { padding: "10px 20px", borderRadius: "20px", fontSize: "13px", fontWeight: "700", border: "none", cursor: "pointer", whiteSpace: "nowrap", transition: "0.3s" },
-
-  sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 25px 10px 25px" },
-  sectionTitle: { fontSize: "18px", fontWeight: "800", color: "#2D3436", margin: 0 },
-  countBadge: { background: "#E0E0E0", color: "#666", padding: "2px 10px", borderRadius: "10px", fontSize: "12px", fontWeight: "700" },
-
-  quizList: { flex: 1, overflowY: "auto", padding: "10px 20px" },
-  card: { background: "#FFF", borderRadius: "22px", padding: "18px", marginBottom: "15px", boxShadow: "0 4px 12px rgba(0,0,0,0.03)", border: "1px solid #F0F0F0" },
-  cardMain: { display: "flex", alignItems: "center", gap: "15px" },
-  iconBoxTodo: { width: "48px", height: "48px", background: "#F5F5F5", borderRadius: "15px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" },
-  iconBoxDone: { width: "48px", height: "48px", background: "#FFF0E6", borderRadius: "15px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" },
-  quizTitle: { fontSize: "16px", fontWeight: "800", color: "#111", margin: 0 },
-  quizMeta: { fontSize: "12px", color: "#999", marginTop: "3px" },
-  
-  startButton: { background: "#111", color: "#FFF", border: "none", padding: "10px 22px", borderRadius: "14px", fontWeight: "700", cursor: "pointer" },
-  scoreBox: { textAlign: "right" },
-  scoreValue: { display: "block", fontSize: "18px", fontWeight: "800", color: "#FF6B00" },
-  gradeLabel: { fontSize: "10px", fontWeight: "700", color: "#BBB", textTransform: "uppercase" },
-
-  reviewLink: { marginTop: "15px", paddingTop: "12px", borderTop: "1px solid #F8F8F8", color: "#FF6B00", fontSize: "12px", fontWeight: "700", display: "flex", justifyContent: "space-between", cursor: "pointer" },
-  
-  emptyState: { textAlign: "center", padding: "50px", color: "#999", fontWeight: "600" },
-  center: { height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", background: "#FFF" }
+  appContainer: {
+    minHeight: "100vh",
+    backgroundColor: "#F8FAFC",
+    display: "flex",
+    flexDirection: "column",
+    boxSizing: "border-box",
+  },
+  header: {
+    backgroundColor: "#FFFFFF",
+    borderBottom: "1px solid #E2E8F0",
+    padding: "36px 40px",
+    boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.03)",
+  },
+  headerContentWrapper: {
+    maxWidth: "1150px",
+    margin: "0 auto",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "24px",
+  },
+  headerLeft: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    maxWidth: "600px",
+  },
+  welcomeText: {
+    fontSize: "20px",
+    fontWeight: "900",
+    color: "#5e0347",
+    textTransform: "uppercase",
+    letterSpacing: "0.8px",
+  },
+  userName: {
+    fontSize: "30px",
+    fontWeight: "800",
+    color: "#0F172A",
+    margin: 0,
+    letterSpacing: "-0.5px",
+  },
+  headerSubtitle: {
+    fontSize: "13px",
+    color: "#64748B",
+    fontStyle: "italic",
+    margin: "2px 0 6px 0",
+    fontWeight: "500",
+  },
+  metaRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginTop: "4px",
+  },
+  metaBadge: {
+    backgroundColor: "#539115",
+    color: "#ffffff",
+    padding: "4px 12px",
+    borderRadius: "20px",
+    fontSize: "13.5px",
+    fontWeight: "500",
+    border: "1px solid #E2E8F0",
+  },
+  statsContainer: {
+    display: "flex",
+    gap: "14px",
+  },
+  statBox: {
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #E2E8F0",
+    borderRadius: "14px",
+    padding: "16px 20px",
+    textAlign: "center",
+    minWidth: "85px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
+  },
+  statNumber: {
+    display: "block",
+    fontSize: "22px",
+    fontWeight: "800",
+     backgroundColor: "#ffbc58",
+    color: "#0F172A",
+  },
+  statLabel: {
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#932d11",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  },
+  mainContent: {
+    maxWidth: "1150px",
+    width: "100%",
+    margin: "0 auto",
+    padding: "36px 20px",
+    boxSizing: "border-box",
+    flex: 1,
+  },
+  controlBar: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: "28px",
+    flexWrap: "wrap",
+    gap: "16px",
+  },
+  sectionTitle: {
+    fontSize: "22px",
+    fontWeight: "800",
+    color: "#0F172A",
+    margin: "0 0 4px 0",
+  },
+  sectionSubtitle: {
+    fontSize: "13px",
+    color: "#64748B",
+    margin: 0,
+    fontWeight: "500",
+  },
+  tabSection: {
+    display: "flex",
+    gap: "10px",
+    overflowX: "auto",
+    maxWidth: "100%",
+    paddingBottom: "4px",
+  },
+  tab: {
+    padding: "10px 20px",
+    borderRadius: "12px",
+    fontSize: "13px",
+    fontWeight: "700",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    transition: "all 0.25s ease",
+  },
+  quizList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: "18px",
+    border: "1px solid #E2E8F0",
+    padding: "22px 26px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "16px",
+    boxShadow: "0 4px 20px -4px rgba(0, 0, 0, 0.03)",
+  },
+  cardLeft: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "18px",
+    flex: 1,
+    minWidth: "280px",
+  },
+  statusIconPending: {
+    width: "48px",
+    height: "48px",
+    backgroundColor: "#FEF3C7",
+    color: "#D97706",
+    borderRadius: "14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
+    flexShrink: 0,
+  },
+  statusIconDone: {
+    width: "48px",
+    height: "48px",
+    backgroundColor: "#D1FAE5",
+    color: "#059669",
+    borderRadius: "14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
+    flexShrink: 0,
+  },
+  tagSubject: {
+    fontSize: "11px",
+    fontWeight: "800",
+    color: "#4F46E5",
+    textTransform: "uppercase",
+    letterSpacing: "0.8px",
+    marginBottom: "4px",
+  },
+  quizTitle: {
+    fontSize: "17px",
+    fontWeight: "800",
+    color: "#0F172A",
+    margin: "0 0 6px 0",
+  },
+  quizMetaInfo: {
+    display: "flex",
+    gap: "10px",
+    fontSize: "12px",
+    color: "#64748B",
+    fontWeight: "600",
+    marginBottom: "8px",
+  },
+  prizeBadge: {
+    fontSize: "12px",
+    color: "#0D9488",
+    backgroundColor: "#F0FDFA",
+    border: "1px solid #CCFBF1",
+    padding: "4px 10px",
+    borderRadius: "8px",
+    display: "inline-block",
+    fontWeight: "500",
+  },
+  cardRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+  },
+  startButton: {
+    backgroundColor: "#0F172A",
+    color: "#FFFFFF",
+    border: "none",
+    padding: "12px 24px",
+    borderRadius: "12px",
+    fontSize: "13px",
+    fontWeight: "700",
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
+    transition: "background 0.2s ease, transform 0.2s ease",
+  },
+  scoreBlock: {
+    textAlign: "right",
+  },
+  scoreValue: {
+    fontSize: "20px",
+    fontWeight: "800",
+    color: "#059669",
+  },
+  gradeBadge: {
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#64748B",
+    textTransform: "uppercase",
+  },
+  cardFooter: {
+    width: "100%",
+    borderTop: "1px solid #F1F5F9",
+    marginTop: "14px",
+    paddingTop: "14px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "10px",
+  },
+  feedbackText: {
+    fontSize: "12px",
+    color: "#059669",
+    fontWeight: "700",
+  },
+  footerActionGroup: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+  certificateButton: {
+    backgroundColor: "#059669",
+    color: "#FFFFFF",
+    border: "none",
+    padding: "7px 14px",
+    borderRadius: "8px",
+    fontSize: "12px",
+    fontWeight: "700",
+    cursor: "pointer",
+  },
+  reviewButton: {
+    background: "none",
+    border: "none",
+    color: "#4F46E5",
+    fontSize: "13px",
+    fontWeight: "700",
+    cursor: "pointer",
+    padding: 0,
+  },
+  emptyState: {
+    textAlign: "center",
+    padding: "70px 20px",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "18px",
+    border: "1px solid #E2E8F0",
+    boxShadow: "0 4px 20px -4px rgba(0, 0, 0, 0.03)",
+  },
+  center: {
+    height: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+  },
+  spinnerIcon: {
+    width: "40px",
+    height: "40px",
+    border: "4px solid #E2E8F0",
+    borderTop: "4px solid #4F46E5",
+    borderRadius: "50%",
+  }
 };
 
 export default StudentQuizDashboard;

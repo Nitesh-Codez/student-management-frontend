@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -66,7 +66,7 @@ const AttemptQuizPage = () => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const res = await axios.post(`${API_URL}/api/quiz/submit`, {
+      const res = await api.post(`/api/quiz/submit`, {
         student_id: studentId,
         quiz_id: id,
         answers: finalAnswers,
@@ -85,7 +85,7 @@ const AttemptQuizPage = () => {
   // --- INITIAL DATA FETCH ---
   useEffect(() => {
     document.body.style.backgroundColor = "#46a805"; 
-    axios.get(`${API_URL}/api/quiz/${id}`).then((res) => {
+    api.get(`/api/quiz/${id}`).then((res) => {
       const quizData = res.data;
       setQuiz(quizData);
       const q = typeof quizData.questions === 'string' ? JSON.parse(quizData.questions) : quizData.questions;

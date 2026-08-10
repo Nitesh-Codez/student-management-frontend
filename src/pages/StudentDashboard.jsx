@@ -102,7 +102,7 @@ const NotificationModal = ({ isOpen, onClose, notifications, navigate }) => (
   </AnimatePresence>
 );
 
-const PhotoModal = ({ isOpen, user, onClose }) => (
+const PhotoModal = ({ isOpen, user, onClose, navigate }) => (
   <AnimatePresence>
     {isOpen && (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={overlayStyle} onClick={onClose}>
@@ -120,6 +120,22 @@ const PhotoModal = ({ isOpen, user, onClose }) => (
                    <span style={infoBadge}><FaGraduationCap /> Class: {user.class}</span>
                 </div>
                 <p style={modalQuotes}>"Education is the premise of progress, in every society, in every family."</p>
+                <Link 
+                  to="profile" 
+                  onClick={onClose} 
+                  style={{
+                    display: 'block',
+                    textAlign: 'center',
+                    margin: '0 0 10px 0',
+                    color: '#5f84c4',
+                    textDecoration: 'none',
+                    fontWeight: '300',
+                    fontSize: '15px',
+                   transition: 'all 1.2s ease'
+                  }}
+                >
+                  View Profile
+                </Link>
                 <button onClick={onClose} style={modalDoneBtn}>Close View</button>
             </div>
           </div>
@@ -128,6 +144,7 @@ const PhotoModal = ({ isOpen, user, onClose }) => (
     )}
   </AnimatePresence>
 );
+
 
 const FeePopup = ({ isOpen, onClose, amount }) => {
   const handlePayNow = () => {
@@ -943,15 +960,16 @@ try {
          </div>
         <div style={profileTrigger} onClick={() => setIsPhotoOpen(true)}>
           <div style={{
-  width: '55px', // Overall size thoda badha diya taaki avatar properly visible ho
+  width: '55px', 
   height: '55px', 
-  padding: '1.5px', // Padding kam karne se inner circle bada ho gaya
+  padding: '1.5px', 
   background: 'linear-gradient(135deg, #220047, #2575fc)', 
   borderRadius: '50%', 
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   boxShadow: '0 0 12px rgba(215, 171, 255, 0.4)', 
+  
 }}>
   <img 
     src={user.photo || "/default-profile.png"} 

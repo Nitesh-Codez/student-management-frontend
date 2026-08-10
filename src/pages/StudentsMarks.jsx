@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { Line } from "react-chartjs-2";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -87,7 +87,7 @@ const StudentMarks = () => {
   const autoFetchAndSyncMarks = (currentLocalMarks) => {
     if (!userRef.current?.id) return;
 
-    axios.post(`${API_URL}/api/marks/check`, {
+    api.post(`/api/marks/check`, {
       studentId: userRef.current.id,
       studentName: userRef.current.name,
       session: userRef.current.session 
@@ -179,8 +179,8 @@ const StudentMarks = () => {
     setIsFetching(true); 
     setMessage("Connecting to live database...");
 
-    axios
-      .post(`${API_URL}/api/marks/check`, {
+    api
+      .post(`/api/marks/check`, {
         studentId: userRef.current.id,
         studentName: userRef.current.name,
         session: userRef.current.session,

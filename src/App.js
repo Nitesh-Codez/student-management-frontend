@@ -44,7 +44,6 @@ import StudentQuizDashboard from "./pages/StudentQuizDashboard";
 import AttemptQuizPage from "./pages/AttemptQuizPage";
 import QuizReview from './pages/QuizReview';
 import RegisterationStudent from "./pages/RegisterationStudent";
-
 import StudentResult from "./pages/Results_details/StudentResult";
 import ViewResults from "./pages/Results_details/ViewResults";
 
