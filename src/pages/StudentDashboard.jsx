@@ -9,7 +9,7 @@ import {
   FaCheckCircle, FaBookOpen
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
+import api from "../services/api";
 
 // Sub-Components
 import StudentAttendance from "./StudentAttendance";
@@ -35,8 +35,6 @@ import StudentDropApply from "./StudentDropApply";
 import ExamForm from "./Examination/ExamForm";
 import GenerateAdmitCard from "./Examination/GenerateAdmitCard";
 import ExaminationResult from "./Examination/ExaminationResult";
-
-const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const theme = {
   gradients: {
@@ -178,11 +176,11 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [headTeacher, setHeadTeacher] = useState(null);
   useEffect(() => {
-  axios
-    .get("https://student-management-system-4-hose.onrender.com/api/teachers/admin/teachers")
+  api
+    .get(`/api/teachers/admin/teachers`)
     .then((res) => {
       if (res.data.length > 0) {
-        setHeadTeacher(res.data[1]); // first teacher = head
+        setHeadTeacher(res.data[2]); // first teacher = head
       }
     })
     .catch((err) => console.log(err));
@@ -215,7 +213,7 @@ const fetchAttendance = useCallback(async () => {
   if (!user?.id) return;
 
   try {
-    const res = await axios.get(`${API_URL}/api/attendance/${user.id}`);
+    const res = await api.get(`/api/attendance/${user.id}`);
 
     if (res.data.success) {
       const data = res.data.attendance;
@@ -285,9 +283,9 @@ useEffect(() => {
   try {
     const date = selectedDate.toISOString().split("T")[0];
 
-    const res = await axios.get(
-      `${API_URL}/api/teacher-assignments/student/${user.class}/${date}`
-    );
+    const res = await api.get(
+  `/api/teacher-assignments/student/${user.class}/${date}`
+);
 
     if (res.data.success) {
       setTodayClasses(res.data.assignments);
@@ -594,8 +592,8 @@ useEffect(() => {
       cls.profile_photo 
       ? (cls.profile_photo.startsWith('http') 
           ? cls.profile_photo 
-          : `https://student-management-system-4-hose.onrender.com/${cls.profile_photo}`)
-      : `https://ui-avatars.com/api/?name=${cls.teacher_name || 'T'}&background=6366f1&color=fff`
+          : "https://student-management-system-4-hose.onrender.com/${cls.profile_photo}")
+      : "https://ui-avatars.com/api/?name=${cls.teacher_name || 'T'}&background=6366f1&color=fff"
     } 
     alt="Teacher" 
     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -799,12 +797,12 @@ const StudentDashboard = () => {
        
   
 
-        const photoRes = await axios.get(`${API_URL}/api/students/${storedUser.id}/profile-photo`);
+        const photoRes = await api.get(`/api/students/${storedUser.id}/profile-photo`)
         if (photoRes.data.success && photoRes.data.user?.profile_photo) {
           setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
         }
 
-        const taskRes = await axios.get(`${API_URL}/api/assignments/class/${storedUser.class}/${storedUser.id}`);
+        const taskRes = await api.get(`/api/assignments/class/${storedUser.class}/${storedUser.id}`);
         if (taskRes.data.success) {
            const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED");
            setPendingTasks(pending.length);
@@ -819,7 +817,7 @@ const StudentDashboard = () => {
 
 try {
   // ✅ API CALL
-  const feeRes = await axios.get(`${API_URL}/api/fees/student/${storedUser.id}`);
+  const feeRes = await api.get(`/api/fees/student/${storedUser.id}`);
 
   // Initial State Reset
   setIsFeeUnpaid(false);
@@ -904,7 +902,7 @@ try {
 }
 
 
-        const marksRes = await axios.post(`${API_URL}/api/marks/check`, { studentId: storedUser.id, studentName: storedUser.name });
+        const marksRes = await api.post("/api/marks/check", { studentId: storedUser.id, studentName: storedUser.name });
         if (marksRes.data.success && marksRes.data.data.length > 0) {
           const savedMarksData = JSON.parse(localStorage.getItem("userMarks")) || {};
           const localMarks = savedMarksData[storedUser.id] || [];

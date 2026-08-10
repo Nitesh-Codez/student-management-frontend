@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import axios from "axios";
+import api from "../services/api";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { 
@@ -33,10 +33,7 @@ const StudentDropApply = () => {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // --- Constants ---
-  const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
-  
-  // Safe user identification lookup
+  // Safe user identification lookup from localStorage
   const getStoredUser = () => {
     try {
       return JSON.parse(localStorage.getItem("user") || "{}");
@@ -44,8 +41,9 @@ const StudentDropApply = () => {
       return {};
     }
   };
+
   const user = getStoredUser();
-  const currentStudentId = user?.id || 1; // Fallback or active student ID
+  const currentStudentId = user?.id || user?.student_id || 1;
 
   // --- Helpers ---
   const handleResize = () => setWindowWidth(window.innerWidth);
@@ -67,29 +65,35 @@ const StudentDropApply = () => {
     document.body.appendChild(script);
   }, []);
 
-  // --- Data & Profile Fetching via exact API ---
+  // --- Data & Profile Fetching ---
   const fetchStudentProfileAndDrops = useCallback(async () => {
-    if (!currentStudentId) return;
     try {
-      // Fetch exact profile details using your requested API route
-      const profileRes = await axios.get(`${API_URL}/api/students/profile`, {
-        params: { id: currentStudentId }
-      });
-      if (profileRes.data.success || profileRes.data.student) {
-        setProfile(profileRes.data.student || profileRes.data.data);
+      // 1. Fetch Student Profile
+      try {
+        const profileRes = await api.get("/api/students/profile", {
+          params: { id: currentStudentId }
+        });
+        if (profileRes.data?.success || profileRes.data?.student || profileRes.data?.data) {
+          setProfile(profileRes.data.student || profileRes.data.data || profileRes.data);
+        }
+      } catch (profileErr) {
+        console.warn("Profile fetch warning (using local user fallback):", profileErr.message);
+        setProfile(user);
       }
 
-      // Fetch leave applications
-      const dropRes = await axios.get(`${API_URL}/api/drop/my-drop-requests`, {
+      // 2. Fetch Drop / Leave Requests (Correct full backend URL path via api instance)
+      const dropRes = await api.get("/api/drop/my-drop-requests", {
         params: { student_id: currentStudentId }
       });
-      if (dropRes.data.success) {
-        setPreviousDrops(dropRes.data.data || []);
+      
+      if (dropRes.data?.success || Array.isArray(dropRes.data?.data) || Array.isArray(dropRes.data)) {
+        const list = dropRes.data.data || dropRes.data.requests || dropRes.data;
+        setPreviousDrops(Array.isArray(list) ? list : []);
       }
     } catch (err) {
-      console.error("Error loading portal data:", err);
+      console.error("Error loading portal data:", err.response?.data || err.message);
     }
-  }, [API_URL, currentStudentId]);
+  }, [currentStudentId, user]);
 
   useEffect(() => {
     fetchStudentProfileAndDrops();
@@ -104,20 +108,23 @@ const StudentDropApply = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/drop/apply-drop`, {
+      // Correct full backend URL path via api instance
+      const res = await api.post("/api/drop/apply-drop", {
         student_id: currentStudentId,
         ...formData
       });
-      if (res.data.success) {
+
+      if (res.data?.success) {
         setIsSubmitted(true);
         fetchStudentProfileAndDrops();
         setFormData({ start_date: "", end_date: "", reason: "", drop_type: "" });
         triggerConfetti();
       } else {
-        alert(res.data.message || "Submission failed.");
+        alert(res.data?.message || "Submission failed.");
       }
     } catch (err) {
-      alert("Submission failed. Please check network connection.");
+      console.error("Submit error:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Submission failed. Please check network connection.");
     } finally {
       setLoading(false);
     }
@@ -131,7 +138,7 @@ const StudentDropApply = () => {
     setShowPreviewModal(true);
   };
 
-  // --- Confirmed PDF Generator with Full Image Support ---
+  // --- PDF Generator ---
   const confirmAndDownloadPDF = async () => {
     if (!selectedRecordForPreview) return;
     setIsGeneratingPdf(true);
@@ -185,13 +192,12 @@ const StudentDropApply = () => {
     return { total, approved, pending, rejected };
   }, [previousDrops]);
 
-  // Resolved student image source
   const studentPhoto = profile?.photo_url || profile?.avatar || profile?.image || user?.photo_url || "";
   const studentName = profile?.name || user?.name || "Student Portal User";
   const studentPhone = profile?.phone || profile?.mobile || user?.phone || "Not Provided";
   const studentClass = profile?.class || profile?.batch || "Standard / Batch";
 
-  // --- Professional High-Tech Light Theme Styles ---
+  // --- Professional Emerald & Slate Light Theme Styles (Horizontally Structured Layout) ---
   const styles = {
     wrapper: {
       minHeight: "100vh",
@@ -202,24 +208,24 @@ const StudentDropApply = () => {
       boxSizing: "border-box"
     },
     hero: {
-      background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-      padding: "36px 20px 48px",
+      background: "linear-gradient(135deg, #065f46 0%, #047857 50%, #064e3b 100%)",
+      padding: "40px 20px 56px",
       textAlign: "center",
       color: "#ffffff",
-      boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.25)",
+      boxShadow: "0 10px 25px -5px rgba(6, 95, 70, 0.2)",
       width: "100%",
       boxSizing: "border-box"
     },
     container: {
-      maxWidth: "1280px",
-      margin: "-30px auto 0",
+      maxWidth: "1400px",
+      margin: "-32px auto 0",
       padding: "0 20px",
       position: "relative",
       zIndex: 10
     },
-    grid: {
+    horizontalRow: {
       display: "grid",
-      gridTemplateColumns: windowWidth > 1024 ? "1fr 1.25fr" : "1fr",
+      gridTemplateColumns: windowWidth > 1100 ? "1fr 1.2fr" : "1fr",
       gap: "24px",
       alignItems: "start"
     },
@@ -231,7 +237,7 @@ const StudentDropApply = () => {
       border: "1px solid #e2e8f0"
     },
     formGroup: {
-      marginBottom: "20px",
+      marginBottom: "18px",
       display: "flex",
       flexDirection: "column"
     },
@@ -261,14 +267,14 @@ const StudentDropApply = () => {
     btnPrimary: {
       width: "100%",
       padding: "14px",
-      background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+      background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
       color: "#fff",
       border: "none",
       borderRadius: "12px",
       fontSize: "1rem",
       fontWeight: "600",
       cursor: "pointer",
-      boxShadow: "0 4px 12px rgba(37, 99, 235, 0.25)",
+      boxShadow: "0 4px 12px rgba(5, 150, 105, 0.25)",
       transition: "all 0.2s ease"
     },
     statsRow: {
@@ -298,7 +304,7 @@ const StudentDropApply = () => {
       letterSpacing: "0.3px"
     },
     historyItem: (status) => {
-      const colors = { approved: "#10b981", rejected: "#ef4444", pending: "#f59e0b" };
+      const colors = { approved: "#059669", rejected: "#dc2626", pending: "#d97706" };
       return {
         background: "#ffffff",
         borderRadius: "14px",
@@ -329,8 +335,8 @@ const StudentDropApply = () => {
     <div style={styles.wrapper}>
       <style>
         {`
-          .input-focus:focus { border-color: #2563eb !important; background: #ffffff !important; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
-          .btn-hover:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35); }
+          .input-focus:focus { border-color: #059669 !important; background: #ffffff !important; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12); }
+          .btn-hover:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35); }
           .history-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.05); border-color: #94a3b8; }
           ::-webkit-scrollbar { width: 6px; }
           ::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -347,251 +353,248 @@ const StudentDropApply = () => {
         <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.85)" }}>Manage academic leaves, check application status, and print secure digital certificates.</p>
       </header>
 
-      {/* Main Container Grid */}
+      {/* Main Container Horizontally Structured Layout */}
       <div style={styles.container}>
-        <main style={styles.grid}>
+        <div style={styles.horizontalRow}>
           
           {/* SECTION 1: Leave Application Form */}
-          <section>
-            <div style={styles.card}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "22px" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>
-                  <FaPaperPlane />
+          <div style={styles.card}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "22px" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>
+                <FaPaperPlane />
+              </div>
+              <div>
+                <h2 style={{ fontSize: "1.2rem", margin: 0, color: "#0f172a", fontWeight: "700" }}>Apply for Leave</h2>
+                <p style={{ fontSize: "0.78rem", margin: "2px 0 0 0", color: "#64748b" }}>Submit holiday or drop requests directly to administration</p>
+              </div>
+            </div>
+
+            {/* Student Identity Card Preview */}
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "12px 16px", borderRadius: "14px", marginBottom: "20px" }}>
+              {studentPhoto ? (
+                <img 
+                  src={studentPhoto} 
+                  alt="Student" 
+                  crossOrigin="anonymous"
+                  style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid #059669", flexShrink: 0 }} 
+                />
+              ) : (
+                <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>
+                  <FaUserCircle />
                 </div>
-                <div>
-                  <h2 style={{ fontSize: "1.2rem", margin: 0, color: "#0f172a", fontWeight: "700" }}>Apply for Leave</h2>
-                  <p style={{ fontSize: "0.78rem", margin: "2px 0 0 0", color: "#64748b" }}>Submit holiday or drop requests directly to administration</p>
+              )}
+              <div style={{ overflow: "hidden" }}>
+                <p style={{ margin: 0, fontWeight: "700", fontSize: "0.95rem", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{studentName}</p>
+                <div style={{ display: "flex", gap: "12px", marginTop: "3px", fontSize: "0.75rem", color: "#64748b" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><FaIdCard /> ID: {currentStudentId}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><FaPhoneAlt /> {studentPhone}</span>
                 </div>
               </div>
+            </div>
 
-              {/* Student Identity Card Preview */}
-              <div style={{ display: "flex", alignItems: "center", gap: "14px", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "12px 16px", borderRadius: "14px", marginBottom: "20px" }}>
-                {studentPhoto ? (
-                  <img 
-                    src={studentPhoto} 
-                    alt="Student" 
-                    crossOrigin="anonymous"
-                    style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid #2563eb", flexShrink: 0 }} 
-                  />
-                ) : (
-                  <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#dbeafe", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>
-                    <FaUserCircle />
-                  </div>
-                )}
-                <div style={{ overflow: "hidden" }}>
-                  <p style={{ margin: 0, fontWeight: "700", fontSize: "0.95rem", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{studentName}</p>
-                  <div style={{ display: "flex", gap: "12px", marginTop: "3px", fontSize: "0.75rem", color: "#64748b" }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><FaIdCard /> ID: {currentStudentId}</span>
-                    <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><FaPhoneAlt /> {studentPhone}</span>
-                  </div>
+            {!isSubmitted ? (
+              <form onSubmit={handleSubmit}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}><FaRegCalendarCheck /> Application Category</label>
+                  <select 
+                    name="drop_type" 
+                    className="input-focus" 
+                    style={styles.input} 
+                    value={formData.drop_type}
+                    onChange={handleChange} 
+                    required
+                  >
+                    <option value="">Select leave category...</option>
+                    <option value="temporary">Temporary Holiday</option>
+                    <option value="1_day">1 Day Leave</option>
+                    <option value="permanent">Permanent Drop</option>
+                    <option value="emergency">Emergency Medical Leave</option>
+                  </select>
                 </div>
-              </div>
 
-              {!isSubmitted ? (
-                <form onSubmit={handleSubmit}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
                   <div style={styles.formGroup}>
-                    <label style={styles.label}><FaRegCalendarCheck /> Application Category</label>
-                    <select 
-                      name="drop_type" 
+                    <label style={styles.label}><FaCalendarAlt /> Start Date</label>
+                    <input 
+                      type="date" 
+                      name="start_date" 
                       className="input-focus" 
                       style={styles.input} 
-                      value={formData.drop_type}
-                      onChange={handleChange} 
-                      required
-                    >
-                      <option value="">Select leave category...</option>
-                      <option value="temporary">Temporary Holiday</option>
-                      <option value="1_day">1 Day Leave</option>
-                      <option value="permanent">Permanent Drop</option>
-                      <option value="emergency">Emergency Medical Leave</option>
-                    </select>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}><FaCalendarAlt /> Start Date</label>
-                      <input 
-                        type="date" 
-                        name="start_date" 
-                        className="input-focus" 
-                        style={styles.input} 
-                        value={formData.start_date}
-                        onChange={handleChange} 
-                        required 
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}><FaCalendarAlt /> End Date</label>
-                      <input 
-                        type="date" 
-                        name="end_date" 
-                        className="input-focus" 
-                        style={styles.input} 
-                        value={formData.end_date}
-                        onChange={handleChange} 
-                        required 
-                      />
-                    </div>
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}><FaExclamationCircle /> Detailed Reason</label>
-                    <textarea 
-                      name="reason" 
-                      className="input-focus" 
-                      style={{ ...styles.input, height: "100px", resize: "none" }} 
-                      placeholder="Explain the reason clearly for review..." 
-                      value={formData.reason}
+                      value={formData.start_date}
                       onChange={handleChange} 
                       required 
                     />
                   </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}><FaCalendarAlt /> End Date</label>
+                    <input 
+                      type="date" 
+                      name="end_date" 
+                      className="input-focus" 
+                      style={styles.input} 
+                      value={formData.end_date}
+                      onChange={handleChange} 
+                      required 
+                    />
+                  </div>
+                </div>
 
-                  <button type="submit" className="btn-hover" style={styles.btnPrimary} disabled={loading}>
-                    {loading ? "Submitting Application..." : "Submit Leave Application"}
-                  </button>
-                </form>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}><FaExclamationCircle /> Detailed Reason</label>
+                  <textarea 
+                    name="reason" 
+                    className="input-focus" 
+                    style={{ ...styles.input, height: "90px", resize: "none" }} 
+                    placeholder="Explain the reason clearly for review..." 
+                    value={formData.reason}
+                    onChange={handleChange} 
+                    required 
+                  />
+                </div>
+
+                <button type="submit" className="btn-hover" style={styles.btnPrimary} disabled={loading}>
+                  {loading ? "Submitting Application..." : "Submit Leave Application"}
+                </button>
+              </form>
+            ) : (
+              <div style={{ textAlign: "center", padding: "40px 10px" }}>
+                <div style={{ fontSize: "48px", marginBottom: "12px" }}>🎉</div>
+                <h3 style={{ color: "#047857", marginBottom: "6px", fontSize: "1.25rem" }}>Application Submitted!</h3>
+                <p style={{ color: "#64748b", marginBottom: "20px", fontSize: "0.88rem" }}>Your application has been recorded successfully.</p>
+                <button 
+                  onClick={() => setIsSubmitted(false)} 
+                  style={{ ...styles.btnPrimary, width: "auto", padding: "10px 24px", background: "#475569" }}
+                >
+                  Submit Another Request
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 2: Records Tracker & PDF Certificates */}
+          <div style={styles.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "#f0fdf4", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>
+                  <FaHistory />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "1.2rem", margin: 0, color: "#0f172a", fontWeight: "700" }}>Leave History & Tracker</h2>
+                  <p style={{ fontSize: "0.78rem", margin: "2px 0 0 0", color: "#64748b" }}>Track status & export official Letters </p>
+                </div>
+              </div>
+              <button 
+                onClick={fetchStudentProfileAndDrops} 
+                style={{ background: "#f8fafc", border: "1px solid #cbd5e1", color: "#475569", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", fontWeight: "600" }}
+              >
+                <FaSyncAlt /> Refresh
+              </button>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div style={styles.statsRow}>
+              <div style={styles.statBox}>
+                <div style={styles.statVal}>{stats.total}</div>
+                <div style={styles.statLab}>Total</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={{ ...styles.statVal, color: "#059669" }}>{stats.approved}</div>
+                <div style={styles.statLab}>Approved</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={{ ...styles.statVal, color: "#d97706" }}>{stats.pending}</div>
+                <div style={styles.statLab}>Pending</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={{ ...styles.statVal, color: "#dc2626" }}>{stats.rejected}</div>
+                <div style={styles.statLab}>Rejected</div>
+              </div>
+            </div>
+
+            {/* Search & Filter Controls */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "10px", marginBottom: "16px" }}>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <FaSearch style={{ position: "absolute", left: "14px", color: "#94a3b8", fontSize: "12px" }} />
+                <input 
+                  type="text" 
+                  placeholder="Search requests..." 
+                  className="input-focus"
+                  style={{ ...styles.input, paddingLeft: "36px", paddingTop: "10px", paddingBottom: "10px", fontSize: "0.85rem" }}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <select 
+                style={{ ...styles.input, width: "auto", padding: "10px 12px", fontSize: "0.85rem" }}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+
+            {/* History List */}
+            <div style={{ maxHeight: "390px", overflowY: "auto", paddingRight: "4px" }}>
+              {filteredDrops.length > 0 ? (
+                filteredDrops.map((item) => (
+                  <div key={item.id} className="history-card" style={styles.historyItem(item.status)}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <span style={{ fontWeight: "700", color: "#0f172a", fontSize: "0.88rem" }}>
+                        {item.drop_type?.replace("_", " ").toUpperCase()}
+                      </span>
+                      <span style={styles.statusBadge(item.status)}>
+                        {item.status === "approved" && <FaCheckCircle />}
+                        {item.status === "rejected" && <FaTimesCircle />}
+                        {item.status === "pending" && <FaClock />}
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "14px", fontSize: "0.78rem", color: "#64748b", marginBottom: "8px" }}>
+                      <span>📅 <b>From:</b> {formatDate(item.start_date)}</span>
+                      <span>📅 <b>To:</b> {formatDate(item.end_date)}</span>
+                    </div>
+
+                    <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", fontSize: "0.82rem", color: "#334155", border: "1px solid #e2e8f0", marginBottom: "10px" }}>
+                      "{item.reason}"
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "6px", borderTop: "1px solid #f1f5f9" }}>
+                      <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Ref ID:{item.id}</span>
+                      <button 
+                        onClick={() => handleOpenPreview(item)}
+                        style={{
+                          background: "#ecfdf5",
+                          border: "1px solid #a7f3d0",
+                          color: "#047857",
+                          padding: "6px 12px",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          fontSize: "0.75rem",
+                          fontWeight: "600",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px"
+                        }}
+                      >
+                        <FaEye /> View & Download
+                      </button>
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div style={{ textAlign: "center", padding: "40px 10px" }}>
-                  <div style={{ fontSize: "48px", marginBottom: "12px" }}>🎉</div>
-                  <h3 style={{ color: "#047857", marginBottom: "6px", fontSize: "1.25rem" }}>Application Submitted!</h3>
-                  <p style={{ color: "#64748b", marginBottom: "20px", fontSize: "0.88rem" }}>Your application has been recorded successfully.</p>
-                  <button 
-                    onClick={() => setIsSubmitted(false)} 
-                    style={{ ...styles.btnPrimary, width: "auto", padding: "10px 24px", background: "#475569" }}
-                  >
-                    Submit Another Request
-                  </button>
+                <div style={{ textAlign: "center", padding: "50px 0", color: "#94a3b8" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "8px" }}>📂</div>
+                  <p style={{ margin: 0, fontSize: "0.85rem" }}>No matching records found.</p>
                 </div>
               )}
             </div>
-          </section>
+          </div>
 
-          {/* SECTION 2: Records Tracker & PDF Certificates */}
-          <section>
-            <div style={styles.card}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "#f0fdf4", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>
-                    <FaHistory />
-                  </div>
-                  <div>
-                    <h2 style={{ fontSize: "1.2rem", margin: 0, color: "#0f172a", fontWeight: "700" }}>Leave History & Tracker</h2>
-                    <p style={{ fontSize: "0.78rem", margin: "2px 0 0 0", color: "#64748b" }}>Track status & export official certificates</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={fetchStudentProfileAndDrops} 
-                  style={{ background: "#f8fafc", border: "1px solid #cbd5e1", color: "#475569", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", fontWeight: "600" }}
-                >
-                  <FaSyncAlt /> Refresh
-                </button>
-              </div>
-
-              {/* Quick Stats Grid */}
-              <div style={styles.statsRow}>
-                <div style={styles.statBox}>
-                  <div style={styles.statVal}>{stats.total}</div>
-                  <div style={styles.statLab}>Total</div>
-                </div>
-                <div style={styles.statBox}>
-                  <div style={{ ...styles.statVal, color: "#059669" }}>{stats.approved}</div>
-                  <div style={styles.statLab}>Approved</div>
-                </div>
-                <div style={styles.statBox}>
-                  <div style={{ ...styles.statVal, color: "#d97706" }}>{stats.pending}</div>
-                  <div style={styles.statLab}>Pending</div>
-                </div>
-                <div style={styles.statBox}>
-                  <div style={{ ...styles.statVal, color: "#dc2626" }}>{stats.rejected}</div>
-                  <div style={styles.statLab}>Rejected</div>
-                </div>
-              </div>
-
-              {/* Search & Filter Controls */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "10px", marginBottom: "16px" }}>
-                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                  <FaSearch style={{ position: "absolute", left: "14px", color: "#94a3b8", fontSize: "12px" }} />
-                  <input 
-                    type="text" 
-                    placeholder="Search requests..." 
-                    className="input-focus"
-                    style={{ ...styles.input, paddingLeft: "36px", paddingTop: "10px", paddingBottom: "10px", fontSize: "0.85rem" }}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <select 
-                  style={{ ...styles.input, width: "auto", padding: "10px 12px", fontSize: "0.85rem" }}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="all">All Status</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-
-              {/* History List */}
-              <div style={{ maxHeight: "410px", overflowY: "auto", paddingRight: "4px" }}>
-                {filteredDrops.length > 0 ? (
-                  filteredDrops.map((item) => (
-                    <div key={item.id} className="history-card" style={styles.historyItem(item.status)}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                        <span style={{ fontWeight: "700", color: "#0f172a", fontSize: "0.88rem" }}>
-                          {item.drop_type?.replace("_", " ").toUpperCase()}
-                        </span>
-                        <span style={styles.statusBadge(item.status)}>
-                          {item.status === "approved" && <FaCheckCircle />}
-                          {item.status === "rejected" && <FaTimesCircle />}
-                          {item.status === "pending" && <FaClock />}
-                          {item.status}
-                        </span>
-                      </div>
-
-                      <div style={{ display: "flex", gap: "14px", fontSize: "0.78rem", color: "#64748b", marginBottom: "8px" }}>
-                        <span>📅 <b>From:</b> {formatDate(item.start_date)}</span>
-                        <span>📅 <b>To:</b> {formatDate(item.end_date)}</span>
-                      </div>
-
-                      <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", fontSize: "0.82rem", color: "#334155", border: "1px solid #e2e8f0", marginBottom: "10px" }}>
-                        "{item.reason}"
-                      </div>
-
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "6px", borderTop: "1px solid #f1f5f9" }}>
-                        <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Ref ID: SZ-LV-{item.id}</span>
-                        <button 
-                          onClick={() => handleOpenPreview(item)}
-                          style={{
-                            background: "#eff6ff",
-                            border: "1px solid #bfdbfe",
-                            color: "#1d4ed8",
-                            padding: "6px 12px",
-                            borderRadius: "8px",
-                            cursor: "pointer",
-                            fontSize: "0.75rem",
-                            fontWeight: "600",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "5px"
-                          }}
-                        >
-                          <FaEye /> View & Download
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ textAlign: "center", padding: "50px 0", color: "#94a3b8" }}>
-                    <div style={{ fontSize: "32px", marginBottom: "8px" }}>📂</div>
-                    <p style={{ margin: 0, fontSize: "0.85rem" }}>No matching records found.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        </main>
+        </div>
       </div>
 
       {/* MODAL: LIVE PREVIEW BEFORE CONFIRMATION */}
@@ -601,7 +604,7 @@ const StudentDropApply = () => {
             
             {/* Modal Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
-              <h3 style={{ margin: 0, fontSize: "0.95rem", color: "#0f172a", fontWeight: "700" }}>Leave Certificate Preview</h3>
+              <h3 style={{ margin: 0, fontSize: "0.95rem", color: "#0f172a", fontWeight: "700" }}>Leave Letter Preview</h3>
               <button onClick={() => setShowPreviewModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "16px", color: "#64748b" }}>
                 <FaTimes />
               </button>
@@ -611,29 +614,29 @@ const StudentDropApply = () => {
             <div style={{ padding: "24px", overflowY: "auto", flex: 1, background: "#f1f5f9" }}>
               <div style={{ display: "flex", justifyContent: "center" }}>
                 
-                {/* Visible Preview Box matching PDF format */}
-                <div style={{ width: "100%", maxWidth: "540px", background: "#ffffff", color: "#0f172a", padding: "28px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", border: "1px solid #cbd5e1" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2563eb", paddingBottom: "14px", marginBottom: "14px" }}>
+                {/* Target ID container for html2canvas PDF generation */}
+                <div id={`pdf-invoice-${selectedRecordForPreview.id}`} style={{ width: "100%", maxWidth: "540px", background: "#ffffff", color: "#0f172a", padding: "28px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", border: "1px solid #cbd5e1" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #059669", paddingBottom: "14px", marginBottom: "14px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                       {studentPhoto ? (
                         <img 
                           src={studentPhoto} 
                           alt="Student" 
                           crossOrigin="anonymous"
-                          style={{ width: "50px", height: "50px", borderRadius: "8px", objectFit: "cover", border: "2px solid #2563eb" }} 
+                          style={{ width: "50px", height: "50px", borderRadius: "8px", objectFit: "cover", border: "2px solid #059669" }} 
                         />
                       ) : (
-                        <div style={{ width: "50px", height: "50px", borderRadius: "8px", background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>
+                        <div style={{ width: "50px", height: "50px", borderRadius: "8px", background: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>
                           <FaUserCircle />
                         </div>
                       )}
                       <div>
-                        <h4 style={{ margin: 0, color: "#2563eb", fontSize: "15px" }}>SmartZone Academy</h4>
-                        <p style={{ margin: "2px 0 0 0", color: "#64748b", fontSize: "10px" }}>Official Leave & Drop Verification Certificate</p>
+                        <h4 style={{ margin: 0, color: "#059669", fontSize: "15px" }}>Smart Studnet's Leave Application Portal </h4>
+                        <p style={{ margin: "2px 0 0 0", color: "#64748b", fontSize: "10px" }}>Official Leave & Drop Verification Letter </p>
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <p style={{ margin: 0, fontWeight: "bold", fontSize: "11px" }}>Ref: SZ-LV-{selectedRecordForPreview.id}</p>
+                      <p style={{ margin: 0, fontWeight: "bold", fontSize: "11px" }}>Ref:{selectedRecordForPreview.id}</p>
                       <p style={{ margin: "2px 0 0 0", color: "#64748b", fontSize: "9px" }}>Date: {new Date().toLocaleDateString()}</p>
                     </div>
                   </div>
@@ -659,7 +662,7 @@ const StudentDropApply = () => {
                   <div style={{ marginTop: "18px", paddingTop: "10px", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <p style={{ fontSize: "8px", color: "#94a3b8", margin: 0 }}>SmartZone Secure Management System.</p>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontWeight: "bold", fontSize: "10px", color: "#2563eb" }}>Nitesh Kushwah</div>
+                      <div style={{ fontWeight: "bold", fontSize: "10px", color: "#059669" }}>Nitesh Kushwah</div>
                       <div style={{ fontSize: "8px", color: "#64748b" }}>Authorized Signatory</div>
                     </div>
                   </div>
@@ -679,9 +682,22 @@ const StudentDropApply = () => {
               <button 
                 onClick={confirmAndDownloadPDF}
                 disabled={isGeneratingPdf}
-                style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "#2563eb", color: "#ffffff", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}
+                style={{ 
+                  padding: "10px 20px", 
+                  borderRadius: "8px", 
+                  border: "none", 
+                  background: isGeneratingPdf ? "#94a3b8" : "linear-gradient(135deg, #059669 0%, #047857 100%)", 
+                  color: "#ffffff", 
+                  fontWeight: "600", 
+                  cursor: isGeneratingPdf ? "not-allowed" : "pointer", 
+                  fontSize: "0.85rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 4px 12px rgba(5, 150, 105, 0.25)"
+                }}
               >
-                <FaDownload /> {isGeneratingPdf ? "Downloading..." : "Confirm & Download PDF"}
+                <FaDownload /> {isGeneratingPdf ? "Generating PDF..." : "Confirm & Download PDF"}
               </button>
             </div>
 
@@ -689,66 +705,6 @@ const StudentDropApply = () => {
         </div>
       )}
 
-      {/* HIDDEN TEMPLATE FOR OFF-SCREEN PDF EXPORT RENDERING WITH EXACT DETAILS */}
-      {selectedRecordForPreview && (
-        <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
-          <div 
-            id={`pdf-invoice-${selectedRecordForPreview.id}`} 
-            style={{ width: "600px", background: "#ffffff", color: "#0f172a", padding: "40px", fontFamily: "Arial, sans-serif" }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2563eb", paddingBottom: "20px", marginBottom: "20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-                {studentPhoto ? (
-                  <img 
-                    src={studentPhoto} 
-                    alt="Student" 
-                    crossOrigin="anonymous"
-                    style={{ width: "65px", height: "65px", borderRadius: "10px", objectFit: "cover", border: "2px solid #2563eb" }} 
-                  />
-                ) : (
-                  <div style={{ width: "65px", height: "65px", borderRadius: "10px", background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>
-                    <FaUserCircle />
-                  </div>
-                )}
-                <div>
-                  <h1 style={{ margin: 0, color: "#2563eb", fontSize: "18px" }}>SmartZone Academy</h1>
-                  <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "11px" }}>Official Leave & Drop Verification Certificate</p>
-                </div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p style={{ margin: 0, fontWeight: "bold", fontSize: "12px" }}>Receipt ID: SZ-LV-{selectedRecordForPreview.id}</p>
-                <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "10px" }}>Date: {new Date().toLocaleDateString()}</p>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: "20px", background: "#f8fafc", padding: "12px 16px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-              <h3 style={{ fontSize: "11px", color: "#475569", textTransform: "uppercase", borderBottom: "1px solid #cbd5e1", paddingBottom: "4px", margin: "0 0 8px 0" }}>Student Complete Details</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "11px" }}>
-                <p style={{ margin: 0 }}><b>Name:</b> {studentName}</p>
-                <p style={{ margin: 0 }}><b>Student ID No:</b> {currentStudentId}</p>
-                <p style={{ margin: 0 }}><b>Class / Batch:</b> {studentClass}</p>
-                <p style={{ margin: 0 }}><b>Contact No:</b> {studentPhone}</p>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: "20px", fontSize: "11px" }}>
-              <h3 style={{ fontSize: "11px", color: "#475569", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0", paddingBottom: "4px", margin: "0 0 8px 0" }}>Leave Specifications</h3>
-              <p style={{ margin: "5px 0" }}><b>Leave Type:</b> {selectedRecordForPreview.drop_type?.replace("_", " ").toUpperCase()}</p>
-              <p style={{ margin: "5px 0" }}><b>Duration:</b> {formatDate(selectedRecordForPreview.start_date)} to {formatDate(selectedRecordForPreview.end_date)}</p>
-              <p style={{ margin: "5px 0" }}><b>Status:</b> <span style={{ textTransform: "uppercase", fontWeight: "bold", color: selectedRecordForPreview.status === "approved" ? "#059669" : "#d97706" }}>{selectedRecordForPreview.status}</span></p>
-              <p style={{ margin: "5px 0" }}><b>Reason:</b> {selectedRecordForPreview.reason}</p>
-            </div>
-
-            <div style={{ marginTop: "30px", paddingTop: "15px", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <p style={{ fontSize: "9px", color: "#94a3b8", margin: 0 }}>System-generated secure receipt from SmartZone Management System.</p>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontWeight: "bold", fontSize: "11px", color: "#2563eb" }}>Nitesh Kushwah</div>
-                <div style={{ fontSize: "9px", color: "#64748b" }}>Authorized Signatory (SmartZone Admin)</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

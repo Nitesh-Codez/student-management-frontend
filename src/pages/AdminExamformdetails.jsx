@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/api"
 import { FaSearch, FaCheckCircle, FaTimesCircle, FaClock, FaUserGraduate, FaFileAlt, FaExclamationTriangle } from "react-icons/fa";
 
 const AdminExamFormDetails = () => {
@@ -22,7 +22,7 @@ const AdminExamFormDetails = () => {
       setError(null);
 
       // Fetching from your specified API endpoint
-      const response = await axios.get(`${API_URL}/api/exam/admin/total-submissions`);
+      const response = await api.get(`${API_URL}/api/exam/admin/total-submissions`);
       
       if (response.data && response.data.success) {
         setTotalCount(response.data.total_submissions || 0);

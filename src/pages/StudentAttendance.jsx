@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
+import api from "../services/api"; // Moved to the top-level imports
 
 const StudentAttendance = () => {
   const user = JSON.parse(localStorage.getItem("user"));
-  const API_URL = "https://student-management-system-4-hose.onrender.com";
 
   const [attendance, setAttendance] = useState([]);
   const [month, setMonth] = useState("");
@@ -36,37 +36,41 @@ const StudentAttendance = () => {
     return colors.absent;
   };
 
+  // 1. Corrected API Call for Student Attendance
   useEffect(() => {
-    if (!user) return;
-    fetch(`${API_URL}/api/attendance/${user.id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setAttendance(data.attendance);
+    if (!user || !user.id) return;
+    
+    // Axios automatically applies headers via interceptor and parses JSON in res.data
+    api.get(`/api/attendance/${user.id}`)
+      .then((res) => {
+        if (res.data.success) {
+          setAttendance(res.data.attendance);
+        }
       })
       .catch((err) => console.log("Fetch error:", err));
-  }, [user, API_URL]);
+  }, [user?.id]); // Safely depend on user ID
 
   useEffect(() => {
     const today = new Date();
     setMonth(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
   }, []);
 
-  // Fetch cumulative attendance average from backend
+  // 2. Corrected API Call for Cumulative Attendance Marks using your new Router endpoint
   useEffect(() => {
-    if (!user) return;
+    if (!user || !user.id) return;
 
-    fetch(
-        `${API_URL}/api/new-marks/attendance/current-marks?studentId=${user.id}`
-    )
-    .then(res => res.json())
-    .then(data => {
-        if(data.success){
-            setFinalAverageMarks(data.attendanceMarks);
-        }
+    // Using the clean new endpoint from your backend routing
+    api.get(`/api/attendance/attendance-marks`, {
+      params: { studentId: user.id }
     })
-    .catch(console.error);
+      .then((res) => {
+        if (res.data.success) {
+          setFinalAverageMarks(res.data.attendanceMarks);
+        }
+      })
+      .catch(console.error);
 
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!month) return;

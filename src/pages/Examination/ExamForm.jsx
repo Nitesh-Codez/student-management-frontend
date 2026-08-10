@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../services/api";
 import { FaGraduationCap, FaPrint, FaCheckCircle, FaLock, FaSync, FaUserAlt, FaFilePdf, FaEdit, FaPlusCircle, FaExclamationTriangle } from "react-icons/fa";
 
-const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
+
 
 const ExamForm = () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -51,8 +51,8 @@ const ExamForm = () => {
 
     try {
       const [profileRes, examRes] = await Promise.all([
-        axios.get(`${API_URL}/api/students/profile?id=${user.id}`),
-        axios.get(`${API_URL}/api/students/my-exam-details`, {
+        api.get(`/api/students/profile?id=${user.id}`),
+        api.get(`/api/students/my-exam-details`, {
           params: { student_id: user.id, exam_type: examType } 
         }).catch(() => ({ data: { success: false } }))
       ]);
@@ -95,7 +95,7 @@ const ExamForm = () => {
     if (!window.confirm(`Finalize ${examType} registration? Once submitted, it will be locked for the ${academicSession} session.`)) return;
     
     try {
-      const response = await axios.post(`${API_URL}/api/students/finalize-exam`, {
+      const response = await api.post(`/api/students/finalize-exam`, {
         student_id: user.id, 
         student_name: profile?.name || user.name,
         student_class: profile?.class || user.class,
