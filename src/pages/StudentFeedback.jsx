@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaCheckCircle, FaStar, FaPaperPlane, FaLock, FaChevronLeft, FaChevronRight, FaCrown, FaClipboardList, FaHourglassHalf } from "react-icons/fa";
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const questions = [
   { question: "How do you feel about Bhaiya’s behavior with students and the way he supports and motivates you during the class?", options: ["Excellent", "Good", "Average", "Not Good"] },
@@ -45,7 +44,7 @@ export default function StudentFeedback({ studentId }) {
       setTargetDate({ month: displayMonth, num: submitMonth, year: submitYear });
 
       try {
-        const res = await axios.get(`${API_URL}/api/feedback/student/${studentId}`);
+        const res = await api.get(`/api/feedback/student/${studentId}`);
         const alreadyDone = res.data.feedbacks?.some(f => f.month === submitMonth && f.year === submitYear);
         if (alreadyDone) setSubmitted(true);
       } catch (err) { console.error(err); } finally { setLoading(false); }
@@ -67,7 +66,7 @@ export default function StudentFeedback({ studentId }) {
 
   const handleSubmit = async () => {
     try {
-      await axios.post(`${API_URL}/api/feedback/student/submit`, {
+      await api.post(`/api/feedback/student/submit`, {
         student_id: studentId, month: targetDate.num, year: targetDate.year,
         mcqAnswers, suggestion, problem, rating
       });

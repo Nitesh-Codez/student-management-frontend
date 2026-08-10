@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
-
-const API_URL = "https://student-management-system-4-hose.onrender.com";
+import api from "../services/api";
 
 const AdminAddNewMarks = () => {
   const subjectsByClass = {
@@ -44,7 +42,7 @@ const AdminAddNewMarks = () => {
 
   // Fetch Classes
   useEffect(() => {
-    axios.get(`${API_URL}/api/new-marks/classes`)
+    api.get(`/api/new-marks/classes`)
       .then(res => {
         if (res.data.success) {
           const rawClasses = res.data.classes.map(c => {
@@ -109,7 +107,7 @@ const AdminAddNewMarks = () => {
           activeClasses.map(async (cls) => {
             try {
               let apiClass = cls === "11th" ? "11" : cls;
-              const res = await axios.get(`${API_URL}/api/new-marks/students/${apiClass}`);
+              const res = await api.get(`/api/new-marks/students/${apiClass}`);
               if (res.data.success) {
                 const mapped = res.data.students.map(s => ({ ...s, className: cls }));
                 allStudents = [...allStudents, ...mapped];
@@ -138,8 +136,8 @@ const AdminAddNewMarks = () => {
           list.map(async student => {
             try {
               // 1. Attendance marks fetch karo
-              const attRes = await axios.get(
-                `${API_URL}/api/new-marks/attendance/current-marks`,
+              const attRes = await api.get(
+                `/api/new-marks/attendance/current-marks`,
                 { params: { studentId: student.studentId } }
               );
 
@@ -149,7 +147,7 @@ const AdminAddNewMarks = () => {
 
               // 2. Exact controller schema check logic for existing rows matching date
               if (subject && examType && testDate) {
-                const existingMarksRes = await axios.post(`${API_URL}/api/new-marks/check`, {
+                const existingMarksRes = await api.post(`/api/new-marks/check`, {
                   studentId: student.studentId,
                   studentName: student.name
                 });
@@ -251,7 +249,7 @@ const AdminAddNewMarks = () => {
         date: testDate
       };
 
-      const res = await axios.post(`${API_URL}/api/new-marks/add`, payload);
+      const res = await api.post(`/api/new-marks/add`, payload);
 
       if (res.data.success || res.status === 200) {
         const updatedData = [...marksData];

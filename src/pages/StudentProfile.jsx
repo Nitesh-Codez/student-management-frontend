@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const StudentProfile = () => {
   const [profile, setProfile] = useState({});
@@ -30,8 +29,8 @@ const StudentProfile = () => {
   const fetchData = async (userId) => {
     try {
       const [profileRes, allReqRes] = await Promise.all([
-        axios.get(`${API_URL}/api/students/profile?id=${userId}`),
-        axios.get(`${API_URL}/api/students/edit-requests?id=${userId}`)
+        api.get(`/api/students/profile?id=${userId}`),
+        api.get(`/api/students/edit-requests?id=${userId}`)
       ]);
 
       if (profileRes.data.success) {
@@ -69,7 +68,7 @@ const StudentProfile = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const res = await axios.put(`${API_URL}/api/students/update/${profile.id}`, profile);
+      const res = await api.put(`/api/students/update/${profile.id}`, profile);
       if(res.data.success) {
         setPopup("Profile saved successfully ✅");
         setIsEditing(false);

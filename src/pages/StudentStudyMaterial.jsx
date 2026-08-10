@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   FaFilePdf, FaDownload, FaTimes, 
@@ -7,7 +7,7 @@ import {
 } from "react-icons/fa";
 
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
+
 
 const subjectThemes = {
   Math: { grad: "linear-gradient(135deg, #FF6B6B 0%, #EE5253 100%)", light: "#FFF0F0" },
@@ -28,7 +28,7 @@ const StudentStudyMaterial = () => {
 
   useEffect(() => {
     setLoading(true);
-    axios.get(`${API_URL}/api/study-material/${studentClass}`)
+    api.get(`/api/study-material/${studentClass}`)
       .then(res => res.data.success && setMaterials(res.data.materials))
       .catch(err => console.error(err))
       .finally(() => setLoading(false));

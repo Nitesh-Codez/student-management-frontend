@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { motion } from "framer-motion";
 import { 
   FaStar, FaRegStar, FaSearch, FaMicrophone, 
@@ -29,7 +29,7 @@ const AdminFeedback = () => {
   const fetchFeedbacks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(API_URL);
+      const res = await api.get(API_URL);
       setFeedbacks(res.data.feedbacks || []);
     } catch (err) {
       console.error("Database Synchronization Failed");

@@ -214,7 +214,7 @@ const FeesDetails = () => {
       doc.text("Digitally Signed, Approved & Authorized By:", 14, finalY + 18);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(26, 35, 126);
-      doc.text("SMART STUDENT CLASSES - ERP ADMINISTRATION", 14, finalY + 24);
+      doc.text("SMART STUDENT CLASSES -ADMINISTRATION", 14, finalY + 24);
       
       // Digital Signature Line Graphics
       doc.setDrawColor(26, 35, 126);

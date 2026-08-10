@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
-
-const API_URL = process.env.REACT_APP_API_URL || "";
 
 // Custom batch mapping (IDs with specific batch)
 const customBatchMap = {
@@ -68,13 +66,13 @@ const MarkAttendance = () => {
     setSummaryData(null);
 
     try {
-      const bannedRes = await axios.get(`${API_URL}/api/auth/banned-students`).catch(() => ({ data: { success: false, students: [] } }));
+      const bannedRes = await api.get(`/api/auth/banned-students`).catch(() => ({ data: { success: false, students: [] } }));
       const bannedList = bannedRes?.data?.success ? (bannedRes.data.students || []) : [];
       
       const bannedIds = new Set(bannedList.map(b => String(b.id || b.studentId)));
       const bannedNames = new Set(bannedList.map(b => (b.name || "").trim().toLowerCase()));
 
-      const res = await axios.get(`${API_URL}/api/attendance/list?date=${date}`);
+      const res = await api.get(`/api/attendance/list?date=${date}`);
       if (res?.data?.success) {
         let list = (res.data.students || [])
           .filter((s) => {
@@ -177,7 +175,7 @@ const MarkAttendance = () => {
     const totalHoliday = batchStudents.filter((s) => (attendance[s.id] || "Absent") === "Holiday").length;
 
     try {
-      await axios.post(`${API_URL}/api/attendance/mark`, {
+      await api.post(`/api/attendance/mark`, {
         date: selectedDate,
         attendance: attendanceData,
       });
@@ -218,7 +216,6 @@ const MarkAttendance = () => {
         parseInt(s.class, 10) >= 6)
   );
 
-  // Combined totals for both batches
   const totalCombinedStudents = students.length;
   const totalCombinedPresent = students.filter((s) => (attendance[s.id] || "Absent") === "Present").length;
   const totalCombinedAbsent = students.filter((s) => (attendance[s.id] || "Absent") === "Absent").length;
@@ -299,10 +296,10 @@ const MarkAttendance = () => {
                       style={{
                         backgroundColor:
                           status === "Present"
-                            ? "#50eca6" 
+                            ? "#5bd57b" 
                             : status === "Absent"
                             ? "#f8b8b8" 
-                            : "#ccf0b2", 
+                            : "#d1f0bb", 
                       }}
                     >
                       <td style={{ fontWeight: "600", color: "#4b5563" }}>#{s.id}</td>
@@ -437,7 +434,6 @@ const MarkAttendance = () => {
             {isFirstTime ? (selectedDate === getFormattedDate() ? "⚡ Mark Today's Attendance Now" : "📂 Mark Attendance") : "✏️ Edit Attendance"}
           </button>
 
-          {/* Combined Overview Stats placed directly under the Edit / Mark button */}
           {!loading && students.length > 0 && (
             <div className="overview-combined-card">
               <h4>📋 Combined Batches Overview ({selectedDate})</h4>

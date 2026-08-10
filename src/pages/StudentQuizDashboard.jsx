@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 
 const StudentQuizDashboard = () => {
   const navigate = useNavigate();
-  const API_URL = "https://student-management-system-4-hose.onrender.com";
+
 
   // User session details
   const user = JSON.parse(localStorage.getItem("user"));
@@ -61,12 +61,12 @@ const StudentQuizDashboard = () => {
     const fetchQuizzes = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${API_URL}/api/quiz/class/${userClass}`, {
+        const res = await api.get(`/api/quiz/class/${userClass}`, {
           params: { session: userSession, stream: userStream }
         });
 
         const statusRequests = res.data.map((quiz) =>
-          axios.get(`${API_URL}/api/quiz/status/${quiz.id}/${studentId}`)
+          api.get(`/api/quiz/status/${quiz.id}/${studentId}`)
         );
 
         const statusResults = await Promise.all(statusRequests);

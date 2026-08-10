@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import "../App.css";
 
 export default function Bannedform() {
-  const API_URL =
-    process.env.REACT_APP_API_URL ||
-    "https://student-management-system-4-hose.onrender.com";
+  
 
   const classes = [
     "L.K.G", "U.K.G", "1st", "2nd", "3rd", "4th",
@@ -17,7 +15,7 @@ export default function Bannedform() {
   const [students, setStudents] = useState([]);
   const [bannedStudents, setBannedStudents] = useState([]);
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("success"); // 'success' or 'error'
+  const [messageType, setMessageType] = useState("success");
 
   const [formData, setFormData] = useState({
     id: "",
@@ -26,6 +24,17 @@ export default function Bannedform() {
     reason: ""
   });
 
+  // Helper function to get authorization headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+        "Content-Type": "application/json",
+      },
+    };
+  };
+
   useEffect(() => {
     fetchStudents();
     fetchBannedStudents();
@@ -33,23 +42,32 @@ export default function Bannedform() {
 
   const fetchStudents = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/students`);
-      if (res.data.success) {
-        setAllStudents(res.data.students);
-      }
+      const res = await api.get(`/api/students`, getAuthHeaders());
+      console.log("Students API Response:", res.data);
+      
+      const studentData = Array.isArray(res.data) 
+        ? res.data 
+        : (res.data.students || res.data.data || []);
+        
+      setAllStudents(studentData);
     } catch (err) {
-      console.log(err);
+      console.log("Error fetching students:", err);
+      showNotification("Failed to load students list", "error");
     }
   };
 
   const fetchBannedStudents = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/auth/banned-students`);
-      if (res.data.success) {
-        setBannedStudents(res.data.students);
-      }
+      const res = await api.get(`/api/auth/banned-students`, getAuthHeaders());
+      console.log("Banned Students API Response:", res.data);
+
+      const bannedData = Array.isArray(res.data) 
+        ? res.data 
+        : (res.data.students || res.data.data || []);
+
+      setBannedStudents(bannedData);
     } catch (err) {
-      console.log(err);
+      console.log("Error fetching banned students:", err);
     }
   };
 
@@ -65,7 +83,12 @@ export default function Bannedform() {
     const { name, value } = e.target;
 
     if (name === "class") {
-      const filtered = allStudents.filter(s => s.class === value);
+      const filtered = allStudents.filter(s => {
+        const studentClass = String(s.class || s.className || "").trim().toLowerCase();
+        const selectedClass = String(value).trim().toLowerCase();
+        return studentClass === selectedClass;
+      });
+
       setStudents(filtered);
       setFormData({
         class: value,
@@ -74,11 +97,11 @@ export default function Bannedform() {
         reason: ""
       });
     } else if (name === "id") {
-      const student = students.find(s => String(s.id) === value);
+      const student = students.find(s => String(s.id || s._id) === String(value));
       setFormData(prev => ({
         ...prev,
         id: value,
-        name: student ? student.name : ""
+        name: student ? (student.name || student.studentName) : ""
       }));
     } else {
       setFormData(prev => ({
@@ -96,13 +119,18 @@ export default function Bannedform() {
     }
 
     try {
-      const res = await axios.post(`${API_URL}/api/auth/ban`, {
-        name: formData.name,
-        className: formData.class,
-        reason: formData.reason
-      });
+      const res = await api.post(
+        `/api/auth/ban`, 
+        {
+          studentId: formData.id,
+          name: formData.name,
+          className: formData.class,
+          reason: formData.reason
+        },
+        getAuthHeaders()
+      );
 
-      if (res.data.success) {
+      if (res.data.success || res.status === 200) {
         showNotification("Student suspended successfully", "success");
         setFormData({
           id: "",
@@ -114,24 +142,29 @@ export default function Bannedform() {
         fetchBannedStudents();
       }
     } catch (err) {
-      console.log(err);
-      showNotification("Failed to suspend student", "error");
+      console.log("Ban error:", err);
+      showNotification(err.response?.data?.message || "Failed to suspend student", "error");
     }
   };
 
   const handleUnban = async (student) => {
     try {
-      const res = await axios.post(`${API_URL}/api/auth/unban`, {
-        name: student.name,
-        className: student.class
-      });
+      const res = await api.post(
+        `/api/auth/unban`, 
+        {
+          studentId: student.id || student._id,
+          name: student.name,
+          className: student.class || student.className
+        },
+        getAuthHeaders()
+      );
 
-      if (res.data.success) {
+      if (res.data.success || res.status === 200) {
         showNotification("Student reinstated successfully", "success");
         fetchBannedStudents();
       }
     } catch (err) {
-      console.log(err);
+      console.log("Unban error:", err);
       showNotification("Failed to unban student", "error");
     }
   };
@@ -168,9 +201,13 @@ export default function Bannedform() {
               <label>Select Student</label>
               <select name="id" value={formData.id} onChange={handleChange} required disabled={!formData.class}>
                 <option value="">-- Choose Student --</option>
-                {students.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                {students.map(s => {
+                  const sId = s.id || s._id;
+                  const sName = s.name || s.studentName;
+                  return (
+                    <option key={sId} value={sId}>{sName}</option>
+                  );
+                })}
               </select>
             </div>
 
@@ -200,7 +237,7 @@ export default function Bannedform() {
             <button type="submit" className="btn-suspend">
               Suspend Student Access
             </button>
-            <p style={{fontSize:'25px'}}> You can copy the reason : Your Account suspended by Tuition teacher. Contact him.</p>
+            <p style={{fontSize:'20px', marginTop:'12px'}}> You can copy the reason : Your Account suspended by Tuition teacher. Contact him.</p>
           </form>
         </div>
 
@@ -217,12 +254,12 @@ export default function Bannedform() {
                 <p>No students currently suspended. All clear! 🎉</p>
               </div>
             ) : (
-              bannedStudents.map(student => (
-                <div key={student.id || student.name} className="banned-student-item">
+              bannedStudents.map((student, idx) => (
+                <div key={student.id || student._id || idx} className="banned-student-item">
                   <div className="student-info">
                     <h3>{student.name}</h3>
                     <div className="student-meta">
-                      <span className="class-badge">Class: {student.class}</span>
+                      <span className="class-badge">Class: {student.class || student.className}</span>
                     </div>
                     <p className="ban-reason">
                       <strong>Reason:</strong> {student.ban_reason || student.reason}

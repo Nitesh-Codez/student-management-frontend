@@ -1,65 +1,75 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Crown, Award, ShieldCheck, Zap } from 'lucide-react';
+import api from '../services/api';
 
 export default function StudentPerformanceTree() {
   const [levels, setLevels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCrown, setShowCrown] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const API_URL =
-          process.env.REACT_APP_API_URL ||
-          'https://student-management-system-4-hose.onrender.com';
-
-        const session = localStorage.getItem('session') || '2026-27';
-
-        const response = await fetch(
-          `${API_URL}/api/student-stars/leaderboard?session=${encodeURIComponent(session)}`
-        );
-        const data = await response.json();
-
-        const students =
-          data.leaderboard ||
-          data.students ||
-          (Array.isArray(data) ? data : []);
-
-        // Sort students: highest stars at the top
-        const sortedStudents = [...students].sort(
-          (a, b) => (b.stars || 0) - (a.stars || 0)
-        );
-
-        // Group students by star count (hierarchy levels)
-        const starGroups = {};
-        sortedStudents.forEach((student) => {
-          const s = student.stars || 0;
-          if (!starGroups[s]) starGroups[s] = [];
-          starGroups[s].push(student);
-        });
-
-        // Convert groups into an array sorted by highest stars first
-        const groupedLevels = Object.keys(starGroups)
-          .sort((a, b) => Number(b) - Number(a))
-          .map((starsKey) => starGroups[starsKey]);
-
-        setLevels(groupedLevels);
-        setLoading(false);
-
-        const timer = setTimeout(() => {
-          setShowCrown(true);
-        }, 800);
-
-        return () => clearTimeout(timer);
-      } catch (err) {
-        console.error('Error fetching tree data:', err);
-        setLoading(false);
-      }
+  // Helper function to get authorization headers if needed by api service
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+      },
     };
+  };
 
-    fetchData();
+  const fetchData = useCallback(async () => {
+    try {
+      const session = localStorage.getItem('session') || '2026-27';
+
+      // Using configured custom api service instead of raw fetch
+      const response = await api.get(`/api/student-stars/leaderboard`, {
+        params: { session },
+        ...getAuthHeaders(),
+      });
+
+      const data = response.data;
+
+      const students =
+        data.leaderboard ||
+        data.students ||
+        (Array.isArray(data) ? data : []);
+
+      // Sort students: highest stars at the top
+      const sortedStudents = [...students].sort(
+        (a, b) => (b.stars || 0) - (a.stars || 0)
+      );
+
+      // Group students by star count (hierarchy levels)
+      const starGroups = {};
+      sortedStudents.forEach((student) => {
+        const s = student.stars || 0;
+        if (!starGroups[s]) starGroups[s] = [];
+        starGroups[s].push(student);
+      });
+
+      // Convert groups into an array sorted by highest stars first
+      const groupedLevels = Object.keys(starGroups)
+        .sort((a, b) => Number(b) - Number(a))
+        .map((starsKey) => starGroups[starsKey]);
+
+      setLevels(groupedLevels);
+      setLoading(false);
+
+      const timer = setTimeout(() => {
+        setShowCrown(true);
+      }, 800);
+
+      return () => clearTimeout(timer);
+    } catch (err) {
+      console.error('Error fetching tree data:', err);
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Helper function to assign performance tags and badge styles based on row index or star count
   const getPerformanceBadge = (levelIndex, totalLevels) => {
@@ -136,7 +146,6 @@ export default function StudentPerformanceTree() {
                 >
                   {levelStudents.map((student, idx) => {
                     const studentStars = student.stars || 0;
-                    // Generate an array based on star count to render individual real live stars inside the pot/box
                     const starItemsArray = Array.from({ length: studentStars });
 
                     return (
@@ -146,7 +155,7 @@ export default function StudentPerformanceTree() {
                         whileTap={{ scale: 0.95 }}
                         style={styles.profileCard}
                       >
-                        {/* Ultra Premium Glowing Crown with Multi-color Gems & Shading for Highest Holders */}
+                        {/* Ultra Premium Glowing Crown */}
                         {isHighestLevel && (
                           <AnimatePresence>
                             {showCrown && (
@@ -227,7 +236,7 @@ export default function StudentPerformanceTree() {
                           {student.class_name || 'Class N/A'}
                         </p>
 
-                        {/* Real Live Star Pot / Box attached to the profile card showing actual star icons */}
+                        {/* Star Vault Container */}
                         <div style={styles.starPotContainer}>
                           <div style={styles.starPotHeader}>
                             <Star style={{ width: '11px', height: '11px', color: '#ca8a04', fill: '#ca8a04' }} />
@@ -252,7 +261,7 @@ export default function StudentPerformanceTree() {
                           </div>
                         </div>
 
-                        {/* Performance Tag based on hierarchy position */}
+                        {/* Performance Tag */}
                         <div style={{ ...styles.performanceTag, backgroundColor: badgeInfo.bg, color: badgeInfo.color, borderColor: badgeInfo.border }}>
                           <BadgeIcon style={{ width: '12px', height: '12px' }} />
                           <span>{badgeInfo.label}</span>

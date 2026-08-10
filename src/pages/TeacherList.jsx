@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
 
 const TeacherList = () => {
@@ -14,8 +14,8 @@ const TeacherList = () => {
   // ================= Fetch teachers =================
   const fetchTeachers = async () => {
     try {
-      const res = await axios.get(
-        "https://student-management-system-4-hose.onrender.com/api/teachers/admin/teachers"
+      const res = await api.get(
+        "/api/teachers/admin/teachers"
       );
       setTeachers(res.data);
     } catch (err) {
@@ -34,8 +34,8 @@ const TeacherList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this teacher?")) return;
     try {
-      await axios.delete(
-        `https://student-management-system-4-hose.onrender.com/api/teachers/admin/teachers/${id}`
+      await api.delete(
+        `/api/teachers/admin/teachers/${id}`
       );
       alert("Teacher deleted ✅");
       fetchTeachers();
@@ -69,8 +69,8 @@ const TeacherList = () => {
     }
 
     try {
-      await axios.put(
-        `https://student-management-system-4-hose.onrender.com/api/teachers/admin/teachers/${selectedTeacher.id}`,
+      await api.put(
+        `/api/teachers/admin/teachers/${selectedTeacher.id}`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );

@@ -8,9 +8,8 @@ import {
 } from "react-icons/fa";
 
 
-import axios from "axios";
+import api from "../services/api";
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -38,7 +37,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/students/pending-edit-requests`);
+        const res = await api.get(`/api/students/pending-edit-requests`);
         setNotifications(res.data.requests || []);
       } catch (err) {
         console.error("Error fetching notifications:", err);
@@ -49,7 +48,7 @@ const AdminDashboard = () => {
 
   const handleApproveReject = async (id, status) => {
     try {
-      await axios.post(`${API_URL}/api/students/handle-edit`, {
+      await api.post(`/api/students/handle-edit`, {
         request_id: id,
         status,
         admin_id: 1 
