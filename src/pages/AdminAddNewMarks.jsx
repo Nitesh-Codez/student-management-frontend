@@ -101,6 +101,18 @@ const AdminAddNewMarks = () => {
 
     const fetchData = async () => {
       try {
+        // 🔒 Step 1: Fetch Banned Students list first
+        let bannedIds = new Set();
+        let bannedNames = new Set();
+        try {
+          const bannedRes = await api.get(`/api/auth/banned-students`).catch(() => ({ data: { success: false, students: [] } }));
+          const bannedList = bannedRes?.data?.success ? (bannedRes.data.students || []) : [];
+          bannedIds = new Set(bannedList.map(b => String(b.id || b.studentId)));
+          bannedNames = new Set(bannedList.map(b => (b.name || "").trim().toLowerCase()));
+        } catch (e) {
+          console.error("Error fetching banned list:", e);
+        }
+
         let allStudents = [];
 
         await Promise.all(
@@ -118,6 +130,13 @@ const AdminAddNewMarks = () => {
           })
         );
 
+        // 🔒 Step 2: Filter out banned students
+        allStudents = allStudents.filter(s => {
+          const sId = String(s.id);
+          const sName = (s.name || "").trim().toLowerCase();
+          return !bannedIds.has(sId) && !bannedNames.has(sName);
+        });
+
         allStudents.sort((a, b) => classOrder.indexOf(a.className) - classOrder.indexOf(b.className));
 
         let list = allStudents.map(s => ({
@@ -126,7 +145,7 @@ const AdminAddNewMarks = () => {
           className: s.className,
           theory: "",
           viva: "",
-          task: "", // 🔄 Sync complete structure with backend 'task' field
+          task: "", 
           attendance: 0,
           obtained: 0,
           isSaved: false 
@@ -153,7 +172,6 @@ const AdminAddNewMarks = () => {
                 });
 
                 if (existingMarksRes.data.success && existingMarksRes.data.data.length > 0) {
-                  // Apne backend controllers database columns response ke sath structure match karein (test_date & task)
                   const match = existingMarksRes.data.data.find(m => 
                     m.subject?.toUpperCase() === subject.toUpperCase() &&
                     m.exam_type?.toUpperCase() === examType.toUpperCase() &&
@@ -164,7 +182,7 @@ const AdminAddNewMarks = () => {
                   if (match) {
                     student.theory = match.theory_marks ?? "";
                     student.viva = match.viva_marks ?? "";
-                    student.task = match.task ?? ""; // 🔄 Fetching accurate key from controller
+                    student.task = match.task ?? ""; 
                     if (match.total_marks && !globalTotal) {
                       setGlobalTotal(match.total_marks); 
                     }
@@ -235,14 +253,13 @@ const AdminAddNewMarks = () => {
     }
 
     try {
-      // 🛠️ Payloads are perfectly synched to controller destructuring: (studentId, subject, theoryMarks, vivaMarks, attendanceMarks, task, totalMarks, examType, session, date)
       const payload = {
         studentId: s.studentId,
         subject: subject,
         theoryMarks: Number(!s.theory || s.attendance < 1 ? 0 : s.theory),
         vivaMarks: Number(!s.viva || s.attendance < 1 ? 0 : s.viva),
         attendanceMarks: Number(s.attendance),
-        task: Number(!s.task || s.attendance < 1 ? 0 : s.task), // 🔄 Named accurately to match backend controller object key
+        task: Number(!s.task || s.attendance < 1 ? 0 : s.task),
         totalMarks: Number(globalTotal),
         examType: examType,
         session: session,
