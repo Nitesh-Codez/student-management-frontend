@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes } from "react-icons/fa";
 
 const AdminQuizPage = () => {
-  const API_URL = "https://student-management-system-4-hose.onrender.com";
   
   const subjectsByClass = {
     "L.K.G": ["Hindi", "English", "Maths", "EVS", "Reading", "Test"],
@@ -53,7 +52,7 @@ const AdminQuizPage = () => {
     if (!className || !session) return alert("Select Class and Session!");
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/api/quiz/class/${className}`, {
+      const res = await api.get(`/api/quiz/class/${className}`, {
         params: { session, stream }
       });
       // Backend se direct questions array ke saath data aayega
@@ -67,7 +66,7 @@ const AdminQuizPage = () => {
     if (!window.confirm("Are you sure? All results will be deleted!")) return;
     try {
       setLoading(true);
-      await axios.delete(`${API_URL}/api/quiz/delete/${quizId}`);
+      await api.delete(`/api/quiz/delete/${quizId}`);
       alert("Quiz Deleted!");
       fetchQuizzesForAdmin(selectedClass, selectedSession, selectedStream);
     } catch (err) { alert("Delete failed!"); }
@@ -95,7 +94,7 @@ const AdminQuizPage = () => {
       setLoading(true);
       // Backend Update Loop (Single Question at a time based on your controller)
       for(let i=0; i<tempQuizData.length; i++) {
-        await axios.put(`${API_URL}/api/quiz/update/${quizId}/${i}`, tempQuizData[i]);
+        await api.put(`/api/quiz/update/${quizId}/${i}`, tempQuizData[i]);
       }
       alert("Updated Successfully!");
       setEditingQuizId(null);
@@ -111,7 +110,7 @@ const AdminQuizPage = () => {
     }
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/quiz/create`, quiz);
+      await api.post(`/api/quiz/create`, quiz);
       alert("Quiz Created!");
       setQuiz({ class_name: "", subject: "", session: "2025-26", stream: "", title: "", timer_minutes: 10, questions: [] });
       setActiveTab("edit");
@@ -124,7 +123,7 @@ const AdminQuizPage = () => {
     if (!className || !session) return alert("Select filters first!");
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/api/quiz/admin/results/${className}`, {
+      const res = await api.get(`/api/quiz/admin/results/${className}`, {
         params: { session, stream }
       });
       const grouped = res.data.reduce((acc, curr) => {

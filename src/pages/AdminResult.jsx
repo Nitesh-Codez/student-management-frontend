@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import  api from "../services/api";
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 export default function AdminResult() {
 
@@ -15,8 +14,8 @@ export default function AdminResult() {
 
   const fetchResults = async () => {
     try {
-      const r = await axios.get(`${API_URL}/api/results?term=${term}`);
-      const q = await axios.get(`${API_URL}/api/results/query`);
+      const r = await api.get(`/api/results?term=${term}`);
+      const q = await api.get(`/api/results/query`);
 
       setResults(r.data || []);
       setQueries(q.data || []);

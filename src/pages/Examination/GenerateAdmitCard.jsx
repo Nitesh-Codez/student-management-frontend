@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import axios from "axios";
+import  api from "../../services/api";
 import { useNavigate } from "react-router-dom";
 
-const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
+
 
 const GenerateAdmitCard = () => {
   const navigate = useNavigate();
@@ -23,8 +23,8 @@ const GenerateAdmitCard = () => {
     const loadData = async () => {
       try {
         const [profileRes, examRes] = await Promise.all([
-          axios.get(`${API_URL}/api/students/profile?id=${userRef.current.id}`),
-          axios.get(`${API_URL}/api/students/my-exam-details`, {
+          api.get(`/api/students/profile?id=${userRef.current.id}`),
+          api.get(`/api/students/my-exam-details`, {
             params: { student_id: userRef.current.id, exam_type: examType }
           }).catch(() => ({ data: { success: false } }))
         ]);

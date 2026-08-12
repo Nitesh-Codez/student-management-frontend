@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import api from "../../services/api";
 
 const ExaminationResult = () => {
   const [allMarks, setAllMarks] = useState([]); 
@@ -25,7 +25,6 @@ const ExaminationResult = () => {
   const ctxRef = useRef(null);
 
   const isAdmin = new URLSearchParams(window.location.search).get("admin") === "true";
-  const API_URL = process.env.REACT_APP_API_URL || "https://student-management-system-4-hose.onrender.com";
   const user = JSON.parse(localStorage.getItem("user"));
   const userRef = useRef(user);
 
@@ -65,14 +64,14 @@ const ExaminationResult = () => {
     if (savedPrincipalSign) setPrincipalSign(savedPrincipalSign);
 
     if (userRef.current?.id) {
-      axios.get(`${API_URL}/api/students/profile?id=${userRef.current.id}`)
+      api.get(`/api/students/profile?id=${userRef.current.id}`)
         .then(res => {
           if (res.data.success) setStudentInfo(res.data.student);
         })
         .catch(err => console.error("Profile API Error:", err));
     }
     generateCaptcha();
-  }, [API_URL]);
+  },[]);
 
   useEffect(() => {
     if (allMarks.length > 0) {
@@ -150,7 +149,7 @@ const ExaminationResult = () => {
       generateCaptcha();
       return;
     }
-    axios.post(`${API_URL}/api/new-marks/check`, {
+    api.post(`/api/new-marks/check`, {
       studentId: userRef.current.id,
       studentName: userRef.current.name,
     })

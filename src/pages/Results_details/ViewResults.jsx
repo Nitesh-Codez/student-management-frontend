@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import  api from "../../services/api";
 
 /**
  * SMART STUDENTS CLASSES - OFFICIAL RESULT PORTAL
  * Version: 5.1.0 (Strict Edge-to-Edge Layout)
  */
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
+
 
 export default function ViewResults() {
   // --- States ---
@@ -31,7 +31,7 @@ export default function ViewResults() {
           const classMatch = user.class?.match(/\d+/);
           setCurrentStudentClass(classMatch ? parseInt(classMatch[0]) : null);
 
-          const res = await axios.get(`${API_URL}/api/results/search`, {
+          const res = await api.get(`/api/results/search`, {
             params: { name: user.name }
           });
 

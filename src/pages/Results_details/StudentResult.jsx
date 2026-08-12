@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import axios from "axios";
+import api from "../../services/api";
 
 // Icons
 const HomeIcon = () => <span>🏠</span>;
@@ -7,7 +7,6 @@ const MsgIcon = () => <span>💬</span>;
 const UserIcon = () => <span>👤</span>;
 const MenuIcon = () => <span>☰</span>;
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
 
 const subjectsByClass = {
   "1st": ["Hindi", "English", "EVS", "Maths","Computer","GK","Drawing"],
@@ -76,7 +75,7 @@ export default function StudentResult() {
     if (stats.filledSubjectsCount === 0) return alert("Please enter marks for subjects");
 
     try {
-      await axios.post(`${API_URL}/api/results/add`, {
+      await api.post(`/api/results/add`, {
         student, 
         cls, 
         term, 
