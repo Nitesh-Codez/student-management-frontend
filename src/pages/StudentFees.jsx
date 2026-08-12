@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import api from "../services/api";
 import html2canvas from "html2canvas";
-import { FaLock, FaTimes, FaCheck, FaDownload, FaEye } from "react-icons/fa";
+import { FaLock, FaTimes, FaDownload, FaBook, FaCheckCircle, FaRupeeSign } from "react-icons/fa";
 
 const StudentFees = ({ user }) => {
   // --- App States ---
@@ -18,6 +18,24 @@ const StudentFees = ({ user }) => {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
   const [activePdfKey, setActivePdfKey] = useState(null);
+
+  // Official Fee Structure Mapping
+  const feeStructureMap = {
+    "LKG": { amount: 400, addOn: null },
+    "UKG": { amount: 400, addOn: null },
+    "1st": { amount: 500, addOn: null },
+    "2nd": { amount: 500, addOn: null },
+    "3rd": { amount: 500, addOn: null },
+    "4th": { amount: 600, addOn: null },
+    "5th": { amount: 600, addOn: "English Communication" },
+    "6th": { amount: 800, addOn: "English Communication" },
+    "7th": { amount: 800, addOn: "English Communication" },
+    "8th": { amount: 1000, addOn: "English Communication" },
+    "9th": { amount: 1100, addOn: null },
+    "10th": { amount: 1400, addOn: "English Communication" },
+    "11th": { amount: 1000, addOn: "Per Subject Rate" },
+    "12th": { amount: 1000, addOn: "Per Subject Rate" }
+  };
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -78,19 +96,22 @@ const StudentFees = ({ user }) => {
           setIsPending(res.data.showPopup);
           setIsNewStudent(res.data.isNewStudent);
 
-          if (currentSessionFees.length > 0) {
-            setDynamicFee(currentSessionFees[0].amount || "1000");
-          }
+          // Determine standard fee based on student class configuration
+          const studentClassKey = String(user?.class || "5th").trim();
+          const configuredFee = feeStructureMap[studentClassKey]?.amount || 
+            (currentSessionFees.length > 0 ? currentSessionFees[0].amount : 1000);
+
+          setDynamicFee(configuredFee);
         }
       } catch (err) {
         console.error("Fetch Error:", err);
       }
     };
     fetchFees();
-  }, [user?.id, user?.session]);
+  }, [user?.id, user?.session, user?.class]);
 
   const handlePayment = (mName) => {
-    const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartZone&am=${dynamicFee}&cu=INR&tn=Fees_For_${mName}`;
+    const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartStudentsClasses&am=${dynamicFee}&cu=INR&tn=Fees_For_${mName}_Class_${user?.class || ''}`;
     window.location.href = upiUrl;
   };
 
@@ -201,19 +222,27 @@ const StudentFees = ({ user }) => {
     setSelectedGroupForPdf(null);
   };
 
-  // --- ADMIN LOCK POPUP OVERLAY ---
+  // --- REAL ADMIN LOCK OVERLAY COMPONENT ---
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.modalCard}>
         <div style={styles.lockIconContainer}>
-          <FaLock style={{ color: "#ef4444", fontSize: "28px" }} />
+          <FaLock style={{ color: "#dc2626", fontSize: "28px" }} />
         </div>
         
-        <h2 style={styles.modalTitleText}>Access Locked by Admin</h2>
-        <p style={styles.modalSubText}>Smart Students Classes Security Terminal</p>
+        <h2 style={styles.modalTitleText}>Fee Section Locked</h2>
+        <p style={styles.modalSubText}>Smart Students Classes • Official Portal</p>
         
         <div style={styles.instructionBanner}>
-          You cannot view your fee details right now. The fee section has been temporarily locked by the admin (Nitesh Kushwah). Please contact the administration for further assistance.
+          You can see fee details later. The accounts ledger has been temporarily locked by administration (<b>Nitesh Kushwah</b>). Please contact the office for any fee verification.
+        </div>
+
+        <div style={styles.feeInfoSnippet}>
+          <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Standard Class Fee Structure</div>
+          <div style={{ fontSize: '14px', color: '#1e293b', fontWeight: 'bold', marginTop: '4px' }}>
+            Class {user?.class || "Standard"}: ₹{dynamicFee}/month 
+            {feeStructureMap[user?.class]?.addOn && ` + ${feeStructureMap[user?.class]?.addOn}`}
+          </div>
         </div>
 
         <div style={styles.modalActions}>
@@ -221,7 +250,7 @@ const StudentFees = ({ user }) => {
             style={styles.primaryButton} 
             onClick={() => window.history.back()}
           >
-            Go Back
+            Back to Dashboard
           </button>
         </div>
       </div>
@@ -249,13 +278,13 @@ const styles = {
     padding: "32px",
     borderRadius: "16px",
     width: "90%",
-    maxWidth: "420px",
+    maxWidth: "440px",
     textAlign: "center",
     boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)",
   },
   lockIconContainer: {
-    width: "60px",
-    height: "60px",
+    width: "64px",
+    height: "64px",
     borderRadius: "50%",
     background: "#fee2e2",
     display: "flex",
@@ -282,8 +311,16 @@ const styles = {
     fontSize: "14px",
     color: "#334155",
     lineHeight: "1.5",
-    marginBottom: "24px",
+    marginBottom: "16px",
     textAlign: "center",
+  },
+  feeInfoSnippet: {
+    background: "#eff6ff",
+    border: "1px solid #bfdbfe",
+    padding: "12px",
+    borderRadius: "8px",
+    marginBottom: "24px",
+    textAlign: "center"
   },
   modalActions: {
     display: "flex",

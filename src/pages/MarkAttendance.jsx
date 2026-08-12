@@ -35,27 +35,12 @@ const MarkAttendance = () => {
     );
   }
 
+  // Restrictions removed: Always allows editing for any date
   const isEditAllowed = (dateStr) => {
-    const selected = new Date(dateStr);
-    const today = new Date();
-    const diffDays = Math.floor((today - selected) / (1000 * 60 * 60 * 24));
-
-    if (diffDays > 5) return false;
-
-    if (diffDays === 0) {
-      const day = today.getDay();
-      if ((day === 0 || day === 6) && today.getHours() < 14) return false;
-      if (!(day === 0 || day === 6) && today.getHours() < 16) return false;
-    }
     return true;
   };
 
   const getInfoMessage = (dateStr) => {
-    const selected = new Date(dateStr);
-    const today = new Date();
-    const diffDays = Math.floor((today - selected) / (1000 * 60 * 60 * 24));
-    if (diffDays > 5) return "Attendance records older than 5 days cannot be edited.";
-    if (diffDays === 0 && today.getHours() < 16) return "Today's attendance can only be marked after 4:00 PM.";
     return "";
   };
 
@@ -114,7 +99,7 @@ const MarkAttendance = () => {
         setAttendance({});
         setIsFirstTime(true);
         setShowTable(false);
-        setEditAllowed(false);
+        setEditAllowed(true);
         setInfoMsg("No students found for this date.");
       }
     } catch (err) {
@@ -123,7 +108,7 @@ const MarkAttendance = () => {
       setAttendance({});
       setIsFirstTime(true);
       setShowTable(false);
-      setEditAllowed(false);
+      setEditAllowed(true);
       setInfoMsg("Error fetching students.");
     } finally {
       setLoading(false);
@@ -358,7 +343,7 @@ const MarkAttendance = () => {
         <h1>Smart Student Attendance Portal</h1>
         <p>
           Manage daily attendance seamlessly for your batches (4:00 PM and 5:30 PM). 
-          Today's attendance can be marked after 4:00 PM, and records can be updated for up to the past 5 days. 
+          Attendance can now be marked or updated for any date freely without restrictions. 
           Suspended or banned students are automatically filtered out.
         </p>
       </div>
@@ -393,7 +378,6 @@ const MarkAttendance = () => {
             id="att-date"
             type="date"
             value={selectedDate}
-            max={getFormattedDate()}
             onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>
