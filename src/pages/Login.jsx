@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FaShieldAlt } from "react-icons/fa";
@@ -87,9 +87,9 @@ const Login = () => {
     localStorage.clear(); 
     if (token) localStorage.setItem("token", token);
     
-    // Yahan "role" aur "userRole" dono save kar rahe hain taaki koi confusion na ho
     localStorage.setItem("role", user.role); 
     localStorage.setItem("userRole", user.role); 
+    localStorage.setItem("loginTime", new Date().getTime()); 
     
     localStorage.setItem("user", JSON.stringify(user));
     localStorage.setItem("studentName", user.name);
@@ -107,7 +107,6 @@ const Login = () => {
     }
   };
 
-  // --- Responsive Coordinate Calculation ---
   const getDotCenter = (index) => {
     const padding = 35; 
     const effectiveSize = GRID_SIZE - (padding * 2);
@@ -122,10 +121,8 @@ const Login = () => {
     };
   };
 
-  // Hit detection: If it's the very first dot, use a larger radius (easier to start anywhere nearby). 
-  // For subsequent dots, use normal stricter threshold.
   const getDotIndexFromPoint = (x, y, isFirstDotSelection) => {
-    const radiusThreshold = isFirstDotSelection ? 50 : 25; 
+    const radiusThreshold = isFirstDotSelection ? 45 : 30; 
     for (let i = 0; i < DOT_COUNT; i++) {
       const center = getDotCenter(i);
       const dist = Math.sqrt(Math.pow(x - center.x, 2) + Math.pow(y - center.y, 2));
@@ -134,9 +131,8 @@ const Login = () => {
     return -1;
   };
 
-  // --- Interaction Handlers ---
-  const handleStart = (index, e) => {
-    e.preventDefault(); 
+  // --- Interaction Handlers (Fixed e.preventDefault issue) ---
+  const handleStart = (index) => {
     setIsDrawing(true);
     setPattern([index]);
     setPatternError("");
@@ -152,16 +148,20 @@ const Login = () => {
 
     setCurrentPos({ x: relativeX, y: relativeY });
 
-    // Since pattern already has at least 1 item when moving, subsequent dots use normal strict detection (false)
     const hoveredDot = getDotIndexFromPoint(relativeX, relativeY, false);
-    if (hoveredDot !== -1 && !pattern.includes(hoveredDot)) {
-      setPattern(prev => [...prev, hoveredDot]);
+    if (hoveredDot !== -1) {
+      setPattern(prev => {
+        if (!prev.includes(hoveredDot)) {
+          return [...prev, hoveredDot];
+        }
+        return prev;
+      });
     }
   };
 
   const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
   
-  const onMouseUp = () => {
+  const handleEndDrawing = () => {
     if (isDrawing) {
       setIsDrawing(false);
       if (pattern.length > 0) {
@@ -174,38 +174,35 @@ const Login = () => {
     }
   };
 
-  const onTouchMove = (e) => {
-    e.preventDefault(); 
-    const touch = e.touches[0];
-    handleMove(touch.clientX, touch.clientY);
-  };
+  // Non-passive event listener setup for smooth touch support without console errors
+  useEffect(() => {
+    const gridElement = gridRef.current;
+    if (!gridElement) return;
 
-  const onTouchEnd = () => {
-    if (isDrawing) {
-      setIsDrawing(false);
-      if (pattern.length > 0) {
-        if (modalType === "set") {
-          handleSavePattern();
-        } else {
-          handleVerifyPattern();
-        }
+    const handleTouchMove = (e) => {
+      if (isDrawing && e.touches && e.touches[0]) {
+        if (e.cancelable) e.preventDefault();
+        const touch = e.touches[0];
+        handleMove(touch.clientX, touch.clientY);
       }
-    }
-  };
+    };
 
-  // --- Grid Container Mouse/Touch Down to catch start near dots if not directly clicking dot element ---
+    gridElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      gridElement.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [isDrawing]);
+
   const handleGridMouseDown = (e) => {
     if (!gridRef.current) return;
     const rect = gridRef.current.getBoundingClientRect();
     const relativeX = e.clientX - rect.left;
     const relativeY = e.clientY - rect.top;
 
-    const clickedDot = getDotIndexFromPoint(relativeX, relativeY, true); // true for generous first dot check
+    const clickedDot = getDotIndexFromPoint(relativeX, relativeY, true);
     if (clickedDot !== -1 && pattern.length === 0) {
-      setIsDrawing(true);
-      setPattern([clickedDot]);
-      setPatternError("");
-      setCurrentPos(getDotCenter(clickedDot));
+      handleStart(clickedDot);
     }
   };
 
@@ -216,16 +213,12 @@ const Login = () => {
     const relativeX = touch.clientX - rect.left;
     const relativeY = touch.clientY - rect.top;
 
-    const clickedDot = getDotIndexFromPoint(relativeX, relativeY, true); // true for generous first dot check
+    const clickedDot = getDotIndexFromPoint(relativeX, relativeY, true);
     if (clickedDot !== -1 && pattern.length === 0) {
-      setIsDrawing(true);
-      setPattern([clickedDot]);
-      setPatternError("");
-      setCurrentPos(getDotCenter(clickedDot));
+      handleStart(clickedDot);
     }
   };
 
-  // --- Smooth Flow Path Generator (SVG) ---
   const generatePathData = () => {
     if (pattern.length === 0) return "";
     const points = pattern.map(getDotCenter);
@@ -250,6 +243,7 @@ const Login = () => {
   const handleSavePattern = async () => {
     if (pattern.length < 4) {
       setPatternError("Connect at least 4 dots for security.");
+      setPattern([]);
       return;
     }
 
@@ -334,7 +328,6 @@ const Login = () => {
         `}
       </style>
 
-      {/* --- ANIMATED BALLOON BUBBLES --- */}
       <div style={{ ...styles.bubble, ...styles.bubble1 }}></div>
       <div style={{ ...styles.bubble, ...styles.bubble2 }}></div>
       <div style={{ ...styles.bubble, ...styles.bubble3 }}></div>
@@ -383,7 +376,6 @@ const Login = () => {
         </form>
       </div>
 
-      {/* --- SECURITY PATTERN POPUP MODAL --- */}
       {showPatternModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard}>
@@ -407,10 +399,9 @@ const Login = () => {
               style={styles.patternGrid}
               onMouseDown={handleGridMouseDown}
               onTouchStart={handleGridTouchStart}
-              onTouchMove={onTouchMove}
-              onTouchEnd={onTouchEnd}
+              onTouchEnd={handleEndDrawing}
               onMouseMove={onMouseMove}
-              onMouseUp={onMouseUp}
+              onMouseUp={handleEndDrawing}
             >
               <svg style={styles.svgOverlay}>
                 {pattern.length > 0 && (
@@ -438,8 +429,8 @@ const Login = () => {
                       transform: isSelected ? "scale(1.4)" : "scale(1)",
                       boxShadow: isSelected ? "0 0 12px rgba(99, 102, 241, 0.6)" : "none",
                     }}
-                    onMouseDown={(e) => handleStart(index, e)}
-                    onTouchStart={(e) => handleStart(index, e)}
+                    onMouseDown={() => handleStart(index)}
+                    onTouchStart={() => handleStart(index)}
                   />
                 );
               })}
@@ -463,8 +454,6 @@ const Login = () => {
     </div>
   );
 };
-
-// ------------------ STYLES --------------------
 
 const styles = {
   page: {

@@ -27,6 +27,7 @@ import AdminQuizPage from "./pages/AdminQuizPage";
 import AdminStudentStars from './pages/AdminStudentStars';
 import AdminExamFormDetails from "./pages/AdminExamformdetails";
 import InternalMarksSheet from "./pages/StudentInternalmarks";
+import AdminMeeting from "./pages/Meetings/AdminMeeting";
 
 /* STUDENT */
 import StudentDashboard from "./pages/StudentDashboard";
@@ -46,8 +47,6 @@ import QuizReview from './pages/QuizReview';
 import RegisterationStudent from "./pages/RegisterationStudent";
 import StudentResult from "./pages/Results_details/StudentResult";
 import ViewResults from "./pages/Results_details/ViewResults";
-
-import AdminHoliday from './pages/AdminHoliday';
 import StudentDropApply from "./pages/StudentDropApply";
 import FeesDetails from "./pages/FeesDetails";
 
@@ -57,18 +56,38 @@ import GenerateAdmitCard from "./pages/Examination/GenerateAdmitCard";
 import ExaminationResult from "./pages/Examination/ExaminationResult";
 
 // ==========================================
-// PROTECTED ROUTE COMPONENT
+// PROTECTED ROUTE COMPONENT WITH 10 MIN EXPIRY
 // ==========================================
 const ProtectedRoute = ({ children, allowedRole }) => {
-  const token = localStorage.getItem("token"); // Ya sessionStorage / Context jo aap use krte ho
-  const userRole = localStorage.getItem("role"); // "admin" ya "student" (Login ke waqt save krna hoga)
+  const token = localStorage.getItem("token");
+  const userRole = localStorage.getItem("role");
+  const loginTime = localStorage.getItem("loginTime");
 
-  // 1. Agar token hi nahi hai, matlab user logged-in nahi hai
+  const TEN_MINUTES = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+  // 1. Agar token hi nahi hai
   if (!token) {
     return <Navigate to="/" replace />;
   }
 
-  // 2. Agar role match nahi hota, toh unauthorized access
+  // 2. 10 Minute Session Expiry Check
+  if (loginTime) {
+    const currentTime = new Date().getTime();
+    const timeElapsed = currentTime - parseInt(loginTime, 10);
+
+    if (timeElapsed > TEN_MINUTES) {
+      // Session expire ho gaya -> LocalStorage clear karke login par bhejo
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("loginTime");
+      return <Navigate to="/" replace />;
+    }
+  } else {
+    // Agar loginTime set nahi hai kisi wajah se toh safe side ke liye logout kar do
+    return <Navigate to="/" replace />;
+  }
+
+  // 3. Agar role match nahi hota
   if (allowedRole && userRole !== allowedRole) {
     return <Navigate to="/" replace />;
   }
@@ -117,7 +136,7 @@ function App() {
           <Route path="details/:session/:month" element={<FeesDetails />} />
           <Route path="check-examform" element={<AdminExamFormDetails />} />
           <Route path="admin-internal-marks" element={<InternalMarksSheet />} />
-          <Route path="holidays" element={<AdminHoliday />} />
+          
         </Route>
 
         {/* STUDENT (Protected for Student role only) */}

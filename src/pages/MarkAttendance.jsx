@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import api from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Custom batch mapping (IDs with specific batch)
+// Custom batch mapping
 const customBatchMap = {
   13: "530pm",
   12: "4pm",
@@ -25,6 +25,13 @@ const MarkAttendance = () => {
   const [batchType, setBatchType] = useState("4pm");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Date Range Report Modal / Drawer States
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [startDate, setStartDate] = useState(getFormattedDate(new Date(new Date().setDate(1)))); // First day of current month
+  const [endDate, setEndDate] = useState(getFormattedDate()); // Today
+  const [reportBatch, setReportBatch] = useState("all"); // 'all', '4pm', '530pm'
+  const [reportLoading, setReportLoading] = useState(false);
+
   function getFormattedDate(date = new Date()) {
     return (
       date.getFullYear() +
@@ -35,14 +42,24 @@ const MarkAttendance = () => {
     );
   }
 
-  // Restrictions removed: Always allows editing for any date
-  const isEditAllowed = (dateStr) => {
-    return true;
+  // Quick Month Preset Switcher helper for the report modal
+  const handleMonthPresetChange = (e) => {
+    const val = e.target.value;
+    if (!val) return;
+    const [year, month] = val.split("-");
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0); // Last day of that month
+    
+    // If last day is in the future compared to today, cap it to today or let full month be requested
+    const today = new Date();
+    const effectiveEndDay = lastDay > today ? today : lastDay;
+
+    setStartDate(getFormattedDate(firstDay));
+    setEndDate(getFormattedDate(effectiveEndDay));
   };
 
-  const getInfoMessage = (dateStr) => {
-    return "";
-  };
+  const isEditAllowed = (dateStr) => true;
+  const getInfoMessage = (dateStr) => "";
 
   const fetchStudents = useCallback(async (date) => {
     setLoading(true);
@@ -90,8 +107,7 @@ const MarkAttendance = () => {
         });
         setAttendance(initAtt);
 
-        const allowed = isEditAllowed(date);
-        setEditAllowed(allowed);
+        setEditAllowed(isEditAllowed(date));
         setShowTable(false);
         setInfoMsg(getInfoMessage(date));
       } else {
@@ -184,6 +200,223 @@ const MarkAttendance = () => {
 
   const submitAttendance = () => sendAttendance("submit");
   const updateAttendance = () => sendAttendance("update");
+
+  // ---- EXCEL / CSV & PDF RANGE DOWNLOAD HANDLERS ----
+  const handleDownloadReport = async (format) => {
+    if (!startDate || !endDate) {
+      alert("Please select both start and end dates.");
+      return;
+    }
+    if (startDate > endDate) {
+      alert("Start Date cannot be after End Date.");
+      return;
+    }
+
+    setReportLoading(true);
+    try {
+      const startD = new Date(startDate);
+      const endD = new Date(endDate);
+      const dateList = [];
+      let curr = new Date(startD);
+
+      while (curr <= endD) {
+        dateList.push(getFormattedDate(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+
+      // Fetch attendance data for all dates in parallel
+      const promises = dateList.map(async (dt) => {
+        try {
+          const res = await api.get(`/api/attendance/list?date=${dt}`);
+          if (res?.data?.success) {
+            return { date: dt, students: res.data.students || [] };
+          }
+        } catch {
+          // ignore failures on specific missing dates
+        }
+        return { date: dt, students: [] };
+      });
+
+      const results = await Promise.all(promises);
+
+      // Get banned students to filter correctly
+      const bannedRes = await api.get(`/api/auth/banned-students`).catch(() => ({ data: { success: false, students: [] } }));
+      const bannedList = bannedRes?.data?.success ? (bannedRes.data.students || []) : [];
+      const bannedIds = new Set(bannedList.map(b => String(b.id || b.studentId)));
+
+      // Collect all unique students
+      const studentMap = new Map();
+      results.forEach(({ students }) => {
+        students.forEach((s) => {
+          const sId = String(s.studentId || s.id);
+          if (!bannedIds.has(sId)) {
+            const batch = customBatchMap[sId] || 
+              ((!isNaN(parseInt(s.class, 10)) && parseInt(s.class, 10) <= 5) || ["LKG", "L.K.G", "UKG", "U.K.G"].includes(String(s.class).toUpperCase()) ? "4pm" : "530pm");
+            
+            if (reportBatch === "all" || batch === reportBatch) {
+              studentMap.set(sId, {
+                id: sId,
+                name: s.studentName || s.name,
+                class: s.class,
+                batch: batch
+              });
+            }
+          }
+        });
+      });
+
+      const studentArray = Array.from(studentMap.values()).sort((a, b) => Number(a.id) - Number(b.id));
+
+      if (studentArray.length === 0) {
+        alert("No student attendance records found for the selected range/batch.");
+        setReportLoading(false);
+        return;
+      }
+
+      // Build attendance lookup matrix: matrix[studentId][date] = status
+      const matrix = {};
+      results.forEach(({ date, students }) => {
+        students.forEach((s) => {
+          const sId = String(s.studentId || s.id);
+          if (!matrix[sId]) matrix[sId] = {};
+          matrix[sId][date] = s.status || "Absent";
+        });
+      });
+
+      if (format === "csv") {
+        // Generate Excel / CSV Spreadsheet with explicit dates in header columns
+        let csvContent = "\uFEFF"; // BOM for proper Excel UTF-8 encoding
+        
+        let headers = ["Student ID", "Student Name", "Class", "Batch"];
+        dateList.forEach(dt => headers.push(dt)); // Full YYYY-MM-DD dates in header
+        headers.push("Total Present", "Total Absent", "Total Holiday");
+        csvContent += headers.join(",") + "\r\n";
+
+        studentArray.forEach(st => {
+          let row = [`"${st.id}"`, `"${st.name}"`, `"${st.class}"`, `"${st.batch}"`];
+          let pCount = 0, aCount = 0, hCount = 0;
+
+          dateList.forEach(dt => {
+            const stCode = matrix[st.id]?.[dt] || "Absent";
+            if (stCode === "Present") pCount++;
+            else if (stCode === "Holiday") hCount++;
+            else aCount++;
+
+            row.push(`"${stCode}"`);
+          });
+
+          row.push(pCount, aCount, hCount);
+          csvContent += row.join(",") + "\r\n";
+        });
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Attendance_Report_${startDate}_to_${endDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+      } else if (format === "pdf") {
+        // Generate Printable Full HTML Page for PDF Download via window.print()
+        const printWindow = window.open("", "_blank");
+        if (!printWindow) {
+          alert("Popup blocked! Please allow popups in your browser settings to download PDF.");
+          setReportLoading(false);
+          return;
+        }
+
+        let html = `
+          <html>
+            <head>
+              <title>Attendance Report (${startDate} to ${endDate})</title>
+              <style>
+                body { font-family: Arial, sans-serif; margin: 15px; color: #111; }
+                h2 { text-align: center; margin-bottom: 5px; color: #1d166a; }
+                p.subtitle { text-align: center; font-size: 13px; color: #555; margin-top: 0; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 10px; }
+                th, td { border: 1px solid #cbd5e1; padding: 5px 3px; text-align: center; }
+                th { background-color: #1d166a; color: #fff; font-weight: bold; }
+                .name-col { text-align: left; padding-left: 6px; font-weight: bold; white-space: nowrap; }
+                .present { background-color: #d1fae5; color: #065f46; font-weight: bold; }
+                .absent { background-color: #fee2e2; color: #991b1b; }
+                .holiday { background-color: #fef3c7; color: #92400e; }
+                @media print {
+                  body { margin: 5px; }
+                  button { display: none; }
+                  @page { size: landscape; }
+                }
+              </style>
+            </head>
+            <body>
+              <h2>Smart Student Classes - Attendance Report</h2>
+              <p class="subtitle">Range: ${startDate} to ${endDate} | Batch: ${reportBatch.toUpperCase()}</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th class="name-col">Student Name</th>
+                    <th>Class</th>
+                    ${dateList.map(dt => `<th>${dt}</th>`).join("")}
+                    <th>Present</th>
+                    <th>Absent</th>
+                    <th>Holiday</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+
+        studentArray.forEach(st => {
+          let pCount = 0, aCount = 0, hCount = 0;
+          let rowCells = "";
+
+          dateList.forEach(dt => {
+            const stCode = matrix[st.id]?.[dt] || "Absent";
+            let clsName = "absent";
+            if (stCode === "Present") { pCount++; clsName = "present"; }
+            else if (stCode === "Holiday") { hCount++; clsName = "holiday"; }
+            else { aCount++; }
+
+            rowCells += `<td class="${clsName}">${stCode === "Present" ? "P" : stCode === "Holiday" ? "H" : "A"}</td>`;
+          });
+
+          html += `
+            <tr>
+              <td>${st.id}</td>
+              <td class="name-col">${st.name}</td>
+              <td>${st.class}</td>
+              ${rowCells}
+              <td style="font-weight: bold; color: #059669;">${pCount}</td>
+              <td style="font-weight: bold; color: #dc2626;">${aCount}</td>
+              <td style="font-weight: bold; color: #d97706;">${hCount}</td>
+            </tr>
+          `;
+        });
+
+        html += `
+                </tbody>
+              </table>
+              <div style="margin-top: 30px; text-align: center;">
+                <button onclick="window.print()" style="padding: 12px 24px; background: #4338ca; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer;">Print / Save as PDF</button>
+              </div>
+            </body>
+          </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+      }
+
+    } catch (err) {
+      console.error("Report Generation Error:", err);
+      alert("Failed to generate report.");
+    } finally {
+      setReportLoading(false);
+      setShowReportModal(false);
+    }
+  };
 
   const batch4 = students.filter(
     (s) =>
@@ -340,12 +573,22 @@ const MarkAttendance = () => {
   return (
     <div className="attendance-container">
       <div className="header-banner">
-        <h1>Smart Student Attendance Portal</h1>
-        <p>
-          Manage daily attendance seamlessly for your batches (4:00 PM and 5:30 PM). 
-          Attendance can now be marked or updated for any date freely without restrictions. 
-          Suspended or banned students are automatically filtered out.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "14px" }}>
+          <div>
+            <h1>Smart Student Attendance Portal</h1>
+            <p>
+              Manage daily attendance seamlessly for your batches (4:00 PM and 5:30 PM). 
+              Attendance can be marked or updated for any date freely. 
+            </p>
+          </div>
+          <button 
+            type="button"
+            className="report-download-btn"
+            onClick={() => setShowReportModal(true)}
+          >
+            📊 Download Month/Date Range Report (PDF / Sheet)
+          </button>
+        </div>
       </div>
 
       <div className="controls-row">
@@ -396,15 +639,15 @@ const MarkAttendance = () => {
           {batchType === "530pm" && renderTable("Batch 5:30 PM (Classes: 6th and above)", batch530)}
 
           <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-            <button className="secondary-btn" onClick={() => setShowTable(false)}>
+            <button type="button" className="secondary-btn" onClick={() => setShowTable(false)}>
               ⬅ Back to Overview
             </button>
             {isFirstTime ? (
-              <button className="submit-btn" onClick={submitAttendance} disabled={btnDisabled || !editAllowed}>
+              <button type="button" className="submit-btn" onClick={submitAttendance} disabled={btnDisabled || !editAllowed}>
                 {btnDisabled ? "Submitting..." : "🚀 Submit Attendance"}
               </button>
             ) : (
-              <button className="submit-btn update" onClick={updateAttendance} disabled={!editAllowed || btnDisabled}>
+              <button type="button" className="submit-btn update" onClick={updateAttendance} disabled={!editAllowed || btnDisabled}>
                 {btnDisabled ? "Updating..." : "🔄 Update Attendance"}
               </button>
             )}
@@ -414,7 +657,7 @@ const MarkAttendance = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="action-card-prompt">
           <div className="prompt-badge">Selected Date: <strong>{selectedDate}</strong></div>
           <p>Ready to manage attendance logs for this session? Click below to load batch lists.</p>
-          <button className="submit-btn large" onClick={() => setShowTable(true)} disabled={btnDisabled}>
+          <button type="button" className="submit-btn large" onClick={() => setShowTable(true)} disabled={btnDisabled}>
             {isFirstTime ? (selectedDate === getFormattedDate() ? "⚡ Mark Today's Attendance Now" : "📂 Mark Attendance") : "✏️ Edit Attendance"}
           </button>
 
@@ -475,6 +718,86 @@ const MarkAttendance = () => {
         </AnimatePresence>
       )}
 
+      {/* Date Range Report Modal */}
+      {showReportModal && (
+        <div className="modal-backdrop">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="modal-card"
+          >
+            <h3>📥 Download Month / Date Range Attendance Report</h3>
+            <p>Select a quick month name or exact date range to generate full attendance sheets and PDF reports.</p>
+            
+            <div className="modal-form-group">
+              <label>📅 Quick Select Month (Clear Month View):</label>
+              <input 
+                type="month" 
+                defaultValue={startDate.slice(0, 7)}
+                onChange={handleMonthPresetChange} 
+                style={{ cursor: "pointer", background: "#fdf8f6" }}
+              />
+              <small style={{ color: "#6b7280", fontSize: "11px", marginTop: "2px" }}>Selecting a month automatically sets the full date range from the 1st to the end of that month.</small>
+            </div>
+
+            <div className="modal-form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div className="modal-form-group">
+                <label>Start Date:</label>
+                <input 
+                  type="date" 
+                  value={startDate} 
+                  onChange={(e) => setStartDate(e.target.value)} 
+                />
+              </div>
+              <div className="modal-form-group">
+                <label>End Date:</label>
+                <input 
+                  type="date" 
+                  value={endDate} 
+                  onChange={(e) => setEndDate(e.target.value)} 
+                />
+              </div>
+            </div>
+
+            <div className="modal-form-group">
+              <label>Batch Selection:</label>
+              <select value={reportBatch} onChange={(e) => setReportBatch(e.target.value)}>
+                <option value="all">All Batches Combined</option>
+                <option value="4pm">4:00 PM Batch Only</option>
+                <option value="530pm">5:30 PM Batch Only</option>
+              </select>
+            </div>
+
+            <div className="modal-buttons">
+              <button 
+                type="button" 
+                className="secondary-btn" 
+                onClick={() => setShowReportModal(false)}
+                disabled={reportLoading}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="submit-btn" 
+                onClick={() => handleDownloadReport("csv")}
+                disabled={reportLoading}
+              >
+                {reportLoading ? "Generating..." : "📈 Download Excel / CSV"}
+              </button>
+              <button 
+                type="button" 
+                className="submit-btn update" 
+                onClick={() => handleDownloadReport("pdf")}
+                disabled={reportLoading}
+              >
+                {reportLoading ? "Generating..." : "📄 Download PDF Report"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       <style>{`
         .attendance-container { 
           width: 95%; 
@@ -499,6 +822,20 @@ const MarkAttendance = () => {
         .header-banner h1 { font-size: 24px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px; }
         .header-banner p { font-size: 14px; margin: 0; color: #e0e7ff; line-height: 1.6; }
         
+        .report-download-btn {
+          background: #ffffff;
+          color: #4338ca;
+          font-weight: 700;
+          font-size: 13px;
+          padding: 10px 16px;
+          border-radius: 8px;
+          border: none;
+          cursor: pointer;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+          transition: all 0.2s;
+        }
+        .report-download-btn:hover { background: #f3f4f6; transform: translateY(-1px); }
+
         .controls-row {
           display: flex;
           justify-content: space-between;
@@ -623,6 +960,48 @@ const MarkAttendance = () => {
         .summary-item.present strong { color: #059669; }
         .summary-item.absent strong { color: #dc2626; }
         .summary-item.holiday strong { color: #d97706; }
+
+        /* Modal Styles */
+        .modal-backdrop {
+          position: fixed;
+          top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+        }
+        .modal-card {
+          background: #ffffff;
+          padding: 28px;
+          border-radius: 16px;
+          width: 100%;
+          max-width: 480px;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .modal-card h3 { margin: 0 0 8px 0; font-size: 18px; color: #111827; font-weight: 800; }
+        .modal-card p { font-size: 13px; color: #6b7280; margin-bottom: 20px; line-height: 1.5; }
+        .modal-form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
+        .modal-form-group label { font-size: 13px; font-weight: 700; color: #374151; }
+        .modal-form-group input, .modal-form-group select {
+          padding: 10px 14px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          font-size: 14px;
+          outline: none;
+        }
+        .modal-form-group input:focus, .modal-form-group select:focus {
+          border-color: #4338ca;
+          box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1);
+        }
+        .modal-buttons {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          margin-top: 24px;
+          flex-wrap: wrap;
+        }
         
         @keyframes spin {
           0% { transform: rotate(0deg); }

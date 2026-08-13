@@ -715,9 +715,9 @@ marginTop:'30px',
           </div>
           <div style={{
             marginTop: '10px',
-            fontSize: '10px',
-            fontWeight: '900',
-            color: '#10b981',
+            fontSize: '14px',
+            fontWeight: '800',
+            color: '#1b7255',
             textTransform: 'uppercase',
             letterSpacing: '1px'
           }}>
@@ -733,12 +733,12 @@ marginTop:'30px',
           textAlign: 'justify' // Professional look
         }}>
           
-          <p style={{ marginBottom: '15px', fontWeight: '700', color: '#1e293b', fontSize: '18px' }}>
+          <p style={{ marginBottom: '10px', fontWeight: '800', color: '#1e293b', fontSize: '15px' }}>
              I wish you a highly productive academic year ahead, filled with immense personal growth and learning.
           </p>
 
           <p style={{ marginBottom: '15px' }}>
-            At <strong>SMART STUDENT CLASSES</strong>, we don't just teach subjects; we build character and competence. I truly appreciate the hard work and dedication our students show every day. It is your spirit that makes us the best.
+            At <strong style={{ fontWeight: '2px' }}>SMART STUDENT CLASSES</strong>, we don't just teach subjects; we build character and competence. I truly appreciate the hard work and dedication our students show every day. It is your spirit that makes us the best.
           </p>
 
           <p style={{ marginBottom: '15px' }}>
@@ -760,10 +760,10 @@ marginTop:'30px',
             }}>
               {headTeacher.name}
             </h3>
-            <p style={{ margin: '0', color: '#6366f1', fontWeight: '800', fontSize: '20px', letterSpacing: '1px' }}>
+            <p style={{ margin: '0', color: '#393a87', fontWeight: '800', fontSize: '18px' }}>
               HOC - SMART STUDENT CLASSES
             </p>
-            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>
+            <p style={{ margin: '4px 0 0 0', color: '#3c4147', fontSize: '12px', fontWeight: '600' }}>
               {headTeacher.qualification}
             </p>
           </div>
