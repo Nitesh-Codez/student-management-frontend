@@ -49,6 +49,7 @@ import StudentResult from "./pages/Results_details/StudentResult";
 import ViewResults from "./pages/Results_details/ViewResults";
 import StudentDropApply from "./pages/StudentDropApply";
 import FeesDetails from "./pages/FeesDetails";
+import StudentsMeetings from "./pages/Meetings/StudentsMeetings";
 
 /* EXAM */
 import ExamForm from "./pages/Examination/ExamForm";
@@ -136,6 +137,7 @@ function App() {
           <Route path="details/:session/:month" element={<FeesDetails />} />
           <Route path="check-examform" element={<AdminExamFormDetails />} />
           <Route path="admin-internal-marks" element={<InternalMarksSheet />} />
+          <Route path="admin-meeting" element={<AdminMeeting />} />
           
         </Route>
 
@@ -169,6 +171,7 @@ function App() {
           <Route path="register-student" element={<RegisterationStudent />} />
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
           <Route path="review/:quizId/:studentId" element={<QuizReview />} />
+           <Route path="students-meeting" element={<StudentsMeetings/>} />
         </Route>
 
         {/* 404 */}

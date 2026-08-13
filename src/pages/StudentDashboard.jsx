@@ -29,6 +29,7 @@ import AttemptQuizPage from "./AttemptQuizPage";
 import QuizReview from './QuizReview';
 import RegisterationStudent from "./RegisterationStudent";
 import StudentDropApply from "./StudentDropApply";
+import StudentsMeetings from "./Meetings/StudentsMeetings";
 
 
 // Examination Components
@@ -1044,6 +1045,9 @@ try {
                 </Link>
                 <Link to="drop-apply" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("drop-apply"))}>
                   <FaComments /> Apply Drop
+                </Link>  
+                 <Link to="students-meeting" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("students-meeting"))}>
+                  <FaComments /> Meetings
                 </Link>    
 
             {/* ===== SIDEBAR DROPDOWN ===== */}
@@ -1152,6 +1156,7 @@ try {
           <Route path="review/:quizId/:studentId" element={<QuizReview />} />
             <Route path="register-student" element={<RegisterationStudent />} />
           <Route path="drop-apply" element={<StudentDropApply />} />
+          <Route path="students-meeting" element={<StudentsMeetings />} />
 
           
           {/* Internal Examination Routes */}
