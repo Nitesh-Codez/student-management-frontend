@@ -1,416 +1,909 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { FaSave, FaFilter, FaFileAlt, FaExclamationTriangle } from 'react-icons/fa';
+import React, { useEffect, useMemo, useState } from "react";
+import api from "../services/api";
 
 const InternalMarksSheet = () => {
-    const [students, setStudents] = useState([]);
-    const [selectedClass, setSelectedClass] = useState('ALL');
-    const [classes, setClasses] = useState([]);
-    const [marks, setMarks] = useState({});
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+  const subjectsByClass = {
+    "5th": ["Math", "English", "Hindi", "EVS", "English Communication"],
+    "6th": ["Math", "English", "Hindi", "Science", "English Communication"],
+    "7th": [
+      "Math",
+      "English",
+      "Hindi",
+      "Science",
+      "Civics",
+      "Geography",
+      "Economics",
+      "History",
+      "English Communication",
+    ],
+    "8th": [
+      "Math",
+      "English",
+      "Science",
+      "Hindi",
+      "Civics",
+      "Geography",
+      "Economics",
+      "History",
+      "English Communication",
+    ],
+    "9th": [
+      "Math",
+      "English",
+      "Hindi",
+      "Science",
+      "S.S.T",
+      "English Communication",
+    ],
+    "10th": [
+      "Math",
+      "English",
+      "Hindi",
+      "Science",
+      "S.S.T",
+      "English Communication",
+    ],
+    "11th": [
+      "Chemistry",
+      "Math",
+      "English",
+      "Physics",
+      "Biology",
+      "English Communication",
+    ],
+    "12th": [
+      "Chemistry",
+      "Math",
+      "English",
+      "Physics",
+      "Biology",
+      "Hindi",
+      "English Communication",
+    ],
+  };
 
-    const API_URL = "https://student-management-system-4-hose.onrender.com";
+  const classOrder = [
+    "5th",
+    "6th",
+    "7th",
+    "8th",
+    "9th",
+    "10th",
+    "11th",
+    "12th",
+  ];
 
-    useEffect(() => {
-        fetchSubmittedStudents();
-    }, []);
+  const [classes, setClasses] = useState([]);
+  const [selectionMode, setSelectionMode] = useState("single");
 
-    const fetchSubmittedStudents = async () => {
+  const [selectedClass, setSelectedClass] = useState("");
+  const [fromClass, setFromClass] = useState("");
+  const [toClass, setToClass] = useState("");
+
+  const [examType, setExamType] = useState("PRE-FINAL");
+  const [subject, setSubject] = useState("");
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+
+  const [marksData, setMarksData] = useState([]);
+
+  const [testDate, setTestDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+
+  const [globalTotal, setGlobalTotal] = useState("");
+
+  const [session, setSession] = useState(
+    localStorage.getItem("session") || "2026-27"
+  );
+
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [savingId, setSavingId] = useState(null);
+
+  // ==================================================
+  // Fetch Classes
+  // ==================================================
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const res = await api.get("/api/new-marks/classes");
+
+        if (res.data.success) {
+          const rawClasses = res.data.classes.map((c) => {
+            let className = c.class || c;
+
+            if (className === 11 || className === "11") {
+              className = "11th";
+            }
+            if (className === 12 || className === "12") {
+              className = "12th";
+            }
+
+            return String(className).trim();
+          }).filter(c => c && c !== "N/A" && c !== "undefined" && c !== "null");
+
+          const uniqueSortedClasses = Array.from(new Set(rawClasses)).sort(
+            (a, b) => classOrder.indexOf(a) - classOrder.indexOf(b)
+          );
+
+          setClasses(uniqueSortedClasses);
+        }
+      } catch (error) {
+        console.error("Error fetching classes:", error);
+      }
+    };
+
+    fetchClasses();
+  }, []);
+
+  // ==================================================
+  // Session
+  // ==================================================
+  useEffect(() => {
+    const savedSession = localStorage.getItem("session");
+
+    if (savedSession) {
+      setSession(savedSession);
+    }
+  }, []);
+
+  // ==================================================
+  // Active Classes
+  // ==================================================
+  const activeClasses = useMemo(() => {
+    if (selectionMode === "single") {
+      return selectedClass ? [selectedClass] : [];
+    }
+
+    if (!fromClass || !toClass) {
+      return [];
+    }
+
+    const fromIdx = classes.indexOf(fromClass);
+    const toIdx = classes.indexOf(toClass);
+
+    if (
+      fromIdx === -1 ||
+      toIdx === -1 ||
+      fromIdx > toIdx
+    ) {
+      return [];
+    }
+
+    return classes.slice(fromIdx, toIdx + 1);
+  }, [
+    selectionMode,
+    selectedClass,
+    fromClass,
+    toClass,
+    classes,
+  ]);
+
+  // ==================================================
+  // Subjects
+  // ==================================================
+  useEffect(() => {
+    if (activeClasses.length === 0) {
+      setAvailableSubjects([]);
+      setSubject("");
+      return;
+    }
+
+    if (activeClasses.length === 1) {
+      setAvailableSubjects(
+        subjectsByClass[activeClasses[0]] || []
+      );
+    } else {
+      const allSubjects = new Set();
+
+      activeClasses.forEach((cls) => {
+        (subjectsByClass[cls] || []).forEach((sub) =>
+          allSubjects.add(sub)
+        );
+      });
+
+      setAvailableSubjects([...allSubjects]);
+    }
+
+    setSubject("");
+  }, [activeClasses.join(",")]);
+
+  // ==================================================
+  // Fetch Students + Existing Marks
+  // ==================================================
+  useEffect(() => {
+    if (
+      activeClasses.length === 0 ||
+      !subject ||
+      !examType ||
+      !testDate
+    ) {
+      setMarksData([]);
+      return;
+    }
+
+    const fetchData = async () => {
+      setLoading(true);
+
+      try {
+        // ------------------------------------------
+        // Banned Students
+        // ------------------------------------------
+        let bannedIds = new Set();
+        let bannedNames = new Set();
+
         try {
-            setLoading(true);
-            setError(null);
-            
-            const response = await axios.get(`${API_URL}/api/exam/admin/total-submissions`);
-            
-            // Safe data parsing matching your API response structure
-            const data = response.data.students || response.data.data || response.data.submissions || (Array.isArray(response.data) ? response.data : []);
-            
-            if (data && data.length > 0) {
-                setStudents(data);
-                
-                const uniqueClasses = [...new Set(data.map(item => item.student_class || item.class_name))].filter(Boolean);
-                setClasses(uniqueClasses);
+          const bannedRes = await api.get(
+            "/api/auth/banned-students"
+          );
 
-                const initialMarks = {};
-                data.forEach(student => {
-                    const sId = student.student_id || student.id;
-                    initialMarks[sId] = {
-                        task_marks: student.task_marks ?? '',
-                        behavior_marks: student.behavior_marks ?? '',
-                        performance_marks: student.performance_marks ?? ''
-                    };
-                });
-                setMarks(initialMarks);
-            } else {
-                setStudents([]);
-            }
-        } catch (err) {
-            console.error('Error loading data', err);
-            setError(err.response?.data?.message || 'Network error! Could not load student data.');
-        } finally {
-            setLoading(false);
-        }
-    };
+          if (bannedRes.data.success) {
+            const bannedList =
+              bannedRes.data.students || [];
 
-    const handleInputChange = (studentId, field, value, maxLimit) => {
-        if (value === '') {
-            setMarks(prev => ({
-                ...prev,
-                [studentId]: {
-                    ...prev[studentId],
-                    [field]: ''
-                }
-            }));
-            return;
+            bannedIds = new Set(
+              bannedList.map((b) =>
+                String(b.id || b.studentId)
+              )
+            );
+
+            bannedNames = new Set(
+              bannedList.map((b) =>
+                (b.name || "")
+                  .trim()
+                  .toLowerCase()
+              )
+            );
+          }
+        } catch (error) {
+          console.error(
+            "Error fetching banned students:",
+            error
+          );
         }
 
-        let numVal = parseFloat(value);
-        if (isNaN(numVal)) numVal = '';
-        if (numVal > maxLimit) numVal = maxLimit;
-        if (numVal < 0) numVal = 0;
+        // ------------------------------------------
+        // Fetch Students
+        // ------------------------------------------
+        let allStudents = [];
 
-        setMarks(prev => ({
-            ...prev,
-            [studentId]: {
-                ...prev[studentId],
-                [field]: numVal
+        await Promise.all(
+          activeClasses.map(async (cls) => {
+            try {
+              const apiClass =
+                cls === "11th" ? "11" : cls;
+
+              const res = await api.get(
+                `/api/new-marks/students/${apiClass}`
+              );
+
+              if (res.data.success) {
+                const mapped =
+                  res.data.students.map((student) => ({
+                    ...student,
+                    className: cls,
+                  }));
+
+                allStudents.push(...mapped);
+              }
+            } catch (error) {
+              console.error(
+                `Error fetching students for ${cls}:`,
+                error
+              );
             }
-        }));
-    };
+          })
+        );
 
-    const filteredStudents = selectedClass === 'ALL' 
-        ? students 
-        : students.filter(s => (s.student_class || s.class_name) === selectedClass);
+        // ------------------------------------------
+        // Remove Banned
+        // ------------------------------------------
+        allStudents = allStudents.filter((student) => {
+          const id = String(student.id);
 
-    const handleSubmitAll = async () => {
-        const payloadData = filteredStudents.map(s => {
-            const sId = s.student_id || s.id;
-            return {
-                student_id: sId,
-                exam_type: s.exam_type,
-                session_year: s.session_year || '2026-2027',
-                task_marks: marks[sId]?.task_marks === '' ? 0 : Number(marks[sId]?.task_marks || 0),
-                behavior_marks: marks[sId]?.behavior_marks === '' ? 0 : Number(marks[sId]?.behavior_marks || 0),
-                performance_marks: marks[sId]?.performance_marks === '' ? 0 : Number(marks[sId]?.performance_marks || 0)
-            };
+          const name = (student.name || "")
+            .trim()
+            .toLowerCase();
+
+          return (
+            !bannedIds.has(id) &&
+            !bannedNames.has(name)
+          );
         });
 
-        try {
-            const res = await axios.post(`${API_URL}/api/exam/save-internal-marks`, { marksData: payloadData });
-            if (res.data.success || res.status === 200) {
-                alert('Internal assessment marks saved successfully!');
+        // ------------------------------------------
+        // Sort Ascending by Class, then Name
+        // ------------------------------------------
+        allStudents.sort((a, b) => {
+          const classDiff =
+            classOrder.indexOf(a.className) -
+            classOrder.indexOf(b.className);
+
+          if (classDiff !== 0) return classDiff;
+
+          return (a.name || "").localeCompare(b.name || "");
+        });
+
+        // ------------------------------------------
+        // Initial List
+        // ------------------------------------------
+        let list = allStudents.map((student) => ({
+          recordId: null,
+
+          studentId: student.id,
+          name: student.name,
+          className: student.className,
+
+          task: "",
+          viva: "",
+          behaviour: "",
+
+          attendance: 0,
+          obtained: 0,
+
+          isSaved: false,
+          isExisting: false,
+        }));
+
+        // ------------------------------------------
+        // Attendance + Existing Marks
+        // ------------------------------------------
+        list = await Promise.all(
+          list.map(async (student) => {
+            try {
+              // Attendance
+              const attendanceRes = await api.get(
+                "/api/new-marks/attendance/current-marks",
+                {
+                  params: {
+                    studentId: student.studentId,
+                  },
+                }
+              );
+
+              if (attendanceRes.data.success) {
+                student.attendance =
+                  attendanceRes.data.attendanceMarks || 0;
+              }
+
+              // Existing Marks
+              const marksRes = await api.post(
+                "/api/new-marks/check",
+                {
+                  studentId: student.studentId,
+                  studentName: student.name,
+                }
+              );
+
+              if (
+                marksRes.data.success &&
+                marksRes.data.data?.length
+              ) {
+                const match =
+                  marksRes.data.data.find(
+                    (mark) =>
+                      mark.subject?.toUpperCase() ===
+                        subject.toUpperCase() &&
+                      mark.exam_type?.toUpperCase() ===
+                        examType.toUpperCase() &&
+                      mark.session === session &&
+                      (mark.test_date == null ||
+                        mark.test_date
+                          ?.toString()
+                          .split("T")[0] === testDate)
+                  );
+
+                if (match) {
+                  student.recordId = match.id;
+
+                  student.task =
+                    match.task ?? "";
+
+                  student.viva =
+                    match.viva_marks ?? "";
+
+                  student.behaviour =
+                    match.behaviour ?? "";
+
+                  student.isSaved = true;
+                  student.isExisting = true;
+
+                  if (
+                    match.total_marks != null
+                  ) {
+                    setGlobalTotal(
+                      (previous) =>
+                        previous || match.total_marks
+                    );
+                  }
+                }
+              }
+            } catch (error) {
+              console.error(
+                "Error loading student marks:",
+                error
+              );
             }
-        } catch (error) {
-            console.error('Error saving marks', error);
-            alert('Failed to save marks. Please try again.');
-        }
+
+            return student;
+          })
+        );
+
+        // ------------------------------------------
+        // Calculate Obtained
+        // ------------------------------------------
+        list = list.map((student) => {
+          const attendance =
+            Number(student.attendance) || 0;
+
+          if (attendance < 1) {
+            return {
+              ...student,
+              task: 0,
+              viva: 0,
+              behaviour: 0,
+              obtained: 0,
+            };
+          }
+
+          const obtained =
+            Number(student.task || 0) +
+            Number(student.viva || 0) +
+            Number(student.behaviour || 0) +
+            attendance;
+
+          return {
+            ...student,
+            obtained,
+          };
+        });
+
+        setMarksData(list);
+      } catch (error) {
+        console.error(
+          "Error fetching marks data:",
+          error
+        );
+
+        setMessage(
+          "Unable to load marks data."
+        );
+      } finally {
+        setLoading(false);
+      }
     };
 
-    return (
-        <div style={styles.page}>
-            <div style={styles.container}>
-                {/* Header Section */}
-                <div style={styles.header}>
-                    <div>
-                        <h1 style={styles.title}>
-                            <FaFileAlt style={{ color: "#4f46e5", marginRight: "10px" }} /> Internal Assessment Marks Sheet
-                        </h1>
-                        <p style={styles.subtitle}>Task (Max 10) | Behavior (Max 5) | Class Performance (Max 5)</p>
-                    </div>
-                    
-                    <div style={styles.filterContainer}>
-                        <FaFilter style={{ color: "#64748b", fontSize: "14px" }} />
-                        <label style={styles.label}>Filter Class:</label>
-                        <select 
-                            value={selectedClass} 
-                            onChange={(e) => setSelectedClass(e.target.value)}
-                            style={styles.select}
-                        >
-                            <option value="ALL">All Classes</option>
-                            {classes.map(cls => (
-                                <option key={cls} value={cls}>{cls}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
+    fetchData();
+  }, [
+    selectedClass,
+    fromClass,
+    toClass,
+    selectionMode,
+    testDate,
+    subject,
+    examType,
+    session,
+    classes.length,
+  ]);
 
-                {/* Error Banner */}
-                {error && (
-                    <div style={styles.errorBanner}>
-                        <FaExclamationTriangle style={{ marginRight: "10px", color: "#dc2626" }} />
-                        <span>{error}</span>
-                    </div>
-                )}
+  // ==================================================
+  // Handle Change
+  // ==================================================
+  const handleChange = (i, field, value) => {
+    const updated = [...marksData];
 
-                {/* Content Area */}
-                {loading ? (
-                    <div style={styles.centerState}>
-                        <p style={styles.loadingText}>Fetching student records from database...</p>
-                    </div>
-                ) : (
-                    <div style={styles.tableContainer}>
-                        <table style={styles.table}>
-                            <thead>
-                                <tr style={styles.tableHeaderRow}>
-                                    <th style={styles.th}>Student Name</th>
-                                    <th style={styles.th}>Class</th>
-                                    <th style={styles.th}>Exam Type</th>
-                                    <th style={styles.th}>Subjects</th>
-                                    <th style={styles.th}>Task (10)</th>
-                                    <th style={styles.th}>Behavior (5)</th>
-                                    <th style={styles.th}>Performance (5)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredStudents.length > 0 ? (
-                                    filteredStudents.map((student, index) => {
-                                        const studentId = student.student_id || student.id;
-                                        return (
-                                            <tr key={student.registration_id || studentId || index} style={styles.tableRow}>
-                                                <td style={styles.td}>
-                                                    <span style={styles.studentName}>{student.student_name || student.name}</span>
-                                                    <div style={styles.subText}>ID: {studentId}</div>
-                                                </td>
-                                                <td style={styles.td}>{student.student_class || student.class_name}</td>
-                                                <td style={styles.td}>
-                                                    <span style={styles.examTypeBadge}>{student.exam_type || 'N/A'}</span>
-                                                </td>
-                                                <td style={styles.td}>
-                                                    {Array.isArray(student.subjects) 
-                                                        ? student.subjects.join(', ') 
-                                                        : student.subjects || 'N/A'}
-                                                </td>
-                                                <td style={styles.td}>
-                                                    <input 
-                                                        type="number"
-                                                        max="10"
-                                                        min="0"
-                                                        value={marks[studentId]?.task_marks ?? ''}
-                                                        onChange={(e) => handleInputChange(studentId, 'task_marks', e.target.value, 10)}
-                                                        style={styles.input}
-                                                    />
-                                                </td>
-                                                <td style={styles.td}>
-                                                    <input 
-                                                        type="number"
-                                                        max="5"
-                                                        min="0"
-                                                        value={marks[studentId]?.behavior_marks ?? ''}
-                                                        onChange={(e) => handleInputChange(studentId, 'behavior_marks', e.target.value, 5)}
-                                                        style={styles.input}
-                                                    />
-                                                </td>
-                                                <td style={styles.td}>
-                                                    <input 
-                                                        type="number"
-                                                        max="5"
-                                                        min="0"
-                                                        value={marks[studentId]?.performance_marks ?? ''}
-                                                        onChange={(e) => handleInputChange(studentId, 'performance_marks', e.target.value, 5)}
-                                                        style={styles.input}
-                                                    />
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                ) : (
-                                    <tr>
-                                        <td colSpan="7" style={styles.centerStateTd}>
-                                            <p style={styles.loadingText}>No student exam applications found.</p>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+    if (Number(updated[i].attendance) < 1) {
+      updated[i].task = 0;
+      updated[i].viva = 0;
+      updated[i].behaviour = 0;
+      updated[i].obtained = 0;
+      setMarksData(updated);
+      return;
+    }
 
-                {/* Footer Action */}
-                <div style={styles.footerAction}>
-                    <button onClick={handleSubmitAll} style={styles.saveButton}>
-                        <FaSave style={{ marginRight: "8px" }} /> Save All Marks
-                    </button>
-                </div>
-            </div>
+    updated[i][field] = value;
+    updated[i].isSaved = false;
+
+    const obtained =
+      Number(updated[i].task || 0) +
+      Number(updated[i].viva || 0) +
+      Number(updated[i].behaviour || 0) +
+      Number(updated[i].attendance || 0);
+
+    updated[i].obtained = obtained;
+    setMarksData(updated);
+  };
+
+  // ==================================================
+  // Save / Update Marks
+  // ==================================================
+  const saveMarks = async (student, index) => {
+    if (
+      !subject ||
+      !globalTotal ||
+      !examType ||
+      !testDate
+    ) {
+      alert(
+        "Exam Type, Subject, Total Marks and Date are required."
+      );
+      return;
+    }
+
+    const attendance =
+      Number(student.attendance) || 0;
+
+    const payload = {
+      studentId: student.studentId,
+
+      subject,
+
+      theoryMarks: 0,
+
+      vivaMarks:
+        attendance < 1
+          ? 0
+          : Number(student.viva || 0),
+
+      behaviour:
+        attendance < 1
+          ? 0
+          : Number(student.behaviour || 0),
+
+      attendanceMarks: attendance,
+
+      task:
+        attendance < 1
+          ? 0
+          : Number(student.task || 0),
+
+      totalMarks: Number(globalTotal),
+
+      examType,
+      session,
+
+      date: testDate,
+    };
+
+    try {
+      setSavingId(student.studentId);
+      setMessage("");
+
+      let response;
+
+      if (student.recordId) {
+        response = await api.put(
+          `/api/new-marks/update/${student.recordId}`,
+          payload
+        );
+      } else {
+        response = await api.post(
+          "/api/new-marks/add",
+          payload
+        );
+      }
+
+      if (response.data.success) {
+        const updatedData = [...marksData];
+
+        updatedData[index] = {
+          ...updatedData[index],
+
+          isSaved: true,
+
+          isExisting: true,
+
+          recordId:
+            response.data.data?.id ||
+            updatedData[index].recordId,
+        };
+
+        setMarksData(updatedData);
+
+        setMessage(
+          `${student.name} (${student.className}) — ${
+            student.recordId
+              ? "Marks updated successfully."
+              : "Marks added successfully."
+          }`
+        );
+      } else {
+        setMessage(
+          `${student.name}: ${
+            response.data.message ||
+            "Unable to save marks."
+          }`
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Save/update marks error:",
+        error
+      );
+
+      const errorMessage =
+        error.response?.data?.message ||
+        "Server error while saving marks.";
+
+      setMessage(
+        `${student.name}: ${errorMessage}`
+      );
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <div className="page">
+      <p  style={{fontSize:"65px"}} className="title"> Smart Students's Classes </p>
+      <h2 className="title">📋 Internal Assessment Marks Sheet</h2>
+
+      <div className="mode-selector">
+        <label>
+          <input
+            type="radio"
+            name="selectionMode"
+            value="single"
+            checked={selectionMode === "single"}
+            onChange={() => {
+              setSelectionMode("single");
+              setSelectedClass("");
+            }}
+          />{" "}
+          Single Class
+        </label>
+        <label style={{ marginLeft: "20px" }}>
+          <input
+            type="radio"
+            name="selectionMode"
+            value="range"
+            checked={selectionMode === "range"}
+            onChange={() => {
+              setSelectionMode("range");
+              if (classes.length > 0) {
+                setFromClass(classes[0]);
+                setToClass(classes[classes.length - 1]);
+              }
+            }}
+          />{" "}
+          Class Range / All
+        </label>
+      </div>
+
+      <div className="filters">
+        <select
+          value={examType}
+          onChange={(e) => setExamType(e.target.value)}
+        >
+          <option value="">Select Exam Type</option>
+          <option value="PRE-FINAL">PRE-FINAL</option>
+          <option value="FINAL">FINAL</option>
+          <option value="REAPPEAR PRE-FINAL">REAPPEAR PRE-FINAL</option>
+          <option value="REAPPEAR FINAL">REAPPEAR FINAL</option>
+        </select>
+
+        {selectionMode === "single" ? (
+          <select
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+          >
+            <option value="">Select Class</option>
+            {classes.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <>
+            <select
+              value={fromClass}
+              onChange={(e) => setFromClass(e.target.value)}
+            >
+              <option value="">From Class</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              value={toClass}
+              onChange={(e) => setToClass(e.target.value)}
+            >
+              <option value="">To Class</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        <select
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+        >
+          <option value="">Select Subject</option>
+          {availableSubjects.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="number"
+          placeholder="Total Marks"
+          value={globalTotal}
+          onChange={(e) => setGlobalTotal(e.target.value)}
+        />
+        <input
+          type="date"
+          value={testDate}
+          onChange={(e) => setTestDate(e.target.value)}
+        />
+      </div>
+
+      {loading && (
+        <div className="msg" style={{ background: "#fff", padding: "20px", borderRadius: "8px" }}>
+          Loading students and marks...
         </div>
-    );
-};
+      )}
 
-// --- STYLES (White Theme) ---
-const styles = {
-    page: {
-        minHeight: "100vh",
-        background: "#f8fafc",
-        padding: "30px 20px",
-        fontFamily: "'Segoe UI', Roboto, sans-serif",
-        color: "#1e293b",
-    },
-    container: {
-        maxWidth: "1200px",
-        margin: "0 auto",
-    },
-    header: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "30px",
-        flexWrap: "wrap",
-        gap: "15px",
-    },
-    title: {
-        fontSize: "26px",
-        fontWeight: "800",
-        margin: 0,
-        display: "flex",
-        alignItems: "center",
-        color: "#0f172a",
-    },
-    subtitle: {
-        fontSize: "14px",
-        color: "#64748b",
-        marginTop: "4px",
-    },
-    filterContainer: {
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        background: "#ffffff",
-        padding: "8px 15px",
-        borderRadius: "12px",
-        border: "1px solid #cbd5e1",
-        boxShadow: "0 2px 5px rgba(0,0,0,0.02)",
-    },
-    label: {
-        fontWeight: "600",
-        color: "#475569",
-        fontSize: "13px",
-    },
-    select: {
-        padding: "6px 12px",
-        background: "#f8fafc",
-        color: "#1e293b",
-        border: "1px solid #cbd5e1",
-        borderRadius: "8px",
-        outline: "none",
-        fontSize: "13px",
-        fontWeight: "600",
-        cursor: "pointer",
-    },
-    errorBanner: {
-        background: "#fef2f2",
-        border: "1px solid #fecaca",
-        color: "#dc2626",
-        padding: "12px 20px",
-        borderRadius: "12px",
-        marginBottom: "20px",
-        display: "flex",
-        alignItems: "center",
-        fontSize: "14px",
-        fontWeight: "600",
-    },
-    tableContainer: {
-        background: "#ffffff",
-        borderRadius: "16px",
-        overflowX: "auto",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-        border: "1px solid #e2e8f0",
-    },
-    table: {
-        width: "100%",
-        borderCollapse: "collapse",
-        textAlign: "left",
-    },
-    tableHeaderRow: {
-        borderBottom: "1px solid #e2e8f0",
-        background: "#f8fafc",
-    },
-    th: {
-        padding: "15px 20px",
-        fontSize: "12px",
-        fontWeight: "700",
-        color: "#475569",
-        textTransform: "uppercase",
-    },
-    tableRow: {
-        borderBottom: "1px solid #f1f5f9",
-        transition: "background 0.2s",
-    },
-    td: {
-        padding: "16px 20px",
-        fontSize: "14px",
-        color: "#334155",
-        verticalAlign: "middle",
-    },
-    studentName: {
-        fontWeight: "700",
-        color: "#0f172a",
-        display: "block",
-    },
-    subText: {
-        fontSize: "11px",
-        color: "#64748b",
-        marginTop: "2px",
-    },
-    examTypeBadge: {
-        padding: "4px 8px",
-        background: "#f1f5f9",
-        border: "1px solid #cbd5e1",
-        borderRadius: "6px",
-        fontSize: "12px",
-        fontWeight: "600",
-        color: "#475569",
-    },
-    input: {
-        width: "65px",
-        padding: "8px",
-        background: "#ffffff",
-        border: "1px solid #cbd5e1",
-        borderRadius: "8px",
-        color: "#1e293b",
-        textAlign: "center",
-        fontSize: "14px",
-        fontWeight: "600",
-        outline: "none",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-    },
-    centerState: {
-        background: "#ffffff",
-        borderRadius: "16px",
-        padding: "50px",
-        textAlign: "center",
-        border: "1px solid #e2e8f0",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-    },
-    centerStateTd: {
-        textAlign: "center",
-        padding: "50px",
-    },
-    loadingText: {
-        color: "#64748b",
-        fontSize: "15px",
-        margin: 0,
-        fontWeight: "500",
-    },
-    footerAction: {
-        marginTop: "25px",
-        display: "flex",
-        justifyContent: "flex-end",
-    },
-    saveButton: {
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "12px 24px",
-        background: "#4f46e5",
-        color: "#fff",
-        border: "none",
-        borderRadius: "10px",
-        fontWeight: "600",
-        fontSize: "14px",
-        cursor: "pointer",
-        boxShadow: "0 4px 12px rgba(79, 70, 229, 0.2)",
-        transition: "background 0.2s",
-    },
+      {!loading && marksData.length > 0 && (
+        <div className="tableWrap">
+          <table className="marksTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Class</th>
+                <th>Name</th>
+                <th>Subject</th>
+                <th>Task</th>
+                <th>Viva</th>
+                <th>Behaviour</th>
+                <th>Attendance</th>
+                <th>Obtained</th>
+                <th>Total</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {marksData.map((s, i) => {
+                const absent = Number(s.attendance) < 1;
+                const saving = savingId === s.studentId;
+
+                return (
+                  <tr
+                    key={`${s.studentId}-${s.className}`}
+                    style={{
+                      backgroundColor: s.isSaved ? "#d4edda" : "transparent",
+                      transition: "background-color 0.4s ease",
+                    }}
+                  >
+                    <td>{i + 1}</td>
+                    <td style={{ fontWeight: "bold", color: "#e67e22" }}>
+                      {s.className}
+                    </td>
+                    <td>{s.name}</td>
+                    <td>{subject || "-"}</td>
+                    <td>
+                      <input
+                        type="number"
+                        value={s.task}
+                        disabled={absent}
+                        onChange={(e) =>
+                          handleChange(i, "task", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={s.viva}
+                        disabled={absent}
+                        onChange={(e) =>
+                          handleChange(i, "viva", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={s.behaviour}
+                        disabled={absent}
+                        onChange={(e) =>
+                          handleChange(i, "behaviour", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td>{s.attendance}</td>
+                    <td className="obtained">{s.obtained}</td>
+                    <td>{globalTotal || "-"}</td>
+                    <td>
+                      <button
+                        onClick={() => saveMarks(s, i)}
+                        disabled={saving || absent}
+                        style={{
+                          backgroundColor: s.isSaved ? "#28a745" : "#2c7be5",
+                          borderColor: s.isSaved ? "#28a745" : "#2c7be5",
+                        }}
+                      >
+                        {saving
+                          ? "Saving..."
+                          : s.isSaved
+                          ? "Update ✓"
+                          : "Save"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {message && <p className="msg">{message}</p>}
+
+      <style>{`
+        .page { padding:20px; background:#f4f6f9; min-height:100vh; }
+        .title { text-align:center; margin-bottom:20px; color:#2c3e50; }
+        
+        .mode-selector {
+          background: #deedff;
+          padding: 12px;
+          border-radius: 6px;
+          margin-bottom: 15px;
+          display: flex;
+          align-items: center;
+          border: 1px solid #e1e1e1;
+        }
+        .mode-selector input { width: auto; margin-right: 6px; cursor: pointer; }
+        .mode-selector label { font-weight: 500; cursor: pointer; display: flex; align-items: center; }
+
+        .filters {
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+          gap:12px;
+          margin-bottom:20px;
+        }
+
+        select, input {
+          padding:10px;
+          border-radius:6px;
+          border:1px solid #ccc;
+          width:100%;
+          background: #ffffff;
+        }
+
+        .tableWrap {
+          overflow-x:auto;
+          background:#fff;
+          padding:15px;
+          border-radius:10px;
+        }
+
+        .marksTable {
+          width:100%;
+          border-collapse:collapse;
+          min-width:1000px;
+        }
+
+        th, td { border:1px solid #e1e1e1; padding:10px; text-align:center; transition: background-color 0.3s ease; }
+        th { background:#eef2f7; }
+        .obtained { font-weight:bold; color:#2c7be5; }
+        button { padding:6px 14px; background:#2c7be5; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight: 600; transition: all 0.2s ease; }
+        button:disabled { background: #e1eef8; cursor: not-allowed; }
+
+        .msg { margin-top:15px; text-align:center; font-weight:bold; color: #2c3e50; }
+
+        @media(max-width:768px){ .marksTable { min-width:900px; } }
+      `}</style>
+    </div>
+  );
 };
 
 export default InternalMarksSheet;

@@ -820,7 +820,7 @@ const StudentDashboard = () => {
           setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
         }
 
-        const taskRes = await api.get(`/api/assignments/class/${storedUser.class}/${storedUser.id}`);
+        const taskRes = await api.get("/api/assignments/class/${storedUser.class}/${storedUser.id}");
         if (taskRes.data.success) {
            const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED");
            setPendingTasks(pending.length);

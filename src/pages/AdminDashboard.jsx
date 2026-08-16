@@ -216,7 +216,9 @@ const AdminDashboard = () => {
                   <div style={heroStats}>
                     <div style={hStatCard}>
                       <span style={hStatVal}>{stats.avgMarks}%</span>
-                      <span style={hStatLab}>Avg. Performance</span>
+                      <span style={hStatLab}>Avg. Perform
+                        
+                        ance</span>
                     </div>
                     <div style={hStatCard}>
                       <span style={hStatVal}>Live</span>
