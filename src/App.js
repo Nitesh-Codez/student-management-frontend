@@ -50,6 +50,7 @@ import ViewResults from "./pages/Results_details/ViewResults";
 import StudentDropApply from "./pages/StudentDropApply";
 import FeesDetails from "./pages/FeesDetails";
 import StudentsMeetings from "./pages/Meetings/StudentsMeetings";
+import StudentInternal from "./pages/Examination/StudentsInternal";
 
 /* EXAM */
 import ExamForm from "./pages/Examination/ExamForm";
@@ -172,6 +173,7 @@ function App() {
           <Route path="attempt/:id" element={<AttemptQuizPage />} />
           <Route path="review/:quizId/:studentId" element={<QuizReview />} />
            <Route path="students-meeting" element={<StudentsMeetings/>} />
+           <Route path="students-internal" element={<StudentInternal />} />
         </Route>
 
         {/* 404 */}

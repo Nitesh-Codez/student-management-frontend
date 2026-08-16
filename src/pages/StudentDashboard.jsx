@@ -36,6 +36,7 @@ import StudentsMeetings from "./Meetings/StudentsMeetings";
 import ExamForm from "./Examination/ExamForm";
 import GenerateAdmitCard from "./Examination/GenerateAdmitCard";
 import ExaminationResult from "./Examination/ExaminationResult";
+import StudentInternal from "./Examination/StudentsInternal";
 
 const theme = {
   gradients: {
@@ -1079,6 +1080,7 @@ try {
                 <Link to="exam-form" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("exam-form")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>📄 Exam Form</Link>
                 <Link to="generate-admit" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("generate-admit")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>🪪 Admit Card</Link>
                 <Link to="exam-result" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("exam-result")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>📊 Exam Result</Link>
+                <Link to="students-internal" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("exam-result")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>📊 My Courses</Link>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1178,9 +1180,24 @@ try {
 
           
           {/* Internal Examination Routes */}
-          <Route path="exam-form" element={<ExamForm />} />
-          <Route path="generate-admit" element={<GenerateAdmitCard />} />
-          <Route path="exam-result" element={<ExaminationResult />} />
+          {/* Internal Examination Routes */}
+<Route path="exam-form" element={<ExamForm />} />
+
+<Route
+  path="generate-admit"
+  element={<GenerateAdmitCard />}
+/>
+
+<Route
+  path="exam-result"
+  element={<ExaminationResult />}
+/>
+
+<Route
+  path="students-internal"
+  element={<StudentInternal />}
+/>
+                 
         </Routes>
       </main>
 
