@@ -29,7 +29,7 @@ const ExaminationResult = () => {
   const userRef = useRef(user);
 
   useEffect(() => {
-    const targetDate = new Date("2026-07-12T14:00:00+05:30"); 
+    const targetDate = new Date("2026-09-12T14:00:00+05:30"); 
 
     const calculateTime = () => {
       const now = new Date();

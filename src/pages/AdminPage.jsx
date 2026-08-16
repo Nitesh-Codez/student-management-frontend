@@ -34,7 +34,7 @@ export default function AdminPage() {
         if (res.data.success) {
           setClasses(res.data.classes);
           const map = {};
-          res.data.classes.forEach(c => { map[c.class] = ["Math","English","Hindi","SST","Science"]; });
+          res.data.classes.forEach(c => { map[c.class] = ["Math","English","Hindi","SST","Science","Chemistry"]; });
           setSubjectsByClass(map);
         }
       }).catch(err => console.error(err));

@@ -820,7 +820,9 @@ const StudentDashboard = () => {
           setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
         }
 
-        const taskRes = await api.get("/api/assignments/class/${storedUser.class}/${storedUser.id}");
+        const taskRes = await api.get(
+  `/api/assignments/class/${storedUser.class}/${storedUser.id}`
+);
         if (taskRes.data.success) {
            const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED");
            setPendingTasks(pending.length);
@@ -990,133 +992,149 @@ try {
   </header>
 
 
-      <NotificationModal isOpen={isNotiOpen} onClose={() => setIsNotiOpen(false)} notifications={notifications} navigate={navigate} />
-      <FeePopup isOpen={showFeePopup} onClose={() => setShowFeePopup(false)} amount={dynamicFeeAmount} />
-      <PhotoModal isOpen={isPhotoOpen} user={user} onClose={() => setIsPhotoOpen(false)} />
+     <AnimatePresence>
+  {sidebarOpen && (
+    <>
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }} 
+        onClick={() => setSidebarOpen(false)} 
+        style={sideOverlay} 
+      />
+      <motion.aside 
+        initial={{ x: -300 }} 
+        animate={{ x: 0 }} 
+        exit={{ x: -300 }} 
+        style={{
+          ...sideDrawer,
+          background: "#f8fafc", // Soft light background for high-class tabular look
+          borderRight: "1px solid #e2e8f0",
+          boxShadow: "20px 0 40px rgba(0,0,0,0.05)"
+        }}
+      >
+        <div style={{ ...drawerHeader, borderBottom: "1px solid #e2e8f0", paddingBottom: "20px" }}>
+          <div style={{ ...drawerLogo, background: "#6366f1", color: "#fff", boxShadow: "0 8px 16px rgba(99, 102, 241, 0.3)" }}><FaUserGraduate /></div>
+          <h4 style={{ color: "#0f172a", margin: 0, fontWeight: "800", letterSpacing: "-0.5px" }}>SmartZone</h4>
+        </div>
 
-      {/* ================= SIDEBAR ================= */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} style={sideOverlay} />
-            <motion.aside initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} style={sideDrawer}>
-              <div style={drawerHeader}>
-                <div style={drawerLogo}><FaUserGraduate /></div>
-                <h4 style={{ color: "white", margin: 0 }}>SmartZone</h4>
-              </div>
+        <nav style={{ ...drawerNav, gap: "10px" }}>
+          {[
+            { to: "/student", icon: <FaHome />, label: "Dashboard", active: location.pathname === "/student" },
+            { to: "profile", icon: <FaUserAlt />, label: "My Profile", active: location.pathname.includes("profile") },
+            { to: "task-update", icon: <FaTasks />, label: "Assignments", active: location.pathname.includes("task-update") },
+            { to: "fees", icon: <FaMoneyBillWave />, label: "Fees / Records", active: location.pathname.includes("fees") },
+            { to: "feedback", icon: <FaStar />, label: "Feedback", active: location.pathname.includes("feedback") },
+            { to: "register-student", icon: <FaUserGraduate />, label: "Student Registration", active: location.pathname.includes("register-student") },
+            { to: "marks", icon: <FaChartLine />, label: "My Marks", active: location.pathname.includes("marks") },
+            { to: "quiz-dashboard", icon: "📝", label: "Practice Quiz", active: location.pathname.includes("quiz-dashboard") },
+            { to: "Check-performance", icon: <FaComments />, label: "Check performance", active: location.pathname.includes("Check-performance") },
+            { to: "drop-apply", icon: <FaComments />, label: "Apply Drop", active: location.pathname.includes("drop-apply") },
+            { to: "students-meeting", icon: <FaComments />, label: "Meetings", active: location.pathname.includes("students-meeting") },
+          ].map((item) => (
+            <Link 
+              key={item.to}
+              to={item.to} 
+              onClick={() => setSidebarOpen(false)} 
+              style={{
+                ...drawerLinkStyle(item.active),
+                color: item.active ? "#6366f1" : "#334155",
+                background: item.active ? "#ffffff" : "#ffffff",
+                border: item.active ? "1px solid #6366f1" : "1px solid #e2e8f0",
+                boxShadow: item.active ? "0 4px 12px rgba(99, 102, 241, 0.15)" : "0 2px 4px rgba(0,0,0,0.02)",
+                fontWeight: item.active ? "700" : "600",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <span style={{ fontSize: "16px" }}>{item.icon}</span> {item.label}
+            </Link>
+          ))}
 
-              <nav style={drawerNav}>
-                <Link to="/student" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname === "/student")}>
-                  <FaHome /> Dashboard
-                </Link>
-                <Link to="profile" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("profile"))}>
-                  <FaUserAlt /> My Profile
-                </Link>
-                <Link to="task-update" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("task-update"))}>
-                  <FaTasks /> Assignments
-                </Link>
-                
-                <Link to="fees" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("fees"))}>
-                  <FaMoneyBillWave /> Fees / Records
-                </Link>
-                <Link to="feedback" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("feedback"))}>
-                  <FaStar /> Feedback
-                </Link>
-             <Link 
- to="register-student"
- onClick={() => setSidebarOpen(false)}
- style={drawerLinkStyle(location.pathname.includes("register-student"))}
->
-  <FaUserGraduate /> Student Registration
-</Link>
-                
-                <Link to="marks" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("marks"))}>
-                  <FaChartLine /> My Marks
-                </Link>
-                <Link
-  to="quiz-dashboard"
-  onClick={() => setSidebarOpen(false)}
-  style={drawerLinkStyle(location.pathname.includes("quiz-dashboard"))}
->
-  📝 Practice Quiz
-</Link>
-                <Link to="Check-performance" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("Check-performance"))}>
-                  <FaComments /> Check performance
-                </Link>
-                <Link to="drop-apply" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("drop-apply"))}>
-                  <FaComments /> Apply Drop
-                </Link>  
-                 <Link to="students-meeting" onClick={() => setSidebarOpen(false)} style={drawerLinkStyle(location.pathname.includes("students-meeting"))}>
-                  <FaComments /> Meetings
-                </Link>    
+          {/* ===== SIDEBAR DROPDOWN (EXAMINATION) ===== */}
+          <div
+            onClick={() => setOpenFolder(prev => prev === "exam" ? null : "exam")}
+            style={{
+              ...drawerLinkStyle(location.pathname.includes("exam")), 
+              cursor: 'pointer', 
+              justifyContent: 'space-between',
+              color: location.pathname.includes("exam") ? "#6366f1" : "#334155",
+              background: "#ffffff",
+              border: location.pathname.includes("exam") ? "1px solid #6366f1" : "1px solid #e2e8f0",
+              boxShadow: location.pathname.includes("exam") ? "0 4px 12px rgba(99, 102, 241, 0.15)" : "0 2px 4px rgba(0,0,0,0.02)",
+              fontWeight: location.pathname.includes("exam") ? "700" : "600"
+            }}
+          >
+            <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaBookOpen /> Examination</div>
+            <FaChevronRight style={{transform: openFolder === "exam" ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
+          </div>
 
-            {/* ===== SIDEBAR DROPDOWN ===== */}
-<div
-  onClick={() => setOpenFolder(prev => prev === "exam" ? null : "exam")}
-  style={{...drawerLinkStyle(location.pathname.includes("exam")), cursor: 'pointer', justifyContent: 'space-between'}}
->
-  <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaBookOpen /> Examination</div>
-  <FaChevronRight style={{transform: openFolder === "exam" ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
-</div>
+          <AnimatePresence>
+            {openFolder === "exam" && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                style={{ marginLeft: 15, display: "flex", flexDirection: "column", gap: 6, overflow: 'hidden', paddingLeft: '10px', borderLeft: '2px solid #cbd5e1' }}
+              >
+                <Link to="exam-form" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("exam-form")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>📄 Exam Form</Link>
+                <Link to="generate-admit" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("generate-admit")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>🪪 Admit Card</Link>
+                <Link to="exam-result" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("exam-result")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>📊 Exam Result</Link>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-<AnimatePresence>
-  {openFolder === "exam" && (
-    <motion.div
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 'auto', opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
-      style={{ marginLeft: 25, display: "flex", flexDirection: "column", gap: 5, overflow: 'hidden' }}
-    >
-      <Link to="exam-form" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-form"))}>📄 Exam Form</Link>
-      <Link to="generate-admit" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("generate-admit"))}>🪪 Admit Card</Link>
-      <Link to="exam-result" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-result"))}>📊 Exam Result</Link>
-    </motion.div>
+          {/* ===== RESULTS DROPDOWN ===== */}
+          <div
+            onClick={() => setOpenFolder(prev => prev === "result" ? null : "result")}
+            style={{
+              ...drawerLinkStyle(location.pathname.includes("submit-results") || location.pathname.includes("view-results")), 
+              cursor: 'pointer', 
+              justifyContent: 'space-between',
+              color: (location.pathname.includes("submit-results") || location.pathname.includes("view-results")) ? "#6366f1" : "#334155",
+              background: "#ffffff",
+              border: (location.pathname.includes("submit-results") || location.pathname.includes("view-results")) ? "1px solid #6366f1" : "1px solid #e2e8f0",
+              boxShadow: (location.pathname.includes("submit-results") || location.pathname.includes("view-results")) ? "0 4px 12px rgba(99, 102, 241, 0.15)" : "0 2px 4px rgba(0,0,0,0.02)",
+              fontWeight: (location.pathname.includes("submit-results") || location.pathname.includes("view-results")) ? "700" : "600"
+            }}
+          >
+            <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaClipboardCheck /> Results</div>
+            <FaChevronRight style={{transform: openFolder === "result" ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
+          </div>
+
+          <AnimatePresence>
+            {openFolder === "result" && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                style={{ marginLeft: 15, display: "flex", flexDirection: "column", gap: 6, overflow: 'hidden', paddingLeft: '10px', borderLeft: '2px solid #cbd5e1' }}
+              >
+                <Link to="submit-results" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("submit-results")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>📄 Uploads Marks</Link>
+                <Link to="view-results" onClick={() => setSidebarOpen(false)} style={{ ...subLinkStyle(location.pathname.includes("view-results")), background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 14px" }}>📊 View Results Records</Link>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ===== LOGOUT BUTTON ===== */}
+          <div 
+            style={{ 
+              ...logoutBtnStyle, 
+              color: '#7f2323', 
+              background: '#aee92e', 
+              border: '1px solid #fecaca',
+              borderRadius: '14px', 
+              marginTop: '15px',
+              boxShadow: '0 2px 4px rgba(239, 68, 68, 0.05)'
+            }} 
+            onClick={() => { localStorage.clear(); window.location.href = "/"; }}
+          >
+            <FaSignOutAlt /> Logout
+          </div>
+        </nav>
+      </motion.aside>
+    </>
   )}
 </AnimatePresence>
-
-{/* ===== RESULTS DROPDOWN ===== */}
-<div
-  onClick={() => setOpenFolder(prev => prev === "result" ? null : "result")}
-  style={{...drawerLinkStyle(location.pathname.includes("submit-results") || location.pathname.includes("view-results")), cursor: 'pointer', justifyContent: 'space-between'}}
->
-  <div style={{display: 'flex', alignItems: 'center', gap: 12}}><FaClipboardCheck /> Results</div>
-  <FaChevronRight style={{transform: openFolder === "result" ? 'rotate(90deg)' : 'none', transition: '0.3s', fontSize: '12px'}} />
-</div>
-
-<AnimatePresence>
-  {openFolder === "result" && (
-    <motion.div
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 'auto', opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
-      style={{ marginLeft: 25, display: "flex", flexDirection: "column", gap: 5, overflow: 'hidden' }}
-    >
-      <Link to="submit-results" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("submit-results"))}>📄 Uploads Marks</Link>
-      <Link to="view-results" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("view-results"))}>📊 View Results Records</Link>
-    </motion.div>
-  )}
-</AnimatePresence>
-                <AnimatePresence>
-                  {examOpen && (
-                    
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ marginLeft: 25, display: "flex", flexDirection: "column", gap: 5, overflow: 'hidden' }}>
-                      <Link to="exam-form" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-form"))}>📄 Exam Form</Link>
-                      <Link to="generate-admit" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("generate-admit"))}>🪪 Admit Card</Link>
-                      <Link to="exam-result" onClick={() => setSidebarOpen(false)} style={subLinkStyle(location.pathname.includes("exam-result"))}>📊 Exam Result</Link>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                
-
-                <div style={logoutBtnStyle} onClick={() => { localStorage.clear(); window.location.href = "/"; }}>
-                  <FaSignOutAlt /> Logout
-                </div>
-              </nav>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-      
 
       {/* ================= MAIN CONTENT ================= */}
       <main style={mainBody}>
@@ -1270,7 +1288,7 @@ const drawerHeader = { display: "flex", alignItems: "center", gap: 12, marginBot
 const drawerLogo = { width: 40, height: 40, background: theme.gradients.primary, borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", color: 'white' };
 const drawerNav = { display: "flex", flexDirection: "column", gap: 8 };
 const drawerLinkStyle = (active) => ({ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: "14px", textDecoration: "none", color: active ? "white" : "#94a3b8", background: active ? "#6366f1" : "transparent", fontWeight: 600, transition: '0.2s' });
-const logoutBtnStyle = { marginTop: '20px', padding: '14px 18px', color: '#f87171', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' };
+const logoutBtnStyle = { marginTop: '20px', padding: '14px 18px', color: '#721111',backgroundColor: '#8bf63e', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' };
 const mobileBar = { position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: '#0f172a', padding: '12px 35px', borderRadius: '40px', display: 'flex', gap: '35px', color: 'white', fontSize: '22px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.3)' };
 const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 5000, display: "flex", alignItems: "center", justifyContent: "center", padding: '20px' };
 const notiModalContainer = { width: '100%', maxWidth: '380px', background: '#fff', borderRadius: '25px', overflow: 'hidden' };
