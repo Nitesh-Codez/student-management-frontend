@@ -635,7 +635,7 @@ const InternalMarksSheet = () => {
 
   return (
     <div className="page">
-      <p  style={{fontSize:"65px"}} className="title"> Smart Students's Classes </p>
+      <p style={{fontSize:"65px"}} className="title"> Smart Students's Classes </p>
       <h2 className="title">📋 Internal Assessment Marks Sheet</h2>
 
       <div className="mode-selector">

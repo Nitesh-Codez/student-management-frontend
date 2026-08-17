@@ -3,8 +3,8 @@ import api from "../services/api";
 
 const AdminAddNewMarks = () => {
   const subjectsByClass = {
-    "5th": ["Math", "English", "Hindi", "EVS", "English Communication"],
-    "6th": ["Math", "English", "Hindi", "Science", "English Communication"],
+    "5th": ["Maths", "English", "Hindi", "EVS", "English Communication"],
+    "6th": ["Maths", "English", "Hindi", "Science", "English Communication"],
     "7th": [
       "Math",
       "English",

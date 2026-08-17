@@ -501,7 +501,7 @@ const styles = {
   bubble4: {
     width: "60px",
     height: "60px",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    background: "linear-gradient(135deg, #4055b6 0%, #764ba2 100%)",
     bottom: "20%",
     left: "20%",
     animation: "float 7s infinite ease-in-out",
@@ -514,16 +514,16 @@ const styles = {
     animation: "fadeIn 0.8s ease",
   },
   logo: {
-    fontSize: "clamp(48px, 10vw, 80px)",
+    fontSize: "clamp(58px, 10vw, 80px)",
     fontWeight: "900",
     margin: "0",
     letterSpacing: "0.05em",
-    color: "#1e293b",
+    color: "#374a68",
   },
   tagline: {
-    fontSize: "clamp(12px, 2vw, 16px)",
-    color: "#64748b",
-    fontWeight: "600",
+    fontSize: "clamp(18px, 2vw, 19px)",
+    color: "#788da9",
+    fontWeight: "800",
     marginTop: "5px",
   },
   loginCard: {
@@ -535,7 +535,7 @@ const styles = {
     borderRadius: "24px",
     boxShadow: "0 20px 40px rgba(0,0,0,0.08)",
     zIndex: 2,
-    border: "1px solid #fff",
+    border: "1px solid #6acfeb",
     animation: "fadeIn 1s ease",
   },
   loginTitle: {
@@ -601,17 +601,17 @@ const styles = {
     padding: "8px",
     borderRadius: "8px",
     marginBottom: "15px",
-    fontSize: "13px",
+    fontSize: "16px",
     fontWeight: "600",
     textAlign: "center",
   },
   successStyle: {
-    color: "#10b981",
+    color: "#068e35",
     background: "#d1fae5",
     padding: "8px",
     borderRadius: "8px",
     marginBottom: "15px",
-    fontSize: "13px",
+    fontSize: "18px",
     fontWeight: "600",
     textAlign: "center",
   },
@@ -688,6 +688,8 @@ const styles = {
     cursor: "pointer",
     zIndex: 2,
     transition: "transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease",
+    fontSize :"2px"
+
   },
   modalActions: {
     display: "flex",
