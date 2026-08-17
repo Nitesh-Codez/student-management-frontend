@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../services/api"; // Moved to the top-level imports
+import api from "../services/api";
 
 const StudentAttendance = () => {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -36,14 +36,14 @@ const StudentAttendance = () => {
     return colors.absent;
   };
 
-  // 1. Corrected API Call for Student Attendance
+  // 1. Fetch Student Attendance Records
   useEffect(() => {
     if (!user || !user.id) return;
     
     api.get(`/api/attendance/${user.id}`)
       .then((res) => {
         if (res.data.success) {
-          setAttendance(res.data.attendance);
+          setAttendance(res.data.attendance || []);
         }
       })
       .catch((err) => console.log("Fetch error:", err));
@@ -53,22 +53,6 @@ const StudentAttendance = () => {
     const today = new Date();
     setMonth(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
   }, []);
-
-  // 2. Updated API Call for Cumulative Attendance Marks using your new backend endpoint
-  useEffect(() => {
-    if (!user || !user.id) return;
-
-    api.get(`/api/new-marks/attendance/current-marks`, {
-      params: { studentId: user.id }
-    })
-      .then((res) => {
-        if (res.data.success) {
-          setFinalAverageMarks(res.data.attendanceMarks);
-        }
-      })
-      .catch(console.error);
-
-  }, [user?.id]);
 
   useEffect(() => {
     if (!month) return;
@@ -102,7 +86,7 @@ const StudentAttendance = () => {
     setPercentage(perc.toFixed(1));
     setMarks(perc <= 75 ? 0 : Math.ceil((perc - 75) / 5));
 
-    // Dynamic calculation for Month-wise Breakdown UI
+    // Dynamic calculation for Month-wise Breakdown UI & Frontend Average Calculation
     if (attendance.length > 0) {
       const startMonthIdx = 3; // April (0-indexed)
       const currentYear = y;
@@ -134,6 +118,15 @@ const StudentAttendance = () => {
         }
       }
       setMonthlyBreakdown(tempBreakdown);
+
+      // Frontend Average Calculation across all computed months
+      if (tempBreakdown.length > 0) {
+        const totalMarksSum = tempBreakdown.reduce((acc, curr) => acc + curr.marks, 0);
+        const calculatedAverage = totalMarksSum / tempBreakdown.length;
+        setFinalAverageMarks(calculatedAverage.toFixed(1));
+      } else {
+        setFinalAverageMarks((0).toFixed(1));
+      }
     }
 
   }, [month, attendance]);
@@ -191,6 +184,7 @@ const StudentAttendance = () => {
       <div className="main-page-wrapper" style={pageWrapperStyleInner}>
         <div className="content-container" style={containerLayout}>
           
+          {/* --- HEADER --- */}
           <div className="header-section-layout" style={headerSection}>
             <div style={{display: 'flex', flexDirection: 'column'}}>
               <span style={headerTag}>Smart Students Classes</span>
@@ -208,6 +202,7 @@ const StudentAttendance = () => {
             </div>
           </div>
 
+          {/* --- HERO DASHBOARD SECTION --- */}
           <div className="hero-card-layout" style={heroCard}>
             <div style={heroText}>
               <div style={classBadge}>Current Batch: {user?.class || "N/A"}</div>
@@ -245,6 +240,7 @@ const StudentAttendance = () => {
             </div>
           </div>
 
+          {/* --- PERFORMANCE BREAKDOWN TABLE --- */}
           <div className="breakdown-table-container" style={breakdownContainer}>
             <h3 style={sectionHeading}>Progressive Term Performance Breakdown (Since April)</h3>
             <div style={{overflowX: 'auto'}}>
@@ -273,6 +269,7 @@ const StudentAttendance = () => {
             </div>
           </div>
 
+          {/* --- MONTHLY STATISTICS GRID --- */}
           <div style={statsRow}>
             <div style={statBox}>
               <span style={{...statNum, color: colors.present}}>{filtered.filter(a => a.status === "Present").length}</span>
@@ -288,6 +285,7 @@ const StudentAttendance = () => {
             </div>
           </div>
 
+          {/* --- DAILY ACTIVITY LOG --- */}
           <div style={logContainer}>
             <div className="activity-log-header" style={logHeader}>
               <h3 style={{fontSize: '15px', color: '#334155', fontWeight: "normal", fontStyle: 'italic'}}>Detailed Attendance Log (Current Month)</h3>
@@ -343,26 +341,42 @@ const StudentAttendance = () => {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
 };
 
+// --- STYLES CONFIG ---
 const pageWrapper = { width: "100%", minHeight: "100vh", backgroundColor: "#ffffff" };
 const pageWrapperStyleInner = { width: "100%", padding: "40px 20px" };
+
 const containerLayout = { maxWidth: "1050px", margin: "0 auto", backgroundColor: "#ffffff", borderRadius: "8px", boxShadow: "0 4px 20px rgba(0,0,0,0.04)", overflow: "hidden" };
+
 const headerSection = { padding: "35px 30px 25px 30px", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid #e2e8f0", flexWrap: "wrap", gap: "20px" };
-const headerTag = { background: "#0f172a", color: "#ffffff", padding: "4px 10px", borderRadius: "2px", fontSize: "11px", width: "fit-content", letterSpacing: "1.5px", display: "inline-block", textTransform: "uppercase", marginBottom: "6px" };
+const headerTag = {
+  background: "#0f172a",
+  color: "#ffffff",
+  padding: "4px 10px",
+  borderRadius: "2px",
+  fontSize: "11px",
+  width: "fit-content",
+  letterSpacing: "1.5px",
+  display: "inline-block",
+  textTransform: "uppercase",
+  marginBottom: "6px"
+};
 const mainTitle = { fontSize: "24px", margin: 0, color: "#0f172a", fontWeight: "normal" };
 const subTitle = { fontSize: "15px", color: "#64748b", marginTop: "4px" };
+
 const monthPickerWrapper = { display: "flex", alignItems: "center", background: "#ffffff", padding: "8px 14px", borderRadius: "4px", border: "1px solid #cbd5e1" };
 const pickerLabel = { fontSize: "13px", color: "#475569", marginRight: "8px", fontStyle: "italic" };
 const monthInput = { border: "none", background: "transparent", outline: "none", fontSize: "13px", color: "#0f172a", cursor: "pointer" };
+
 const heroCard = { width: "100%", background: "#1e293b", padding: "35px 30px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" };
 const heroText = { display: "flex", flexDirection: "column", flex: 1 };
 const classBadge = { background: "rgba(255,255,255,0.12)", padding: "4px 10px", borderRadius: "2px", fontSize: "11px", width: "fit-content" };
 const marksLabelLine = { fontSize: "15px", color: "#94a3b8", marginTop: "6px", fontStyle: "italic" };
+
 const breakdownContainer = { padding: "35px 30px", background: "#fff", borderBottom: "1px solid #e2e8f0" };
 const sectionHeading = { fontSize: "16px", color: "#0f172a", marginBottom: "16px", fontWeight: "normal", fontStyle: "italic" };
 const classicTable = { width: "100%", borderCollapse: "collapse", fontSize: "14px" };
@@ -370,10 +384,12 @@ const tableTh = { borderBottom: "2px solid #0f172a", padding: "10px", color: "#0
 const tableTr = { borderBottom: "1px solid #e2e8f0" };
 const tableTd = { padding: "12px 10px", color: "#334155" };
 const finalRowStyle = { background: "#f8fafc", borderTop: "2px solid #0f172a" };
-const statsRow = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", width: "100%", background: "#ffffff", borderBottom: "1px solid #e2e8f0" };
+
+const statsRow = { background: "#ffffff", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", width: "100%", borderBottom: "1px solid #e2e8f0" };
 const statBox = { padding: "20px 10px", textAlign: "center" };
 const statNum = { fontSize: "24px", display: "block" };
 const statLabel = { fontSize: "11px", color: "#64748b", textTransform: "uppercase", marginTop: '4px' };
+
 const logContainer = { width: "100%" };
 const logHeader = { padding: "20px 30px", background: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: 'center', borderBottom: "1px solid #e2e8f0" };
 const listWrapper = { display: "flex", flexDirection: "column", width: "100%" };

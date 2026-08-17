@@ -1108,7 +1108,7 @@ const InternalMarksSheet = () => {
 
         const res =
           await api.post(
-            "/api/academic-documents/admin/upload",
+            "/api/exams-details/admin/upload",
             formData,
             {
               headers: {
