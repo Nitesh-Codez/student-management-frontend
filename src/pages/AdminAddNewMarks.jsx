@@ -6,7 +6,7 @@ const AdminAddNewMarks = () => {
     "5th": ["Maths", "English", "Hindi", "EVS", "English Communication"],
     "6th": ["Maths", "English", "Hindi", "Science", "English Communication"],
     "7th": [
-      "Math",
+      "Maths",
       "English",
       "Hindi",
       "Science",
@@ -17,7 +17,7 @@ const AdminAddNewMarks = () => {
       "English Communication",
     ],
     "8th": [
-      "Math",
+      "Maths",
       "English",
       "Science",
       "Hindi",
@@ -28,7 +28,7 @@ const AdminAddNewMarks = () => {
       "English Communication",
     ],
     "9th": [
-      "Math",
+      "Maths",
       "English",
       "Hindi",
       "Science",
@@ -36,7 +36,7 @@ const AdminAddNewMarks = () => {
       "English Communication",
     ],
     "10th": [
-      "Math",
+      "Maths",
       "English",
       "Hindi",
       "Science",
@@ -45,7 +45,7 @@ const AdminAddNewMarks = () => {
     ],
     "11th": [
       "Chemistry",
-      "Math",
+      "Maths",
       "English",
       "Physics",
       "Biology",
@@ -53,7 +53,7 @@ const AdminAddNewMarks = () => {
     ],
     "12th": [
       "Chemistry",
-      "Math",
+      "Maths",
       "English",
       "Physics",
       "Biology",

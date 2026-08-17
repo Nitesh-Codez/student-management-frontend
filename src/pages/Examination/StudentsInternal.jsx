@@ -208,16 +208,11 @@ const StudentInternal = () => {
                     label="Total Marks" 
                     value={
                       m?.total_marks !== undefined && m?.total_marks !== null && m?.total_marks !== ""
-                        ? `${calculatedInternalTotal} / 30`
+                        ? `${calculatedInternalTotal} / 25`
                         : null
                     } 
                   />
                   
-                  <OptionItem 
-                    icon={<FaBook size={13}/>} 
-                    label="Theory" 
-                    value={m?.theory_marks ?? null} 
-                  />
                   
                   <OptionItem 
                     icon={<FaTasks size={13}/>} 

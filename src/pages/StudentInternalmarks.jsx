@@ -3,10 +3,10 @@ import api from "../services/api";
 
 const InternalMarksSheet = () => {
   const subjectsByClass = {
-    "5th": ["Math", "English", "Hindi", "EVS", "English Communication"],
-    "6th": ["Math", "English", "Hindi", "Science", "English Communication"],
+    "5th": ["Maths", "English", "Hindi", "EVS", "English Communication"],
+    "6th": ["Maths", "English", "Hindi", "Science", "English Communication"],
     "7th": [
-      "Math",
+      "Maths",
       "English",
       "Hindi",
       "Science",
@@ -17,7 +17,7 @@ const InternalMarksSheet = () => {
       "English Communication",
     ],
     "8th": [
-      "Math",
+      "Maths",
       "English",
       "Science",
       "Hindi",
@@ -28,7 +28,7 @@ const InternalMarksSheet = () => {
       "English Communication",
     ],
     "9th": [
-      "Math",
+      "Maths",
       "English",
       "Hindi",
       "Science",
@@ -36,7 +36,7 @@ const InternalMarksSheet = () => {
       "English Communication",
     ],
     "10th": [
-      "Math",
+      "Maths",
       "English",
       "Hindi",
       "Science",
@@ -45,7 +45,7 @@ const InternalMarksSheet = () => {
     ],
     "11th": [
       "Chemistry",
-      "Math",
+      "Maths",
       "English",
       "Physics",
       "Biology",
@@ -53,7 +53,7 @@ const InternalMarksSheet = () => {
     ],
     "12th": [
       "Chemistry",
-      "Math",
+      "Maths",
       "English",
       "Physics",
       "Biology",
