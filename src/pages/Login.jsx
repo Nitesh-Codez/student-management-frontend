@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FaShieldAlt } from "react-icons/fa";
 
+
 const Login = () => {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -341,7 +342,8 @@ const Login = () => {
       </div>
 
       <div style={styles.loginCard}>
-        <h2 style={styles.loginTitle}>Login</h2>
+        <h2 style={styles.loginTitle}>Smart Students's Classes </h2>
+         <h2 style={styles.loginlogo}>  Login</h2>
 
         {error && <p style={styles.errorStyle}>{error}</p>}
 
@@ -513,17 +515,18 @@ const styles = {
     marginBottom: "25px",
     animation: "fadeIn 0.8s ease",
   },
-  logo: {
-    fontSize: "clamp(58px, 10vw, 80px)",
-    fontWeight: "900",
-    margin: "0",
-    letterSpacing: "0.05em",
-    color: "#374a68",
-  },
+ logo: {
+  fontSize: "clamp(58px, 10vw, 80px)",
+  fontWeight: "800",
+  margin: "0",
+  letterSpacing: "0.05em",
+  color: "#374a68",
+  transform: "translateY(-10px)",
+},
   tagline: {
     fontSize: "clamp(18px, 2vw, 19px)",
     color: "#788da9",
-    fontWeight: "800",
+    fontWeight: "500",
     marginTop: "5px",
   },
   loginCard: {
@@ -538,14 +541,25 @@ const styles = {
     border: "1px solid #6acfeb",
     animation: "fadeIn 1s ease",
   },
-  loginTitle: {
-    marginBottom: "20px",
-    fontWeight: "800",
-    fontSize: "26px",
-    color: "#1e293b",
-    borderLeft: "5px solid #6366f1",
-    paddingLeft: "12px",
-  },
+ loginTitle: {
+  marginBottom: "22px",
+  fontWeight: "700",
+  fontSize: "22px",
+  color: "#1e293b",
+  paddingLeft: "12px",
+  textAlign: "center",
+  whiteSpace: "nowrap",
+},
+loginlogo: {
+  marginBottom: "22px",
+  fontWeight: "700",
+  fontSize: "22px",
+  color: "#1e293b",
+  paddingLeft: "12px",
+  
+  textAlign: "center",
+  whiteSpace: "nowrap",
+},
   inputBox: {
     marginBottom: "15px",
   },
