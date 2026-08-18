@@ -203,7 +203,7 @@ const StudentsMeetings = () => {
               return (
                 <div key={meetingId} style={styles.meetingCard}>
                   <div style={styles.meetingCardHeader}>
-                    <span style={styles.badge}>{meeting.status || "UPCOMING"}</span>
+                    <span style={styles.badge}>{meeting.status || "Smart Student's Classes Meetings"}</span>
                     <span style={styles.sessionBadge}>Session: {meeting.session || "2026-2027"}</span>
                   </div>
 
