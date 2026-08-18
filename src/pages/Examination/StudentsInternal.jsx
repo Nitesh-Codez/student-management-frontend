@@ -680,7 +680,7 @@ const StudentInternal = () => {
                     value={
                       calculatedInternalTotal !==
                       null
-                        ? `${calculatedInternalTotal} / 30`
+                        ? `${calculatedInternalTotal} / 25`
                         : null
                     }
                     highlight={true}

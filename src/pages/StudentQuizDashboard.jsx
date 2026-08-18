@@ -317,7 +317,7 @@ const StudentQuizDashboard = () => {
                       <div style={styles.quizMetaInfo}>
                         <span>⏱️ {quiz.timer_minutes} mins</span>
                         <span>•</span>
-                        <span>📋 {quiz.total_marks || 0} Marks</span>
+                        <span>📋 {quiz.total_marks || 0} Questions</span>
                       </div>
                       <div style={styles.prizeBadge}>
                         📜 <strong>Win Certificate:</strong> {quizPrize}
