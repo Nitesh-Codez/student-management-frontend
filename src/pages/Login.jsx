@@ -377,7 +377,7 @@ const Login = () => {
 
       <div style={styles.loginCard}>
         <h2 style={styles.loginTitle}>
-          <span style={styles.animatedTextSpan}>Smart Students' Classes</span>
+          <span style={styles.animatedTextSpan}>Smart Student's Classes</span>
         </h2>
         <h2 style={styles.loginlogo}>Login</h2>
 

@@ -289,7 +289,7 @@ const StudentsMeetings = () => {
           </div>
           <div>
             <h1 style={styles.title}>Smart Students Classes</h1>
-            <p style={styles.subtitle}>Institutional Virtual Meeting & Lecture Management Portal</p>
+            <p style={styles.subtitle}> Virtual Parent's Meeting & Lecture Management Portal</p>
           </div>
         </div>
         <div style={styles.headerRight}>
@@ -433,8 +433,8 @@ const styles = {
   clockBadge: {
     fontSize: "13px",
     fontWeight: "600",
-    backgroundColor: "#f8fafc",
-    color: "#334155",
+    backgroundColor: "#99ff00",
+    color: "#090c10",
     padding: "8px 14px",
     borderRadius: "8px",
     border: "1px solid #e2e8f0",
@@ -450,7 +450,7 @@ const styles = {
     boxShadow: "0 0 0 2px rgba(16, 185, 129, 0.2)",
   },
   refreshBtn: {
-    backgroundColor: "#0f172a",
+    backgroundColor: "#1b2e5a",
     color: "#ffffff",
     border: "none",
     padding: "9px 16px",
