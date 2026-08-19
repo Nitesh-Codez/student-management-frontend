@@ -487,8 +487,7 @@ useEffect(() => {
 
           </motion.div>
         ))}
-      </div>
- {/* Today's Schedule Section */}
+{/* Today's Schedule Section */}
 <div style={{ 
     width: '100%', 
     maxWidth: '1400px', 
@@ -572,88 +571,111 @@ useEffect(() => {
     {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
   </div>
 
-  {/* Classes List */}
+  {/* Classes List with 11th/12th Stream Filtering */}
   <div style={{ width: '100%' }}>
-    {todayClasses.length > 0 ? (
-      todayClasses.map((cls, idx) => (
-        <div key={idx} style={{ 
-            display: 'flex', 
-            padding: '15px', 
-            borderBottom: '1px solid #eee',
-            gap: '15px',
-            alignItems: 'center'
-        }}>
-          {/* Time Slot */}
-          <div style={{ 
-              minWidth: '90px', 
-              color: '#033841', 
-              fontWeight: '500', 
-              fontSize: '14px',
-              textAlign: 'center'
+    {(() => {
+      // Local user data se class/stream detect karne ke liye
+      const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+      const userClass = String(userObj.student_class || userObj.class || '').toLowerCase();
+      const userStream = String(userObj.stream || userObj.subject_group || '').toLowerCase();
+      const isSeniorClass = userClass.includes('11') || userClass.includes('12');
+
+      const filteredClasses = todayClasses.filter(cls => {
+        if (!isSeniorClass) return true; // Senior ke alawa sabke liye normal show karo
+
+        const subName = (cls.subject_name || '').toLowerCase();
+        const isChemOrMath = subName.includes('chem') || subName.includes('math');
+        const isHindiOrEng = subName.includes('hindi') || subName.includes('english');
+
+        // Agar user ka stream chemistry/maths hai toh sirf chem/math dikhegi, hindi/english mein sirf hindi/english
+        if (userStream.includes('chem') || userStream.includes('math')) {
+          return isChemOrMath;
+        }
+        if (userStream.includes('hindi') || userStream.includes('english')) {
+          return isHindiOrEng;
+        }
+        return true;
+      });
+
+      return filteredClasses.length > 0 ? (
+        filteredClasses.map((cls, idx) => (
+          <div key={idx} style={{ 
+              display: 'flex', 
+              padding: '15px', 
+              borderBottom: '1px solid #eee',
+              gap: '15px',
+              alignItems: 'center'
           }}>
-            {cls.start_time}<br/>-<br/>{cls.end_time}
-          </div>
+            {/* Time Slot */}
+            <div style={{ 
+                minWidth: '90px', 
+                color: '#033841', 
+                fontWeight: '500', 
+                fontSize: '14px',
+                textAlign: 'center'
+            }}>
+              {cls.start_time}<br/>-<br/>{cls.end_time}
+            </div>
 
-          
-
-          {/* TEACHER PHOTO - Fixed Version */}
-<div style={{ 
-    width: '55px', 
-    height: '55px', 
-    borderRadius: '50%', 
-    backgroundColor: '#05ff44', 
-    overflow: 'hidden', 
-    flexShrink: 0, 
-    border: '1px solid #e2e8f0' 
-}}>
-  <img 
-    src={
-      cls.profile_photo 
-      ? (cls.profile_photo.startsWith('http') 
-          ? cls.profile_photo 
-          : "https://student-management-system-4-hose.onrender.com/${cls.profile_photo}")
-      : "https://ui-avatars.com/api/?name=${cls.teacher_name || 'T'}&background=6366f1&color=fff"
-    } 
-    alt="Teacher" 
-    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-    onError={(e) => { 
-        // Agar image path galat hua toh ye initials dikha dega
-        e.target.src = `https://ui-avatars.com/api/?name=${cls.teacher_name || 'T'}&background=random`; 
-    }}
-  />
+            {/* TEACHER PHOTO */}
+            <div style={{ 
+                width: '55px', 
+                height: '55px', 
+                borderRadius: '50%', 
+                backgroundColor: '#05ff44', 
+                overflow: 'hidden', 
+                flexShrink: 0, 
+                border: '1px solid #e2e8f0' 
+            }}>
+              <img 
+                src={
+                  cls.profile_photo 
+                  ? (cls.profile_photo.startsWith('http') 
+                      ? cls.profile_photo 
+                      : `https://student-management-system-4-hose.onrender.com/${cls.profile_photo}`)
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(cls.teacher_name || 'T')}&background=6366f1&color=fff`
+                } 
+                alt="Teacher" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => { 
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(cls.teacher_name || 'T')}&background=random`;  
+                }} 
+              /> 
+            </div> 
+         
+            {/* Class Details */} 
+            <div style={{ flex: 1 }}> 
+              {/* POLL RIGHT */} 
+              <div style={{ 
+                width:'12px', 
+                height:'12px', 
+                borderRadius:'50%', 
+                background: getPollColor(selectedDate), 
+                boxShadow:'0 0 2px rgba(0,0,0,0.2)', 
+                marginLeft: '110px', 
+                marginTop:'30px', 
+                border:"0.2px solid black" 
+              }}/> 
+              <div style={{ fontWeight: 'bold', color: '#4b0082', fontSize: '20px', textTransform: 'uppercase' }}> 
+                {cls.subject_name} 
+              </div> 
+              <div style={{ fontSize: '14px', color: '#6300a9', fontWeight:'bold', marginTop: '2px' }}> 
+                {cls.teacher_name} <span style={{color: '#74d702'}}>[{cls.teacher_code || cls.teacher_id || 'ID'}]</span> 
+              </div> 
+              <div style={{ fontSize: '12px', color: '#4b0082', fontWeight: '500' }}> 
+                {cls.room_no || 'HOME'} 
+              </div> 
+            </div> 
+          </div> 
+        ))
+      ) : ( 
+        <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}> 
+          <p style={{ fontSize: '16px' }}>No classes scheduled for this day.</p> 
+        </div> 
+      );
+    })()}
+  </div> 
 </div>
-
-          {/* Class Details */}
-          <div style={{ flex: 1 }}>
-  {/* POLL RIGHT */}
-<div style={{
-width:'12px',
-height:'12px',
-borderRadius:'50%',
-background: getPollColor(selectedDate),
-boxShadow:'0 0 2px rgba(0,0,0,0.2)',
-marginLeft: '110px',
-marginTop:'30px',
-}}/>
-            <div style={{ fontWeight: 'bold', color: '#4b0082', fontSize: '20px', textTransform: 'uppercase' }}>
-              {cls.subject_name}
-            </div>
-            <div style={{ fontSize: '14px', color: '#6300a9',fontWeight:'bold', marginTop: '2px' }}>
-              {cls.teacher_name} <span style={{color: '#74d702'}}>[{cls.teacher_code || cls.teacher_id || 'ID'}]</span>
-            </div>
-            <div style={{ fontSize: '12px', color: '#4b0082', fontWeight: '500' }}>
-              {cls.room_no || 'HOME'}
-            </div>
-          </div>
-        </div>
-      ))
-    ) : (
-      <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
-        <p style={{ fontSize: '16px' }}>No classes scheduled for this day.</p>
-      </div>
-    )}
-    
-  </div>
   
 </div>
 {headTeacher && (
@@ -821,16 +843,46 @@ const StudentDashboard = () => {
           setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
         }
 
-        const taskRes = await api.get(
+       const taskRes = await api.get(
   `/api/assignments/class/${storedUser.class}/${storedUser.id}`
 );
-        if (taskRes.data.success) {
-           const pending = taskRes.data.assignments.filter(t => t.status !== "SUBMITTED");
-           setPendingTasks(pending.length);
-           if (pending.length > 0) {
-             activeNotis.push({ title: "Assignments", desc: `${pending.length} tasks are pending.`, icon: <FaTasks />, path: "task-update", color: theme.gradients.primary });
-           }
-        }
+
+if (taskRes.data.success) {
+  const allAssignments = taskRes.data.assignments || [];
+  
+  // Stream-based filtering for 11th/12th students
+  const userClass = String(storedUser.student_class || storedUser.class || '').toLowerCase();
+  const userStream = String(storedUser.stream || storedUser.subject_group || '').toLowerCase();
+  const isSeniorClass = userClass.includes('11') || userClass.includes('12');
+
+  const streamFilteredAssignments = allAssignments.filter(t => {
+    if (!isSeniorClass) return true; // Non-senior ke liye sabhi assignments
+
+    const subName = (t.subject_name || t.title || t.topic || '').toLowerCase();
+    const isChemOrMath = subName.includes('chem') || subName.includes('math');
+    const isHindiOrEng = subName.includes('hindi') || subName.includes('english');
+
+    if (userStream.includes('chem') || userStream.includes('math')) {
+      return isChemOrMath;
+    }
+    if (userStream.includes('hindi') || userStream.includes('english')) {
+      return isHindiOrEng;
+    }
+    return true;
+  });
+
+  const pending = streamFilteredAssignments.filter(t => t.status !== "SUBMITTED");
+  setPendingTasks(pending.length);
+  if (pending.length > 0) {
+    activeNotis.push({ 
+      title: "Assignments", 
+      desc: `${pending.length} tasks are pending.`, 
+      icon: <FaTasks />, 
+      path: "task-update", 
+      color: theme.gradients.primary 
+    });
+  }
+}
 
        /* =========================
    🔥 FINAL SMART FEE LOGIC (SYNCED WITH BACKEND)
