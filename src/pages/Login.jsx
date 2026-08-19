@@ -3,7 +3,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FaShieldAlt } from "react-icons/fa";
 
-
 const Login = () => {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -132,7 +131,6 @@ const Login = () => {
     return -1;
   };
 
-  // --- Interaction Handlers (Fixed e.preventDefault issue) ---
   const handleStart = (index) => {
     setIsDrawing(true);
     setPattern([index]);
@@ -175,7 +173,6 @@ const Login = () => {
     }
   };
 
-  // Non-passive event listener setup for smooth touch support without console errors
   useEffect(() => {
     const gridElement = gridRef.current;
     if (!gridElement) return;
@@ -326,6 +323,43 @@ const Login = () => {
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
           }
+          @keyframes titleGlow {
+            0% {
+              background-position: 0% 50%;
+              box-shadow: 0 0 10px rgba(88, 211, 47, 0.5);
+              transform: scale(1);
+            }
+            50% {
+              background-position: 100% 50%;
+              box-shadow: 0 0 28px rgba(88, 211, 47, 0.9);
+              transform: scale(1.04);
+            }
+            100% {
+              background-position: 0% 50%;
+              box-shadow: 0 0 10px rgba(88, 211, 47, 0.5);
+              transform: scale(1);
+            }
+          }
+          @keyframes textAppear {
+            0% {
+              opacity: 0;
+              letter-spacing: -0.5em;
+              
+              transform: translateY(10px);
+            }
+            60% {
+              opacity: 0.8;
+              letter-spacing: normal;
+              
+              transform: translateY(-2px);
+            }
+            100% {
+              opacity: 1;
+              letter-spacing: normal;
+              filter: blur(0px);
+              transform: translateY(0px);
+            }
+          }
         `}
       </style>
 
@@ -342,8 +376,10 @@ const Login = () => {
       </div>
 
       <div style={styles.loginCard}>
-        <h2 style={styles.loginTitle}>Smart Students's Classes </h2>
-         <h2 style={styles.loginlogo}>  Login</h2>
+        <h2 style={styles.loginTitle}>
+          <span style={styles.animatedTextSpan}>Smart Students' Classes</span>
+        </h2>
+        <h2 style={styles.loginlogo}>Login</h2>
 
         {error && <p style={styles.errorStyle}>{error}</p>}
 
@@ -515,14 +551,14 @@ const styles = {
     marginBottom: "25px",
     animation: "fadeIn 0.8s ease",
   },
- logo: {
-  fontSize: "clamp(58px, 10vw, 80px)",
-  fontWeight: "800",
-  margin: "0",
-  letterSpacing: "0.05em",
-  color: "#374a68",
-  transform: "translateY(-10px)",
-},
+  logo: {
+    fontSize: "clamp(58px, 10vw, 80px)",
+    fontWeight: "800",
+    margin: "0",
+    letterSpacing: "0.05em",
+    color: "#374a68",
+    transform: "translateY(-10px)",
+  },
   tagline: {
     fontSize: "clamp(18px, 2vw, 19px)",
     color: "#788da9",
@@ -541,25 +577,34 @@ const styles = {
     border: "1px solid #6acfeb",
     animation: "fadeIn 1s ease",
   },
- loginTitle: {
-  marginBottom: "22px",
-  fontWeight: "700",
-  fontSize: "22px",
-  color: "#1e293b",
-  paddingLeft: "12px",
-  textAlign: "center",
-  whiteSpace: "nowrap",
-},
-loginlogo: {
-  marginBottom: "22px",
-  fontWeight: "700",
-  fontSize: "22px",
-  color: "#1e293b",
-  paddingLeft: "12px",
-  
-  textAlign: "center",
-  whiteSpace: "nowrap",
-},
+  loginTitle: {
+    marginBottom: "22px",
+    fontWeight: "800",
+    fontSize: "20px",
+    color: "#1e293b",
+    textAlign: "center",
+    background: "linear-gradient(90deg, #4eb72b, #b6ff8a, #88f522, #3fe32d)",
+    backgroundSize: "400% 200%",
+    borderRadius: "10px",
+    padding: "10px 10px",
+    animation: "titleGlow 2s ease-in-out infinite",
+    boxShadow: "0 0 15px rgba(88, 211, 47, 0.5)",
+    position: "relative",
+    overflow: "hidden",
+  },
+  animatedTextSpan: {
+    display: "inline-block",
+    animation: "textAppear 1.4s cubic-bezier(0.25, 1, 0.5, 1) forwards",
+  },
+  loginlogo: {
+    marginBottom: "22px",
+    fontWeight: "700",
+    fontSize: "22px",
+    color: "#1e293b",
+    paddingLeft: "12px",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+  },
   inputBox: {
     marginBottom: "15px",
   },
@@ -702,8 +747,6 @@ loginlogo: {
     cursor: "pointer",
     zIndex: 2,
     transition: "transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease",
-    fontSize :"2px"
-
   },
   modalActions: {
     display: "flex",
