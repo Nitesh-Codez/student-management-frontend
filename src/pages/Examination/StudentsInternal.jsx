@@ -58,36 +58,54 @@ const StudentInternal = () => {
   };
 
   // ==================================================
-  // NEW: Fetch Exam Syllabus / Timetable
-  // ==================================================
-  const fetchExamDocuments = async () => {
-    if (!user.id) return;
+// NEW: Fetch Exam Syllabus / Timetable
+// ==================================================
+const fetchExamDocuments = async () => {
+  const userData = JSON.parse(
+    localStorage.getItem("user") || "{}"
+  );
 
-    try {
-      setDocumentsLoading(true);
+  const studentClass =
+    userData.class ||
+    userData.className ||
+    userData.class_name;
 
-      const res = await api.get(
-        "/api/exams-details/documents",
-        {
-          params: {
-            exam_type: examType
-          }
+  if (!studentClass) {
+    console.error("Student class not found in localStorage");
+    setExamDocuments([]);
+    return;
+  }
+
+  try {
+    setDocumentsLoading(true);
+
+    const res = await api.get(
+      "/api/exams-details/documents",
+      {
+        params: {
+          class_name: studentClass,
+          exam_type: examType
         }
-      );
-
-      if (res.data?.success) {
-        setExamDocuments(res.data.documents || res.data.data || []);
-      } else {
-        setExamDocuments([]);
       }
-    } catch (error) {
-      console.error("Error fetching exam documents:", error);
-      setExamDocuments([]);
-    } finally {
-      setDocumentsLoading(false);
-    }
-  };
+    );
 
+    if (res.data?.success) {
+      setExamDocuments(
+        res.data.data || res.data.documents || []
+      );
+    } else {
+      setExamDocuments([]);
+    }
+  } catch (error) {
+    console.error(
+      "Error fetching exam documents:",
+      error
+    );
+    setExamDocuments([]);
+  } finally {
+    setDocumentsLoading(false);
+  }
+};
   // ==================================================
   // Fetch Subjects + Marks + Documents
   // ==================================================
