@@ -1,342 +1,557 @@
 import React, { useState, useEffect } from "react";
-import jsPDF from "jspdf";
+import { FaDownload, FaTimes, FaCheckCircle, FaFileInvoiceDollar, FaExclamationTriangle, FaSpinner } from "react-icons/fa";
 import api from "../services/api";
-import html2canvas from "html2canvas";
-import { FaLock, FaTimes, FaDownload, FaBook, FaCheckCircle, FaRupeeSign } from "react-icons/fa";
 
 const StudentFees = ({ user }) => {
-  // --- App States ---
-  const [fees, setFees] = useState([]);
-  const [groupedFees, setGroupedFees] = useState({});
-  const [isPending, setIsPending] = useState(false);
-  const [isNewStudent, setIsNewStudent] = useState(false);
-  const [dynamicFee, setDynamicFee] = useState("1000");
-
-  // PDF Preview & Confirmation Modal States
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [feeRecords, setFeeRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [recentGroups, setRecentGroups] = useState({});
   const [selectedGroupForPdf, setSelectedGroupForPdf] = useState(null);
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
-  const [activePdfKey, setActivePdfKey] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
-  // Official Fee Structure Mapping
-  const feeStructureMap = {
-    "LKG": { amount: 400, addOn: null },
-    "UKG": { amount: 400, addOn: null },
-    "1st": { amount: 500, addOn: null },
-    "2nd": { amount: 500, addOn: null },
-    "3rd": { amount: 500, addOn: null },
-    "4th": { amount: 600, addOn: null },
-    "5th": { amount: 600, addOn: "English Communication" },
-    "6th": { amount: 800, addOn: "English Communication" },
-    "7th": { amount: 800, addOn: "English Communication" },
-    "8th": { amount: 1000, addOn: "English Communication" },
-    "9th": { amount: 1100, addOn: null },
-    "10th": { amount: 1400, addOn: "English Communication" },
-    "11th": { amount: 1000, addOn: "Per Subject Rate" },
-    "12th": { amount: 1000, addOn: "Per Subject Rate" }
+  const currentUser = user || JSON.parse(localStorage.getItem("user")) || {};
+  const activeSession = localStorage.getItem("session") || "2026-27";
+
+  const monthNamesMap = {
+    1: "January", 2: "February", 3: "March", 4: "April",
+    5: "May", 6: "June", 7: "July", 8: "August",
+    9: "September", 10: "October", 11: "November", 12: "December"
   };
 
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
-  const now = new Date();
-  const currM = now.getMonth();
+  const getMonthName = (rawMonth) => {
+    if (rawMonth === null || rawMonth === undefined || rawMonth === "") return "Current Month";
+    
+    // Handle integer or string-represented integer from database (e.g., 8 or "8")
+    const parsedNum = parseInt(rawMonth, 10);
+    if (!isNaN(parsedNum) && monthNamesMap[parsedNum]) {
+      return monthNamesMap[parsedNum];
+    }
+    
+    // Fallback if text string was passed
+    const lower = String(rawMonth).trim().toLowerCase();
+    const foundEntry = Object.entries(monthNamesMap).find(([num, name]) => name.toLowerCase() === lower);
+    if (foundEntry) {
+      return foundEntry[1];
+    }
+    return String(rawMonth).charAt(0).toUpperCase() + String(rawMonth).slice(1);
+  };
 
   useEffect(() => {
-    if (!user || !user.id) return;
-
-    const fetchFees = async () => {
+    const fetchFeeData = async () => {
       try {
-        const res = await api.get(`/api/fees/student/${user.id}`);
-        if (res.data.success) {
-          let feesData = res.data.fees.map(f => {
-            const d = new Date(f.payment_date);
-            let month = d.getMonth() - 1;
-            let year = d.getFullYear();
-            if (month === -1) { month = 11; year -= 1; }
+        setLoading(true);
+        const studentId = currentUser?.id || currentUser?.student_id || 3;
+        
+        const response = await api.get(`/api/fees/${studentId}`, {
+          params: { session: activeSession }
+        });
+        
+        const data = response.data;
+        const records = Array.isArray(data) ? data : data.records || data.fees || [];
 
-            const isLate = d.getDate() > 5;
-            return {
-              ...f,
-              feeMonth: month,
-              feeYear: year,
-              isLate,
-              payDay: d.getDate(),
-              formattedDate: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-              mode: f.payment_mode || "Online"
-            };
-          });
-
-          const currentSessionFees = feesData.filter(f => {
-            if (!f.session || !user.session) return true;
-            return f.session === user.session;
-          });
-
-          currentSessionFees.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
-          setFees(currentSessionFees);
-
-          const groups = {};
-          currentSessionFees.slice().reverse().forEach((f, idx) => {
-            const key = `${f.feeMonth}_${f.feeYear}`;
-            if (!groups[key]) {
-              groups[key] = {
-                monthName: months[f.feeMonth],
-                year: f.feeYear,
-                transactions: [],
-                slipNo: `SSC/2026-27/${String(idx + 1).padStart(3, '0')}`
-              };
+        // Filter records from August onwards (Month integer >= 8 or corresponding string name)
+        const filteredRecords = records.filter(record => {
+          const rawMonth = record.month ?? record.fee_month ?? record.feeMonth;
+          let monthNum = parseInt(rawMonth, 10);
+          
+          if (isNaN(monthNum)) {
+            const lowerStr = String(rawMonth || "").trim().toLowerCase();
+            const matched = Object.entries(monthNamesMap).find(([num, name]) => name.toLowerCase() === lowerStr);
+            if (matched) {
+              monthNum = parseInt(matched[0], 10);
+            } else if (lowerStr.includes("aug") || lowerStr.includes("sep") || lowerStr.includes("oct") || lowerStr.includes("nov") || lowerStr.includes("dec")) {
+              return true;
+            } else if (lowerStr.includes("jan") || lowerStr.includes("feb") || lowerStr.includes("mar") || lowerStr.includes("apr") || lowerStr.includes("may") || lowerStr.includes("jun") || lowerStr.includes("jul")) {
+              return false;
             }
-            groups[key].transactions.push(f);
-          });
-          setGroupedFees(groups);
+          }
 
-          setIsPending(res.data.showPopup);
-          setIsNewStudent(res.data.isNewStudent);
+          if (!isNaN(monthNum)) {
+            return monthNum >= 8;
+          }
+          
+          return true;
+        });
 
-          // Determine standard fee based on student class configuration
-          const studentClassKey = String(user?.class || "5th").trim();
-          const configuredFee = feeStructureMap[studentClassKey]?.amount || 
-            (currentSessionFees.length > 0 ? currentSessionFees[0].amount : 1000);
-
-          setDynamicFee(configuredFee);
-        }
+        setFeeRecords(filteredRecords);
       } catch (err) {
-        console.error("Fetch Error:", err);
+        setError(err.response?.data?.message || err.message || "Failed to fetch fee records from server");
+      } finally {
+        setLoading(false);
       }
     };
-    fetchFees();
-  }, [user?.id, user?.session, user?.class]);
 
-  const handlePayment = (mName) => {
-    const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartStudentsClasses&am=${dynamicFee}&cu=INR&tn=Fees_For_${mName}_Class_${user?.class || ''}`;
-    window.location.href = upiUrl;
-  };
+    fetchFeeData();
+  }, [currentUser, activeSession]);
 
-  const handlePreviewPDF = async (groupKey) => {
-    const group = groupedFees[groupKey];
-    if (!group) return;
+  useEffect(() => {
+    const grouped = {};
+    feeRecords.forEach((record, index) => {
+      const key = record.slipNo || record.receiptNo || `slip-${index}`;
+      const rawMonth = record.month ?? record.fee_month ?? record.feeMonth;
+      const formattedMonthName = getMonthName(rawMonth);
 
-    setSelectedGroupForPdf({ key: groupKey, group });
-    setActivePdfKey(groupKey);
-    setIsGeneratingPdf(true);
-
-    setTimeout(async () => {
-      const input = document.getElementById(`pdf-receipt-${groupKey}`);
-      if (!input) {
-        setIsGeneratingPdf(false);
-        setSelectedGroupForPdf(null);
-        return;
+      if (!grouped[key]) {
+        grouped[key] = {
+          slipNo: record.slipNo || record.receiptNo || `REC-${index + 100}`,
+          monthName: formattedMonthName,
+          transactions: []
+        };
       }
+      grouped[key].transactions.push(record);
+    });
+    setRecentGroups(grouped);
+  }, [feeRecords]);
 
-      try {
-        const canvas = await html2canvas(input, { scale: 2, useCORS: true, allowTaint: true });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        pdf.addImage(imgData, "PNG", 0, 10, pdfWidth, pdfHeight);
-        
-        const pdfBlob = pdf.output("bloburl");
-        setPreviewPdfUrl(pdfBlob);
-        setShowPreviewModal(true);
-      } catch (error) {
-        console.error("PDF preview generation failed:", error);
-        alert("Failed to generate PDF preview.");
-      } finally {
-        setIsGeneratingPdf(false);
-      }
-    }, 300);
-  };
-
-  const handlePreviewAllPDF = async () => {
-    setSelectedGroupForPdf({ key: "all" });
-    setActivePdfKey("all");
-    setIsGeneratingPdf(true);
-
-    setTimeout(async () => {
-      const input = document.getElementById("pdf-receipt-all");
-      if (!input) {
-        setIsGeneratingPdf(false);
-        setSelectedGroupForPdf(null);
-        return;
-      }
-
-      try {
-        const canvas = await html2canvas(input, { scale: 2, useCORS: true, allowTaint: true });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        pdf.addImage(imgData, "PNG", 0, 10, pdfWidth, pdfHeight);
-        
-        const pdfBlob = pdf.output("bloburl");
-        setPreviewPdfUrl(pdfBlob);
-        setShowPreviewModal(true);
-      } catch (error) {
-        console.error("Consolidated PDF preview generation failed:", error);
-        alert("Failed to generate full ledger preview.");
-      } finally {
-        setIsGeneratingPdf(false);
-      }
-    }, 300);
+  const handleGeneratePdf = (group) => {
+    setSelectedGroupForPdf(group);
+    setShowPreviewModal(true);
+    setTimeout(() => {
+      setPreviewPdfUrl("#preview-generated");
+    }, 400);
   };
 
   const handleConfirmDownload = () => {
-    if (!selectedGroupForPdf) return;
-
-    if (selectedGroupForPdf.key === "all") {
-      const input = document.getElementById("pdf-receipt-all");
-      if (input) {
-        html2canvas(input, { scale: 2, useCORS: true, allowTaint: true }).then((canvas) => {
-          const imgData = canvas.toDataURL("image/png");
-          const pdf = new jsPDF("p", "mm", "a4");
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-          pdf.addImage(imgData, "PNG", 0, 10, pdfWidth, pdfHeight);
-          pdf.save(`Consolidated_Ledger_${user?.name || 'Student'}.pdf`);
-        });
-      }
-    } else {
-      const groupKey = selectedGroupForPdf.key;
-      const group = selectedGroupForPdf.group;
-      const input = document.getElementById(`pdf-receipt-${groupKey}`);
-      if (input && group) {
-        html2canvas(input, { scale: 2, useCORS: true, allowTaint: true }).then((canvas) => {
-          const imgData = canvas.toDataURL("image/png");
-          const pdf = new jsPDF("p", "mm", "a4");
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-          pdf.addImage(imgData, "PNG", 0, 10, pdfWidth, pdfHeight);
-          pdf.save(`Fee_Slip_${group.slipNo.replace(/\//g, '_')}_${group.monthName}.pdf`);
-        });
-      }
-    }
-
     setShowPreviewModal(false);
     setPreviewPdfUrl(null);
     setSelectedGroupForPdf(null);
   };
 
-  // --- REAL ADMIN LOCK OVERLAY COMPONENT ---
-  return (
-    <div style={styles.modalOverlay}>
-      <div style={styles.modalCard}>
-        <div style={styles.lockIconContainer}>
-          <FaLock style={{ color: "#dc2626", fontSize: "28px" }} />
-        </div>
-        
-        <h2 style={styles.modalTitleText}>Fee Section Locked</h2>
-        <p style={styles.modalSubText}>Smart Students Classes • Official Portal</p>
-        
-        <div style={styles.instructionBanner}>
-          You can see fee details later. The accounts ledger has been temporarily locked by administration (<b>Nitesh Kushwah</b>). Please contact the office for any fee verification.
-        </div>
-
-        <div style={styles.feeInfoSnippet}>
-          <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Standard Class Fee Structure</div>
-          <div style={{ fontSize: '14px', color: '#1e293b', fontWeight: 'bold', marginTop: '4px' }}>
-            Class {user?.class || "Standard"}: ₹{dynamicFee}/month 
-            {feeStructureMap[user?.class]?.addOn && ` + ${feeStructureMap[user?.class]?.addOn}`}
-          </div>
-        </div>
-
-        <div style={styles.modalActions}>
-          <button 
-            style={styles.primaryButton} 
-            onClick={() => window.history.back()}
-          >
-            Back to Dashboard
-          </button>
+  if (loading) {
+    return (
+      <div style={{ ...styles.container, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <div style={{ textAlign: "center", color: "#64748b" }}>
+          <FaSpinner className="fa-spin" size={32} color="#2563eb" style={{ marginBottom: "12px" }} />
+          <p style={{ margin: 0, fontSize: "14px", fontWeight: "500" }}>Loading fee records...</p>
         </div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={styles.container}>
+        <div style={{ ...styles.emptyCard, borderColor: "#fca5a5", background: "#fef2f2", color: "#991b1b" }}>
+          <FaExclamationTriangle size={24} style={{ marginBottom: "8px" }} />
+          <p style={{ margin: 0, fontWeight: "600" }}>Unable to load fee data</p>
+          <p style={{ fontSize: "13px", marginTop: "4px" }}>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.container}>
+      {/* Header Section */}
+      <div style={styles.headerCard}>
+        <div style={styles.headerTitleContainer}>
+          <FaFileInvoiceDollar size={24} color="#2563eb" />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={styles.headerTitle}>Fee Ledger & Receipts</h2>
+              <span style={styles.topSessionBadge}>Session: {activeSession}</span>
+            </div>
+            <p style={styles.headerSub}>Manage and download your official payment records</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Fee Info Snippet */}
+      <div style={styles.feeInfoSnippet}>
+        <h4 style={styles.sectionTitle}>Smart Students Classes - Fee Portal</h4>
+        <p style={{ fontSize: "13px", color: "#475569", margin: 0 }}>
+          Access your real-time ledger history, monthly fee slips, and verified digital receipts instantly.
+        </p>
+      </div>
+
+      {/* Transactions List */}
+      <h3 style={styles.sectionTitle}>Recent Fee Payments (From August)</h3>
+      {Object.keys(recentGroups).length === 0 ? (
+        <div style={styles.emptyCard}>
+          <p>No fee payment records found from August onwards for the current active session.</p>
+        </div>
+      ) : (
+        Object.entries(recentGroups).map(([key, group]) => (
+          <div key={key} style={styles.recordCard}>
+            <div style={styles.recordHeader}>
+              <div>
+                <span style={styles.monthBadge}>{group.monthName}</span>
+                <span style={styles.slipText}>Slip: {group.slipNo}</span>
+              </div>
+              <button
+                style={styles.downloadButton}
+                onClick={() => handleGeneratePdf(group)}
+              >
+                <FaDownload style={{ marginRight: "6px" }} /> Download Receipt
+              </button>
+            </div>
+
+            <div style={styles.transactionList}>
+              {group.transactions.map((t, idx) => (
+                <div key={idx} style={styles.transactionItem}>
+                  <div>
+                    <span style={{ fontWeight: "600", color: "#1e293b" }}>₹{t.amount}</span>
+                    <span style={{ fontSize: "12px", color: "#64748b", marginLeft: "8px" }}>
+                      ({t.mode || t.payment_mode || "Cash"})
+                    </span>
+                  </div>
+                  <div style={styles.successBadge}>
+                    <FaCheckCircle style={{ marginRight: "4px" }} /> Paid ({t.formattedDate || t.date || "Verified"})
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* Restriction Notice Banner */}
+      <div style={styles.restrictionBanner}>
+        <div style={styles.restrictionIconContainer}>
+          <FaExclamationTriangle size={18} color="#d97706" />
+        </div>
+        <div style={styles.restrictionContent}>
+          <div style={styles.restrictionTitle}>Important Note on Fee Receipts</div>
+          <p style={styles.restrictionText}>
+            Official receipts generated through this portal are digitally signed and verified for the current active academic term. For any ledger discrepancies, please contact the administration desk directly.
+          </p>
+        </div>
+      </div>
+
+      {/* Preview Modal */}
+      {showPreviewModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <div style={styles.modalHeader}>
+              <h3 style={{ margin: 0, fontSize: "16px", color: "#1e293b" }}>Official Fee Receipt Preview</h3>
+              <button
+                style={styles.modalCloseButton}
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setPreviewPdfUrl(null);
+                  setSelectedGroupForPdf(null);
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div style={styles.modalBody}>
+              {previewPdfUrl ? (
+                <div style={{ padding: "20px", background: "#ffffff", borderRadius: "8px", height: "100%", overflowY: "auto" }}>
+                  <h3 style={{ textAlign: "center", color: "#1e293b", margin: "0 0 4px 0" }}>Smart Students Classes</h3>
+                  <p style={{ textAlign: "center", fontSize: "12px", color: "#64748b", margin: "0 0 4px 0" }}>Fee Receipt • Session {activeSession}</p>
+                  <p style={{ textAlign: "center", fontSize: "11px", color: "#94a3b8", margin: "0 0 16px 0" }}>Suraiya Pura Behind Girls College Morar, Gwalior | Contact: Admin Desk</p>
+                  <hr style={{ border: "0", borderTop: "1px solid #cbd5e1", margin: "12px 0" }} />
+                  
+                  {/* Detailed Student Info */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "13px", margin: "12px 0", background: "#f8fafc", padding: "10px", borderRadius: "6px" }}>
+                    <div><b>Student Name:</b> {currentUser?.name || currentUser?.studentName || "Nitesh Kushwah"}</div>
+                    <div><b>Student ID:</b> {currentUser?.id || currentUser?.student_id || "3"}</div>
+                    <div><b>Receipt No:</b> {selectedGroupForPdf?.slipNo}</div>
+                    <div><b>Fee Month:</b> {selectedGroupForPdf?.monthName}</div>
+                    <div><b>Status:</b> <span style={{ color: "#16a34a", fontWeight: "600" }}>Paid & Verified</span></div>
+                    <div><b>Paid on:</b> {new Date().toLocaleDateString()}</div>
+                  </div>
+
+                  <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "16px" }}>
+                    <thead>
+                      <tr style={{ background: "#f1f5f9", textAlign: "left", fontSize: "13px" }}>
+                        <th style={{ padding: "8px", border: "1px solid #cbd5e1" }}>Description</th>
+                        <th style={{ padding: "8px", border: "1px solid #cbd5e1" }}>Payment Mode</th>
+                        <th style={{ padding: "8px", border: "1px solid #cbd5e1" }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedGroupForPdf?.transactions.map((tx, i) => (
+                        <tr key={i} style={{ fontSize: "13px" }}>
+                          <td style={{ padding: "8px", border: "1px solid #cbd5e1" }}>Tuition & Academic Fee - {selectedGroupForPdf.monthName}</td>
+                          <td style={{ padding: "8px", border: "1px solid #cbd5e1" }}>{tx.mode || tx.paymentMode || "Online"}</td>
+                          <td style={{ padding: "8px", border: "1px solid #cbd5e1" }}>₹{tx.amount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Total Calculation Row */}
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", fontSize: "14px", fontWeight: "600", color: "#1e293b" }}>
+                    Total Paid: ₹{selectedGroupForPdf?.transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0)}
+                  </div>
+
+                  {/* Standard Four Lines Policy / Declaration */}
+                  <div style={{ marginTop: "24px", padding: "12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "11px", color: "#475569", lineHeight: "1.5" }}>
+                    <p style={{ margin: "0 0 4px 0", fontWeight: "600", color: "#334155" }}>Terms & Conditions / Declaration:</p>
+                    <ol style={{ margin: 0, paddingLeft: "16px" }}>
+                      <li>Fees once paid through this portal are strictly non-refundable and non-transferable under any circumstances.</li>
+                      <li>This computer-generated digital receipt is valid for official record keeping and academic verification without requiring a physical signature.</li>
+                      <li>In case of any payment discrepancies or transaction failures, parents/students must report to the accounts desk within 7 working days.</li>
+                      <li>All educational dues must be cleared on or before the stipulated due date of each month to avoid late fine charges.</li>
+                    </ol>
+                  </div>
+
+                  <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569", alignItems: "flex-end" }}>
+                    <span>Computer Generated Receipt</span>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontWeight: "700", color: "#1e293b" }}>Nitesh Kushwah</div>
+                      <div style={{ fontSize: "11px", color: "#64748b" }}>Smart Students Classes Authority</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>Generating preview...</div>
+              )}
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                style={styles.secondaryButton}
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setPreviewPdfUrl(null);
+                  setSelectedGroupForPdf(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button style={styles.primaryButton} onClick={handleConfirmDownload}>
+                <FaDownload style={{ marginRight: "6px" }} /> Confirm & Download PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-/* ============= STYLES SYSTEM ============= */
 const styles = {
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100vw",
-    height: "100vh",
-    backgroundColor: "rgba(15, 23, 42, 0.85)",
-    backdropFilter: "blur(8px)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
+  container: {
+    padding: "16px",
+    maxWidth: "800px",
+    margin: "0 auto",
+    fontFamily: "'Inter', sans-serif",
+    backgroundColor: "#f8fafc",
+    minHeight: "100vh"
   },
-  modalCard: {
+  headerCard: {
     background: "#ffffff",
-    padding: "32px",
-    borderRadius: "16px",
-    width: "90%",
-    maxWidth: "440px",
-    textAlign: "center",
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)",
+    padding: "20px",
+    borderRadius: "12px",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+    marginBottom: "16px"
   },
-  lockIconContainer: {
-    width: "64px",
-    height: "64px",
-    borderRadius: "50%",
-    background: "#fee2e2",
+  headerTitleContainer: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    margin: "0 auto 16px auto",
+    gap: "12px"
   },
-  modalTitleText: {
+  headerTitle: {
     fontSize: "20px",
-    fontWeight: "bold",
+    fontWeight: "700",
     color: "#1e293b",
-    margin: "0 0 6px 0",
+    margin: 0
   },
-  modalSubText: {
+  headerSub: {
     fontSize: "13px",
     color: "#64748b",
-    margin: "0 0 20px 0",
+    marginTop: "4px",
+    marginBottom: 0
   },
-  instructionBanner: {
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    padding: "16px",
-    borderRadius: "10px",
-    fontSize: "14px",
-    color: "#334155",
-    lineHeight: "1.5",
-    marginBottom: "16px",
-    textAlign: "center",
+  topSessionBadge: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#2563eb",
+    background: "#eff6ff",
+    border: "1px solid #bfdbfe",
+    padding: "4px 10px",
+    borderRadius: "20px"
   },
   feeInfoSnippet: {
     background: "#eff6ff",
     border: "1px solid #bfdbfe",
-    padding: "12px",
-    borderRadius: "8px",
-    marginBottom: "24px",
-    textAlign: "center"
+    padding: "16px",
+    borderRadius: "12px",
+    marginBottom: "20px"
   },
-  modalActions: {
+  sectionTitle: {
+    fontSize: "15px",
+    fontWeight: "600",
+    color: "#334155",
+    marginBottom: "12px"
+  },
+  emptyCard: {
+    background: "#ffffff",
+    padding: "24px",
+    borderRadius: "12px",
+    textAlign: "center",
+    color: "#64748b",
+    border: "1px solid #e2e8f0"
+  },
+  recordCard: {
+    background: "#ffffff",
+    borderRadius: "12px",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    border: "1px solid #e2e8f0",
+    marginBottom: "16px",
+    overflow: "hidden"
+  },
+  recordHeader: {
+    background: "#f8fafc",
+    padding: "14px 16px",
+    borderBottom: "1px solid #e2e8f0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  monthBadge: {
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#1e293b",
+    marginRight: "10px"
+  },
+  slipText: {
+    fontSize: "12px",
+    color: "#64748b",
+    background: "#e2e8f0",
+    padding: "2px 8px",
+    borderRadius: "4px"
+  },
+  downloadButton: {
+    background: "#2563eb",
+    color: "#ffffff",
+    border: "none",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    fontSize: "12px",
+    fontWeight: "500",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center"
+  },
+  transactionList: {
+    padding: "16px"
+  },
+  transactionItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "8px 0",
+    borderBottom: "1px solid #f1f5f9",
+    fontSize: "14px"
+  },
+  successBadge: {
+    display: "flex",
+    alignItems: "center",
+    color: "#16a34a",
+    fontSize: "13px",
+    fontWeight: "500",
+    background: "#dcfce7",
+    padding: "2px 8px",
+    borderRadius: "6px"
+  },
+  restrictionBanner: {
+    background: "#fffbeb",
+    border: "1px solid #fde68a",
+    borderRadius: "12px",
+    padding: "16px",
+    display: "flex",
+    gap: "14px",
+    marginTop: "20px"
+  },
+  restrictionIconContainer: {
+    display: "flex",
+    alignItems: "flex-start",
+    paddingTop: "2px"
+  },
+  restrictionContent: {
+    flex: 1
+  },
+  restrictionTitle: {
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#92400e",
+    marginBottom: "4px"
+  },
+  restrictionText: {
+    fontSize: "13px",
+    color: "#b45309",
+    margin: 0,
+    lineHeight: "1.4"
+  },
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    display: "even-grid",
     display: "flex",
     justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+    padding: "20px"
+  },
+  modalContent: {
+    background: "#ffffff",
+    borderRadius: "12px",
+    width: "100%",
+    maxWidth: "650px",
+    height: "85vh",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)"
+  },
+  modalHeader: {
+    padding: "16px 20px",
+    borderBottom: "1px solid #e2e8f0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  modalCloseButton: {
+    background: "transparent",
+    border: "none",
+    fontSize: "16px",
+    color: "#64748b",
+    cursor: "pointer"
+  },
+  modalBody: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    padding: "16px",
+    overflowY: "auto"
+  },
+  modalFooter: {
+    padding: "16px 20px",
+    borderTop: "1px solid #e2e8f0",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+    background: "#ffffff"
+  },
+  secondaryButton: {
+    background: "#f1f5f9",
+    color: "#334155",
+    border: "1px solid #cbd5e1",
+    padding: "8px 16px",
+    borderRadius: "6px",
+    fontWeight: "500",
+    cursor: "pointer"
   },
   primaryButton: {
     background: "#2563eb",
     color: "#ffffff",
     border: "none",
-    padding: "12px 24px",
-    borderRadius: "8px",
-    fontSize: "14px",
-    fontWeight: "600",
+    padding: "8px 16px",
+    borderRadius: "6px",
+    fontWeight: "500",
     cursor: "pointer",
-    width: "100%",
-    transition: "background 0.2s",
+    display: "flex",
+    alignItems: "center"
   }
 };
 

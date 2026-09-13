@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/api";
 
-/**
- * API CONFIGURATION
- * Backend base URL for student management
- */
-const API_URL = "https://student-management-system-4-hose.onrender.com";
+
 
 const RegistrationStudent = () => {
   // --- STATE MANAGEMENT ---
@@ -93,7 +89,7 @@ const RegistrationStudent = () => {
     
     setLoading(true);
     try {
-      const profileRes = await axios.get(`${API_URL}/api/students/profile?id=${searchCode}`);
+      const profileRes = await api.get(`/api/students/profile?id=${searchCode}`);
 
       if (profileRes.data.success) {
         const student = profileRes.data.student;
@@ -144,11 +140,11 @@ const RegistrationStudent = () => {
     setSaving(true);
     try {
       const endpoint = formData.id 
-        ? `${API_URL}/api/students/update/${formData.id}` 
-        : `${API_URL}/api/students/add`;
+        ? `/api/students/update/${formData.id}` 
+        : `/api/students/add`;
       
       const method = formData.id ? "put" : "post";
-      const res = await axios[method](endpoint, formData);
+      const res = await api[method](endpoint, formData);
 
       if (res.data.success) {
        if (formData.id) {

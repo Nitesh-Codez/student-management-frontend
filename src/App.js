@@ -48,7 +48,6 @@ import RegisterationStudent from "./pages/RegisterationStudent";
 import StudentResult from "./pages/Results_details/StudentResult";
 import ViewResults from "./pages/Results_details/ViewResults";
 import StudentDropApply from "./pages/StudentDropApply";
-import FeesDetails from "./pages/FeesDetails";
 import StudentsMeetings from "./pages/Meetings/StudentsMeetings";
 import StudentInternal from "./pages/Examination/StudentsInternal";
 
@@ -135,7 +134,6 @@ function App() {
           <Route path="assign-classes" element={<AssignClasses />} />
           <Route path="quiz" element={<AdminQuizPage />} />
           <Route path="student-stars" element={<AdminStudentStars />} />
-          <Route path="details/:session/:month" element={<FeesDetails />} />
           <Route path="check-examform" element={<AdminExamFormDetails />} />
           <Route path="admin-internal-marks" element={<InternalMarksSheet />} />
           <Route path="admin-meeting" element={<AdminMeeting />} />

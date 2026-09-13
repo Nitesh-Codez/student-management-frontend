@@ -884,96 +884,103 @@ if (taskRes.data.success) {
   }
 }
 
-       /* =========================
-   🔥 FINAL SMART FEE LOGIC (SYNCED WITH BACKEND)
+   /* =========================
+    🔥 FINAL SMART FEE LOGIC (SYNCED WITH BACKEND)
 ========================= */
 
-try {
-  // ✅ API CALL
-  const feeRes = await api.get(`/api/fees/student/${storedUser.id}`);
+    try {
+     const studentId = storedUser.id;
+      
+      // Retrieve session dynamically from localStorage (fallback to "2026-27" if not found)
+      const currentSession = localStorage.getItem("session") || "2026-27";
+      const feeRes = await api.get(`/api/fees/${studentId}`, {
+        params: { session: currentSession }
+      });
 
-  // Initial State Reset
-  setIsFeeUnpaid(false);
-  setShowFeePopup(false);
+      // Initial State Reset
+      setIsFeeUnpaid(false);
+      setShowFeePopup(false);
 
-  if (feeRes.data.success) {
-    const feesData = feeRes.data.fees || [];
-    const showPopupFromServer = feeRes.data.showPopup; // Backend flag (New student handled here)
-    const today = new Date();
+      if (feeRes.data.success) {
+        const feesData = feeRes.data.fees || feeRes.data.records || [];
+         // Backend flag (New student handled here)
+        const today = new Date();
 
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth(); // 0-11
+        const currentYear = today.getFullYear();
 
-    let lastPaidDate = null;
-    let pendingMonths = 0;
+        let lastPaidDate = null;
+        let pendingMonths = 0;
 
-    /* =========================
-       📅 FIND LAST PAID DATE
-    ========================= */
-    if (feesData.length > 0) {
-      const paidFees = feesData
-        .filter(f => f.payment_status === "SUCCESS")
-        .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
+        /* =========================
+            📅 FIND LAST PAID DATE
+        ========================= */
+        if (feesData.length > 0) {
+          const paidFees = feesData
+            .filter(f => (f.payment_status || f.status || "").toUpperCase() === "SUCCESS" || (f.payment_status || f.status || "").toUpperCase() === "PAID" || f.amount > 0)
+            .sort((a, b) => new Date(b.payment_date || b.date || b.created_at) - new Date(a.payment_date || a.date || a.created_at));
 
-      if (paidFees.length > 0) {
-        lastPaidDate = new Date(paidFees[0].payment_date);
-      }
-    }
+          if (paidFees.length > 0) {
+            const rawDate = paidFees[0].payment_date || paidFees[0].date || paidFees[0].created_at;
+            if (rawDate) {
+              lastPaidDate = new Date(rawDate);
+            }
+          }
+        }
 
-    /* =========================
-       🔢 PENDING CALCULATION (ONLY IF BACKEND SAYS SO)
-    ========================= */
-    // Agar backend ne mana kiya hai (nayi joining), toh calculation skip hogi
-    if (showPopupFromServer) {
-      if (!lastPaidDate) {
-        // Purana baccha jisne kabhi pay nahi kiya
-        pendingMonths = 1; 
-      } else {
-        // Gap mahine calculate karo
-        let temp = new Date(lastPaidDate);
-        temp.setMonth(temp.getMonth() + 1);
+        /* =========================
+            🔢 PENDING CALCULATION (ONLY IF BACKEND SAYS SO)
+        ========================= */
+        // Agar backend ne mana kiya hai (nayi joining), toh calculation skip hogi
+       if (feesData.length > 0) {
+          if (!lastPaidDate) {
+            // Purana baccha jisne kabhi pay nahi kiya
+            pendingMonths = 1; 
+          } else {
+            // Gap mahine calculate karo
+            let temp = new Date(lastPaidDate);
+            temp.setMonth(temp.getMonth() + 1);
 
-        while (
-          temp.getFullYear() < currentYear ||
-          (temp.getFullYear() === currentYear && temp.getMonth() <= currentMonth)
-        ) {
-          pendingMonths++;
-          temp.setMonth(temp.getMonth() + 1);
+            while (
+              temp.getFullYear() < currentYear ||
+              (temp.getFullYear() === currentYear && temp.getMonth() <= currentMonth)
+            ) {
+              pendingMonths++;
+              temp.setMonth(temp.getMonth() + 1);
+            }
+          }
+        }
+
+        /* =========================
+            💵 AMOUNT CALCULATION
+        ========================= */
+        const monthlyFee = feesData.length > 0 && feesData[0].amount 
+          ? Number(feesData[0].amount) 
+          : 1000;
+
+        const totalPendingAmount = pendingMonths * monthlyFee;
+
+        /* =========================
+            🚨 FINAL TRIGGER
+        ========================= */
+        // Ab pendingMonths 0 hi rahega agar showPopupFromServer false hai
+        if (pendingMonths > 0) {
+          setShowFeePopup(true);
+          setIsFeeUnpaid(true);
+          setDynamicFeeAmount(totalPendingAmount);
+
+          activeNotis.push({
+            title: "Fees Pending",
+            desc: `${pendingMonths} month(s) pending • ₹${totalPendingAmount}`,
+            icon: <FaMoneyBillWave />,
+            path: "fees",
+            color: theme?.gradients?.warning || "#f59e0b"
+          });
         }
       }
+    } catch (err) {
+      console.error("Fee Error:", err);
     }
-
-    /* =========================
-       💵 AMOUNT CALCULATION
-    ========================= */
-    const monthlyFee = feesData.length > 0 
-      ? Number(feesData[0].amount) 
-      : 1000;
-
-    const totalPendingAmount = pendingMonths * monthlyFee;
-
-    /* =========================
-       🚨 FINAL TRIGGER
-    ========================= */
-    // Ab pendingMonths 0 hi rahega agar showPopupFromServer false hai
-    if (pendingMonths > 0) {
-      setShowFeePopup(true);
-      setIsFeeUnpaid(true);
-      setDynamicFeeAmount(totalPendingAmount);
-
-      activeNotis.push({
-        title: "Fees Pending",
-        desc: `${pendingMonths} month(s) pending • ₹${totalPendingAmount}`,
-        icon: <FaMoneyBillWave />,
-        path: "fees",
-        color: theme.gradients.warning
-      });
-    }
-  }
-} catch (err) {
-  console.error("Fee Error:", err);
-}
-
 
         const marksRes = await api.post("/api/marks/check", { studentId: storedUser.id, studentName: storedUser.name });
         if (marksRes.data.success && marksRes.data.data.length > 0) {
@@ -996,6 +1003,11 @@ try {
 
   return (
    <div style={masterWrapper}>
+    <FeePopup
+  isOpen={showFeePopup}
+  onClose={() => setShowFeePopup(false)}
+  amount={dynamicFeeAmount}
+/>
   {/* --- UPDATED MAIN HEADER --- */}
   <header style={{...headerWrapper, position: 'sticky', top: 0, zIndex: 1000, background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)'}}>
     <div style={headerContent}>
