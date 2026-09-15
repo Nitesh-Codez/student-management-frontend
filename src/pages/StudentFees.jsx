@@ -248,7 +248,7 @@ const StudentFees = ({ user }) => {
                   
                   {/* Detailed Student Info */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "13px", margin: "12px 0", background: "#f8fafc", padding: "10px", borderRadius: "6px" }}>
-                    <div><b>Student Name:</b> {currentUser?.name || currentUser?.studentName || "Nitesh Kushwah"}</div>
+                    <div><b>Student Name:</b> {currentUser?.name || currentUser?.studentName || "XX"}</div>
                     <div><b>Student ID:</b> {currentUser?.id || currentUser?.student_id || "3"}</div>
                     <div><b>Receipt No:</b> {selectedGroupForPdf?.slipNo}</div>
                     <div><b>Fee Month:</b> {selectedGroupForPdf?.monthName}</div>

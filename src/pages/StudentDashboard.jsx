@@ -147,40 +147,62 @@ const PhotoModal = ({ isOpen, user, onClose, navigate }) => (
   </AnimatePresence>
 );
 
+const FeePopup = ({ isOpen, onClose }) => { 
+  const [amount, setAmount] = React.useState(0);
 
-const FeePopup = ({ isOpen, onClose, amount }) => {
-  const handlePayNow = () => {
-    const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartZone&am=${amount}&cu=INR&tn=MonthlyFees`;
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      window.location.href = upiUrl;
-    } else {
-      alert(`Please open on mobile to pay ₹${amount} via UPI.`);
+  React.useEffect(() => {
+    if (isOpen) {
+      try {
+        const studentData = JSON.parse(localStorage.getItem('student') || '{}');
+        const studentClass = studentData.class || '';
+        
+        // Fee structure mapping based on class
+        const feeStructure = {
+          '10th': 1000,
+          '12th': 1500,
+          // Add more classes and amounts as needed
+        };
+
+        const calculatedAmount = feeStructure[studentClass] || 1000; // Default fallback amount
+        setAmount(calculatedAmount);
+      } catch (err) {
+        setAmount(1000);
+      }
     }
-  };
+  }, [isOpen]);
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <div style={feeModalOverlay}>
-          <motion.div initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }} style={feeRectCard}>
-            <div style={feeLeftAccent}><FaExclamationTriangle fontSize="30px" /></div>
-            <div style={feeRightContent}>
-                <h3 style={{margin: 0, color: '#1e293b'}}>Payment Reminder</h3>
-                <p style={{fontSize: '13px', color: '#64748b', margin: '8px 0'}}>Previous month fee is pending.</p>
-                <div style={feeAmountBox}>
-                    <span>Amount Due:</span>
-                    <span style={{fontSize: '18px', fontWeight: '900', color: '#ef4444'}}>₹{amount}</span>
-                </div>
-                <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
-                    <button onClick={handlePayNow} style={feePayBtnNew}>Pay Now</button>
-                    <button onClick={onClose} style={feeLaterBtn}>Later</button>
-                </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
+  const handlePayNow = () => { 
+    const upiUrl = `upi://pay?pa=9302122613@ybl&pn=SmartZone&am=${amount}&cu=INR&tn=MonthlyFees`; 
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) { 
+      window.location.href = upiUrl; 
+    } else { 
+      alert(`Please open on mobile to pay ₹${amount} via UPI.`); 
+    } 
+  }; 
+ 
+  return ( 
+    <AnimatePresence> 
+      {isOpen && ( 
+        <div style={feeModalOverlay}> 
+          <motion.div initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }} style={feeRectCard}> 
+            <div style={feeLeftAccent}><FaExclamationTriangle fontSize="30px" /></div> 
+            <div style={feeRightContent}> 
+                <h3 style={{margin: 0, color: '#1e293b'}}>Payment Reminder</h3> 
+                <p style={{fontSize: '13px', color: '#64748b', margin: '8px 0'}}>Previous month fee is pending.</p> 
+                <div style={feeAmountBox}> 
+                    <span>Amount Due:</span> 
+                    <span style={{fontSize: '18px', fontWeight: '900', color: '#ef4444'}}>₹{amount}</span> 
+                </div> 
+                <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}> 
+                    <button onClick={handlePayNow} style={feePayBtnNew}>Pay Now</button> 
+                    <button onClick={onClose} style={feeLaterBtn}>Later</button> 
+                </div> 
+            </div> 
+          </motion.div> 
+        </div> 
+      )} 
+    </AnimatePresence> 
+  ); 
 };
 
 /* =========================
@@ -809,7 +831,6 @@ useEffect(() => {
 const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [examOpen] = useState(false);
   const [pendingTasks, setPendingTasks] = useState(0);
 // 1. Saari States ek saath
   const [isFeeUnpaid, setIsFeeUnpaid] = useState(false);
@@ -1055,6 +1076,19 @@ if (taskRes.data.success) {
       </div>
     </div>
   </header>
+  <PhotoModal
+  isOpen={isPhotoOpen}
+  user={user}
+  onClose={() => setIsPhotoOpen(false)}
+  navigate={navigate}
+/>
+
+<NotificationModal
+  isOpen={isNotiOpen}
+  onClose={() => setIsNotiOpen(false)}
+  notifications={notifications}
+  navigate={navigate}
+/>
 
 
      <AnimatePresence>
@@ -1320,7 +1354,6 @@ const brandLogo = {
   gap: "8px"
 };
 const notiBox = { position: 'relative', fontSize: '22px', color: '#64748b', cursor: 'pointer', display: 'flex' };
-const headerAvatar = { width: 48, height: 48, borderRadius: "14px", objectFit: "cover", border: "2px solid #6366f1" };
 const mainBody = { padding: "5px 20px 100px", maxWidth: "1100px", margin: "0 auto" };
 const taskAlertBar = { background: '#fffbeb', border: '1px solid #fef3c7', padding: '3px 15px', borderRadius: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e' };
 const alertActionBtn = { background: '#92400e', color: 'white', border: 'none', padding: '5px', borderRadius: '50%', cursor: 'pointer', display: 'flex' };
