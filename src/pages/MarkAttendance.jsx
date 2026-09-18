@@ -4,10 +4,16 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // Custom batch mapping
 const customBatchMap = {
-  13: "530pm",
-  12: "4pm",
-  24: "4pm",
-  28: "4pm",
+  13: "batch2",
+  12: "batch1",
+  24: "batch1",
+  28: "batch1",
+};
+
+const BATCHES = {
+  batch1: { label: "Batch 1", time: "3:00 PM - 4:30 PM" },
+  batch2: { label: "Batch 2", time: "4:30 PM - 6:00 PM" },
+  batch3: { label: "Batch 3", time: "6:00 PM - 7:30 PM" },
 };
 
 const MarkAttendance = () => {
@@ -22,14 +28,22 @@ const MarkAttendance = () => {
   const [btnDisabled, setBtnDisabled] = useState(false);
   const [editAllowed, setEditAllowed] = useState(true);
   const [infoMsg, setInfoMsg] = useState("");
-  const [batchType, setBatchType] = useState("4pm");
+  const [batchType, setBatchType] = useState("batch1");
   const [searchQuery, setSearchQuery] = useState("");
+  const [batchOverrides, setBatchOverrides] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("smartStudentBatchOverrides") || "{}"); }
+    catch { return {}; }
+  });
+  const [showEditBatches, setShowEditBatches] = useState(false);
+  const [shiftSourceBatch, setShiftSourceBatch] = useState("batch1");
+  const [shiftTargetBatch, setShiftTargetBatch] = useState("batch2");
+  const [selectedShiftStudents, setSelectedShiftStudents] = useState([]);
 
   // Date Range Report Modal / Drawer States
   const [showReportModal, setShowReportModal] = useState(false);
   const [startDate, setStartDate] = useState(getFormattedDate(new Date(new Date().setDate(1)))); // First day of current month
   const [endDate, setEndDate] = useState(getFormattedDate()); // Today
-  const [reportBatch, setReportBatch] = useState("all"); // 'all', '4pm', '530pm'
+  const [reportBatch, setReportBatch] = useState("all"); // all, batch1, batch2, batch3
   const [reportLoading, setReportLoading] = useState(false);
 
   function getFormattedDate(date = new Date()) {
@@ -91,7 +105,12 @@ const MarkAttendance = () => {
 
         list = list.map((s) => ({
           ...s,
-          batch: customBatchMap[s.id] || null,
+          batch:
+            batchOverrides[String(s.id)] ||
+            customBatchMap[String(s.id)] ||
+            ((!isNaN(parseInt(s.class, 10)) && parseInt(s.class, 10) <= 5) ||
+            ["LKG", "L.K.G", "UKG", "U.K.G"].includes(String(s.class).toUpperCase())
+              ? "batch1" : "batch2"),
         }));
 
         setStudents(list);
@@ -129,7 +148,7 @@ const MarkAttendance = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [batchOverrides]);
 
   useEffect(() => {
     fetchStudents(selectedDate);
@@ -149,21 +168,7 @@ const MarkAttendance = () => {
   const sendAttendance = async (action = "submit") => {
     setBtnDisabled(true);
 
-    const batchStudents = batchType === "4pm"
-      ? students.filter(
-          (s) =>
-            s.batch === "4pm" ||
-            (!s.batch &&
-              ((!isNaN(parseInt(s.class, 10)) && parseInt(s.class, 10) <= 5) ||
-                ["LKG", "L.K.G", "UKG", "U.K.G"].includes(String(s.class).toUpperCase())))
-        )
-      : students.filter(
-          (s) =>
-            s.batch === "530pm" ||
-            (!s.batch &&
-              !["LKG","UKG","L.K.G","U.K.G"].includes(String(s.class).toUpperCase()) &&
-              parseInt(s.class, 10) >= 6)
-        );
+    const batchStudents = students.filter((s) => s.batch === batchType);
 
     const attendanceData = batchStudents.map((s) => ({
       studentId: s.id,
@@ -250,8 +255,9 @@ const MarkAttendance = () => {
         students.forEach((s) => {
           const sId = String(s.studentId || s.id);
           if (!bannedIds.has(sId)) {
-            const batch = customBatchMap[sId] || 
-              ((!isNaN(parseInt(s.class, 10)) && parseInt(s.class, 10) <= 5) || ["LKG", "L.K.G", "UKG", "U.K.G"].includes(String(s.class).toUpperCase()) ? "4pm" : "530pm");
+            const batch = batchOverrides[sId] || customBatchMap[sId] ||
+              ((!isNaN(parseInt(s.class, 10)) && parseInt(s.class, 10) <= 5) ||
+              ["LKG", "L.K.G", "UKG", "U.K.G"].includes(String(s.class).toUpperCase()) ? "batch1" : "batch2");
             
             if (reportBatch === "all" || batch === reportBatch) {
               studentMap.set(sId, {
@@ -352,7 +358,7 @@ const MarkAttendance = () => {
             </head>
             <body>
               <h2>Smart Student Classes - Attendance Report</h2>
-              <p class="subtitle">Range: ${startDate} to ${endDate} | Batch: ${reportBatch.toUpperCase()}</p>
+              <p class="subtitle">Range: ${startDate} to ${endDate} | Batch: ${reportBatch === "all" ? "ALL BATCHES" : `${BATCHES[reportBatch]?.label} (${BATCHES[reportBatch]?.time})`}</p>
               <table>
                 <thead>
                   <tr>
@@ -418,21 +424,29 @@ const MarkAttendance = () => {
     }
   };
 
-  const batch4 = students.filter(
-    (s) =>
-      s.batch === "4pm" ||
-      (!s.batch &&
-        ((!isNaN(parseInt(s.class, 10)) && parseInt(s.class, 10) <= 5) ||
-          ["LKG", "L.K.G", "UKG", "U.K.G"].includes(String(s.class).toUpperCase())))
-  );
+  const batch1 = students.filter((s) => s.batch === "batch1");
+  const batch2 = students.filter((s) => s.batch === "batch2");
+  const batch3 = students.filter((s) => s.batch === "batch3");
 
-  const batch530 = students.filter(
-    (s) =>
-      s.batch === "530pm" ||
-      (!s.batch &&
-        !["LKG","UKG","L.K.G","U.K.G"].includes(String(s.class).toUpperCase()) &&
-        parseInt(s.class, 10) >= 6)
+  const getBatchStudentsForShift = (batch) => students.filter((s) => s.batch === batch);
+  const toggleShiftStudent = (id) => setSelectedShiftStudents((prev) =>
+    prev.includes(String(id)) ? prev.filter((x) => x !== String(id)) : [...prev, String(id)]
   );
+  const selectAllShiftStudents = () =>
+    setSelectedShiftStudents(getBatchStudentsForShift(shiftSourceBatch).map((s) => String(s.id)));
+  const clearShiftStudents = () => setSelectedShiftStudents([]);
+
+  const shiftSelectedStudents = () => {
+    if (shiftSourceBatch === shiftTargetBatch) return alert("Source and target batch cannot be the same.");
+    if (!selectedShiftStudents.length) return alert("Please select at least one student.");
+    const updated = { ...batchOverrides };
+    selectedShiftStudents.forEach((id) => { updated[String(id)] = shiftTargetBatch; });
+    setBatchOverrides(updated);
+    localStorage.setItem("smartStudentBatchOverrides", JSON.stringify(updated));
+    setSuccessMsg(`${selectedShiftStudents.length} student(s) shifted to ${BATCHES[shiftTargetBatch].label}.`);
+    setSelectedShiftStudents([]);
+    setShiftSourceBatch(shiftTargetBatch);
+  };
 
   const totalCombinedStudents = students.length;
   const totalCombinedPresent = students.filter((s) => (attendance[s.id] || "Absent") === "Present").length;
@@ -577,7 +591,7 @@ const MarkAttendance = () => {
           <div>
             <h1>Smart Student Attendance Portal</h1>
             <p>
-              Manage daily attendance seamlessly for your batches (4:00 PM and 5:30 PM). 
+              Manage daily attendance seamlessly for your 3 batches (3:00 PM-4:30 PM, 4:30 PM-6:00 PM and 6:00 PM-7:30 PM). 
               Attendance can be marked or updated for any date freely. 
             </p>
           </div>
@@ -593,29 +607,19 @@ const MarkAttendance = () => {
 
       <div className="controls-row">
         <div className="batch-selector">
-          <button
-            type="button"
-            className={`batch-link ${batchType === "4pm" ? "active" : ""}`}
-            onClick={() => {
-              setBatchType("4pm");
-              setShowTable(true);
-            }}
-          >
-            ⏰ 4:00 PM Batch
-          </button>
-          <button
-            type="button"
-            className={`batch-link ${batchType === "530pm" ? "active" : ""}`}
-            onClick={() => {
-              setBatchType("530pm");
-              setShowTable(true);
-            }}
-          >
-            ⏰ 5:30 PM Batch
-          </button>
-        </div>
+            {Object.entries(BATCHES).map(([key, batch]) => (
+              <button key={key} type="button" className={`batch-link ${batchType === key ? "active" : ""}`}
+                onClick={() => { setBatchType(key); setShowTable(true); }}>
+                ⏰ {batch.label} ({batch.time})
+              </button>
+            ))}
+            <button type="button" className="batch-link edit-batches-btn"
+              onClick={() => { setShowEditBatches(true); setSelectedShiftStudents([]); }}>
+              ✏️ Edit Batches
+            </button>
+          </div>
 
-        <div className="date-picker">
+          <div className="date-picker">
           <label htmlFor="att-date">📅 Select Date: </label>
           <input
             id="att-date"
@@ -635,8 +639,9 @@ const MarkAttendance = () => {
         <div className="info-msg">⚠️ {infoMsg}</div>
       ) : showTable ? (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          {batchType === "4pm" && renderTable("Batch 4:00 PM (Classes: LKG, UKG, 1st to 5th)", batch4)}
-          {batchType === "530pm" && renderTable("Batch 5:30 PM (Classes: 6th and above)", batch530)}
+          {batchType === "batch1" && renderTable("Batch 1 (3:00 PM - 4:30 PM)", batch1)}
+          {batchType === "batch2" && renderTable("Batch 2 (4:30 PM - 6:00 PM)", batch2)}
+          {batchType === "batch3" && renderTable("Batch 3 (6:00 PM - 7:30 PM)", batch3)}
 
           <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end", gap: "12px" }}>
             <button type="button" className="secondary-btn" onClick={() => setShowTable(false)}>
@@ -694,7 +699,7 @@ const MarkAttendance = () => {
             animate={{ opacity: 1, scale: 1 }} 
             className="summary-card"
           >
-            <h3>📊 Attendance Summary Report ({batchType === "4pm" ? "4:00 PM Batch" : "5:30 PM Batch"})</h3>
+            <h3>📊 Attendance Summary Report ({BATCHES[batchType]?.label} - {BATCHES[batchType]?.time})</h3>
             <div className="summary-grid">
               <div className="summary-item total">
                 <span>Total Students</span>
@@ -716,6 +721,59 @@ const MarkAttendance = () => {
             {successMsg && <div className="success-msg">🎉 {successMsg}</div>}
           </motion.div>
         </AnimatePresence>
+      )}
+
+      {/* Edit Batches Modal */}
+      {showEditBatches && (
+        <div className="modal-backdrop">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="modal-card edit-batch-modal">
+            <div className="edit-batch-header">
+              <div>
+                <h3>✏️ Edit Batches / Shift Students</h3>
+                <p>Select a batch, select students, choose the target batch and shift them.</p>
+              </div>
+              <button type="button" className="close-modal-btn" onClick={() => setShowEditBatches(false)}>✕</button>
+            </div>
+            <div className="modal-form-group">
+              <label>1. Select Batch</label>
+              <select value={shiftSourceBatch} onChange={(e) => { setShiftSourceBatch(e.target.value); setSelectedShiftStudents([]); }}>
+                {Object.entries(BATCHES).map(([key, batch]) => (
+                  <option key={key} value={key}>{batch.label} — {batch.time} ({getBatchStudentsForShift(key).length} students)</option>
+                ))}
+              </select>
+            </div>
+            <div className="shift-student-box">
+              <div className="shift-list-header">
+                <strong>Students in {BATCHES[shiftSourceBatch].label} ({getBatchStudentsForShift(shiftSourceBatch).length})</strong>
+                <div>
+                  <button type="button" className="mini-btn" onClick={selectAllShiftStudents}>Select All</button>
+                  <button type="button" className="mini-btn" onClick={clearShiftStudents}>Clear</button>
+                </div>
+              </div>
+              <div className="shift-student-list">
+                {getBatchStudentsForShift(shiftSourceBatch).length === 0 ? <div className="empty-shift-list">No students in this batch.</div> :
+                  getBatchStudentsForShift(shiftSourceBatch).map((st) => (
+                    <label key={st.id} className="shift-student-row">
+                      <input type="checkbox" checked={selectedShiftStudents.includes(String(st.id))} onChange={() => toggleShiftStudent(st.id)} />
+                      <span><strong>#{st.id}</strong> {st.name}<small>Class {st.class}</small></span>
+                    </label>
+                  ))}
+              </div>
+            </div>
+            <div className="modal-form-group">
+              <label>2. Shift Selected Students To</label>
+              <select value={shiftTargetBatch} onChange={(e) => setShiftTargetBatch(e.target.value)}>
+                {Object.entries(BATCHES).map(([key, batch]) => <option key={key} value={key}>{batch.label} — {batch.time}</option>)}
+              </select>
+            </div>
+            <div className="shift-selection-info">{selectedShiftStudents.length} student(s) selected</div>
+            <div className="modal-buttons">
+              <button type="button" className="secondary-btn" onClick={() => { setShowEditBatches(false); setSelectedShiftStudents([]); }}>Cancel</button>
+              <button type="button" className="submit-btn update" onClick={shiftSelectedStudents}
+                disabled={!selectedShiftStudents.length || shiftSourceBatch === shiftTargetBatch}>🔄 Shift Students</button>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       {/* Date Range Report Modal */}
@@ -763,8 +821,9 @@ const MarkAttendance = () => {
               <label>Batch Selection:</label>
               <select value={reportBatch} onChange={(e) => setReportBatch(e.target.value)}>
                 <option value="all">All Batches Combined</option>
-                <option value="4pm">4:00 PM Batch Only</option>
-                <option value="530pm">5:30 PM Batch Only</option>
+                <option value="batch1">Batch 1 (3:00 PM - 4:30 PM)</option>
+                <option value="batch2">Batch 2 (4:30 PM - 6:00 PM)</option>
+                <option value="batch3">Batch 3 (6:00 PM - 7:30 PM)</option>
               </select>
             </div>
 
@@ -1003,6 +1062,23 @@ const MarkAttendance = () => {
           flex-wrap: wrap;
         }
         
+        .edit-batches-btn { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+        .edit-batches-btn:hover { background: #fde68a; }
+        .edit-batch-modal { max-width: 650px; max-height: 90vh; overflow-y: auto; }
+        .edit-batch-header { display: flex; justify-content: space-between; gap: 15px; align-items: flex-start; }
+        .edit-batch-header p { margin-bottom: 15px; }
+        .close-modal-btn { border: none; background: #f3f4f6; color: #374151; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-weight: 800; }
+        .shift-student-box { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin-bottom: 16px; background: #f9fafb; }
+        .shift-list-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; background: #f3f4f6; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+        .mini-btn { border: 1px solid #d1d5db; background: white; padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 5px; }
+        .shift-student-list { max-height: 280px; overflow-y: auto; padding: 6px; }
+        .shift-student-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 7px; cursor: pointer; background: white; margin-bottom: 4px; }
+        .shift-student-row input { width: 17px; height: 17px; accent-color: #4338ca; }
+        .shift-student-row span { display: flex; align-items: center; gap: 7px; font-size: 13px; flex: 1; }
+        .shift-student-row small { margin-left: auto; color: #6b7280; }
+        .empty-shift-list { text-align: center; padding: 25px; color: #6b7280; font-size: 13px; }
+        .shift-selection-info { background: #eef2ff; color: #3730a3; padding: 9px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; text-align: center; }
+
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
