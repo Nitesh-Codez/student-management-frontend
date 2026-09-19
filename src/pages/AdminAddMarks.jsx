@@ -8,18 +8,18 @@ import {
 
 const AdminAddMarks = () => {
   const subjectsByClass = {
-    "1st": ["Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva"],
-    "2nd": ["Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva"],
+    "1st": ["Hindi","Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva"],
+    "2nd": ["Hindi","Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva"],
     "3rd": ["Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva"],
-    "4th": ["Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva","English Communication"],
-    "5th": ["Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva","English Communication"],
-    "6th": ["Math","English","Hindi","Science","Math Viva","English Viva","Hindi Viva","Science Viva","English Communication"],
-    "7th": ["Math","English","Hindi","Science","Civics","Geography","Economics","History","Math Viva","English Viva","Hindi Viva","Science Viva","Civics Viva","Geography Viva","Economics Viva","History Viva","English Communication"],
-    "8th": ["Math","English","Science","Hindi","Civics","Geography","Economics","History","Math Viva","English Viva","Science Viva","Hindi Viva","Civics Viva","Geography Viva","Economics Viva","History Viva","English Communication"],
-    "9th": ["Math","English","Hindi","Science","S.S.T","Math Viva","English Viva","Hindi Viva","Science Viva","S.S.T Viva","English Communication"],
-    "10th":["Math","English","Hindi","Science","S.S.T","Math Viva","English Viva","Hindi Viva","Science Viva","S.S.T Viva","English Communication"],
-    "11th":["Chemistry","Math","English","Physics","Biology","Chemistry Viva","Math Viva","English Viva","Physics Viva","Biology Viva","English Communication"],
-    "12th":["Chemistry","Math","English","Physics","Biology","Chemistry Viva","Math Viva","English Viva","Physics Viva","Biology Viva","English Communication"],
+    "4th": ["Hindi","Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva","English Communication"],
+    "5th": ["Hindi","Math","English","Hindi","EVS","Math Viva","English Viva","Hindi Viva","EVS Viva","English Communication"],
+    "6th": ["Hindi","Math","English","Hindi","Science","Math Viva","English Viva","Hindi Viva","Science Viva","English Communication"],
+    "7th": ["Hindi","Math","English","Hindi","Science","Civics","Geography","Economics","History","Math Viva","English Viva","Hindi Viva","Science Viva","Civics Viva","Geography Viva","Economics Viva","History Viva","English Communication"],
+    "8th": ["Hindi","Math","English","Science","Hindi","Civics","Geography","Economics","History","Math Viva","English Viva","Science Viva","Hindi Viva","Civics Viva","Geography Viva","Economics Viva","History Viva","English Communication"],
+    "9th": ["Hindi","Math","English","Hindi","Science","S.S.T","Math Viva","English Viva","Hindi Viva","Science Viva","S.S.T Viva","English Communication"],
+    "10th":["Hindi","Math","English","Hindi","Science","S.S.T","Math Viva","English Viva","Hindi Viva","Science Viva","S.S.T Viva","English Communication"],
+    "11th":["Hindi","Chemistry","Math","English","Physics","Biology","Chemistry Viva","Math Viva","English Viva","Physics Viva","Biology Viva","English Communication"],
+    "12th":["Hindi","Chemistry","Math","English","Physics","Biology","Chemistry Viva","Math Viva","English Viva","Physics Viva","Biology Viva","English Communication"],
   };
 
   const classColorPalette = {
