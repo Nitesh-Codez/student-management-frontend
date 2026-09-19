@@ -2839,8 +2839,8 @@ const MarkAttendance = () => {
           }
 
           .report-download-btn{
-            width:100%;
-            min-height:42px;
+            width:25%;
+            min-height:25px;
             font-size:12px
           }
 
@@ -2876,7 +2876,7 @@ const MarkAttendance = () => {
           }
 
           .date-picker{
-            width:100%;
+            width:30%;
             min-height:40px;
             justify-content:space-between
           }
@@ -2920,10 +2920,11 @@ const MarkAttendance = () => {
           }
 
           .bulk-buttons{
-            width:100%;
+            width:40%;
             display:grid;
             grid-template-columns:repeat(3,1fr);
             gap:4px
+             align-items:start;
           }
 
           .bulk-btn{
@@ -2938,8 +2939,8 @@ const MarkAttendance = () => {
           }
 
           .bottom-actions button{
-            width:100%;
-            min-height:44px
+            width:20%;
+            min-height:34px
           }
 
           .summary-card{
@@ -3008,7 +3009,7 @@ const MarkAttendance = () => {
           .modal-buttons{
             display:grid;
             grid-template-columns:1fr 1fr;
-            width:100%
+            width:20%
           }
 
           .modal-buttons button{
@@ -3020,7 +3021,7 @@ const MarkAttendance = () => {
           }
 
           .report-action-btn{
-            width:100%
+            width:20%
           }
 
           .report-modal{
