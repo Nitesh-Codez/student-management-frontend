@@ -85,8 +85,14 @@ const AdminDashboard = () => {
   color: "#14b8a6",
   category: "Exams"
 },
+{
+  title: "Students Reports",
+  path: "student-summary",
+  icon: <FaUserGraduate />,
+  color: "#cb8728",
+  category: "Exams"
+},
   ];
-
   const filteredLinks = links.filter(link =>
     link.title.toLowerCase().includes(searchTerm.toLowerCase())
   );

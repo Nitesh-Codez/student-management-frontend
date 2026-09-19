@@ -28,7 +28,7 @@ import AdminStudentStars from './pages/AdminStudentStars';
 import AdminExamFormDetails from "./pages/AdminExamformdetails";
 import InternalMarksSheet from "./pages/StudentInternalmarks";
 import AdminMeeting from "./pages/Meetings/AdminMeeting";
-
+import AdminReport from "./pages/AdminReport";
 /* STUDENT */
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentProfile from "./pages/StudentProfile";
@@ -137,6 +137,8 @@ function App() {
           <Route path="check-examform" element={<AdminExamFormDetails />} />
           <Route path="admin-internal-marks" element={<InternalMarksSheet />} />
           <Route path="admin-meeting" element={<AdminMeeting />} />
+          <Route path ="student-summary" element={<AdminReport/>} />
+          
           
         </Route>
 
