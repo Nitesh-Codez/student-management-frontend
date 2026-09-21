@@ -1,32 +1,64 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import api from "../services/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const TEACHER_NAME = "Nitesh Kushwah/Vandana kushwah";
+const TEACHER_NAME =
+  "Nitesh Kushwah/Vandana kushwah";
 
 const AdminReport = () => {
-  const [students, setStudents] = useState([]);
-  const [selectedClass, setSelectedClass] = useState("");
-  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [students, setStudents] =
+    useState([]);
 
-  const [reportMode, setReportMode] = useState("single");
-  const [singleMonth, setSingleMonth] = useState("2026-08");
-  const [fromMonth, setFromMonth] = useState("2026-08");
-  const [toMonth, setToMonth] = useState("2026-09");
+  const [selectedClass, setSelectedClass] =
+    useState("");
 
-  const [reportData, setReportData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [
+    selectedStudentId,
+    setSelectedStudentId,
+  ] = useState("");
 
-  /* ================= HELPERS ================= */
+  const [reportMode, setReportMode] =
+    useState("single");
+
+  const [singleMonth, setSingleMonth] =
+    useState("2026-08");
+
+  const [fromMonth, setFromMonth] =
+    useState("2026-08");
+
+  const [toMonth, setToMonth] =
+    useState("2026-09");
+
+  const [reportData, setReportData] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [reportLoading, setReportLoading] =
+    useState(false);
+
+  const [pdfLoading, setPdfLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState(null);
+
+  /* =========================================================
+     HELPERS
+  ========================================================= */
 
   const formatMonth = (month) => {
     if (!month) return "";
 
-    const [year, m] = month.split("-");
+    const [year, m] =
+      month.split("-");
 
     return new Date(
       Number(year),
@@ -41,7 +73,9 @@ const AdminReport = () => {
   const formatDate = (date) => {
     if (!date) return "N/A";
 
-    return new Date(date).toLocaleDateString("en-IN", {
+    return new Date(
+      date
+    ).toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -51,7 +85,8 @@ const AdminReport = () => {
   const getMonthNumber = (month) => {
     if (!month) return 0;
 
-    const [year, m] = month.split("-").map(Number);
+    const [year, m] =
+      month.split("-").map(Number);
 
     return year * 12 + m;
   };
@@ -89,15 +124,24 @@ const AdminReport = () => {
 
     const months = [];
 
-    let current = getMonthNumber(fromMonth);
-    const end = getMonthNumber(toMonth);
+    let current =
+      getMonthNumber(fromMonth);
+
+    const end =
+      getMonthNumber(toMonth);
 
     while (current <= end) {
-      const year = Math.floor((current - 1) / 12);
-      const month = ((current - 1) % 12) + 1;
+      const year = Math.floor(
+        (current - 1) / 12
+      );
+
+      const month =
+        ((current - 1) % 12) + 1;
 
       months.push(
-        `${year}-${String(month).padStart(2, "0")}`
+        `${year}-${String(
+          month
+        ).padStart(2, "0")}`
       );
 
       current++;
@@ -106,27 +150,40 @@ const AdminReport = () => {
     return months;
   };
 
-  const getMonthAnalysis = (monthData) => {
+  const getMonthAnalysis = (
+    monthData
+  ) => {
     const attendance =
-      monthData?.attendance?.summary || {};
+      monthData?.attendance
+        ?.summary || {};
 
     const marks =
-      monthData?.marks?.records || [];
+      monthData?.marks
+        ?.records || [];
 
     const assignments =
-      monthData?.assignments?.summary || {};
+      monthData?.assignments
+        ?.summary || {};
 
-    const obtained = marks.reduce(
-      (sum, m) =>
-        sum + Number(m.obtained_marks || 0),
-      0
-    );
+    const obtained =
+      marks.reduce(
+        (sum, m) =>
+          sum +
+          Number(
+            m.obtained_marks || 0
+          ),
+        0
+      );
 
-    const total = marks.reduce(
-      (sum, m) =>
-        sum + Number(m.total_marks || 0),
-      0
-    );
+    const total =
+      marks.reduce(
+        (sum, m) =>
+          sum +
+          Number(
+            m.total_marks || 0
+          ),
+        0
+      );
 
     const marksPercentage =
       total > 0
@@ -143,23 +200,28 @@ const AdminReport = () => {
 
     const assignmentPercentage =
       assigned > 0
-        ? (submitted / assigned) * 100
+        ? (submitted / assigned) *
+          100
         : 0;
 
-    const attendancePercentage = Number(
-      attendance.percentage || 0
-    );
+    const attendancePercentage =
+      Number(
+        attendance.percentage || 0
+      );
 
     return {
       attendance: Number(
         attendancePercentage.toFixed(2)
       ),
+
       marks: Number(
         marksPercentage.toFixed(2)
       ),
+
       assignments: Number(
         assignmentPercentage.toFixed(2)
       ),
+
       average: Number(
         (
           (attendancePercentage +
@@ -171,7 +233,9 @@ const AdminReport = () => {
     };
   };
 
-  /* ================= FETCH STUDENTS ================= */
+  /* =========================================================
+     FETCH STUDENTS
+  ========================================================= */
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -210,8 +274,14 @@ const AdminReport = () => {
             s.grade ||
             "N/A",
 
+          /*
+           * PROFILE MOBILE NUMBER
+           */
           mobile:
-            s.mobile || "",
+            s.mobile ||
+            s.phone ||
+            s.contact ||
+            "",
 
           batch:
             s.batch || "",
@@ -235,7 +305,8 @@ const AdminReport = () => {
             s.stream || "",
 
           joining_date:
-            s.joining_date || null,
+            s.joining_date ||
+            null,
         }))
       );
     } catch (err) {
@@ -265,51 +336,84 @@ const AdminReport = () => {
     [students]
   );
 
-  const filteredStudents = useMemo(
-    () =>
-      students.filter(
-        (s) => s.class === selectedClass
-      ),
-    [students, selectedClass]
-  );
+  const filteredStudents =
+    useMemo(
+      () =>
+        students.filter(
+          (s) =>
+            s.class ===
+            selectedClass
+        ),
+      [
+        students,
+        selectedClass,
+      ]
+    );
 
-  const activeStudent = useMemo(
-    () =>
-      students.find(
-        (s) =>
-          String(s.id) ===
-          String(selectedStudentId)
-      ),
-    [students, selectedStudentId]
-  );
+  /*
+   * THIS IS THE SELECTED PROFILE
+   */
+  const activeStudent =
+    useMemo(
+      () =>
+        students.find(
+          (s) =>
+            String(s.id) ===
+            String(
+              selectedStudentId
+            )
+        ),
+      [
+        students,
+        selectedStudentId,
+      ]
+    );
 
-  /* ================= FETCH REPORT ================= */
+  /* =========================================================
+     FETCH REPORT
+  ========================================================= */
 
-  const handleFetchReport = async (e) => {
+  const handleFetchReport = async (
+    e
+  ) => {
     e.preventDefault();
 
     setError(null);
 
     if (!selectedStudentId) {
-      setError("Please select a student first.");
+      setError(
+        "Please select a student first."
+      );
       return;
     }
 
     let monthParam;
 
-    if (reportMode === "single") {
-      if (!/^\d{4}-\d{2}$/.test(singleMonth)) {
+    if (
+      reportMode ===
+      "single"
+    ) {
+      if (
+        !/^\d{4}-\d{2}$/.test(
+          singleMonth
+        )
+      ) {
         setError(
           "Please enter month in YYYY-MM format."
         );
         return;
       }
 
-      monthParam = singleMonth;
+      monthParam =
+        singleMonth;
     } else {
       if (
-        !/^\d{4}-\d{2}$/.test(fromMonth) ||
-        !/^\d{4}-\d{2}$/.test(toMonth)
+        !/^\d{4}-\d{2}$/.test(
+          fromMonth
+        ) ||
+        !/^\d{4}-\d{2}$/.test(
+          toMonth
+        )
       ) {
         setError(
           "Please enter both months in YYYY-MM format."
@@ -318,8 +422,12 @@ const AdminReport = () => {
       }
 
       if (
-        getMonthNumber(fromMonth) >
-        getMonthNumber(toMonth)
+        getMonthNumber(
+          fromMonth
+        ) >
+        getMonthNumber(
+          toMonth
+        )
       ) {
         setError(
           "From Month cannot be greater than To Month."
@@ -328,24 +436,26 @@ const AdminReport = () => {
       }
 
       monthParam =
-        getSelectedMonths().join(",");
+        getSelectedMonths().join(
+          ","
+        );
     }
 
     setReportLoading(true);
 
     try {
-      const res = await api.get(
-        `/api/exams-details/student/${selectedStudentId}/monthly-report/?month=${encodeURIComponent(
-          monthParam
-        )}`
-      );
+      const res =
+        await api.get(
+          `/api/exams-details/student/${selectedStudentId}/monthly-report/?month=${encodeURIComponent(
+            monthParam
+          )}`
+        );
 
-      const data = res.data || {};
+      const data =
+        res.data || {};
 
       /*
-       * Merge student data.
-       * Basic information API is treated as the
-       * main source for mobile/profile/batch/session.
+       * PROFILE DATA HAS PRIORITY
        */
       const reportStudent = {
         ...(data.student || {}),
@@ -365,6 +475,9 @@ const AdminReport = () => {
           data.student?.class ||
           "N/A",
 
+        /*
+         * SELECTED PROFILE MOBILE
+         */
         mobile:
           activeStudent?.mobile ||
           data.student?.mobile ||
@@ -404,19 +517,15 @@ const AdminReport = () => {
 
       setReportData({
         ...data,
-        student: finalStudent,
+        student:
+          finalStudent,
       });
-
-      /*
-       * IMPORTANT:
-       * Generate Report does ONLY generate the report.
-       * No auto-send, no confirmation popup here.
-       */
     } catch (err) {
       console.error(err);
 
       setError(
-        err?.response?.data?.message ||
+        err?.response?.data
+          ?.message ||
           "Failed to fetch student monthly report."
       );
 
@@ -426,49 +535,84 @@ const AdminReport = () => {
     }
   };
 
-  /* ================= IMAGE ================= */
+  /* =========================================================
+     IMAGE
+  ========================================================= */
 
-  const getBase64ImageFromUrl = async (url) => {
-    if (!url) return null;
+  const getBase64ImageFromUrl =
+    async (url) => {
+      if (!url) return null;
 
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
+      try {
+        const response =
+          await fetch(url);
 
-      return await new Promise((resolve) => {
-        const reader = new FileReader();
+        const blob =
+          await response.blob();
 
-        reader.onloadend = () =>
-          resolve(reader.result);
+        return await new Promise(
+          (resolve) => {
+            const reader =
+              new FileReader();
 
-        reader.onerror = () =>
-          resolve(null);
+            reader.onloadend = () =>
+              resolve(
+                reader.result
+              );
 
-        reader.readAsDataURL(blob);
-      });
-    } catch (err) {
-      console.error(
-        "Profile image error:",
-        err
-      );
+            reader.onerror = () =>
+              resolve(null);
 
-      return null;
-    }
-  };
+            reader.readAsDataURL(
+              blob
+            );
+          }
+        );
+      } catch (err) {
+        console.error(
+          "Profile image error:",
+          err
+        );
 
-  /* ================= PDF HEADER ================= */
+        return null;
+      }
+    };
+
+  /* =========================================================
+     PDF HEADER
+  ========================================================= */
 
   const drawPDFHeader = (
     doc,
     student,
     periodText
   ) => {
-    doc.setFillColor(26, 35, 126);
-    doc.rect(0, 0, 210, 43, "F");
+    doc.setFillColor(
+      26,
+      35,
+      126
+    );
 
-    doc.setFont("helvetica", "bold");
+    doc.rect(
+      0,
+      0,
+      210,
+      43,
+      "F"
+    );
+
+    doc.setFont(
+      "helvetica",
+      "bold"
+    );
+
     doc.setFontSize(15);
-    doc.setTextColor(255, 255, 255);
+
+    doc.setTextColor(
+      255,
+      255,
+      255
+    );
 
     doc.text(
       "EduFlow - SMART STUDENTS",
@@ -476,7 +620,11 @@ const AdminReport = () => {
       13
     );
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont(
+      "helvetica",
+      "normal"
+    );
+
     doc.setFontSize(9);
 
     doc.text(
@@ -497,48 +645,68 @@ const AdminReport = () => {
       34
     );
 
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(
+      40,
+      40,
+      40
+    );
 
-    doc.setFont("helvetica", "bold");
+    doc.setFont(
+      "helvetica",
+      "bold"
+    );
+
     doc.setFontSize(9);
 
     doc.text(
       `Student Name: ${(
-        student.name || "N/A"
+        student.name ||
+        "N/A"
       ).toUpperCase()}`,
       14,
       53
     );
 
     doc.text(
-      `Class: ${student.class || "N/A"}`,
+      `Class: ${
+        student.class ||
+        "N/A"
+      }`,
       120,
       53
     );
 
     doc.text(
-      `Batch: ${student.batch || "N/A"}`,
+      `Batch: ${
+        student.batch ||
+        "N/A"
+      }`,
       14,
       60
     );
 
     doc.text(
       `Batch Time: ${
-        student.batch_time || "N/A"
+        student.batch_time ||
+        "N/A"
       }`,
       120,
       60
     );
 
     doc.text(
-      `Session: ${student.session || "N/A"}`,
+      `Session: ${
+        student.session ||
+        "N/A"
+      }`,
       14,
       67
     );
 
     doc.text(
       `Contact No.: ${
-        student.mobile || "N/A"
+        student.mobile ||
+        "N/A"
       }`,
       120,
       67
@@ -561,13 +729,21 @@ const AdminReport = () => {
     }
   };
 
-  /* ================= PDF FOOTER ================= */
+  /* =========================================================
+     PDF FOOTER
+  ========================================================= */
 
-  const drawPDFFooter = (doc) => {
+  const drawPDFFooter = (
+    doc
+  ) => {
     const pages =
       doc.getNumberOfPages();
 
-    for (let i = 1; i <= pages; i++) {
+    for (
+      let i = 1;
+      i <= pages;
+      i++
+    ) {
       doc.setPage(i);
 
       doc.setFont(
@@ -576,6 +752,7 @@ const AdminReport = () => {
       );
 
       doc.setFontSize(8);
+
       doc.setTextColor(
         100,
         100,
@@ -596,7 +773,9 @@ const AdminReport = () => {
     }
   };
 
-  /* ================= MONTH PDF ================= */
+  /* =========================================================
+     MONTH PDF
+  ========================================================= */
 
   const addMonthToPDF = (
     doc,
@@ -604,25 +783,30 @@ const AdminReport = () => {
     student
   ) => {
     const monthName =
-      formatMonth(monthData.month);
+      formatMonth(
+        monthData.month
+      );
 
     const attendance =
-      monthData.attendance?.summary ||
-      {};
+      monthData.attendance
+        ?.summary || {};
 
     const marks =
-      monthData.marks?.records || [];
+      monthData.marks
+        ?.records || [];
 
     const assignments =
-      monthData.assignments?.records ||
-      [];
+      monthData.assignments
+        ?.records || [];
 
     const assignmentSummary =
-      monthData.assignments?.summary ||
-      {};
+      monthData.assignments
+        ?.summary || {};
 
     const analysis =
-      getMonthAnalysis(monthData);
+      getMonthAnalysis(
+        monthData
+      );
 
     doc.addPage();
 
@@ -640,6 +824,7 @@ const AdminReport = () => {
     );
 
     doc.setFontSize(13);
+
     doc.setTextColor(
       26,
       35,
@@ -688,8 +873,17 @@ const AdminReport = () => {
       theme: "grid",
 
       headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
+        fillColor: [
+          26,
+          35,
+          126,
+        ],
+
+        textColor: [
+          255,
+          255,
+          255,
+        ],
       },
 
       bodyStyles: {
@@ -704,8 +898,8 @@ const AdminReport = () => {
     });
 
     y =
-      doc.lastAutoTable.finalY +
-      8;
+      doc.lastAutoTable
+        .finalY + 8;
 
     doc.setFont(
       "helvetica",
@@ -713,6 +907,7 @@ const AdminReport = () => {
     );
 
     doc.setFontSize(9);
+
     doc.setTextColor(
       50,
       50,
@@ -744,6 +939,7 @@ const AdminReport = () => {
     );
 
     doc.setFontSize(12);
+
     doc.setTextColor(
       26,
       35,
@@ -758,23 +954,32 @@ const AdminReport = () => {
 
     y += 5;
 
-    const markRows = marks.length
-      ? marks.map((m, i) => [
-          i + 1,
-          m.subject || "N/A",
-          m.total_marks ?? "-",
-          m.obtained_marks ?? "-",
-          formatDate(m.test_date),
-          m.status || "-",
-        ])
-      : [[
-          "-",
-          "No tests recorded",
-          "-",
-          "-",
-          "-",
-          "-",
-        ]];
+    const markRows =
+      marks.length
+        ? marks.map(
+            (m, i) => [
+              i + 1,
+              m.subject ||
+                "N/A",
+              m.total_marks ??
+                "-",
+              m.obtained_marks ??
+                "-",
+              formatDate(
+                m.test_date
+              ),
+              m.status ||
+                "-",
+            ]
+          )
+        : [[
+            "-",
+            "No tests recorded",
+            "-",
+            "-",
+            "-",
+            "-",
+          ]];
 
     autoTable(doc, {
       startY: y,
@@ -793,8 +998,17 @@ const AdminReport = () => {
       theme: "grid",
 
       headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
+        fillColor: [
+          26,
+          35,
+          126,
+        ],
+
+        textColor: [
+          255,
+          255,
+          255,
+        ],
       },
 
       bodyStyles: {
@@ -808,8 +1022,8 @@ const AdminReport = () => {
     });
 
     y =
-      doc.lastAutoTable.finalY +
-      8;
+      doc.lastAutoTable
+        .finalY + 8;
 
     doc.setFont(
       "helvetica",
@@ -839,6 +1053,7 @@ const AdminReport = () => {
     );
 
     doc.setFontSize(12);
+
     doc.setTextColor(
       26,
       35,
@@ -853,14 +1068,11 @@ const AdminReport = () => {
 
     y += 6;
 
-    const assigned = Number(
-      assignmentSummary.assigned || 0
-    );
-
-    /*
-     * If assignments are zero:
-     * DO NOT create any assignment table.
-     */
+    const assigned =
+      Number(
+        assignmentSummary.assigned ||
+          0
+      );
 
     if (assigned === 0) {
       doc.setFont(
@@ -869,6 +1081,7 @@ const AdminReport = () => {
       );
 
       doc.setFontSize(10);
+
       doc.setTextColor(
         50,
         50,
@@ -898,16 +1111,27 @@ const AdminReport = () => {
 
         body: [[
           assigned,
-          assignmentSummary.submitted || 0,
-          assignmentSummary.pending || 0,
+          assignmentSummary.submitted ||
+            0,
+          assignmentSummary.pending ||
+            0,
           `${analysis.assignments}%`,
         ]],
 
         theme: "grid",
 
         headStyles: {
-          fillColor: [26, 35, 126],
-          textColor: [255, 255, 255],
+          fillColor: [
+            26,
+            35,
+            126,
+          ],
+
+          textColor: [
+            255,
+            255,
+            255,
+          ],
         },
 
         bodyStyles: {
@@ -922,21 +1146,28 @@ const AdminReport = () => {
       });
 
       y =
-        doc.lastAutoTable.finalY +
-        7;
+        doc.lastAutoTable
+          .finalY + 7;
 
       const assignmentRows =
         assignments.length
-          ? assignments.map((a, i) => [
-              i + 1,
-              a.subject || "N/A",
-              a.task_title || "N/A",
-              formatDate(a.deadline),
-              a.rating
-                ? `${a.rating}/5`
-                : "Not Done",
-              a.status || "-",
-            ])
+          ? assignments.map(
+              (a, i) => [
+                i + 1,
+                a.subject ||
+                  "N/A",
+                a.task_title ||
+                  "N/A",
+                formatDate(
+                  a.deadline
+                ),
+                a.rating
+                  ? `${a.rating}/5`
+                  : "Not Done",
+                a.status ||
+                  "-",
+              ]
+            )
           : [[
               "-",
               "No assignment records",
@@ -963,8 +1194,18 @@ const AdminReport = () => {
         theme: "grid",
 
         headStyles: {
-          fillColor: [26, 35, 126],
-          textColor: [255, 255, 255],
+          fillColor: [
+            26,
+            35,
+            126,
+          ],
+
+          textColor: [
+            255,
+            255,
+            255,
+          ],
+
           fontSize: 7.5,
         },
 
@@ -979,7 +1220,8 @@ const AdminReport = () => {
         },
 
         styles: {
-          overflow: "linebreak",
+          overflow:
+            "linebreak",
         },
 
         margin: {
@@ -989,8 +1231,8 @@ const AdminReport = () => {
       });
 
       y =
-        doc.lastAutoTable.finalY +
-        9;
+        doc.lastAutoTable
+          .finalY + 9;
     }
 
     /* REMARK */
@@ -1001,6 +1243,7 @@ const AdminReport = () => {
     );
 
     doc.setFontSize(10);
+
     doc.setTextColor(
       26,
       35,
@@ -1021,6 +1264,7 @@ const AdminReport = () => {
     );
 
     doc.setFontSize(9);
+
     doc.setTextColor(
       50,
       50,
@@ -1041,10 +1285,13 @@ const AdminReport = () => {
     );
   };
 
-  /* ================= GENERATE PDF ================= */
+  /* =========================================================
+     GENERATE PDF
+  ========================================================= */
 
   const generatePDF = async () => {
-    if (!reportData) return null;
+    if (!reportData)
+      return null;
 
     const doc = new jsPDF(
       "p",
@@ -1053,7 +1300,9 @@ const AdminReport = () => {
     );
 
     const student =
-      reportData.student || {};
+      reportData.student ||
+      activeStudent ||
+      {};
 
     const monthly =
       reportData.monthly || [];
@@ -1064,18 +1313,24 @@ const AdminReport = () => {
       singleMonth;
 
     const lastMonth =
-      monthly[monthly.length - 1]?.month ||
+      monthly[
+        monthly.length - 1
+      ]?.month ||
       reportData.period?.to ||
       firstMonth;
 
     const periodName =
       firstMonth === lastMonth
-        ? formatMonth(firstMonth)
-        : `${formatMonth(firstMonth)} - ${formatMonth(
+        ? formatMonth(
+            firstMonth
+          )
+        : `${formatMonth(
+            firstMonth
+          )} - ${formatMonth(
             lastMonth
           )}`;
 
-    /* ================= FIRST PAGE ================= */
+    /* FIRST PAGE */
 
     drawPDFHeader(
       doc,
@@ -1139,6 +1394,7 @@ const AdminReport = () => {
     );
 
     doc.setFontSize(17);
+
     doc.setTextColor(
       26,
       35,
@@ -1155,7 +1411,7 @@ const AdminReport = () => {
 
     y += 13;
 
-    /* ================= ATTENDANCE ================= */
+    /* ATTENDANCE */
 
     doc.setFontSize(12);
 
@@ -1168,7 +1424,8 @@ const AdminReport = () => {
     y += 5;
 
     const overallAttendance =
-      reportData.overall?.attendance
+      reportData.overall
+        ?.attendance
         ?.summary || {};
 
     autoTable(doc, {
@@ -1183,10 +1440,18 @@ const AdminReport = () => {
       ]],
 
       body: [[
-        overallAttendance.workingDays || 0,
-        overallAttendance.present || 0,
-        overallAttendance.absent || 0,
-        overallAttendance.holiday || 0,
+        overallAttendance.workingDays ||
+          0,
+
+        overallAttendance.present ||
+          0,
+
+        overallAttendance.absent ||
+          0,
+
+        overallAttendance.holiday ||
+          0,
+
         `${
           overallAttendance.percentage ||
           0
@@ -1196,8 +1461,17 @@ const AdminReport = () => {
       theme: "grid",
 
       headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
+        fillColor: [
+          26,
+          35,
+          126,
+        ],
+
+        textColor: [
+          255,
+          255,
+          255,
+        ],
       },
 
       bodyStyles: {
@@ -1212,10 +1486,10 @@ const AdminReport = () => {
     });
 
     y =
-      doc.lastAutoTable.finalY +
-      12;
+      doc.lastAutoTable
+        .finalY + 12;
 
-    /* ================= MARKS ================= */
+    /* MARKS */
 
     doc.setFont(
       "helvetica",
@@ -1233,19 +1507,28 @@ const AdminReport = () => {
     y += 5;
 
     const overallMarks =
-      reportData.overall?.marks
+      reportData.overall
+        ?.marks
         ?.records || [];
 
     const overallMarkRows =
       overallMarks.length
-        ? overallMarks.map((m, i) => [
-            i + 1,
-            m.subject || "N/A",
-            m.total_marks ?? "-",
-            m.obtained_marks ?? "-",
-            formatDate(m.test_date),
-            m.status || "-",
-          ])
+        ? overallMarks.map(
+            (m, i) => [
+              i + 1,
+              m.subject ||
+                "N/A",
+              m.total_marks ??
+                "-",
+              m.obtained_marks ??
+                "-",
+              formatDate(
+                m.test_date
+              ),
+              m.status ||
+                "-",
+            ]
+          )
         : [[
             "-",
             "No tests recorded",
@@ -1272,8 +1555,18 @@ const AdminReport = () => {
       theme: "grid",
 
       headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
+        fillColor: [
+          26,
+          35,
+          126,
+        ],
+
+        textColor: [
+          255,
+          255,
+          255,
+        ],
+
         fontSize: 8,
       },
 
@@ -1288,10 +1581,10 @@ const AdminReport = () => {
     });
 
     y =
-      doc.lastAutoTable.finalY +
-      12;
+      doc.lastAutoTable
+        .finalY + 12;
 
-    /* ================= ASSIGNMENTS ================= */
+    /* ASSIGNMENTS */
 
     doc.setFont(
       "helvetica",
@@ -1313,41 +1606,29 @@ const AdminReport = () => {
         (sum, m) =>
           sum +
           Number(
-            m.assignments?.summary
+            m.assignments
+              ?.summary
               ?.assigned || 0
           ),
         0
       );
 
-    if (firstAssignments === 0) {
-      doc.setFont(
-        "helvetica",
-        "normal"
-      );
+    doc.setFont(
+      "helvetica",
+      "normal"
+    );
 
-      doc.setFontSize(10);
+    doc.setFontSize(10);
 
-      doc.text(
-        "No assignments were assigned by faculty.",
-        14,
-        y
-      );
-    } else {
-      doc.setFont(
-        "helvetica",
-        "normal"
-      );
+    doc.text(
+      firstAssignments === 0
+        ? "No assignments were assigned by faculty."
+        : "Assignments were assigned during the selected report period.",
+      14,
+      y
+    );
 
-      doc.setFontSize(10);
-
-      doc.text(
-        "Assignments were assigned during the selected report period.",
-        14,
-        y
-      );
-    }
-
-    /* ================= MONTH PAGES ================= */
+    /* MONTH PAGES */
 
     monthly.forEach(
       (monthData) => {
@@ -1364,377 +1645,606 @@ const AdminReport = () => {
     return doc;
   };
 
-  /* ================= NORMALIZE MOBILE ================= */
-  /* ================= NORMALIZE MOBILE ================= */
+  /* =========================================================
+     NORMALIZE MOBILE
+  ========================================================= */
 
-  const getWhatsAppNumber = (student) => {
-    let number = String(student?.mobile || "").replace(/\D/g, "");
+  const getWhatsAppNumber = (
+    student
+  ) => {
+    if (!student) return "";
 
+    let number = String(
+      student.mobile ||
+        student.phone ||
+        student.contact ||
+        ""
+    ).replace(/\D/g, "");
+
+    /*
+     * 10 digit Indian number
+     * -> add country code 91
+     */
     if (number.length === 10) {
       number = `91${number}`;
+    }
+
+    /*
+     * Already 91XXXXXXXXXX
+     */
+    if (
+      number.length === 12 &&
+      number.startsWith("91")
+    ) {
+      return number;
     }
 
     return number;
   };
 
-  /* ================= SHARE PDF ================= */
+  /* =========================================================
+     SHARE PDF REPORT
+  ========================================================= */
 
- const sharePDFReport = async () => {
-  if (!reportData) return;
-
-  const student = reportData.student || activeStudent || {};
-  const studentName = student.name || "Student";
-  const whatsapp = getWhatsAppNumber(student);
-
-  if (!whatsapp) {
-    alert("Student WhatsApp number is not available.");
-    return;
-  }
-
-  if (!window.confirm(
-    `Are you sure you want to share PDF report with ${studentName}?`
-  )) return;
-
-  try {
-    setPdfLoading(true);
-
-    const doc = await generatePDF();
-    if (!doc) return;
-
-    const blob = doc.output("blob");
-
-    const file = new File(
-      [blob],
-      `Smart_Students_Classes_Report_${studentName.replace(/\s+/g, "_")}.pdf`,
-      { type: "application/pdf" }
-    );
-
-    if (
-      navigator.share &&
-      navigator.canShare &&
-      navigator.canShare({ files: [file] })
-    ) {
-      await navigator.share({
-        title: `Smart Students Classes - ${studentName}`,
-        text: `Hello, please find the Smart Students Classes PDF report of ${studentName}.`,
-        files: [file],
-      });
-    } else {
-      const url = `https://wa.me/${whatsapp}?text=${encodeURIComponent(
-        `Hello, please find the Smart Students Classes PDF report of ${studentName}.`
-      )}`;
-
-      window.open(url, "_blank");
-      alert("This browser cannot attach PDF directly. Use mobile Chrome/Edge with WhatsApp.");
-    }
-  } catch (err) {
-    if (err?.name !== "AbortError") {
-      console.error("Share PDF Error:", err);
-      alert("Unable to share PDF report.");
-    }
-  } finally {
-    setPdfLoading(false);
-  }
-};
-  /* ================= DOWNLOAD PDF ================= */
-
-  const downloadPDF = async () => {
-    if (!reportData) return;
-
-    try {
-      setPdfLoading(true);
-
-      const doc =
-        await generatePDF();
-
-      if (!doc) return;
-
+  const sharePDFReport =
+    async () => {
+      /*
+       * IMPORTANT:
+       *
+       * ALWAYS use activeStudent FIRST.
+       *
+       * activeStudent = the student currently
+       * selected from Student Profile dropdown.
+       */
       const student =
-        reportData.student || {};
+        activeStudent ||
+        reportData?.student ||
+        {};
 
-      const fileName =
-        `EduFlow_Report_${(
-          student.name ||
-          "Student"
-        ).replace(
-          /\s+/g,
-          "_"
-        )}.pdf`;
+      const studentName =
+        student.name ||
+        "Student";
 
-      doc.save(fileName);
-    } catch (err) {
-      console.error(err);
+      /*
+       * MOBILE COMES FROM SELECTED PROFILE
+       */
+      const whatsapp =
+        getWhatsAppNumber(
+          student
+        );
 
-      alert(
-        "Failed to export PDF."
-      );
-    } finally {
-      setPdfLoading(false);
-    }
-  };
+      /*
+       * NO NUMBER
+       */
+      if (!whatsapp) {
+        alert(
+          `WhatsApp number is not available in ${studentName}'s profile.`
+        );
 
-  /* ================= UI ================= */
+        return;
+      }
+
+      /*
+       * VALIDATE INDIAN NUMBER
+       */
+      if (
+        whatsapp.length !== 12 ||
+        !whatsapp.startsWith("91")
+      ) {
+        alert(
+          `Invalid WhatsApp number for ${studentName}: ${
+            student.mobile ||
+            "N/A"
+          }`
+        );
+
+        return;
+      }
+
+      /*
+       * CONFIRMATION
+       */
+      const confirmed =
+        window.confirm(
+          `Are you sure you want to share the report with ${studentName}?\n\n` +
+          `WhatsApp Number: +${whatsapp}`
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setPdfLoading(true);
+
+        /*
+         * GENERATE PDF
+         */
+        const doc =
+          await generatePDF();
+
+        if (!doc) {
+          alert(
+            "Unable to generate PDF report."
+          );
+
+          return;
+        }
+
+        /*
+         * PDF BLOB
+         */
+        const blob =
+          doc.output("blob");
+
+        /*
+         * FILE NAME
+         */
+        const safeName =
+          studentName
+            .replace(
+              /\s+/g,
+              "_"
+            )
+            .replace(
+              /[^a-zA-Z0-9_-]/g,
+              ""
+            );
+
+        const fileName =
+          `Smart_Students_Classes_Report_${safeName}.pdf`;
+
+        /*
+         * CREATE FILE
+         */
+        const file =
+          new File(
+            [blob],
+            fileName,
+            {
+              type:
+                "application/pdf",
+            }
+          );
+
+        /*
+         * =====================================================
+         * MOBILE NATIVE SHARE
+         * =====================================================
+         *
+         * If browser supports file sharing,
+         * open native share sheet.
+         *
+         * NOTE:
+         * Native share sheet cannot force WhatsApp
+         * to a particular phone number.
+         */
+        if (
+          navigator.share &&
+          navigator.canShare &&
+          navigator.canShare({
+            files: [file],
+          })
+        ) {
+          await navigator.share({
+            title:
+              `Smart Students Classes - ${studentName}`,
+
+            text:
+              `Hello, please find the Smart Students Classes monthly progress report of ${studentName}.`,
+
+            files: [file],
+          });
+
+          return;
+        }
+
+        /*
+         * =====================================================
+         * DESKTOP / WHATSAPP WEB FALLBACK
+         * =====================================================
+         */
+
+        /*
+         * Automatically download PDF
+         */
+        const pdfUrl =
+          URL.createObjectURL(
+            blob
+          );
+
+        const downloadLink =
+          document.createElement(
+            "a"
+          );
+
+        downloadLink.href =
+          pdfUrl;
+
+        downloadLink.download =
+          fileName;
+
+        document.body.appendChild(
+          downloadLink
+        );
+
+        downloadLink.click();
+
+        document.body.removeChild(
+          downloadLink
+        );
+
+        URL.revokeObjectURL(
+          pdfUrl
+        );
+
+        /*
+         * WhatsApp message
+         */
+        const message =
+          `Hello, please find the Smart Students Classes monthly progress report of ${studentName}.`;
+
+        /*
+         * EXACT SELECTED PROFILE NUMBER
+         */
+        const whatsappUrl =
+          `https://wa.me/${whatsapp}?text=${encodeURIComponent(
+            message
+          )}`;
+
+        /*
+         * OPEN THAT STUDENT'S WHATSAPP
+         */
+        window.open(
+          whatsappUrl,
+          "_blank",
+          "noopener,noreferrer"
+        );
+
+      } catch (err) {
+        console.error(
+          "Share PDF Error:",
+          err
+        );
+
+        if (
+          err?.name !==
+          "AbortError"
+        ) {
+          alert(
+            "Unable to share PDF report."
+          );
+        }
+      } finally {
+        setPdfLoading(false);
+      }
+    };
+
+  /* =========================================================
+     DOWNLOAD PDF
+  ========================================================= */
+
+  const downloadPDF =
+    async () => {
+      if (!reportData)
+        return;
+
+      try {
+        setPdfLoading(true);
+
+        const doc =
+          await generatePDF();
+
+        if (!doc) return;
+
+        const student =
+          reportData.student ||
+          activeStudent ||
+          {};
+
+        const fileName =
+          `EduFlow_Report_${(
+            student.name ||
+            "Student"
+          ).replace(
+            /\s+/g,
+            "_"
+          )}.pdf`;
+
+        doc.save(fileName);
+      } catch (err) {
+        console.error(err);
+
+        alert(
+          "Failed to export PDF."
+        );
+      } finally {
+        setPdfLoading(false);
+      }
+    };
+
+  /* =========================================================
+     UI
+  ========================================================= */
 
   return (
     <>
       <style>{`
-        *{
-          box-sizing:border-box;
+
+        * {
+          box-sizing: border-box;
         }
 
-        .report-container{
-          background:#f3f4f6;
-          min-height:100vh;
-          padding:20px;
-          font-family:Inter,Arial,sans-serif;
+        .report-container {
+          background: #f3f4f6;
+          min-height: 100vh;
+          padding: 20px;
+          font-family: Inter, Arial, sans-serif;
         }
 
-        .report-wrapper{
-          width:100%;
-          max-width:1400px;
-          margin:auto;
-          display:flex;
-          flex-direction:column;
-          gap:20px;
+        .report-wrapper {
+          width: 100%;
+          max-width: 1400px;
+          margin: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
         }
 
-        .report-card{
-          background:#fff;
-          padding:24px;
-          border-radius:14px;
-          box-shadow:0 4px 18px rgba(0,0,0,.06);
+        .report-card {
+          background: #fff;
+          padding: 24px;
+          border-radius: 14px;
+          box-shadow: 0 4px 18px rgba(0,0,0,.06);
         }
 
-        .top-header{
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:15px;
-          flex-wrap:wrap;
+        .top-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 15px;
+          flex-wrap: wrap;
         }
 
         .form-grid,
-        .month-grid{
-          display:grid;
-          grid-template-columns:1fr 1fr;
-          gap:15px;
+        .month-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
         }
 
-        .stats-grid{
-          display:grid;
-          grid-template-columns:repeat(5,1fr);
-          gap:12px;
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 12px;
         }
 
-        .profile-grid{
-          display:grid;
-          grid-template-columns:repeat(3,1fr);
-          gap:12px;
+        .profile-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
         }
 
-        .action-btn{
-          padding:12px 12px;
-          border:0;
-          border-radius:8px;
-          font-weight:700;
-          cursor:pointer;
-          font-size:13px;
-          width:60%;
-          height :50px;
-        }
-          .action-sharebtn{
-          padding:12px 12px;
-          border:0;
-          border-radius:8px;
-          font-weight:700;
-          cursor:pointer;
-          font-size:13px;
-          width:30%;
-          height :50px;
+        .action-btn {
+          padding: 12px;
+          border: 0;
+          border-radius: 8px;
+          font-weight: 700;
+          cursor: pointer;
+          font-size: 13px;
+          width: 60%;
+          height: 50px;
         }
 
-        .generate-btn{
-          width:30%;
-          height :50px;
-          
+        .action-sharebtn {
+          padding: 12px;
+          border: 0;
+          border-radius: 8px;
+          font-weight: 700;
+          cursor: pointer;
+          font-size: 13px;
+          width: 30%;
+          height: 50px;
         }
 
-        .toggle-container{
-          display:flex;
-          gap:10px;
+        .generate-btn {
+          width: 30%;
+          height: 50px;
         }
 
-        .toggle-btn{
-          width:20px;
-          height :30px;
-          padding:10px;
-          border:0;
-          border-radius:7px;
-          cursor:pointer;
-          font-weight:700;
-          font-size:12px;
+        .toggle-container {
+          display: flex;
+          gap: 10px;
         }
 
-        .table-scroll{
-          overflow-x:auto;
-          width:100%;
+        .toggle-btn {
+          width: 20%;
+          min-width: 100px;
+          height: 35px;
+          padding: 5px 12px;
+          border: 0;
+          border-radius: 7px;
+          cursor: pointer;
+          font-weight: 700;
+          font-size: 12px;
         }
 
-        .report-table{
-          width:100%;
-          border-collapse:collapse;
-          min-width:650px;
-          font-size:13px;
+        .table-scroll {
+          overflow-x: auto;
+          width: 100%;
         }
 
-        .report-table th{
-          padding:11px;
-          background:#1a237e;
-          color:#fff;
-          text-align:left;
-          white-space:nowrap;
+        .report-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 650px;
+          font-size: 13px;
         }
 
-        .report-table td{
-          padding:10px;
-          border-bottom:1px solid #eee;
-          white-space:nowrap;
+        .report-table th {
+          padding: 11px;
+          background: #1a237e;
+          color: #fff;
+          text-align: left;
+          white-space: nowrap;
         }
 
-        .month-title{
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:10px;
-          flex-wrap:wrap;
+        .report-table td {
+          padding: 10px;
+          border-bottom: 1px solid #eee;
+          white-space: nowrap;
         }
 
-        .month-badge{
-          background:#e0e7ff;
-          color:#1e3a8a;
-          padding:6px 12px;
-          border-radius:20px;
-          font-size:12px;
-          font-weight:700;
+        .month-title {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
         }
 
-        .month-stat{
-          padding:13px;
-          border-radius:8px;
-          background:#f8fafc;
-          border:1px solid #e2e8f0;
-          text-align:center;
+        .month-badge {
+          background: #e0e7ff;
+          color: #1e3a8a;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 700;
         }
 
-        .month-stat-value{
-          font-size:19px;
-          font-weight:800;
-          display:block;
-          color:#1e293b;
+        .month-stat {
+          padding: 13px;
+          border-radius: 8px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          text-align: center;
         }
 
-        .month-stat-label{
-          font-size:10px;
-          color:#64748b;
-          display:block;
-          margin-top:4px;
+        .month-stat-value {
+          font-size: 19px;
+          font-weight: 800;
+          display: block;
+          color: #1e293b;
         }
 
-        .share-box{
-          margin-top:20px;
-          padding:15px;
-          background:#eff6ff;
-          border:1px solid #bfdbfe;
-          border-radius:10px;
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:15px;
-          flex-wrap:wrap;
+        .month-stat-label {
+          font-size: 10px;
+          color: #64748b;
+          display: block;
+          margin-top: 4px;
         }
 
-        @media(max-width:900px){
-          .stats-grid{
-            grid-template-columns:repeat(3,1fr);
+        .share-box {
+          margin-top: 20px;
+          padding: 15px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 15px;
+          flex-wrap: wrap;
+        }
+
+        @media(max-width:900px) {
+
+          .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
           }
 
-          .profile-grid{
-            grid-template-columns:repeat(2,1fr);
+          .profile-grid {
+            grid-template-columns: repeat(2, 1fr);
           }
+
         }
 
-        @media(max-width:650px){
-          .report-container{
-            padding:10px;
+        @media(max-width:650px) {
+
+          .report-container {
+            padding: 10px;
           }
 
-          .report-card{
-            padding:15px;
+          .report-card {
+            padding: 15px;
           }
 
           .form-grid,
           .month-grid,
-          .profile-grid{
-            grid-template-columns:1fr;
+          .profile-grid {
+            grid-template-columns: 1fr;
           }
 
-          .stats-grid{
-            grid-template-columns:repeat(2,1fr);
+          .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
           }
 
-          .generate-btn{
-            width:20%;
-            height :40px;
-            padding : 12px 12px;
+          .generate-btn {
+            width: 30%;
+            height: 40px;
+            padding: 8px;
           }
 
-          .toggle-container{
-            flex-wrap:wrap;
+          .toggle-container {
+            flex-wrap: wrap;
           }
 
-          .toggle-btn{
-            width:20%;
-            height :35px;
-            padding:5px 12px;
+          .toggle-btn {
+            width: 30%;
             
-
-          .share-box{
-            flex-direction:column;
-            align-items:stretch;
+            height: 35px;
+            padding: 5px 8px;
           }
 
-          .share-box .action-btn{
-            width:30%;
+          .share-box {
+            flex-direction: column;
+            align-items: stretch;
           }
+
+          .share-box .action-sharebtn {
+            width: 30%;
+          }
+
         }
 
-        @media(max-width:400px){
+        @media(max-width:400px) {
+
           .action-btn,
-          .toggle-btn{
-            width:30%;
-            min-width:0;
+          .toggle-btn {
+            width: 30%;
+            min-width: 0;
           }
+
+          .generate-btn {
+            width: 40%;
+          }
+
         }
+
       `}</style>
 
       <div className="report-container">
+
         <div className="report-wrapper">
 
-          {/* ================= MAIN FORM ================= */}
+          {/* =================================================
+              MAIN FORM
+          ================================================= */}
 
           <div className="report-card">
 
             <div className="top-header">
 
               <div>
+
                 <span
                   style={{
-                    fontSize:11,
-                    fontWeight:700,
-                    background:"#e0e7ff",
-                    color:"#1e3a8a",
-                    padding:"5px 9px",
-                    borderRadius:5,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: "#e0e7ff",
+                    color: "#1e3a8a",
+                    padding: "5px 9px",
+                    borderRadius: 5,
                   }}
                 >
                   EduFlow Management
@@ -1742,9 +2252,9 @@ const AdminReport = () => {
 
                 <h2
                   style={{
-                    color:"#1a237e",
-                    margin:"9px 0 0",
-                    fontSize:22,
+                    color: "#1a237e",
+                    margin: "9px 0 0",
+                    fontSize: 22,
                   }}
                 >
                   📊 Student Monthly Report
@@ -1752,13 +2262,14 @@ const AdminReport = () => {
 
                 <div
                   style={{
-                    fontSize:12,
-                    color:"#64748b",
-                    marginTop:5,
+                    fontSize: 12,
+                    color: "#64748b",
+                    marginTop: 5,
                   }}
                 >
                   Teacher: {TEACHER_NAME}
                 </div>
+
               </div>
 
               {/* PDF ACTIONS */}
@@ -1766,23 +2277,31 @@ const AdminReport = () => {
               {reportData && (
                 <div
                   style={{
-                    display:"flex",
-                    gap:8,
-                    flexWrap:"wrap",
-                    justifyContent:"flex-end",
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    justifyContent:
+                      "flex-end",
                   }}
                 >
 
                   <button
                     type="button"
-                    onClick={downloadPDF}
+                    onClick={
+                      downloadPDF
+                    }
                     className="action-btn"
-                    disabled={pdfLoading}
+                    disabled={
+                      pdfLoading
+                    }
                     style={{
-                      background:"#15803d",
-                      color:"#fff",
+                      background:
+                        "#15803d",
+                      color: "#fff",
                       opacity:
-                        pdfLoading ? 0.6 : 1,
+                        pdfLoading
+                          ? 0.6
+                          : 1,
                     }}
                   >
                     {pdfLoading
@@ -1792,46 +2311,63 @@ const AdminReport = () => {
 
                   <button
                     type="button"
-                    onClick={sharePDFReport}
+                    onClick={
+                      sharePDFReport
+                    }
                     className="action-btn"
-                    disabled={pdfLoading}
+                    disabled={
+                      pdfLoading
+                    }
                     style={{
-                      background:"#2563eb",
-                      color:"#fff",
+                      background:
+                        "#2563eb",
+                      color: "#fff",
                       opacity:
-                        pdfLoading ? 0.6 : 1,
+                        pdfLoading
+                          ? 0.6
+                          : 1,
                     }}
                   >
-                    📤 Share with{" "}
-                    {reportData.student?.name ||
-                      "Student"}
+                    {pdfLoading
+                      ? "Preparing..."
+                      : `📤 Share with ${
+                          reportData
+                            .student
+                            ?.name ||
+                          "Student"
+                        }`}
                   </button>
 
                 </div>
               )}
+
             </div>
 
             <p
               style={{
-                fontSize:13,
-                color:"#64748b",
-                margin:"15px 0 20px",
+                fontSize: 13,
+                color: "#64748b",
+                margin:
+                  "15px 0 20px",
               }}
             >
-              Select class, student and report
-              duration to view attendance, marks,
-              assignments and performance analysis.
+              Select class, student and
+              report duration to view
+              attendance, marks,
+              assignments and
+              performance analysis.
             </p>
 
             {error && (
               <div
                 style={{
-                  background:"#fee2e2",
-                  color:"#991b1b",
-                  padding:12,
-                  borderRadius:8,
-                  marginBottom:15,
-                  fontSize:13,
+                  background:
+                    "#fee2e2",
+                  color: "#991b1b",
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 15,
+                  fontSize: 13,
                 }}
               >
                 ⚠️ {error}
@@ -1839,11 +2375,14 @@ const AdminReport = () => {
             )}
 
             <form
-              onSubmit={handleFetchReport}
+              onSubmit={
+                handleFetchReport
+              }
               style={{
-                display:"flex",
-                flexDirection:"column",
-                gap:16,
+                display: "flex",
+                flexDirection:
+                  "column",
+                gap: 16,
               }}
             >
 
@@ -1852,42 +2391,65 @@ const AdminReport = () => {
                 {/* CLASS */}
 
                 <div>
-                  <label style={labelStyle}>
+
+                  <label
+                    style={
+                      labelStyle
+                    }
+                  >
                     Class Category
                   </label>
 
                   <select
-                    value={selectedClass}
+                    value={
+                      selectedClass
+                    }
                     onChange={(e) => {
                       setSelectedClass(
                         e.target.value
                       );
 
-                      setSelectedStudentId("");
+                      setSelectedStudentId(
+                        ""
+                      );
 
-                      setReportData(null);
+                      setReportData(
+                        null
+                      );
                     }}
-                    style={inputStyle}
+                    style={
+                      inputStyle
+                    }
                   >
+
                     <option value="">
                       -- Choose Class --
                     </option>
 
-                    {classes.map((c) => (
-                      <option
-                        key={c}
-                        value={c}
-                      >
-                        Class {c}
-                      </option>
-                    ))}
+                    {classes.map(
+                      (c) => (
+                        <option
+                          key={c}
+                          value={c}
+                        >
+                          Class {c}
+                        </option>
+                      )
+                    )}
+
                   </select>
+
                 </div>
 
                 {/* REPORT MODE */}
 
                 <div>
-                  <label style={labelStyle}>
+
+                  <label
+                    style={
+                      labelStyle
+                    }
+                  >
                     Report Duration
                   </label>
 
@@ -1897,16 +2459,20 @@ const AdminReport = () => {
                       type="button"
                       className="toggle-btn"
                       onClick={() =>
-                        setReportMode("single")
+                        setReportMode(
+                          "single"
+                        )
                       }
                       style={{
                         background:
-                          reportMode === "single"
+                          reportMode ===
+                          "single"
                             ? "#1a237e"
                             : "#e2e8f0",
 
                         color:
-                          reportMode === "single"
+                          reportMode ===
+                          "single"
                             ? "#fff"
                             : "#333",
                       }}
@@ -1918,16 +2484,20 @@ const AdminReport = () => {
                       type="button"
                       className="toggle-btn"
                       onClick={() =>
-                        setReportMode("range")
+                        setReportMode(
+                          "range"
+                        )
                       }
                       style={{
                         background:
-                          reportMode === "range"
+                          reportMode ===
+                          "range"
                             ? "#1a237e"
                             : "#e2e8f0",
 
                         color:
-                          reportMode === "range"
+                          reportMode ===
+                          "range"
                             ? "#fff"
                             : "#333",
                       }}
@@ -1936,67 +2506,99 @@ const AdminReport = () => {
                     </button>
 
                   </div>
+
                 </div>
 
               </div>
 
               {/* MONTH */}
 
-              {reportMode === "single" ? (
+              {reportMode ===
+              "single" ? (
                 <div>
-                  <label style={labelStyle}>
+
+                  <label
+                    style={
+                      labelStyle
+                    }
+                  >
                     Target Month
                   </label>
 
                   <input
                     type="month"
-                    value={singleMonth}
+                    value={
+                      singleMonth
+                    }
                     onChange={(e) =>
                       setSingleMonth(
                         e.target.value
                       )
                     }
-                    style={inputStyle}
+                    style={
+                      inputStyle
+                    }
                     required
                   />
+
                 </div>
               ) : (
                 <div className="month-grid">
 
                   <div>
-                    <label style={labelStyle}>
+
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       From Month
                     </label>
 
                     <input
                       type="month"
-                      value={fromMonth}
+                      value={
+                        fromMonth
+                      }
                       onChange={(e) =>
                         setFromMonth(
                           e.target.value
                         )
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                       required
                     />
+
                   </div>
 
                   <div>
-                    <label style={labelStyle}>
+
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       To Month
                     </label>
 
                     <input
                       type="month"
-                      value={toMonth}
+                      value={
+                        toMonth
+                      }
                       onChange={(e) =>
                         setToMonth(
                           e.target.value
                         )
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                       required
                     />
+
                   </div>
 
                 </div>
@@ -2005,20 +2607,40 @@ const AdminReport = () => {
               {/* STUDENT */}
 
               <div>
-                <label style={labelStyle}>
+
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
                   Student Profile
                 </label>
 
                 <select
-                  value={selectedStudentId}
-                  onChange={(e) =>
+                  value={
+                    selectedStudentId
+                  }
+                  onChange={(e) => {
                     setSelectedStudentId(
                       e.target.value
-                    )
+                    );
+
+                    /*
+                     * Old report remove
+                     * when student changes
+                     */
+                    setReportData(
+                      null
+                    );
+                  }}
+                  style={
+                    inputStyle
                   }
-                  style={inputStyle}
-                  disabled={!selectedClass}
+                  disabled={
+                    !selectedClass
+                  }
                 >
+
                   <option value="">
                     {selectedClass
                       ? "-- Choose Student --"
@@ -2035,7 +2657,9 @@ const AdminReport = () => {
                       </option>
                     )
                   )}
+
                 </select>
+
               </div>
 
               {/* STUDENT PREVIEW */}
@@ -2043,12 +2667,14 @@ const AdminReport = () => {
               {activeStudent && (
                 <div
                   style={{
-                    display:"flex",
-                    alignItems:"center",
-                    gap:14,
-                    background:"#f8fafc",
-                    padding:12,
-                    borderRadius:10,
+                    display: "flex",
+                    alignItems:
+                      "center",
+                    gap: 14,
+                    background:
+                      "#f8fafc",
+                    padding: 12,
+                    borderRadius: 10,
                     border:
                       "1px solid #cbd5e1",
                   }}
@@ -2056,17 +2682,21 @@ const AdminReport = () => {
 
                   <div
                     style={{
-                      width:55,
-                      height:55,
-                      borderRadius:10,
-                      overflow:"hidden",
-                      background:"#94a3b8",
-                      display:"flex",
-                      alignItems:"center",
-                      justifyContent:"center",
-                      flexShrink:0,
+                      width: 55,
+                      height: 55,
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      background:
+                        "#94a3b8",
+                      display: "flex",
+                      alignItems:
+                        "center",
+                      justifyContent:
+                        "center",
+                      flexShrink: 0,
                     }}
                   >
+
                     {activeStudent.profile_photo ? (
                       <img
                         src={
@@ -2074,72 +2704,92 @@ const AdminReport = () => {
                         }
                         alt=""
                         style={{
-                          width:"100%",
-                          height:"100%",
-                          objectFit:"cover",
+                          width: "100%",
+                          height: "100%",
+                          objectFit:
+                            "cover",
                         }}
                       />
                     ) : (
                       <span
                         style={{
-                          color:"#fff",
-                          fontSize:18,
-                          fontWeight:700,
+                          color: "#fff",
+                          fontSize: 18,
+                          fontWeight: 700,
                         }}
                       >
                         {activeStudent.name
-                          ?.charAt(0)
+                          ?.charAt(
+                            0
+                          )
                           .toUpperCase() ||
                           "S"}
                       </span>
                     )}
+
                   </div>
 
                   <div>
+
                     <div
                       style={{
-                        fontWeight:700,
-                        color:"#1e293b",
+                        fontWeight: 700,
+                        color:
+                          "#1e293b",
                       }}
                     >
-                      {activeStudent.name}
+                      {
+                        activeStudent.name
+                      }
                     </div>
 
                     <div
                       style={{
-                        fontSize:12,
-                        color:"#64748b",
-                        marginTop:4,
-                        lineHeight:1.6,
+                        fontSize: 12,
+                        color:
+                          "#64748b",
+                        marginTop: 4,
+                        lineHeight: 1.6,
                       }}
                     >
                       Class:{" "}
-                      {activeStudent.class}
+                      {
+                        activeStudent.class
+                      }
 
                       {" | "}
 
                       Mobile:{" "}
-                      {activeStudent.mobile ||
-                        "N/A"}
+                      {
+                        activeStudent.mobile ||
+                        "N/A"
+                      }
 
                       {" | "}
 
                       Batch:{" "}
-                      {activeStudent.batch ||
-                        "N/A"}
+                      {
+                        activeStudent.batch ||
+                        "N/A"
+                      }
 
                       {" | "}
 
                       Batch Time:{" "}
-                      {activeStudent.batch_time ||
-                        "N/A"}
+                      {
+                        activeStudent.batch_time ||
+                        "N/A"
+                      }
 
                       {" | "}
 
                       Session:{" "}
-                      {activeStudent.session ||
-                        "N/A"}
+                      {
+                        activeStudent.session ||
+                        "N/A"
+                      }
                     </div>
+
                   </div>
 
                 </div>
@@ -2155,8 +2805,9 @@ const AdminReport = () => {
                 }
                 className="action-btn generate-btn"
                 style={{
-                  background:"#1a237e",
-                  color:"#fff",
+                  background:
+                    "#1a237e",
+                  color: "#fff",
                   opacity:
                     reportLoading ||
                     loading
@@ -2177,11 +2828,13 @@ const AdminReport = () => {
               <div className="share-box">
 
                 <div>
+
                   <div
                     style={{
-                      fontWeight:700,
-                      color:"#1d4ed8",
-                      marginBottom:4,
+                      fontWeight: 700,
+                      color:
+                        "#1d4ed8",
+                      marginBottom: 4,
                     }}
                   >
                     📤 Share Student Report
@@ -2189,35 +2842,53 @@ const AdminReport = () => {
 
                   <div
                     style={{
-                      fontSize:12,
-                      color:"#64748b",
+                      fontSize: 12,
+                      color:
+                        "#64748b",
                     }}
                   >
-                    Share PDF report with{" "}
+                    Share PDF report
+                    with{" "}
                     <strong>
-                      {reportData.student?.name ||
-                        "Student"}
+                      {
+                        reportData
+                          .student
+                          ?.name
+                      }
                     </strong>
-                    . Student mobile number is
-                    automatically taken from the
-                    student profile.
+                    . WhatsApp number
+                    is automatically
+                    taken from the
+                    selected student's
+                    profile.
                   </div>
+
                 </div>
 
                 <button
                   type="button"
-                  onClick={sharePDFReport}
+                  onClick={
+                    sharePDFReport
+                  }
                   className="action-sharebtn"
-                  disabled={pdfLoading}
+                  disabled={
+                    pdfLoading
+                  }
                   style={{
-                    background:"#2563eb",
-                    color:"#fff",
-                    minWidth:200,
+                    background:
+                      "#2563eb",
+                    color: "#fff",
+                    minWidth: 200,
                   }}
                 >
-                  📤 Share with{" "}
-                  {reportData.student?.name ||
-                    "Student"}
+                  {pdfLoading
+                    ? "Preparing..."
+                    : `📤 Share with ${
+                        reportData
+                          .student
+                          ?.name ||
+                        "Student"
+                      }`}
                 </button>
 
               </div>
@@ -2225,7 +2896,9 @@ const AdminReport = () => {
 
           </div>
 
-          {/* ================= REPORT ================= */}
+          {/* =================================================
+              REPORT
+          ================================================= */}
 
           {reportData && (
             <>
@@ -2236,11 +2909,13 @@ const AdminReport = () => {
 
                 <h3
                   style={{
-                    margin:"0 0 15px",
-                    color:"#1a237e",
+                    margin:
+                      "0 0 15px",
+                    color:
+                      "#1a237e",
                     borderBottom:
                       "2px solid #e0e7ff",
-                    paddingBottom:8,
+                    paddingBottom: 8,
                   }}
                 >
                   👤 Student Summary
@@ -2249,68 +2924,127 @@ const AdminReport = () => {
                 <div className="profile-grid">
 
                   <div>
-                    <strong>Name:</strong>{" "}
-                    {reportData.student?.name}
+                    <strong>
+                      Name:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .student
+                        ?.name
+                    }
                   </div>
 
                   <div>
-                    <strong>Class:</strong>{" "}
-                    {reportData.student?.class}
+                    <strong>
+                      Class:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .student
+                        ?.class
+                    }
                   </div>
 
                   <div>
-                    <strong>Batch:</strong>{" "}
-                    {reportData.student?.batch ||
-                      "N/A"}
+                    <strong>
+                      Batch:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .student
+                        ?.batch ||
+                      "N/A"
+                    }
                   </div>
 
                   <div>
-                    <strong>Batch Time:</strong>{" "}
-                    {reportData.student?.batch_time ||
-                      "N/A"}
+                    <strong>
+                      Batch Time:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .student
+                        ?.batch_time ||
+                      "N/A"
+                    }
                   </div>
 
                   <div>
-                    <strong>Session:</strong>{" "}
-                    {reportData.student?.session ||
-                      "N/A"}
+                    <strong>
+                      Session:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .student
+                        ?.session ||
+                      "N/A"
+                    }
                   </div>
 
                   <div>
-                    <strong>Contact:</strong>{" "}
-                    {reportData.student?.mobile ||
-                      "N/A"}
+                    <strong>
+                      Contact:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .student
+                        ?.mobile ||
+                      "N/A"
+                    }
                   </div>
 
                   <div>
-                    <strong>Stream:</strong>{" "}
-                    {reportData.student?.stream ||
-                      "N/A"}
+                    <strong>
+                      Stream:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .student
+                        ?.stream ||
+                      "N/A"
+                    }
                   </div>
 
                   <div>
-                    <strong>Joining Date:</strong>{" "}
+                    <strong>
+                      Joining Date:
+                    </strong>{" "}
                     {formatDate(
-                      reportData.student
+                      reportData
+                        .student
                         ?.joining_date
                     )}
                   </div>
 
                   <div>
-                    <strong>Teacher:</strong>{" "}
+                    <strong>
+                      Teacher:
+                    </strong>{" "}
                     {TEACHER_NAME}
                   </div>
 
                   <div>
-                    <strong>From:</strong>{" "}
-                    {reportData.period?.from ||
-                      "N/A"}
+                    <strong>
+                      From:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .period
+                        ?.from ||
+                      "N/A"
+                    }
                   </div>
 
                   <div>
-                    <strong>To:</strong>{" "}
-                    {reportData.period?.to ||
-                      "N/A"}
+                    <strong>
+                      To:
+                    </strong>{" "}
+                    {
+                      reportData
+                        .period
+                        ?.to ||
+                      "N/A"
+                    }
                   </div>
 
                 </div>
@@ -2323,8 +3057,9 @@ const AdminReport = () => {
 
                 <h3
                   style={{
-                    color:"#1a237e",
-                    marginTop:0,
+                    color:
+                      "#1a237e",
+                    marginTop: 0,
                   }}
                 >
                   📈 Overall Performance
@@ -2334,53 +3069,67 @@ const AdminReport = () => {
 
                   {[
                     [
-                      reportData.overall
+                      reportData
+                        .overall
                         ?.attendance
                         ?.summary
                         ?.workingDays,
+
                       "Working Days",
                     ],
 
                     [
-                      reportData.overall
+                      reportData
+                        .overall
                         ?.attendance
                         ?.summary
                         ?.present,
+
                       "Present",
                     ],
 
                     [
-                      reportData.overall
+                      reportData
+                        .overall
                         ?.attendance
                         ?.summary
                         ?.absent,
+
                       "Absent",
                     ],
 
                     [
-                      reportData.overall
+                      reportData
+                        .overall
                         ?.attendance
                         ?.summary
                         ?.holiday,
+
                       "Holiday",
                     ],
 
                     [
                       `${
-                        reportData.overall
+                        reportData
+                          .overall
                           ?.attendance
                           ?.summary
-                          ?.percentage || 0
+                          ?.percentage ||
+                        0
                       }%`,
+
                       "Attendance",
                     ],
                   ].map(
-                    ([value, label]) => (
+                    ([
+                      value,
+                      label,
+                    ]) => (
                       <div
                         key={label}
                         style={{
-                          padding:14,
-                          borderRadius:9,
+                          padding: 14,
+                          borderRadius: 9,
                           background:
                             "#f8fafc",
                           textAlign:
@@ -2389,10 +3138,11 @@ const AdminReport = () => {
                             "1px solid #e2e8f0",
                         }}
                       >
+
                         <div
                           style={{
-                            fontSize:20,
-                            fontWeight:800,
+                            fontSize: 20,
+                            fontWeight: 800,
                             color:
                               "#1e293b",
                           }}
@@ -2402,14 +3152,15 @@ const AdminReport = () => {
 
                         <div
                           style={{
-                            fontSize:10,
+                            fontSize: 10,
                             color:
                               "#64748b",
-                            marginTop:4,
+                            marginTop: 4,
                           }}
                         >
                           {label}
                         </div>
+
                       </div>
                     )
                   )}
@@ -2421,26 +3172,33 @@ const AdminReport = () => {
               {/* MONTHLY REPORT */}
 
               {reportData.monthly?.map(
-                (monthData, index) => {
+                (
+                  monthData,
+                  index
+                ) => {
                   const monthName =
                     formatMonth(
                       monthData.month
                     );
 
                   const att =
-                    monthData.attendance
+                    monthData
+                      .attendance
                       ?.summary || {};
 
                   const marks =
-                    monthData.marks
+                    monthData
+                      .marks
                       ?.records || [];
 
                   const assignments =
-                    monthData.assignments
+                    monthData
+                      .assignments
                       ?.records || [];
 
                   const assignmentSummary =
-                    monthData.assignments
+                    monthData
+                      .assignments
                       ?.summary || {};
 
                   const analysis =
@@ -2459,6 +3217,7 @@ const AdminReport = () => {
                       <div className="month-title">
 
                         <div>
+
                           <h3
                             style={{
                               margin:
@@ -2467,12 +3226,15 @@ const AdminReport = () => {
                                 "#1a237e",
                             }}
                           >
-                            📅 {monthName}
+                            📅{" "}
+                            {
+                              monthName
+                            }
                           </h3>
 
                           <div
                             style={{
-                              fontSize:12,
+                              fontSize: 12,
                               color:
                                 "#64748b",
                             }}
@@ -2480,17 +3242,19 @@ const AdminReport = () => {
                             Monthly Academic &
                             Activity Report
                           </div>
+
                         </div>
 
                         <span className="month-badge">
-                          Month {index + 1}
+                          Month{" "}
+                          {index + 1}
                         </span>
 
                       </div>
 
                       <hr
                         style={{
-                          border:0,
+                          border: 0,
                           borderTop:
                             "1px solid #e2e8f0",
                           margin:
@@ -2515,17 +3279,20 @@ const AdminReport = () => {
 
                         {[
                           [
-                            att.present || 0,
+                            att.present ||
+                              0,
                             "Present (P)",
                           ],
 
                           [
-                            att.absent || 0,
+                            att.absent ||
+                              0,
                             "Absent (A)",
                           ],
 
                           [
-                            att.holiday || 0,
+                            att.holiday ||
+                              0,
                             "Holiday (H)",
                           ],
 
@@ -2543,11 +3310,15 @@ const AdminReport = () => {
                             "Attendance %",
                           ],
                         ].map(
-                          ([value, label]) => (
+                          ([
+                            value,
+                            label,
+                          ]) => (
                             <div
                               className="month-stat"
                               key={label}
                             >
+
                               <b className="month-stat-value">
                                 {value}
                               </b>
@@ -2555,6 +3326,7 @@ const AdminReport = () => {
                               <small className="month-stat-label">
                                 {label}
                               </small>
+
                             </div>
                           )
                         )}
@@ -2567,10 +3339,10 @@ const AdminReport = () => {
                             "#f8fafc",
                           borderLeft:
                             "4px solid #1a237e",
-                          padding:12,
-                          borderRadius:7,
-                          marginTop:12,
-                          fontSize:13,
+                          padding: 12,
+                          borderRadius: 7,
+                          marginTop: 12,
+                          fontSize: 13,
                           color:
                             "#334155",
                         }}
@@ -2580,11 +3352,13 @@ const AdminReport = () => {
                         </strong>{" "}
                         Present:{" "}
                         <strong>
-                          {att.present || 0}
+                          {att.present ||
+                            0}
                         </strong>
                         , Absent:{" "}
                         <strong>
-                          {att.absent || 0}
+                          {att.absent ||
+                            0}
                         </strong>
                         , Attendance:{" "}
                         <strong>
@@ -2648,9 +3422,12 @@ const AdminReport = () => {
                                       `${m.subject}-${m.test_date}`
                                     }
                                   >
+
                                     <td>
                                       <strong>
-                                        {m.subject}
+                                        {
+                                          m.subject
+                                        }
                                       </strong>
                                     </td>
 
@@ -2677,6 +3454,7 @@ const AdminReport = () => {
                                         m.status
                                       }
                                     </td>
+
                                   </tr>
                                 )
                               )
@@ -2687,12 +3465,15 @@ const AdminReport = () => {
                                   style={{
                                     textAlign:
                                       "center",
-                                    padding:20,
+                                    padding: 20,
                                   }}
                                 >
                                   No tests
-                                  recorded for{" "}
-                                  {monthName}.
+                                  recorded
+                                  for{" "}
+                                  {
+                                    monthName
+                                  }.
                                 </td>
                               </tr>
                             )}
@@ -2705,12 +3486,12 @@ const AdminReport = () => {
 
                       <div
                         style={{
-                          marginTop:10,
-                          padding:12,
+                          marginTop: 10,
+                          padding: 12,
                           background:
                             "#f8fafc",
-                          borderRadius:7,
-                          fontSize:13,
+                          borderRadius: 7,
+                          fontSize: 13,
                         }}
                       >
                         <strong>
@@ -2742,13 +3523,13 @@ const AdminReport = () => {
 
                         <div
                           style={{
-                            padding:14,
+                            padding: 14,
                             background:
                               "#f8fafc",
-                            borderRadius:8,
+                            borderRadius: 8,
                             borderLeft:
                               "4px solid #1a237e",
-                            fontSize:13,
+                            fontSize: 13,
                             color:
                               "#334155",
                           }}
@@ -2825,7 +3606,7 @@ const AdminReport = () => {
                           <div
                             className="table-scroll"
                             style={{
-                              marginTop:12,
+                              marginTop: 12,
                             }}
                           >
 
@@ -2833,6 +3614,7 @@ const AdminReport = () => {
 
                               <thead>
                                 <tr>
+
                                   <th>
                                     Subject
                                   </th>
@@ -2852,6 +3634,7 @@ const AdminReport = () => {
                                   <th>
                                     Status
                                   </th>
+
                                 </tr>
                               </thead>
 
@@ -2914,7 +3697,7 @@ const AdminReport = () => {
                                       style={{
                                         textAlign:
                                           "center",
-                                        padding:20,
+                                        padding: 20,
                                       }}
                                     >
                                       No assignment
@@ -2936,11 +3719,11 @@ const AdminReport = () => {
 
                       <div
                         style={{
-                          marginTop:18,
-                          padding:14,
+                          marginTop: 18,
+                          padding: 14,
                           background:
                             "#f8fafc",
-                          borderRadius:9,
+                          borderRadius: 9,
                           borderLeft:
                             "4px solid #1a237e",
                         }}
@@ -2948,10 +3731,10 @@ const AdminReport = () => {
 
                         <div
                           style={{
-                            fontWeight:700,
+                            fontWeight: 700,
                             color:
                               "#1a237e",
-                            marginBottom:5,
+                            marginBottom: 5,
                           }}
                         >
                           💡 Overall Remark
@@ -2959,10 +3742,10 @@ const AdminReport = () => {
 
                         <div
                           style={{
-                            fontSize:13,
+                            fontSize: 13,
                             color:
                               "#334155",
-                            lineHeight:1.5,
+                            lineHeight: 1.5,
                           }}
                         >
                           {getRemark(
@@ -2988,24 +3771,27 @@ const AdminReport = () => {
   );
 };
 
-/* ================= STYLES ================= */
+/* =========================================================
+   INPUT STYLES
+========================================================= */
 
 const inputStyle = {
-  padding:"11px 12px",
-  borderRadius:8,
-  border:"1px solid #cbd5e1",
-  fontSize:14,
-  width:"30%",
-  background:"white",
-  outline:"none",
+  padding: "11px 12px",
+  borderRadius: 8,
+  border:
+    "1px solid #cbd5e1",
+  fontSize: 14,
+  width: "30%",
+  background: "white",
+  outline: "none",
 };
 
 const labelStyle = {
-  fontSize:12,
-  fontWeight:700,
-  color:"#475569",
-  marginBottom:6,
-  display:"block",
+  fontSize: 12,
+  fontWeight: 700,
+  color: "#475569",
+  marginBottom: 6,
+  display: "block",
 };
 
 export default AdminReport;
