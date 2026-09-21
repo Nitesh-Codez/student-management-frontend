@@ -1382,125 +1382,73 @@ const AdminReport = () => {
   };
 
   /* ================= SHARE PDF ================= */
+/* ================= SHARE PDF ================= */
 
-  const sharePDFReport = async () => {
-    if (!reportData) return;
+const sharePDFReport = async () => {
+  if (!reportData) return;
 
-    const student =
-      reportData.student ||
-      activeStudent ||
-      {};
+  const student =
+    reportData.student ||
+    activeStudent ||
+    {};
 
-    const studentName =
-      student.name || "Student";
+  const studentName =
+    student.name || "Student";
 
-    const mobile =
-      student.mobile ||
-      activeStudent?.mobile ||
-      "";
+  const whatsapp =
+    getWhatsAppNumber(student);
 
-    if (!mobile) {
-      alert(
-        "Student mobile number is not available."
-      );
-      return;
-    }
+  if (!whatsapp) {
+    alert(
+      "Student WhatsApp number is not available."
+    );
+    return;
+  }
 
-    /*
-     * IMPORTANT:
-     * Confirmation is ONLY here.
-     * Generate Report has no confirmation.
-     */
-    const confirmed = window.confirm(
-      `Are you sure you want to share PDF report with ${studentName}?`
+  // Confirmation popup
+  const confirmed = window.confirm(
+    `Are you sure you want to share PDF report with ${studentName}?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setPdfLoading(true);
+
+    // Generate PDF in memory only
+    const doc = await generatePDF();
+
+    if (!doc) return;
+
+    // WhatsApp message
+    const message =
+      `Hello, please find the PDF report of ${studentName}.`;
+
+    const whatsappUrl =
+      `https://wa.me/${whatsapp}?text=${encodeURIComponent(
+        message
+      )}`;
+
+    // Open student's WhatsApp number
+    window.open(
+      whatsappUrl,
+      "_blank",
+      "noopener,noreferrer"
     );
 
-    if (!confirmed) return;
+  } catch (err) {
+    console.error(
+      "Share PDF Error:",
+      err
+    );
 
-    try {
-      setPdfLoading(true);
-
-      const doc =
-        await generatePDF();
-
-      if (!doc) return;
-
-      const blob =
-        doc.output("blob");
-
-      const fileName =
-        `Smart_Students_Classes_Student_Report_${studentName.replace(
-          /\s+/g,
-          "_"
-        )}.pdf`;
-
-      const file = new File(
-        [blob],
-        fileName,
-        {
-          type: "application/pdf",
-        }
-      );
-
-      /*
-       * Mobile / supported browser:
-       * Native share sheet can select WhatsApp.
-       */
-      if (
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({
-          files: [file],
-        })
-      ) {
-        await navigator.share({
-          title: `Report - ${studentName}`,
-          text: `EduFlow PDF Report of ${studentName}`,
-          files: [file],
-        });
-
-        return;
-      }
-
-      /*
-       * Desktop fallback:
-       * Download PDF and open student's WhatsApp chat.
-       */
-      doc.save(fileName);
-
-      const whatsapp =
-        getWhatsAppNumber(student);
-
-      const message =
-        `Hello, please find the PDF report of ${studentName}.`;
-
-      const url =
-        `https://wa.me/${whatsapp}?text=${encodeURIComponent(
-          message
-        )}`;
-
-      window.open(
-        url,
-        "_blank",
-        "noopener,noreferrer"
-      );
-
-      alert(
-        "PDF downloaded and WhatsApp chat opened. Please attach the downloaded PDF."
-      );
-    } catch (err) {
-      if (err?.name !== "AbortError") {
-        console.error(err);
-
-        alert(
-          "Unable to share PDF report."
-        );
-      }
-    } finally {
-      setPdfLoading(false);
-    }
-  };
-
+    alert(
+      "Unable to share PDF report."
+    );
+  } finally {
+    setPdfLoading(false);
+  }
+};
   /* ================= DOWNLOAD PDF ================= */
 
   const downloadPDF = async () => {
@@ -1604,7 +1552,17 @@ const AdminReport = () => {
           font-weight:700;
           cursor:pointer;
           font-size:13px;
-          width:50%;
+          width:60%;
+          height :50px;
+        }
+          .action-sharebtn{
+          padding:12px 12px;
+          border:0;
+          border-radius:8px;
+          font-weight:700;
+          cursor:pointer;
+          font-size:13px;
+          width:30%;
           height :50px;
         }
 
@@ -2262,7 +2220,7 @@ const AdminReport = () => {
                 <button
                   type="button"
                   onClick={sharePDFReport}
-                  className="action-btn"
+                  className="action-sharebtn"
                   disabled={pdfLoading}
                   style={{
                     background:"#2563eb",
