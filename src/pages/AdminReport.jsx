@@ -1365,16 +1365,12 @@ const AdminReport = () => {
   };
 
   /* ================= NORMALIZE MOBILE ================= */
+  /* ================= NORMALIZE MOBILE ================= */
 
   const getWhatsAppNumber = (student) => {
-    let number = String(
-      student?.mobile || ""
-    ).replace(/\D/g, "");
+    let number = String(student?.mobile || "").replace(/\D/g, "");
 
-    if (
-      number.length === 10 &&
-      !number.startsWith("91")
-    ) {
+    if (number.length === 10) {
       number = `91${number}`;
     }
 
@@ -1382,73 +1378,89 @@ const AdminReport = () => {
   };
 
   /* ================= SHARE PDF ================= */
-/* ================= SHARE PDF ================= */
 
-const sharePDFReport = async () => {
-  if (!reportData) return;
+  const sharePDFReport = async () => {
+    if (!reportData) return;
 
-  const student =
-    reportData.student ||
-    activeStudent ||
-    {};
+    const student = reportData.student || activeStudent || {};
+    const studentName = student.name || "Student";
+    const whatsapp = getWhatsAppNumber(student);
 
-  const studentName =
-    student.name || "Student";
+    if (!whatsapp) {
+      alert("Student WhatsApp number is not available.");
+      return;
+    }
 
-  const whatsapp =
-    getWhatsAppNumber(student);
-
-  if (!whatsapp) {
-    alert(
-      "Student WhatsApp number is not available."
-    );
-    return;
-  }
-
-  // Confirmation popup
-  const confirmed = window.confirm(
-    `Are you sure you want to share PDF report with ${studentName}?`
-  );
-
-  if (!confirmed) return;
-
-  try {
-    setPdfLoading(true);
-
-    // Generate PDF in memory only
-    const doc = await generatePDF();
-
-    if (!doc) return;
-
-    // WhatsApp message
-    const message =
-      `Hello, please find the PDF report of ${studentName}.`;
-
-    const whatsappUrl =
-      `https://wa.me/${whatsapp}?text=${encodeURIComponent(
-        message
-      )}`;
-
-    // Open student's WhatsApp number
-    window.open(
-      whatsappUrl,
-      "_blank",
-      "noopener,noreferrer"
+    const confirmed = window.confirm(
+      `Are you sure you want to share PDF report with ${studentName}?`
     );
 
-  } catch (err) {
-    console.error(
-      "Share PDF Error:",
-      err
-    );
+    if (!confirmed) return;
 
-    alert(
-      "Unable to share PDF report."
-    );
-  } finally {
-    setPdfLoading(false);
-  }
-};
+    try {
+      setPdfLoading(true);
+
+      /* Generate PDF in memory */
+      const doc = await generatePDF();
+
+      if (!doc) return;
+
+      const blob = doc.output("blob");
+
+      const fileName =
+        `Smart_Students_Classes_Report_${studentName.replace(
+          /\s+/g,
+          "_"
+        )}.pdf`;
+
+      const file = new File([blob], fileName, {
+        type: "application/pdf",
+      });
+
+      /* ================= DIRECT FILE SHARE ================= */
+
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        await navigator.share({
+          title: `Smart Students Classes - ${studentName}`,
+          text: `Smart Students Classes PDF Report of ${studentName}`,
+          files: [file],
+        });
+
+        return;
+      }
+
+      /* ================= WHATSAPP FALLBACK ================= */
+
+      const message =
+        `Hello, please find the Smart Students Classes PDF report of ${studentName}.`;
+
+      const whatsappUrl =
+        `https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`;
+
+      window.open(
+        whatsappUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+      alert(
+        "WhatsApp opened. Your browser does not support direct PDF file sharing."
+      );
+
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("Share PDF Error:", err);
+
+        alert("Unable to share PDF report.");
+      }
+    } finally {
+      setPdfLoading(false);
+    }
+  };
   /* ================= DOWNLOAD PDF ================= */
 
   const downloadPDF = async () => {
