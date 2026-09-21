@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+const TEACHER_NAME = "Nitesh Kushwah/Vandana kushwah";
 
 const AdminReport = () => {
   const [students, setStudents] = useState([]);
@@ -19,16 +21,13 @@ const AdminReport = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [whatsappNumber, setWhatsappNumber] = useState("");
-
-  /* =========================================================
-     HELPERS
-  ========================================================= */
+  /* ================= HELPERS ================= */
 
   const formatMonth = (month) => {
     if (!month) return "";
 
     const [year, m] = month.split("-");
+
     return new Date(
       Number(year),
       Number(m) - 1,
@@ -53,35 +52,126 @@ const AdminReport = () => {
     if (!month) return 0;
 
     const [year, m] = month.split("-").map(Number);
+
     return year * 12 + m;
   };
 
   const getRemark = (
     attendance = 0,
-    marksPercentage = 0,
-    assignmentPercentage = 0
+    marks = 0,
+    assignments = 0
   ) => {
-    const average =
+    const avg =
       (Number(attendance) +
-        Number(marksPercentage) +
-        Number(assignmentPercentage)) /
+        Number(marks) +
+        Number(assignments)) /
       3;
 
-    if (average >= 85)
+    if (avg >= 85) {
       return "Excellent overall performance. Attendance, academic performance and assignment completion are well maintained.";
+    }
 
-    if (average >= 70)
+    if (avg >= 70) {
       return "Good overall progress. The student is performing consistently, with some scope for improvement.";
+    }
 
-    if (average >= 50)
+    if (avg >= 50) {
       return "Average performance. More focus is recommended on attendance, test preparation and regular assignment completion.";
+    }
 
     return "Performance needs attention. Regular attendance, academic practice and assignment completion should be improved.";
   };
 
-  /* =========================================================
-     FETCH STUDENTS
-  ========================================================= */
+  const getSelectedMonths = () => {
+    if (reportMode === "single") {
+      return [singleMonth];
+    }
+
+    const months = [];
+
+    let current = getMonthNumber(fromMonth);
+    const end = getMonthNumber(toMonth);
+
+    while (current <= end) {
+      const year = Math.floor((current - 1) / 12);
+      const month = ((current - 1) % 12) + 1;
+
+      months.push(
+        `${year}-${String(month).padStart(2, "0")}`
+      );
+
+      current++;
+    }
+
+    return months;
+  };
+
+  const getMonthAnalysis = (monthData) => {
+    const attendance =
+      monthData?.attendance?.summary || {};
+
+    const marks =
+      monthData?.marks?.records || [];
+
+    const assignments =
+      monthData?.assignments?.summary || {};
+
+    const obtained = marks.reduce(
+      (sum, m) =>
+        sum + Number(m.obtained_marks || 0),
+      0
+    );
+
+    const total = marks.reduce(
+      (sum, m) =>
+        sum + Number(m.total_marks || 0),
+      0
+    );
+
+    const marksPercentage =
+      total > 0
+        ? (obtained / total) * 100
+        : 0;
+
+    const assigned = Number(
+      assignments.assigned || 0
+    );
+
+    const submitted = Number(
+      assignments.submitted || 0
+    );
+
+    const assignmentPercentage =
+      assigned > 0
+        ? (submitted / assigned) * 100
+        : 0;
+
+    const attendancePercentage = Number(
+      attendance.percentage || 0
+    );
+
+    return {
+      attendance: Number(
+        attendancePercentage.toFixed(2)
+      ),
+      marks: Number(
+        marksPercentage.toFixed(2)
+      ),
+      assignments: Number(
+        assignmentPercentage.toFixed(2)
+      ),
+      average: Number(
+        (
+          (attendancePercentage +
+            marksPercentage +
+            assignmentPercentage) /
+          3
+        ).toFixed(2)
+      ),
+    };
+  };
+
+  /* ================= FETCH STUDENTS ================= */
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -92,32 +182,68 @@ const AdminReport = () => {
         "/api/students/students-basic-info"
       );
 
-      const raw = res.data.students || res.data || [];
+      const raw =
+        res.data?.students ||
+        res.data ||
+        [];
 
-      const array = Array.isArray(raw)
+      const list = Array.isArray(raw)
         ? raw
         : Object.values(raw);
 
       setStudents(
-        array.map((s, index) => ({
+        list.map((s, index) => ({
           ...s,
-          id: s.id || s._id || index + 1,
+
+          id:
+            s.id ||
+            s._id ||
+            index + 1,
+
+          name:
+            s.name ||
+            "Unnamed Student",
+
           class:
             s.class ||
             s.class_name ||
             s.grade ||
-            s.standard ||
             "N/A",
+
+          mobile:
+            s.mobile || "",
+
+          batch:
+            s.batch || "",
+
+          batch_time:
+            s.batch_time || "",
+
+          session:
+            s.session || "",
+
+          profile_photo:
+            s.profile_photo || "",
+
           photo:
+            s.profile_photo ||
             s.photo ||
-            s.profile_pic ||
             s.image ||
             "",
+
+          stream:
+            s.stream || "",
+
+          joining_date:
+            s.joining_date || null,
         }))
       );
     } catch (err) {
       console.error(err);
-      setError("Failed to load students data from server.");
+
+      setError(
+        "Failed to load students data from server."
+      );
     } finally {
       setLoading(false);
     }
@@ -127,26 +253,22 @@ const AdminReport = () => {
     fetchStudents();
   }, []);
 
-  /* =========================================================
-     FILTERS
-  ========================================================= */
-
   const classes = useMemo(
     () =>
-      [...new Set(
-        students.map(
-          (s) => s.class || s.class_name
-        )
-      )].sort(),
+      [
+        ...new Set(
+          students
+            .map((s) => s.class)
+            .filter(Boolean)
+        ),
+      ].sort(),
     [students]
   );
 
   const filteredStudents = useMemo(
     () =>
       students.filter(
-        (s) =>
-          (s.class || s.class_name) ===
-          selectedClass
+        (s) => s.class === selectedClass
       ),
     [students, selectedClass]
   );
@@ -161,44 +283,7 @@ const AdminReport = () => {
     [students, selectedStudentId]
   );
 
-  /* =========================================================
-     GET MONTH LIST
-  ========================================================= */
-
-  const getSelectedMonths = () => {
-    if (reportMode === "single") {
-      return [singleMonth];
-    }
-
-    const months = [];
-
-    let current = getMonthNumber(fromMonth);
-    const end = getMonthNumber(toMonth);
-
-    while (current <= end) {
-      const year = Math.floor(
-        (current - 1) / 12
-      );
-
-      const month =
-        ((current - 1) % 12) + 1;
-
-      months.push(
-        `${year}-${String(month).padStart(
-          2,
-          "0"
-        )}`
-      );
-
-      current++;
-    }
-
-    return months;
-  };
-
-  /* =========================================================
-     FETCH REPORT
-  ========================================================= */
+  /* ================= FETCH REPORT ================= */
 
   const handleFetchReport = async (e) => {
     e.preventDefault();
@@ -210,7 +295,7 @@ const AdminReport = () => {
       return;
     }
 
-    let monthParam = "";
+    let monthParam;
 
     if (reportMode === "single") {
       if (!/^\d{4}-\d{2}$/.test(singleMonth)) {
@@ -242,7 +327,8 @@ const AdminReport = () => {
         return;
       }
 
-      monthParam = getSelectedMonths().join(",");
+      monthParam =
+        getSelectedMonths().join(",");
     }
 
     setReportLoading(true);
@@ -254,7 +340,78 @@ const AdminReport = () => {
         )}`
       );
 
-      setReportData(res.data);
+      const data = res.data || {};
+
+      /*
+       * Merge student data.
+       * Basic information API is treated as the
+       * main source for mobile/profile/batch/session.
+       */
+      const reportStudent = {
+        ...(data.student || {}),
+        ...(activeStudent || {}),
+      };
+
+      const finalStudent = {
+        ...reportStudent,
+
+        name:
+          activeStudent?.name ||
+          data.student?.name ||
+          "Student",
+
+        class:
+          activeStudent?.class ||
+          data.student?.class ||
+          "N/A",
+
+        mobile:
+          activeStudent?.mobile ||
+          data.student?.mobile ||
+          "",
+
+        batch:
+          activeStudent?.batch ||
+          data.student?.batch ||
+          "",
+
+        batch_time:
+          activeStudent?.batch_time ||
+          data.student?.batch_time ||
+          "",
+
+        session:
+          activeStudent?.session ||
+          data.student?.session ||
+          "",
+
+        profile_photo:
+          activeStudent?.profile_photo ||
+          data.student?.profile_photo ||
+          data.student?.photo ||
+          "",
+
+        stream:
+          activeStudent?.stream ||
+          data.student?.stream ||
+          "",
+
+        joining_date:
+          activeStudent?.joining_date ||
+          data.student?.joining_date ||
+          null,
+      };
+
+      setReportData({
+        ...data,
+        student: finalStudent,
+      });
+
+      /*
+       * IMPORTANT:
+       * Generate Report does ONLY generate the report.
+       * No auto-send, no confirmation popup here.
+       */
     } catch (err) {
       console.error(err);
 
@@ -269,18 +426,16 @@ const AdminReport = () => {
     }
   };
 
-  /* =========================================================
-     PHOTO
-  ========================================================= */
+  /* ================= IMAGE ================= */
 
-  const getBase64ImageFromUrl = async (
-    imageUrl
-  ) => {
+  const getBase64ImageFromUrl = async (url) => {
+    if (!url) return null;
+
     try {
-      const res = await fetch(imageUrl);
-      const blob = await res.blob();
+      const response = await fetch(url);
+      const blob = await response.blob();
 
-      return new Promise((resolve) => {
+      return await new Promise((resolve) => {
         const reader = new FileReader();
 
         reader.onloadend = () =>
@@ -291,75 +446,17 @@ const AdminReport = () => {
 
         reader.readAsDataURL(blob);
       });
-    } catch {
+    } catch (err) {
+      console.error(
+        "Profile image error:",
+        err
+      );
+
       return null;
     }
   };
 
-  /* =========================================================
-     MONTH ANALYSIS
-  ========================================================= */
-
-  const getMonthAnalysis = (monthData) => {
-    const attendance =
-      monthData?.attendance?.summary || {};
-
-    const marks =
-      monthData?.marks?.records || [];
-
-    const assignments =
-      monthData?.assignments?.summary || {};
-
-    const totalObtained = marks.reduce(
-      (sum, m) =>
-        sum + Number(m.obtained_marks || 0),
-      0
-    );
-
-    const totalMarks = marks.reduce(
-      (sum, m) =>
-        sum + Number(m.total_marks || 0),
-      0
-    );
-
-    const marksPercentage =
-      totalMarks > 0
-        ? (totalObtained / totalMarks) * 100
-        : 0;
-
-    const assignmentPercentage =
-      assignments.assigned > 0
-        ? (assignments.submitted /
-            assignments.assigned) *
-          100
-        : 0;
-
-    const att = Number(
-      attendance.percentage || 0
-    );
-
-    return {
-      attendance: Number(att.toFixed(2)),
-      marks: Number(
-        marksPercentage.toFixed(2)
-      ),
-      assignments: Number(
-        assignmentPercentage.toFixed(2)
-      ),
-      average: Number(
-        (
-          (att +
-            marksPercentage +
-            assignmentPercentage) /
-          3
-        ).toFixed(2)
-      ),
-    };
-  };
-
-  /* =========================================================
-     PDF HEADER
-  ========================================================= */
+  /* ================= PDF HEADER ================= */
 
   const drawPDFHeader = (
     doc,
@@ -367,109 +464,110 @@ const AdminReport = () => {
     periodText
   ) => {
     doc.setFillColor(26, 35, 126);
-    doc.rect(
-      0,
-      0,
-      210,
-      38,
-      "F"
-    );
+    doc.rect(0, 0, 210, 43, "F");
 
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
-    doc.setTextColor(
-      255,
-      255,
-      255
-    );
+    doc.setTextColor(255, 255, 255);
 
     doc.text(
       "EduFlow - SMART STUDENTS",
       14,
-      14
+      13
     );
 
-    doc.setFont(
-      "helvetica",
-      "normal"
-    );
-
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
 
     doc.text(
-      "Comprehensive Academic & Activity Progress Report",
+      "Academic & Activity Progress Report",
       14,
-      21
+      20
     );
 
     doc.text(
       `Report Period: ${periodText}`,
       14,
-      29
-    );
-
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
-    doc.setFontSize(9);
-    doc.setTextColor(
-      50,
-      50,
-      50
+      27
     );
 
     doc.text(
+      `Teacher: ${TEACHER_NAME}`,
+      14,
+      34
+    );
+
+    doc.setTextColor(40, 40, 40);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+
+    doc.text(
       `Student Name: ${(
-        student.name || ""
+        student.name || "N/A"
       ).toUpperCase()}`,
       14,
-      48
+      53
     );
 
     doc.text(
       `Class: ${student.class || "N/A"}`,
       120,
-      48
+      53
     );
 
     doc.text(
       `Batch: ${student.batch || "N/A"}`,
       14,
-      55
+      60
+    );
+
+    doc.text(
+      `Batch Time: ${
+        student.batch_time || "N/A"
+      }`,
+      120,
+      60
     );
 
     doc.text(
       `Session: ${student.session || "N/A"}`,
-      120,
-      55
+      14,
+      67
     );
 
     doc.text(
-      `Email: ${student.email || "N/A"}`,
-      14,
-      62
+      `Contact No.: ${
+        student.mobile || "N/A"
+      }`,
+      120,
+      67
     );
+
+    doc.text(
+      `Joining Date: ${formatDate(
+        student.joining_date
+      )}`,
+      14,
+      74
+    );
+
+    if (student.stream) {
+      doc.text(
+        `Stream: ${student.stream}`,
+        120,
+        74
+      );
+    }
   };
 
-  /* =========================================================
-     PDF FOOTER
-  ========================================================= */
+  /* ================= PDF FOOTER ================= */
 
   const drawPDFFooter = (doc) => {
-    const pageCount =
+    const pages =
       doc.getNumberOfPages();
 
-    for (
-      let i = 1;
-      i <= pageCount;
-      i++
-    ) {
+    for (let i = 1; i <= pages; i++) {
       doc.setPage(i);
 
       doc.setFont(
@@ -485,51 +583,48 @@ const AdminReport = () => {
       );
 
       doc.text(
-        "EduFlow Smart Students - Administration",
+        `Teacher: ${TEACHER_NAME} | Smart Students`,
         14,
         287
       );
 
       doc.text(
-        `Page ${i} of ${pageCount}`,
+        `Page ${i} of ${pages}`,
         170,
         287
       );
     }
   };
 
-  /* =========================================================
-     ADD MONTH TO PDF
-  ========================================================= */
+  /* ================= MONTH PDF ================= */
 
   const addMonthToPDF = (
     doc,
     monthData,
-    index
+    student
   ) => {
-    const monthName = formatMonth(
-      monthData.month
-    );
+    const monthName =
+      formatMonth(monthData.month);
 
     const attendance =
-      monthData.attendance?.summary || {};
+      monthData.attendance?.summary ||
+      {};
 
     const marks =
       monthData.marks?.records || [];
 
     const assignments =
-      monthData.assignments?.records || [];
+      monthData.assignments?.records ||
+      [];
 
     const assignmentSummary =
-      monthData.assignments?.summary || {};
+      monthData.assignments?.summary ||
+      {};
 
     const analysis =
       getMonthAnalysis(monthData);
 
     doc.addPage();
-
-    const student =
-      reportData.student || {};
 
     drawPDFHeader(
       doc,
@@ -537,7 +632,7 @@ const AdminReport = () => {
       monthName
     );
 
-    let y = 72;
+    let y = 88;
 
     doc.setFont(
       "helvetica",
@@ -552,72 +647,28 @@ const AdminReport = () => {
     );
 
     doc.text(
-      `${index + 1}. ${monthName} Monthly Report`,
+      `${monthName} Monthly Report`,
       14,
       y
     );
 
-    y += 9;
-
-    /* ANALYSIS */
-
-    doc.setFontSize(11);
-
-    doc.text(
-      `${monthName} Performance Analysis`,
-      14,
-      y
-    );
-
-    y += 4;
-
-    autoTable(doc, {
-      startY: y,
-      head: [[
-        "Attendance",
-        "Test Score",
-        "Assignments",
-        "Overall Index",
-      ]],
-      body: [[
-        `${analysis.attendance}%`,
-        `${analysis.marks}%`,
-        `${analysis.assignments}%`,
-        `${analysis.average}%`,
-      ]],
-      theme: "grid",
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-        fontSize: 8,
-      },
-      bodyStyles: {
-        fontSize: 9,
-        halign: "center",
-      },
-      margin: {
-        left: 14,
-        right: 14,
-      },
-    });
-
-    y =
-      doc.lastAutoTable.finalY + 10;
+    y += 10;
 
     /* ATTENDANCE */
 
-    doc.setFontSize(11);
+    doc.setFontSize(12);
 
     doc.text(
-      `${monthName} Attendance`,
+      "Attendance",
       14,
       y
     );
 
-    y += 4;
+    y += 5;
 
     autoTable(doc, {
       startY: y,
+
       head: [[
         "Present",
         "Absent",
@@ -625,6 +676,7 @@ const AdminReport = () => {
         "Working Days",
         "Attendance %",
       ]],
+
       body: [[
         attendance.present || 0,
         attendance.absent || 0,
@@ -632,16 +684,19 @@ const AdminReport = () => {
         attendance.workingDays || 0,
         `${attendance.percentage || 0}%`,
       ]],
+
       theme: "grid",
+
       headStyles: {
         fillColor: [26, 35, 126],
         textColor: [255, 255, 255],
-        fontSize: 8,
       },
+
       bodyStyles: {
         fontSize: 9,
         halign: "center",
       },
+
       margin: {
         left: 14,
         right: 14,
@@ -649,7 +704,8 @@ const AdminReport = () => {
     });
 
     y =
-      doc.lastAutoTable.finalY + 7;
+      doc.lastAutoTable.finalY +
+      8;
 
     doc.setFont(
       "helvetica",
@@ -657,9 +713,14 @@ const AdminReport = () => {
     );
 
     doc.setFontSize(9);
+    doc.setTextColor(
+      50,
+      50,
+      50
+    );
 
     doc.text(
-      `In ${monthName}, the student was present on ${
+      `The student was present on ${
         attendance.present || 0
       } working days and absent on ${
         attendance.absent || 0
@@ -673,7 +734,7 @@ const AdminReport = () => {
       }
     );
 
-    y += 12;
+    y += 14;
 
     /* MARKS */
 
@@ -682,7 +743,7 @@ const AdminReport = () => {
       "bold"
     );
 
-    doc.setFontSize(11);
+    doc.setFontSize(12);
     doc.setTextColor(
       26,
       35,
@@ -690,12 +751,12 @@ const AdminReport = () => {
     );
 
     doc.text(
-      `${monthName} Test Performance`,
+      "Marks / Test Performance",
       14,
       y
     );
 
-    y += 4;
+    y += 5;
 
     const markRows = marks.length
       ? marks.map((m, i) => [
@@ -708,7 +769,7 @@ const AdminReport = () => {
         ])
       : [[
           "-",
-          `No tests recorded for ${monthName}`,
+          "No tests recorded",
           "-",
           "-",
           "-",
@@ -717,6 +778,7 @@ const AdminReport = () => {
 
     autoTable(doc, {
       startY: y,
+
       head: [[
         "S.No",
         "Subject",
@@ -725,16 +787,20 @@ const AdminReport = () => {
         "Test Date",
         "Status",
       ]],
+
       body: markRows,
+
       theme: "grid",
+
       headStyles: {
         fillColor: [26, 35, 126],
         textColor: [255, 255, 255],
-        fontSize: 8,
       },
+
       bodyStyles: {
         fontSize: 8,
       },
+
       margin: {
         left: 14,
         right: 14,
@@ -742,7 +808,8 @@ const AdminReport = () => {
     });
 
     y =
-      doc.lastAutoTable.finalY + 7;
+      doc.lastAutoTable.finalY +
+      8;
 
     doc.setFont(
       "helvetica",
@@ -753,7 +820,7 @@ const AdminReport = () => {
 
     doc.text(
       marks.length
-        ? `${marks.length} test(s) were conducted during ${monthName}. The combined test score was ${analysis.marks}%.`
+        ? `${marks.length} test(s) were conducted during ${monthName}. Combined test score: ${analysis.marks}%.`
         : `No tests were recorded during ${monthName}.`,
       14,
       y,
@@ -762,7 +829,7 @@ const AdminReport = () => {
       }
     );
 
-    y += 12;
+    y += 14;
 
     /* ASSIGNMENTS */
 
@@ -771,7 +838,7 @@ const AdminReport = () => {
       "bold"
     );
 
-    doc.setFontSize(11);
+    doc.setFontSize(12);
     doc.setTextColor(
       26,
       35,
@@ -779,103 +846,152 @@ const AdminReport = () => {
     );
 
     doc.text(
-      `${monthName} Assignments`,
+      "Assignments",
       14,
       y
     );
 
-    y += 4;
+    y += 6;
 
-    autoTable(doc, {
-      startY: y,
-      head: [[
-        "Assigned",
-        "Submitted",
-        "Pending",
-        "Completion %",
-      ]],
-      body: [[
-        assignmentSummary.assigned || 0,
-        assignmentSummary.submitted || 0,
-        assignmentSummary.pending || 0,
-        `${analysis.assignments}%`,
-      ]],
-      theme: "grid",
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-        fontSize: 8,
-      },
-      bodyStyles: {
-        fontSize: 9,
-        halign: "center",
-      },
-      margin: {
-        left: 14,
-        right: 14,
-      },
-    });
+    const assigned = Number(
+      assignmentSummary.assigned || 0
+    );
 
-    y =
-      doc.lastAutoTable.finalY + 7;
+    /*
+     * If assignments are zero:
+     * DO NOT create any assignment table.
+     */
 
-    const assignmentRows =
-      assignments.length
-        ? assignments.map((a, i) => [
-            i + 1,
-            a.subject || "N/A",
-            a.task_title || "N/A",
-            formatDate(a.deadline),
-            a.rating
-              ? `${a.rating}/5`
-              : "Not Done",
-            a.status || "-",
-          ])
-        : [[
-            "-",
-            `No assignments recorded for ${monthName}`,
-            "-",
-            "-",
-            "-",
-            "-",
-          ]];
+    if (assigned === 0) {
+      doc.setFont(
+        "helvetica",
+        "normal"
+      );
 
-    autoTable(doc, {
-      startY: y,
-      head: [[
-        "S.No",
-        "Subject",
-        "Task",
-        "Deadline",
-        "Rating",
-        "Status",
-      ]],
-      body: assignmentRows,
-      theme: "grid",
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-        fontSize: 7.5,
-      },
-      bodyStyles: {
-        fontSize: 7.5,
-      },
-      columnStyles: {
-        2: {
-          cellWidth: 55,
+      doc.setFontSize(10);
+      doc.setTextColor(
+        50,
+        50,
+        50
+      );
+
+      doc.text(
+        "No assignments were assigned by faculty.",
+        14,
+        y,
+        {
+          maxWidth: 180,
+        }
+      );
+
+      y += 12;
+    } else {
+      autoTable(doc, {
+        startY: y,
+
+        head: [[
+          "Assigned",
+          "Submitted",
+          "Pending",
+          "Completion %",
+        ]],
+
+        body: [[
+          assigned,
+          assignmentSummary.submitted || 0,
+          assignmentSummary.pending || 0,
+          `${analysis.assignments}%`,
+        ]],
+
+        theme: "grid",
+
+        headStyles: {
+          fillColor: [26, 35, 126],
+          textColor: [255, 255, 255],
         },
-      },
-      margin: {
-        left: 14,
-        right: 14,
-      },
-      styles: {
-        overflow: "linebreak",
-      },
-    });
 
-    y =
-      doc.lastAutoTable.finalY + 10;
+        bodyStyles: {
+          fontSize: 9,
+          halign: "center",
+        },
+
+        margin: {
+          left: 14,
+          right: 14,
+        },
+      });
+
+      y =
+        doc.lastAutoTable.finalY +
+        7;
+
+      const assignmentRows =
+        assignments.length
+          ? assignments.map((a, i) => [
+              i + 1,
+              a.subject || "N/A",
+              a.task_title || "N/A",
+              formatDate(a.deadline),
+              a.rating
+                ? `${a.rating}/5`
+                : "Not Done",
+              a.status || "-",
+            ])
+          : [[
+              "-",
+              "No assignment records",
+              "-",
+              "-",
+              "-",
+              "-",
+            ]];
+
+      autoTable(doc, {
+        startY: y,
+
+        head: [[
+          "S.No",
+          "Subject",
+          "Task",
+          "Deadline",
+          "Rating",
+          "Status",
+        ]],
+
+        body: assignmentRows,
+
+        theme: "grid",
+
+        headStyles: {
+          fillColor: [26, 35, 126],
+          textColor: [255, 255, 255],
+          fontSize: 7.5,
+        },
+
+        bodyStyles: {
+          fontSize: 7.5,
+        },
+
+        columnStyles: {
+          2: {
+            cellWidth: 55,
+          },
+        },
+
+        styles: {
+          overflow: "linebreak",
+        },
+
+        margin: {
+          left: 14,
+          right: 14,
+        },
+      });
+
+      y =
+        doc.lastAutoTable.finalY +
+        9;
+    }
 
     /* REMARK */
 
@@ -892,7 +1008,7 @@ const AdminReport = () => {
     );
 
     doc.text(
-      `${monthName} Overall Remark`,
+      "Overall Remark",
       14,
       y
     );
@@ -925,9 +1041,7 @@ const AdminReport = () => {
     );
   };
 
-  /* =========================================================
-     GENERATE COMPLETE PDF
-  ========================================================= */
+  /* ================= GENERATE PDF ================= */
 
   const generatePDF = async () => {
     if (!reportData) return null;
@@ -941,35 +1055,46 @@ const AdminReport = () => {
     const student =
       reportData.student || {};
 
-    const overall =
-      reportData.overall || {};
+    const monthly =
+      reportData.monthly || [];
 
-    const attendance =
-      overall.attendance?.summary || {};
+    const firstMonth =
+      monthly[0]?.month ||
+      reportData.period?.from ||
+      singleMonth;
 
-    const marks =
-      overall.marks?.records || [];
+    const lastMonth =
+      monthly[monthly.length - 1]?.month ||
+      reportData.period?.to ||
+      firstMonth;
 
-    /* =====================================================
-       COVER / OVERALL PAGE
-    ===================================================== */
+    const periodName =
+      firstMonth === lastMonth
+        ? formatMonth(firstMonth)
+        : `${formatMonth(firstMonth)} - ${formatMonth(
+            lastMonth
+          )}`;
+
+    /* ================= FIRST PAGE ================= */
 
     drawPDFHeader(
       doc,
       student,
-      reportData.period
-        ? `${reportData.period.from || ""} to ${
-            reportData.period.to || ""
-          }`
-        : "Selected Months"
+      periodName
     );
 
-    /* PHOTO */
+    /* PROFILE PHOTO */
 
-    if (activeStudent?.photo) {
+    const photoUrl =
+      student.profile_photo ||
+      student.photo ||
+      activeStudent?.profile_photo ||
+      "";
+
+    if (photoUrl) {
       const photo =
         await getBase64ImageFromUrl(
-          activeStudent.photo
+          photoUrl
         );
 
       if (photo) {
@@ -977,10 +1102,10 @@ const AdminReport = () => {
           doc.addImage(
             photo,
             "JPEG",
-            165,
-            7,
-            30,
-            30
+            164,
+            5,
+            32,
+            32
           );
 
           doc.setDrawColor(
@@ -990,23 +1115,30 @@ const AdminReport = () => {
           );
 
           doc.rect(
-            165,
-            7,
-            30,
-            30
+            164,
+            5,
+            32,
+            32
           );
-        } catch {}
+        } catch (err) {
+          console.error(
+            "PDF photo error:",
+            err
+          );
+        }
       }
     }
 
-    let y = 74;
+    let y = 88;
+
+    /* REPORT TITLE */
 
     doc.setFont(
       "helvetica",
       "bold"
     );
 
-    doc.setFontSize(13);
+    doc.setFontSize(17);
     doc.setTextColor(
       26,
       35,
@@ -1014,15 +1146,34 @@ const AdminReport = () => {
     );
 
     doc.text(
-      "Overall Performance Summary",
+      `${formatMonth(
+        firstMonth
+      )} Session Report of Student`,
+      14,
+      y
+    );
+
+    y += 13;
+
+    /* ================= ATTENDANCE ================= */
+
+    doc.setFontSize(12);
+
+    doc.text(
+      "Attendance",
       14,
       y
     );
 
     y += 5;
 
+    const overallAttendance =
+      reportData.overall?.attendance
+        ?.summary || {};
+
     autoTable(doc, {
       startY: y,
+
       head: [[
         "Working Days",
         "Present",
@@ -1030,23 +1181,30 @@ const AdminReport = () => {
         "Holiday",
         "Attendance %",
       ]],
+
       body: [[
-        attendance.workingDays || 0,
-        attendance.present || 0,
-        attendance.absent || 0,
-        attendance.holiday || 0,
-        `${attendance.percentage || 0}%`,
+        overallAttendance.workingDays || 0,
+        overallAttendance.present || 0,
+        overallAttendance.absent || 0,
+        overallAttendance.holiday || 0,
+        `${
+          overallAttendance.percentage ||
+          0
+        }%`,
       ]],
+
       theme: "grid",
+
       headStyles: {
         fillColor: [26, 35, 126],
         textColor: [255, 255, 255],
-        fontSize: 8,
       },
+
       bodyStyles: {
         fontSize: 9,
         halign: "center",
       },
+
       margin: {
         left: 14,
         right: 14,
@@ -1054,92 +1212,33 @@ const AdminReport = () => {
     });
 
     y =
-      doc.lastAutoTable.finalY + 12;
+      doc.lastAutoTable.finalY +
+      12;
 
-    /* MONTH LIST */
+    /* ================= MARKS ================= */
 
-    doc.setFontSize(11);
+    doc.setFont(
+      "helvetica",
+      "bold"
+    );
+
+    doc.setFontSize(12);
 
     doc.text(
-      "Included Months",
+      "Marks",
       14,
       y
     );
 
-    y += 4;
+    y += 5;
 
-    const monthRows =
-      (reportData.monthly || []).map(
-        (m, i) => {
-          const analysis =
-            getMonthAnalysis(m);
-
-          return [
-            i + 1,
-            formatMonth(m.month),
-            `${analysis.attendance}%`,
-            `${analysis.marks}%`,
-            `${analysis.assignments}%`,
-            `${analysis.average}%`,
-          ];
-        }
-      );
-
-    autoTable(doc, {
-      startY: y,
-      head: [[
-        "S.No",
-        "Month",
-        "Attendance",
-        "Test Score",
-        "Assignments",
-        "Overall",
-      ]],
-      body:
-        monthRows.length
-          ? monthRows
-          : [[
-              "-",
-              "No monthly data",
-              "-",
-              "-",
-              "-",
-              "-",
-            ]],
-      theme: "grid",
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-        fontSize: 8,
-      },
-      bodyStyles: {
-        fontSize: 9,
-        halign: "center",
-      },
-      margin: {
-        left: 14,
-        right: 14,
-      },
-    });
-
-    y =
-      doc.lastAutoTable.finalY + 12;
-
-    /* OVERALL MARKS */
-
-    doc.setFontSize(11);
-
-    doc.text(
-      "Overall Test Records",
-      14,
-      y
-    );
-
-    y += 4;
+    const overallMarks =
+      reportData.overall?.marks
+        ?.records || [];
 
     const overallMarkRows =
-      marks.length
-        ? marks.map((m, i) => [
+      overallMarks.length
+        ? overallMarks.map((m, i) => [
             i + 1,
             m.subject || "N/A",
             m.total_marks ?? "-",
@@ -1158,57 +1257,251 @@ const AdminReport = () => {
 
     autoTable(doc, {
       startY: y,
+
       head: [[
         "S.No",
         "Subject",
         "Total",
         "Obtained",
-        "Test Date",
+        "Date",
         "Status",
       ]],
+
       body: overallMarkRows,
+
       theme: "grid",
+
       headStyles: {
         fillColor: [26, 35, 126],
         textColor: [255, 255, 255],
         fontSize: 8,
       },
+
       bodyStyles: {
         fontSize: 8,
       },
+
       margin: {
         left: 14,
         right: 14,
       },
     });
 
-    /* =====================================================
-       EVERY SELECTED MONTH
-    ===================================================== */
+    y =
+      doc.lastAutoTable.finalY +
+      12;
 
-    const monthly =
-      reportData.monthly || [];
+    /* ================= ASSIGNMENTS ================= */
+
+    doc.setFont(
+      "helvetica",
+      "bold"
+    );
+
+    doc.setFontSize(12);
+
+    doc.text(
+      "Assignments",
+      14,
+      y
+    );
+
+    y += 6;
+
+    const firstAssignments =
+      monthly.reduce(
+        (sum, m) =>
+          sum +
+          Number(
+            m.assignments?.summary
+              ?.assigned || 0
+          ),
+        0
+      );
+
+    if (firstAssignments === 0) {
+      doc.setFont(
+        "helvetica",
+        "normal"
+      );
+
+      doc.setFontSize(10);
+
+      doc.text(
+        "No assignments were assigned by faculty.",
+        14,
+        y
+      );
+    } else {
+      doc.setFont(
+        "helvetica",
+        "normal"
+      );
+
+      doc.setFontSize(10);
+
+      doc.text(
+        "Assignments were assigned during the selected report period.",
+        14,
+        y
+      );
+    }
+
+    /* ================= MONTH PAGES ================= */
 
     monthly.forEach(
-      (monthData, index) => {
+      (monthData) => {
         addMonthToPDF(
           doc,
           monthData,
-          index
+          student
         );
       }
     );
-
-    /* FOOTER */
 
     drawPDFFooter(doc);
 
     return doc;
   };
 
-  /* =========================================================
-     DOWNLOAD PDF
-  ========================================================= */
+  /* ================= NORMALIZE MOBILE ================= */
+
+  const getWhatsAppNumber = (student) => {
+    let number = String(
+      student?.mobile || ""
+    ).replace(/\D/g, "");
+
+    if (
+      number.length === 10 &&
+      !number.startsWith("91")
+    ) {
+      number = `91${number}`;
+    }
+
+    return number;
+  };
+
+  /* ================= SHARE PDF ================= */
+
+  const sharePDFReport = async () => {
+    if (!reportData) return;
+
+    const student =
+      reportData.student ||
+      activeStudent ||
+      {};
+
+    const studentName =
+      student.name || "Student";
+
+    const mobile =
+      student.mobile ||
+      activeStudent?.mobile ||
+      "";
+
+    if (!mobile) {
+      alert(
+        "Student mobile number is not available."
+      );
+      return;
+    }
+
+    /*
+     * IMPORTANT:
+     * Confirmation is ONLY here.
+     * Generate Report has no confirmation.
+     */
+    const confirmed = window.confirm(
+      `Are you sure you want to share PDF report with ${studentName}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setPdfLoading(true);
+
+      const doc =
+        await generatePDF();
+
+      if (!doc) return;
+
+      const blob =
+        doc.output("blob");
+
+      const fileName =
+        `Smart_Students_Classes_Student_Report_${studentName.replace(
+          /\s+/g,
+          "_"
+        )}.pdf`;
+
+      const file = new File(
+        [blob],
+        fileName,
+        {
+          type: "application/pdf",
+        }
+      );
+
+      /*
+       * Mobile / supported browser:
+       * Native share sheet can select WhatsApp.
+       */
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({
+          files: [file],
+        })
+      ) {
+        await navigator.share({
+          title: `Report - ${studentName}`,
+          text: `EduFlow PDF Report of ${studentName}`,
+          files: [file],
+        });
+
+        return;
+      }
+
+      /*
+       * Desktop fallback:
+       * Download PDF and open student's WhatsApp chat.
+       */
+      doc.save(fileName);
+
+      const whatsapp =
+        getWhatsAppNumber(student);
+
+      const message =
+        `Hello, please find the PDF report of ${studentName}.`;
+
+      const url =
+        `https://wa.me/${whatsapp}?text=${encodeURIComponent(
+          message
+        )}`;
+
+      window.open(
+        url,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+      alert(
+        "PDF downloaded and WhatsApp chat opened. Please attach the downloaded PDF."
+      );
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error(err);
+
+        alert(
+          "Unable to share PDF report."
+        );
+      }
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  /* ================= DOWNLOAD PDF ================= */
 
   const downloadPDF = async () => {
     if (!reportData) return;
@@ -1219,248 +1512,7 @@ const AdminReport = () => {
       const doc =
         await generatePDF();
 
-      const student =
-        reportData.student || {};
-
-      doc.save(
-        `EduFlow_Report_${(
-          student.name || "Student"
-        ).replace(/\s+/g, "_")}.pdf`
-      );
-    } catch (err) {
-      console.error(err);
-
-      alert(
-        "Failed to export PDF: " +
-          err.message
-      );
-    } finally {
-      setPdfLoading(false);
-    }
-  };
-
-  /* =========================================================
-     WHATSAPP TEXT
-  ========================================================= */
-
-  const createWhatsAppText = () => {
-    if (!reportData) return "";
-
-    const student =
-      reportData.student || {};
-
-    let text =
-      `*EduFlow - SMART STUDENTS*\n` +
-      `*Comprehensive Academic & Activity Progress Report*\n\n`;
-
-    text +=
-      `*Student:* ${student.name || "N/A"}\n`;
-    text +=
-      `*Class:* ${student.class || "N/A"}\n`;
-    text +=
-      `*Batch:* ${student.batch || "N/A"}\n`;
-    text +=
-      `*Session:* ${student.session || "N/A"}\n`;
-    text +=
-      `*Period:* ${
-        reportData.period?.from || ""
-      } to ${
-        reportData.period?.to || ""
-      }\n\n`;
-
-    const overall =
-      reportData.overall?.attendance
-        ?.summary || {};
-
-    text += `*OVERALL ATTENDANCE*\n`;
-    text += `Working Days: ${
-      overall.workingDays || 0
-    }\n`;
-    text += `Present: ${
-      overall.present || 0
-    }\n`;
-    text += `Absent: ${
-      overall.absent || 0
-    }\n`;
-    text += `Holiday: ${
-      overall.holiday || 0
-    }\n`;
-    text += `Attendance: ${
-      overall.percentage || 0
-    }%\n\n`;
-
-    (reportData.monthly || []).forEach(
-      (m, index) => {
-        const monthName =
-          formatMonth(m.month);
-
-        const att =
-          m.attendance?.summary || {};
-
-        const marks =
-          m.marks?.records || [];
-
-        const assignments =
-          m.assignments?.records || [];
-
-        const assignmentSummary =
-          m.assignments?.summary || {};
-
-        const analysis =
-          getMonthAnalysis(m);
-
-        text +=
-          `━━━━━━━━━━━━━━\n`;
-        text +=
-          `*${index + 1}. ${monthName}*\n`;
-        text +=
-          `━━━━━━━━━━━━━━\n`;
-
-        text += `Attendance: ${
-          analysis.attendance
-        }%\n`;
-        text += `Test Score: ${
-          analysis.marks
-        }%\n`;
-        text += `Assignment Completion: ${
-          analysis.assignments
-        }%\n`;
-        text += `Overall Index: ${
-          analysis.average
-        }%\n\n`;
-
-        text += `*Attendance*\n`;
-        text += `Present: ${
-          att.present || 0
-        } | Absent: ${
-          att.absent || 0
-        } | Holiday: ${
-          att.holiday || 0
-        }\n`;
-        text += `Working Days: ${
-          att.workingDays || 0
-        }\n\n`;
-
-        text += `*Tests*\n`;
-
-        if (marks.length) {
-          marks.forEach((m) => {
-            text +=
-              `${m.subject || "N/A"}: ${
-                m.obtained_marks ?? "-"
-              }/${m.total_marks ?? "-"} | ${
-                m.status || "-"
-              } | ${formatDate(
-                m.test_date
-              )}\n`;
-          });
-        } else {
-          text += "No tests recorded.\n";
-        }
-
-        text += `\n*Assignments*\n`;
-
-        text += `Assigned: ${
-          assignmentSummary.assigned || 0
-        } | Submitted: ${
-          assignmentSummary.submitted || 0
-        } | Pending: ${
-          assignmentSummary.pending || 0
-        }\n`;
-
-        if (assignments.length) {
-          assignments.forEach((a) => {
-            text +=
-              `${a.subject || "N/A"} - ${
-                a.task_title || "N/A"
-              } | ${
-                a.status || "-"
-              } | ${
-                a.rating
-                  ? `${a.rating}/5`
-                  : "Not Done"
-              }\n`;
-          });
-        } else {
-          text +=
-            "No assignments recorded.\n";
-        }
-
-        text += `\n*Remark:*\n`;
-        text +=
-          getRemark(
-            analysis.attendance,
-            analysis.marks,
-            analysis.assignments
-          ) + "\n\n";
-      }
-    );
-
-    text +=
-      `\n*EduFlow Smart Students - Administration*`;
-
-    return text;
-  };
-
-  /* =========================================================
-     WHATSAPP TEXT SEND
-  ========================================================= */
-
-  const sendWhatsAppText = () => {
-    if (!reportData) return;
-
-    let number =
-      whatsappNumber.replace(
-        /\D/g,
-        ""
-      );
-
-    if (!number) {
-      alert(
-        "Please enter WhatsApp number."
-      );
-      return;
-    }
-
-    /* India number */
-
-    if (
-      number.length === 10 &&
-      !number.startsWith("91")
-    ) {
-      number = "91" + number;
-    }
-
-    const text =
-      createWhatsAppText();
-
-    const url =
-      `https://wa.me/${number}?text=${encodeURIComponent(
-        text
-      )}`;
-
-    window.open(
-      url,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  };
-
-  /* =========================================================
-     SHARE PDF
-  ========================================================= */
-
-  const sharePDF = async () => {
-    if (!reportData) return;
-
-    try {
-      setPdfLoading(true);
-
-      const doc =
-        await generatePDF();
-
-      const blob =
-        doc.output("blob");
+      if (!doc) return;
 
       const student =
         reportData.student || {};
@@ -1469,67 +1521,37 @@ const AdminReport = () => {
         `EduFlow_Report_${(
           student.name ||
           "Student"
-        ).replace(/\s+/g, "_")}.pdf`;
+        ).replace(
+          /\s+/g,
+          "_"
+        )}.pdf`;
 
-      const file =
-        new File(
-          [blob],
-          fileName,
-          {
-            type: "application/pdf",
-          }
-        );
-
-      if (
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({
-          files: [file],
-        })
-      ) {
-        await navigator.share({
-          title:
-            "EduFlow Student Report",
-          text:
-            `Student Monthly Report - ${
-              student.name || ""
-            }`,
-          files: [file],
-        });
-      } else {
-        alert(
-          "PDF sharing is not supported on this device/browser. Please download the PDF and share it on WhatsApp."
-        );
-      }
+      doc.save(fileName);
     } catch (err) {
-      if (
-        err?.name !==
-        "AbortError"
-      ) {
-        console.error(err);
-        alert(
-          "Unable to share PDF."
-        );
-      }
+      console.error(err);
+
+      alert(
+        "Failed to export PDF."
+      );
     } finally {
       setPdfLoading(false);
     }
   };
 
-  /* =========================================================
-     RENDER
-  ========================================================= */
+  /* ================= UI ================= */
 
   return (
     <>
       <style>{`
-        *{box-sizing:border-box}
+        *{
+          box-sizing:border-box;
+        }
 
         .report-container{
           background:#f3f4f6;
           min-height:100vh;
           padding:20px;
-          font-family:Inter,Arial,sans-serif
+          font-family:Inter,Arial,sans-serif;
         }
 
         .report-wrapper{
@@ -1538,14 +1560,14 @@ const AdminReport = () => {
           margin:auto;
           display:flex;
           flex-direction:column;
-          gap:20px
+          gap:20px;
         }
 
         .report-card{
-          background:white;
+          background:#fff;
           padding:24px;
           border-radius:14px;
-          box-shadow:0 4px 18px rgba(0,0,0,.06)
+          box-shadow:0 4px 18px rgba(0,0,0,.06);
         }
 
         .top-header{
@@ -1553,85 +1575,85 @@ const AdminReport = () => {
           justify-content:space-between;
           align-items:center;
           gap:15px;
-          flex-wrap:wrap
+          flex-wrap:wrap;
         }
 
         .form-grid,
         .month-grid{
           display:grid;
           grid-template-columns:1fr 1fr;
-          gap:15px
+          gap:15px;
         }
 
         .stats-grid{
           display:grid;
           grid-template-columns:repeat(5,1fr);
-          gap:12px
-        }
-
-        .analysis-grid{
-          display:grid;
-          grid-template-columns:repeat(4,1fr);
-          gap:12px
+          gap:12px;
         }
 
         .profile-grid{
           display:grid;
           grid-template-columns:repeat(3,1fr);
-          gap:12px
+          gap:12px;
         }
 
         .action-btn{
-          width:30%;
-          min-width:180px;
-          padding:12px 16px;
+          padding:12px 12px;
           border:0;
           border-radius:8px;
           font-weight:700;
           cursor:pointer;
-          font-size:13px
+          font-size:13px;
+          width:50%;
+          height :50px;
+        }
+
+        .generate-btn{
+          width:30%;
+          height :50px;
+          
         }
 
         .toggle-container{
           display:flex;
-          gap:10px
+          gap:10px;
         }
 
         .toggle-btn{
-          width:30%;
-          min-width:130px;
+          width:20px;
+          height :30px;
           padding:10px;
           border:0;
           border-radius:7px;
           cursor:pointer;
           font-weight:700;
-          font-size:12px
+          font-size:12px;
         }
 
         .table-scroll{
           overflow-x:auto;
-          width:100%
+          width:100%;
         }
 
         .report-table{
           width:100%;
           border-collapse:collapse;
           min-width:650px;
-          font-size:13px
+          font-size:13px;
         }
 
         .report-table th{
           padding:11px;
           background:#1a237e;
-          color:white;
+          color:#fff;
           text-align:left;
-          white-space:nowrap
+          white-space:nowrap;
         }
 
         .report-table td{
           padding:10px;
           border-bottom:1px solid #eee;
-          white-space:nowrap
+          white-space:nowrap;
         }
 
         .month-title{
@@ -1639,7 +1661,7 @@ const AdminReport = () => {
           justify-content:space-between;
           align-items:center;
           gap:10px;
-          flex-wrap:wrap
+          flex-wrap:wrap;
         }
 
         .month-badge{
@@ -1648,114 +1670,104 @@ const AdminReport = () => {
           padding:6px 12px;
           border-radius:20px;
           font-size:12px;
-          font-weight:700
+          font-weight:700;
         }
 
-        .analysis-box{
-          padding:14px;
-          border-radius:10px;
-          border:1px solid #e2e8f0;
-          background:#f8fafc
-        }
-
-        .analysis-value{
-          font-size:21px;
-          font-weight:800;
-          color:#1e293b
-        }
-
-        .analysis-label{
-          font-size:11px;
-          color:#64748b;
-          margin-top:4px;
-          font-weight:600
-        }
-
-        .whatsapp-box{
-          display:flex;
-          gap:10px;
-          margin-top:15px;
-          flex-wrap:wrap
-        }
-
-        .whatsapp-input{
-          flex:1;
-          min-width:220px;
-          padding:11px 12px;
-          border:1px solid #cbd5e1;
+        .month-stat{
+          padding:13px;
           border-radius:8px;
-          font-size:14px
+          background:#f8fafc;
+          border:1px solid #e2e8f0;
+          text-align:center;
+        }
+
+        .month-stat-value{
+          font-size:19px;
+          font-weight:800;
+          display:block;
+          color:#1e293b;
+        }
+
+        .month-stat-label{
+          font-size:10px;
+          color:#64748b;
+          display:block;
+          margin-top:4px;
+        }
+
+        .share-box{
+          margin-top:20px;
+          padding:15px;
+          background:#eff6ff;
+          border:1px solid #bfdbfe;
+          border-radius:10px;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:15px;
+          flex-wrap:wrap;
         }
 
         @media(max-width:900px){
           .stats-grid{
-            grid-template-columns:repeat(3,1fr)
-          }
-
-          .analysis-grid{
-            grid-template-columns:repeat(2,1fr)
+            grid-template-columns:repeat(3,1fr);
           }
 
           .profile-grid{
-            grid-template-columns:repeat(2,1fr)
+            grid-template-columns:repeat(2,1fr);
           }
         }
 
         @media(max-width:650px){
           .report-container{
-            padding:10px
+            padding:10px;
           }
 
           .report-card{
             padding:15px;
-            border-radius:10px
           }
 
           .form-grid,
           .month-grid,
           .profile-grid{
-            grid-template-columns:1fr
+            grid-template-columns:1fr;
           }
 
           .stats-grid{
-            grid-template-columns:repeat(2,1fr)
+            grid-template-columns:repeat(2,1fr);
           }
 
-          .analysis-grid{
-            grid-template-columns:1fr 1fr
-          }
-
-          .action-btn{
-            width:30%;
-            min-width:140px;
-            font-size:11px;
-            padding:10px 8px
+          .generate-btn{
+            width:20%;
+            height :40px;
+            padding : 12px 12px;
           }
 
           .toggle-container{
-            flex-wrap:wrap
+            flex-wrap:wrap;
           }
 
           .toggle-btn{
+            width:20%;
+            height :35px;
+            padding:5px 12px;
+            
+
+          .share-box{
+            flex-direction:column;
+            align-items:stretch;
+          }
+
+          .share-box .action-btn{
             width:30%;
-            min-width:120px;
-            font-size:11px
-          }
-
-          .whatsapp-box{
-            flex-direction:column
-          }
-
-          .whatsapp-input{
-            width:100%
           }
         }
 
         @media(max-width:400px){
           .action-btn,
           .toggle-btn{
-            width:100%;
-            min-width:0
+            width:30%;
+            min-width:0;
           }
         }
       `}</style>
@@ -1763,9 +1775,7 @@ const AdminReport = () => {
       <div className="report-container">
         <div className="report-wrapper">
 
-          {/* =================================================
-              MAIN FORM
-          ================================================= */}
+          {/* ================= MAIN FORM ================= */}
 
           <div className="report-card">
 
@@ -1794,7 +1804,19 @@ const AdminReport = () => {
                 >
                   📊 Student Monthly Report
                 </h2>
+
+                <div
+                  style={{
+                    fontSize:12,
+                    color:"#64748b",
+                    marginTop:5,
+                  }}
+                >
+                  Teacher: {TEACHER_NAME}
+                </div>
               </div>
+
+              {/* PDF ACTIONS */}
 
               {reportData && (
                 <div
@@ -1807,15 +1829,15 @@ const AdminReport = () => {
                 >
 
                   <button
+                    type="button"
                     onClick={downloadPDF}
                     className="action-btn"
                     disabled={pdfLoading}
                     style={{
                       background:"#15803d",
-                      color:"white",
-                      opacity:pdfLoading
-                        ? .6
-                        : 1,
+                      color:"#fff",
+                      opacity:
+                        pdfLoading ? 0.6 : 1,
                     }}
                   >
                     {pdfLoading
@@ -1824,20 +1846,24 @@ const AdminReport = () => {
                   </button>
 
                   <button
-                    onClick={sharePDF}
+                    type="button"
+                    onClick={sharePDFReport}
                     className="action-btn"
                     disabled={pdfLoading}
                     style={{
                       background:"#2563eb",
-                      color:"white",
+                      color:"#fff",
+                      opacity:
+                        pdfLoading ? 0.6 : 1,
                     }}
                   >
-                    📤 Share PDF
+                    📤 Share with{" "}
+                    {reportData.student?.name ||
+                      "Student"}
                   </button>
 
                 </div>
               )}
-
             </div>
 
             <p
@@ -1878,6 +1904,8 @@ const AdminReport = () => {
 
               <div className="form-grid">
 
+                {/* CLASS */}
+
                 <div>
                   <label style={labelStyle}>
                     Class Category
@@ -1889,7 +1917,10 @@ const AdminReport = () => {
                       setSelectedClass(
                         e.target.value
                       );
+
                       setSelectedStudentId("");
+
+                      setReportData(null);
                     }}
                     style={inputStyle}
                   >
@@ -1897,18 +1928,18 @@ const AdminReport = () => {
                       -- Choose Class --
                     </option>
 
-                    {classes.map(
-                      (c, i) => (
-                        <option
-                          key={i}
-                          value={c}
-                        >
-                          Class {c}
-                        </option>
-                      )
-                    )}
+                    {classes.map((c) => (
+                      <option
+                        key={c}
+                        value={c}
+                      >
+                        Class {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
+                {/* REPORT MODE */}
 
                 <div>
                   <label style={labelStyle}>
@@ -1921,20 +1952,17 @@ const AdminReport = () => {
                       type="button"
                       className="toggle-btn"
                       onClick={() =>
-                        setReportMode(
-                          "single"
-                        )
+                        setReportMode("single")
                       }
                       style={{
                         background:
-                          reportMode ===
-                          "single"
+                          reportMode === "single"
                             ? "#1a237e"
                             : "#e2e8f0",
+
                         color:
-                          reportMode ===
-                          "single"
-                            ? "white"
+                          reportMode === "single"
+                            ? "#fff"
                             : "#333",
                       }}
                     >
@@ -1945,20 +1973,17 @@ const AdminReport = () => {
                       type="button"
                       className="toggle-btn"
                       onClick={() =>
-                        setReportMode(
-                          "range"
-                        )
+                        setReportMode("range")
                       }
                       style={{
                         background:
-                          reportMode ===
-                          "range"
+                          reportMode === "range"
                             ? "#1a237e"
                             : "#e2e8f0",
+
                         color:
-                          reportMode ===
-                          "range"
-                            ? "white"
+                          reportMode === "range"
+                            ? "#fff"
                             : "#333",
                       }}
                     >
@@ -1970,9 +1995,9 @@ const AdminReport = () => {
 
               </div>
 
-              {reportMode ===
-              "single" ? (
+              {/* MONTH */}
 
+              {reportMode === "single" ? (
                 <div>
                   <label style={labelStyle}>
                     Target Month
@@ -1990,9 +2015,7 @@ const AdminReport = () => {
                     required
                   />
                 </div>
-
               ) : (
-
                 <div className="month-grid">
 
                   <div>
@@ -2034,24 +2057,22 @@ const AdminReport = () => {
                 </div>
               )}
 
+              {/* STUDENT */}
+
               <div>
                 <label style={labelStyle}>
                   Student Profile
                 </label>
 
                 <select
-                  value={
-                    selectedStudentId
-                  }
+                  value={selectedStudentId}
                   onChange={(e) =>
                     setSelectedStudentId(
                       e.target.value
                     )
                   }
                   style={inputStyle}
-                  disabled={
-                    !selectedClass
-                  }
+                  disabled={!selectedClass}
                 >
                   <option value="">
                     {selectedClass
@@ -2066,18 +2087,16 @@ const AdminReport = () => {
                         value={s.id}
                       >
                         {s.name}
-                        {s.roll_no
-                          ? ` (Roll: ${s.roll_no})`
-                          : ""}
                       </option>
                     )
                   )}
                 </select>
               </div>
 
+              {/* STUDENT PREVIEW */}
+
               {activeStudent && (
                 <div
-                  className="student-preview"
                   style={{
                     display:"flex",
                     alignItems:"center",
@@ -2085,14 +2104,15 @@ const AdminReport = () => {
                     background:"#f8fafc",
                     padding:12,
                     borderRadius:10,
-                    border:"1px solid #cbd5e1",
+                    border:
+                      "1px solid #cbd5e1",
                   }}
                 >
 
                   <div
                     style={{
-                      width:50,
-                      height:50,
+                      width:55,
+                      height:55,
                       borderRadius:10,
                       overflow:"hidden",
                       background:"#94a3b8",
@@ -2102,10 +2122,10 @@ const AdminReport = () => {
                       flexShrink:0,
                     }}
                   >
-                    {activeStudent.photo ? (
+                    {activeStudent.profile_photo ? (
                       <img
                         src={
-                          activeStudent.photo
+                          activeStudent.profile_photo
                         }
                         alt=""
                         style={{
@@ -2117,7 +2137,7 @@ const AdminReport = () => {
                     ) : (
                       <span
                         style={{
-                          color:"white",
+                          color:"#fff",
                           fontSize:18,
                           fontWeight:700,
                         }}
@@ -2130,11 +2150,7 @@ const AdminReport = () => {
                     )}
                   </div>
 
-                  <div
-                    style={{
-                      overflow:"hidden",
-                    }}
-                  >
+                  <div>
                     <div
                       style={{
                         fontWeight:700,
@@ -2148,13 +2164,35 @@ const AdminReport = () => {
                       style={{
                         fontSize:12,
                         color:"#64748b",
-                        marginTop:3,
+                        marginTop:4,
+                        lineHeight:1.6,
                       }}
                     >
                       Class:{" "}
-                      {activeStudent.class} |
-                      Email:{" "}
-                      {activeStudent.email ||
+                      {activeStudent.class}
+
+                      {" | "}
+
+                      Mobile:{" "}
+                      {activeStudent.mobile ||
+                        "N/A"}
+
+                      {" | "}
+
+                      Batch:{" "}
+                      {activeStudent.batch ||
+                        "N/A"}
+
+                      {" | "}
+
+                      Batch Time:{" "}
+                      {activeStudent.batch_time ||
+                        "N/A"}
+
+                      {" | "}
+
+                      Session:{" "}
+                      {activeStudent.session ||
                         "N/A"}
                     </div>
                   </div>
@@ -2162,20 +2200,22 @@ const AdminReport = () => {
                 </div>
               )}
 
+              {/* GENERATE */}
+
               <button
                 type="submit"
                 disabled={
                   reportLoading ||
                   loading
                 }
-                className="action-btn"
+                className="action-btn generate-btn"
                 style={{
                   background:"#1a237e",
-                  color:"white",
+                  color:"#fff",
                   opacity:
                     reportLoading ||
                     loading
-                      ? .6
+                      ? 0.6
                       : 1,
                 }}
               >
@@ -2186,91 +2226,66 @@ const AdminReport = () => {
 
             </form>
 
-            {/* =================================================
-                WHATSAPP
-            ================================================= */}
+            {/* SHARE INFO */}
 
             {reportData && (
-              <div
-                style={{
-                  marginTop:20,
-                  padding:15,
-                  background:"#f0fdf4",
-                  border:"1px solid #bbf7d0",
-                  borderRadius:10,
-                }}
-              >
+              <div className="share-box">
 
-                <div
-                  style={{
-                    fontWeight:700,
-                    color:"#166534",
-                    marginBottom:5,
-                  }}
-                >
-                  📱 Send Report on WhatsApp
-                </div>
-
-                <div
-                  style={{
-                    fontSize:12,
-                    color:"#64748b",
-                    marginBottom:10,
-                  }}
-                >
-                  Enter WhatsApp number. The
-                  complete selected-month report
-                  will be prepared as a WhatsApp
-                  message.
-                </div>
-
-                <div className="whatsapp-box">
-
-                  <input
-                    className="whatsapp-input"
-                    type="tel"
-                    placeholder="Enter WhatsApp Number"
-                    value={
-                      whatsappNumber
-                    }
-                    onChange={(e) =>
-                      setWhatsappNumber(
-                        e.target.value
-                      )
-                    }
-                  />
-
-                  <button
-                    type="button"
-                    onClick={
-                      sendWhatsAppText
-                    }
-                    className="action-btn"
+                <div>
+                  <div
                     style={{
-                      background:"#16a34a",
-                      color:"white",
-                      width:"auto",
-                      minWidth:180,
+                      fontWeight:700,
+                      color:"#1d4ed8",
+                      marginBottom:4,
                     }}
                   >
-                    💬 Send WhatsApp
-                  </button>
+                    📤 Share Student Report
+                  </div>
 
+                  <div
+                    style={{
+                      fontSize:12,
+                      color:"#64748b",
+                    }}
+                  >
+                    Share PDF report with{" "}
+                    <strong>
+                      {reportData.student?.name ||
+                        "Student"}
+                    </strong>
+                    . Student mobile number is
+                    automatically taken from the
+                    student profile.
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={sharePDFReport}
+                  className="action-btn"
+                  disabled={pdfLoading}
+                  style={{
+                    background:"#2563eb",
+                    color:"#fff",
+                    minWidth:200,
+                  }}
+                >
+                  📤 Share with{" "}
+                  {reportData.student?.name ||
+                    "Student"}
+                </button>
 
               </div>
             )}
 
           </div>
 
-          {/* =================================================
-              REPORT
-          ================================================= */}
+          {/* ================= REPORT ================= */}
 
           {reportData && (
             <>
 
-              {/* PROFILE */}
+              {/* STUDENT SUMMARY */}
 
               <div className="report-card">
 
@@ -2305,21 +2320,56 @@ const AdminReport = () => {
                   </div>
 
                   <div>
+                    <strong>Batch Time:</strong>{" "}
+                    {reportData.student?.batch_time ||
+                      "N/A"}
+                  </div>
+
+                  <div>
                     <strong>Session:</strong>{" "}
-                    {reportData.student?.session}
+                    {reportData.student?.session ||
+                      "N/A"}
+                  </div>
+
+                  <div>
+                    <strong>Contact:</strong>{" "}
+                    {reportData.student?.mobile ||
+                      "N/A"}
+                  </div>
+
+                  <div>
+                    <strong>Stream:</strong>{" "}
+                    {reportData.student?.stream ||
+                      "N/A"}
+                  </div>
+
+                  <div>
+                    <strong>Joining Date:</strong>{" "}
+                    {formatDate(
+                      reportData.student
+                        ?.joining_date
+                    )}
+                  </div>
+
+                  <div>
+                    <strong>Teacher:</strong>{" "}
+                    {TEACHER_NAME}
                   </div>
 
                   <div>
                     <strong>From:</strong>{" "}
-                    {reportData.period?.from}
+                    {reportData.period?.from ||
+                      "N/A"}
                   </div>
 
                   <div>
                     <strong>To:</strong>{" "}
-                    {reportData.period?.to}
+                    {reportData.period?.to ||
+                      "N/A"}
                   </div>
 
                 </div>
+
               </div>
 
               {/* OVERALL */}
@@ -2345,6 +2395,7 @@ const AdminReport = () => {
                         ?.workingDays,
                       "Working Days",
                     ],
+
                     [
                       reportData.overall
                         ?.attendance
@@ -2352,6 +2403,7 @@ const AdminReport = () => {
                         ?.present,
                       "Present",
                     ],
+
                     [
                       reportData.overall
                         ?.attendance
@@ -2359,6 +2411,7 @@ const AdminReport = () => {
                         ?.absent,
                       "Absent",
                     ],
+
                     [
                       reportData.overall
                         ?.attendance
@@ -2366,25 +2419,27 @@ const AdminReport = () => {
                         ?.holiday,
                       "Holiday",
                     ],
+
                     [
                       `${
                         reportData.overall
                           ?.attendance
                           ?.summary
-                          ?.percentage ||
-                        0
+                          ?.percentage || 0
                       }%`,
                       "Attendance",
                     ],
                   ].map(
-                    ([value, label], i) => (
+                    ([value, label]) => (
                       <div
-                        key={i}
+                        key={label}
                         style={{
                           padding:14,
                           borderRadius:9,
-                          background:"#f8fafc",
-                          textAlign:"center",
+                          background:
+                            "#f8fafc",
+                          textAlign:
+                            "center",
                           border:
                             "1px solid #e2e8f0",
                         }}
@@ -2393,7 +2448,8 @@ const AdminReport = () => {
                           style={{
                             fontSize:20,
                             fontWeight:800,
-                            color:"#1e293b",
+                            color:
+                              "#1e293b",
                           }}
                         >
                           {value || 0}
@@ -2402,7 +2458,8 @@ const AdminReport = () => {
                         <div
                           style={{
                             fontSize:10,
-                            color:"#64748b",
+                            color:
+                              "#64748b",
                             marginTop:4,
                           }}
                         >
@@ -2413,13 +2470,13 @@ const AdminReport = () => {
                   )}
 
                 </div>
+
               </div>
 
-              {/* MONTH BY MONTH */}
+              {/* MONTHLY REPORT */}
 
               {reportData.monthly?.map(
                 (monthData, index) => {
-
                   const monthName =
                     formatMonth(
                       monthData.month
@@ -2431,6 +2488,10 @@ const AdminReport = () => {
 
                   const marks =
                     monthData.marks
+                      ?.records || [];
+
+                  const assignments =
+                    monthData.assignments
                       ?.records || [];
 
                   const assignmentSummary =
@@ -2445,7 +2506,9 @@ const AdminReport = () => {
                   return (
                     <div
                       className="report-card"
-                      key={monthData.month}
+                      key={
+                        monthData.month
+                      }
                     >
 
                       <div className="month-title">
@@ -2455,7 +2518,8 @@ const AdminReport = () => {
                             style={{
                               margin:
                                 "0 0 5px",
-                              color:"#1a237e",
+                              color:
+                                "#1a237e",
                             }}
                           >
                             📅 {monthName}
@@ -2464,7 +2528,8 @@ const AdminReport = () => {
                           <div
                             style={{
                               fontSize:12,
-                              color:"#64748b",
+                              color:
+                                "#64748b",
                             }}
                           >
                             Monthly Academic &
@@ -2483,166 +2548,119 @@ const AdminReport = () => {
                           border:0,
                           borderTop:
                             "1px solid #e2e8f0",
-                          margin:"15px 0",
+                          margin:
+                            "15px 0",
                         }}
                       />
 
+                      {/* ATTENDANCE */}
+
                       <h4
                         style={{
-                          color:"#334155",
+                          color:
+                            "#1a237e",
                           margin:
                             "0 0 12px",
                         }}
                       >
-                        🔎 {monthName} Performance
-                        Analysis
+                        📅 Attendance
                       </h4>
 
-                      <div className="analysis-grid">
+                      <div className="stats-grid">
 
                         {[
                           [
-                            analysis.attendance,
-                            "Attendance",
+                            att.present || 0,
+                            "Present (P)",
                           ],
+
                           [
-                            analysis.marks,
-                            "Test Score",
+                            att.absent || 0,
+                            "Absent (A)",
                           ],
+
                           [
-                            analysis.assignments,
-                            "Assignment Completion",
+                            att.holiday || 0,
+                            "Holiday (H)",
                           ],
+
                           [
-                            analysis.average,
-                            "Overall Index",
+                            att.workingDays ||
+                              0,
+                            "Working Days",
+                          ],
+
+                          [
+                            `${
+                              att.percentage ||
+                              0
+                            }%`,
+                            "Attendance %",
                           ],
                         ].map(
-                          ([v, l]) => (
+                          ([value, label]) => (
                             <div
-                              className="analysis-box"
-                              key={l}
+                              className="month-stat"
+                              key={label}
                             >
-                              <div className="analysis-value">
-                                {v}%
-                              </div>
+                              <b className="month-stat-value">
+                                {value}
+                              </b>
 
-                              <div className="analysis-label">
-                                {l}
-                              </div>
+                              <small className="month-stat-label">
+                                {label}
+                              </small>
                             </div>
                           )
                         )}
 
                       </div>
 
-                      <h4
-                        style={{
-                          color:"#1a237e",
-                          margin:
-                            "22px 0 10px",
-                        }}
-                      >
-                        📅 {monthName} Attendance
-                      </h4>
-
-                      <div className="stats-grid">
-
-                        <div style={monthStat}>
-                          <b>
-                            {att.present || 0}
-                          </b>
-                          <small>
-                            Present (P)
-                          </small>
-                        </div>
-
-                        <div style={monthStat}>
-                          <b>
-                            {att.absent || 0}
-                          </b>
-                          <small>
-                            Absent (A)
-                          </small>
-                        </div>
-
-                        <div style={monthStat}>
-                          <b>
-                            {att.holiday || 0}
-                          </b>
-                          <small>
-                            Holiday (H)
-                          </small>
-                        </div>
-
-                        <div style={monthStat}>
-                          <b>
-                            {att.workingDays ||
-                              0}
-                          </b>
-                          <small>
-                            Working Days
-                          </small>
-                        </div>
-
-                        <div
-                          style={{
-                            ...monthStat,
-                            background:
-                              "#e0e7ff",
-                          }}
-                        >
-                          <b>
-                            {att.percentage ||
-                              0}
-                            %
-                          </b>
-                          <small>
-                            Attendance %
-                          </small>
-                        </div>
-
-                      </div>
-
                       <div
                         style={{
-                          background:"#f8fafc",
+                          background:
+                            "#f8fafc",
                           borderLeft:
                             "4px solid #1a237e",
                           padding:12,
                           borderRadius:7,
                           marginTop:12,
                           fontSize:13,
-                          color:"#334155",
+                          color:
+                            "#334155",
                         }}
                       >
                         <strong>
                           Attendance Analysis:
                         </strong>{" "}
-                        In {monthName}, the
-                        student was present on{" "}
+                        Present:{" "}
                         <strong>
                           {att.present || 0}
-                        </strong>{" "}
-                        working days and absent
-                        on{" "}
+                        </strong>
+                        , Absent:{" "}
                         <strong>
                           {att.absent || 0}
-                        </strong>{" "}
-                        days. Attendance was{" "}
+                        </strong>
+                        , Attendance:{" "}
                         <strong>
-                          {att.percentage || 0}%
-                        </strong>.
+                          {att.percentage ||
+                            0}
+                          %
+                        </strong>
+                        .
                       </div>
+
+                      {/* MARKS */}
 
                       <h4
                         style={{
-                          color:"#1a237e",
+                          color:
+                            "#1a237e",
                           margin:
                             "22px 0 10px",
                         }}
                       >
-                        📝 {monthName} Test
+                        📝 Marks / Test
                         Performance
                       </h4>
 
@@ -2652,11 +2670,25 @@ const AdminReport = () => {
 
                           <thead>
                             <tr>
-                              <th>Subject</th>
-                              <th>Total</th>
-                              <th>Obtained</th>
-                              <th>Date</th>
-                              <th>Status</th>
+                              <th>
+                                Subject
+                              </th>
+
+                              <th>
+                                Total
+                              </th>
+
+                              <th>
+                                Obtained
+                              </th>
+
+                              <th>
+                                Date
+                              </th>
+
+                              <th>
+                                Status
+                              </th>
                             </tr>
                           </thead>
 
@@ -2666,7 +2698,10 @@ const AdminReport = () => {
                               marks.map(
                                 (m) => (
                                   <tr
-                                    key={m.id}
+                                    key={
+                                      m.id ||
+                                      `${m.subject}-${m.test_date}`
+                                    }
                                   >
                                     <td>
                                       <strong>
@@ -2693,7 +2728,9 @@ const AdminReport = () => {
                                     </td>
 
                                     <td>
-                                      {m.status}
+                                      {
+                                        m.status
+                                      }
                                     </td>
                                   </tr>
                                 )
@@ -2708,13 +2745,15 @@ const AdminReport = () => {
                                     padding:20,
                                   }}
                                 >
-                                  No tests recorded
-                                  for {monthName}.
+                                  No tests
+                                  recorded for{" "}
+                                  {monthName}.
                                 </td>
                               </tr>
                             )}
 
                           </tbody>
+
                         </table>
 
                       </div>
@@ -2723,7 +2762,8 @@ const AdminReport = () => {
                         style={{
                           marginTop:10,
                           padding:12,
-                          background:"#f8fafc",
+                          background:
+                            "#f8fafc",
                           borderRadius:7,
                           fontSize:13,
                         }}
@@ -2731,203 +2771,252 @@ const AdminReport = () => {
                         <strong>
                           Academic Analysis:
                         </strong>{" "}
+
                         {marks.length
-                          ? `${marks.length} test(s) were conducted during ${monthName}. The combined test score was ${analysis.marks}%.`
+                          ? `${marks.length} test(s) were conducted. Combined test score was ${analysis.marks}%.`
                           : `No tests were recorded during ${monthName}.`}
                       </div>
 
+                      {/* ASSIGNMENTS */}
+
                       <h4
                         style={{
-                          color:"#1a237e",
+                          color:
+                            "#1a237e",
                           margin:
                             "22px 0 10px",
                         }}
                       >
-                        📚 {monthName} Assignments
+                        📚 Assignments
                       </h4>
 
-                      <div className="stats-grid">
-
-                        <div style={monthStat}>
-                          <b>
-                            {
-                              assignmentSummary.assigned ||
-                              0
-                            }
-                          </b>
-                          <small>
-                            Assigned
-                          </small>
-                        </div>
-
-                        <div style={monthStat}>
-                          <b>
-                            {
-                              assignmentSummary.submitted ||
-                              0
-                            }
-                          </b>
-                          <small>
-                            Submitted
-                          </small>
-                        </div>
-
-                        <div style={monthStat}>
-                          <b>
-                            {
-                              assignmentSummary.pending ||
-                              0
-                            }
-                          </b>
-                          <small>
-                            Pending
-                          </small>
-                        </div>
+                      {Number(
+                        assignmentSummary.assigned ||
+                          0
+                      ) === 0 ? (
 
                         <div
                           style={{
-                            ...monthStat,
+                            padding:14,
                             background:
-                              "#e0e7ff",
+                              "#f8fafc",
+                            borderRadius:8,
+                            borderLeft:
+                              "4px solid #1a237e",
+                            fontSize:13,
+                            color:
+                              "#334155",
                           }}
                         >
-                          <b>
-                            {
-                              analysis.assignments
-                            }%
-                          </b>
-                          <small>
-                            Completion
-                          </small>
+                          No assignments were
+                          assigned by faculty.
                         </div>
 
-                      </div>
+                      ) : (
 
-                      <div
-                        className="table-scroll"
-                        style={{
-                          marginTop:12,
-                        }}
-                      >
+                        <>
 
-                        <table className="report-table">
+                          <div className="stats-grid">
 
-                          <thead>
-                            <tr>
-                              <th>Subject</th>
-                              <th>Task</th>
-                              <th>Deadline</th>
-                              <th>Rating</th>
-                              <th>Status</th>
-                            </tr>
-                          </thead>
-
-                          <tbody>
-
-                            {(
-                              monthData
-                                .assignments
-                                ?.records || []
-                            ).length ? (
-
-                              monthData.assignments.records.map(
-                                (a) => {
-                                  const pending =
-                                    a.status?.toUpperCase() ===
-                                    "PENDING";
-
-                                  return (
-                                    <tr
-                                      key={
-                                        a.assignment_id
-                                      }
-                                    >
-                                      <td>
-                                        <strong>
-                                          {
-                                            a.subject
-                                          }
-                                        </strong>
-                                      </td>
-
-                                      <td>
-                                        {
-                                          a.task_title
-                                        }
-                                      </td>
-
-                                      <td>
-                                        {formatDate(
-                                          a.deadline
-                                        )}
-                                      </td>
-
-                                      <td>
-                                        {pending
-                                          ? "Not Done"
-                                          : `⭐ ${
-                                              a.rating ||
-                                              0
-                                            }/5`}
-                                      </td>
-
-                                      <td>
-                                        {a.status}
-                                      </td>
-                                    </tr>
-                                  );
+                            <div className="month-stat">
+                              <b className="month-stat-value">
+                                {
+                                  assignmentSummary.assigned
                                 }
-                              )
+                              </b>
 
-                            ) : (
+                              <small className="month-stat-label">
+                                Assigned
+                              </small>
+                            </div>
 
-                              <tr>
-                                <td
-                                  colSpan="5"
-                                  style={{
-                                    textAlign:
-                                      "center",
-                                    padding:20,
-                                  }}
-                                >
-                                  No assignments
-                                  recorded for{" "}
-                                  {monthName}.
-                                </td>
-                              </tr>
+                            <div className="month-stat">
+                              <b className="month-stat-value">
+                                {
+                                  assignmentSummary.submitted ||
+                                  0
+                                }
+                              </b>
 
-                            )}
+                              <small className="month-stat-label">
+                                Submitted
+                              </small>
+                            </div>
 
-                          </tbody>
-                        </table>
+                            <div className="month-stat">
+                              <b className="month-stat-value">
+                                {
+                                  assignmentSummary.pending ||
+                                  0
+                                }
+                              </b>
 
-                      </div>
+                              <small className="month-stat-label">
+                                Pending
+                              </small>
+                            </div>
+
+                            <div
+                              className="month-stat"
+                              style={{
+                                background:
+                                  "#e0e7ff",
+                              }}
+                            >
+                              <b className="month-stat-value">
+                                {
+                                  analysis.assignments
+                                }
+                                %
+                              </b>
+
+                              <small className="month-stat-label">
+                                Completion
+                              </small>
+                            </div>
+
+                          </div>
+
+                          <div
+                            className="table-scroll"
+                            style={{
+                              marginTop:12,
+                            }}
+                          >
+
+                            <table className="report-table">
+
+                              <thead>
+                                <tr>
+                                  <th>
+                                    Subject
+                                  </th>
+
+                                  <th>
+                                    Task
+                                  </th>
+
+                                  <th>
+                                    Deadline
+                                  </th>
+
+                                  <th>
+                                    Rating
+                                  </th>
+
+                                  <th>
+                                    Status
+                                  </th>
+                                </tr>
+                              </thead>
+
+                              <tbody>
+
+                                {assignments.length ? (
+                                  assignments.map(
+                                    (a) => (
+                                      <tr
+                                        key={
+                                          a.assignment_id ||
+                                          `${a.subject}-${a.task_title}`
+                                        }
+                                      >
+
+                                        <td>
+                                          <strong>
+                                            {
+                                              a.subject
+                                            }
+                                          </strong>
+                                        </td>
+
+                                        <td>
+                                          {
+                                            a.task_title
+                                          }
+                                        </td>
+
+                                        <td>
+                                          {formatDate(
+                                            a.deadline
+                                          )}
+                                        </td>
+
+                                        <td>
+                                          {a.status
+                                            ?.toUpperCase() ===
+                                          "PENDING"
+                                            ? "Not Done"
+                                            : `⭐ ${
+                                                a.rating ||
+                                                0
+                                              }/5`}
+                                        </td>
+
+                                        <td>
+                                          {
+                                            a.status
+                                          }
+                                        </td>
+
+                                      </tr>
+                                    )
+                                  )
+                                ) : (
+                                  <tr>
+                                    <td
+                                      colSpan="5"
+                                      style={{
+                                        textAlign:
+                                          "center",
+                                        padding:20,
+                                      }}
+                                    >
+                                      No assignment
+                                      records.
+                                    </td>
+                                  </tr>
+                                )}
+
+                              </tbody>
+
+                            </table>
+
+                          </div>
+
+                        </>
+                      )}
+
+                      {/* REMARK */}
 
                       <div
                         style={{
                           marginTop:18,
                           padding:14,
-                          background:"#f8fafc",
+                          background:
+                            "#f8fafc",
                           borderRadius:9,
                           borderLeft:
                             "4px solid #1a237e",
                         }}
                       >
+
                         <div
                           style={{
                             fontWeight:700,
-                            color:"#1a237e",
+                            color:
+                              "#1a237e",
                             marginBottom:5,
                           }}
                         >
-                          💡 {monthName} Overall
-                          Remark
+                          💡 Overall Remark
                         </div>
 
                         <div
                           style={{
                             fontSize:13,
-                            color:"#334155",
+                            color:
+                              "#334155",
                             lineHeight:1.5,
                           }}
                         >
@@ -2937,81 +3026,13 @@ const AdminReport = () => {
                             analysis.assignments
                           )}
                         </div>
+
                       </div>
 
                     </div>
                   );
                 }
               )}
-
-              {/* OVERALL MARKS */}
-
-              <div className="report-card">
-
-                <h3
-                  style={{
-                    color:"#1a237e",
-                    marginTop:0,
-                  }}
-                >
-                  📝 Overall Test Records
-                </h3>
-
-                <div className="table-scroll">
-
-                  <table className="report-table">
-
-                    <thead>
-                      <tr>
-                        <th>Subject</th>
-                        <th>Total Marks</th>
-                        <th>Obtained</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-
-                      {(
-                        reportData.overall
-                          ?.marks?.records || []
-                      ).map((m) => (
-                        <tr key={m.id}>
-
-                          <td>
-                            <strong>
-                              {m.subject}
-                            </strong>
-                          </td>
-
-                          <td>
-                            {m.total_marks}
-                          </td>
-
-                          <td>
-                            {m.obtained_marks}
-                          </td>
-
-                          <td>
-                            {formatDate(
-                              m.test_date
-                            )}
-                          </td>
-
-                          <td>
-                            {m.status}
-                          </td>
-
-                        </tr>
-                      ))}
-
-                    </tbody>
-                  </table>
-
-                </div>
-
-              </div>
 
             </>
           )}
@@ -3022,16 +3043,14 @@ const AdminReport = () => {
   );
 };
 
-/* =========================================================
-   STYLES
-========================================================= */
+/* ================= STYLES ================= */
 
 const inputStyle = {
   padding:"11px 12px",
   borderRadius:8,
   border:"1px solid #cbd5e1",
   fontSize:14,
-  width:"100%",
+  width:"30%",
   background:"white",
   outline:"none",
 };
@@ -3042,24 +3061,6 @@ const labelStyle = {
   color:"#475569",
   marginBottom:6,
   display:"block",
-};
-
-const monthStat = {
-  padding:13,
-  borderRadius:8,
-  background:"#f8fafc",
-  border:"1px solid #e2e8f0",
-  textAlign:"center",
-};
-
-monthStat.b = {
-  fontSize:19,
-  display:"block",
-};
-
-monthStat.small = {
-  fontSize:10,
-  color:"#64748b",
 };
 
 export default AdminReport;
