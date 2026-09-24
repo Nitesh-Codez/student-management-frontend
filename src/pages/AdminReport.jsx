@@ -458,739 +458,454 @@ const AdminReport = () => {
 
   /* ================= PDF HEADER ================= */
 
-  const drawPDFHeader = (
-    doc,
-    student,
-    periodText
-  ) => {
-    doc.setFillColor(26, 35, 126);
-    doc.rect(0, 0, 210, 43, "F");
+/* ================= PDF STUDENT HEADER ================= */
+/* ================= PDF HEADER ================= */
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.setTextColor(255, 255, 255);
+const drawPDFHeader = (doc, student, monthName = "") => {
+  doc.setFillColor(26, 35, 126);
+  doc.rect(0, 0, 210, 40, "F");
 
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.setTextColor(255, 255, 255);
+
+  doc.text(
+    "SmartZone - SMART STUDENTS CLASSES",
+    14,
+    13
+  );
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+
+  doc.text(
+    "Academic & Activity Progress Report",
+    14,
+    20
+  );
+
+  if (monthName) {
     doc.text(
-      "EduFlow - SMART STUDENTS",
-      14,
-      13
-    );
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-
-    doc.text(
-      "Academic & Activity Progress Report",
-      14,
-      20
-    );
-
-    doc.text(
-      `Report Period: ${periodText}`,
+      `Monthly Report: ${monthName}`,
       14,
       27
     );
+  }
 
-    doc.text(
-      `Teacher: ${TEACHER_NAME}`,
-      14,
-      34
-    );
+  doc.text(
+    `Teacher: ${TEACHER_NAME}`,
+    14,
+    34
+  );
 
-    doc.setTextColor(40, 40, 40);
+  /* ================= STUDENT DETAILS ================= */
 
+  const x = 14;
+  const y = 50;
+  const w = 182;
+  const h = 52;
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+
+  doc.roundedRect(
+    x,
+    y,
+    w,
+    h,
+    3,
+    3,
+    "FD"
+  );
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(26, 35, 126);
+
+  doc.text(
+    "STUDENT DETAILS",
+    x + 6,
+    y + 8
+  );
+
+  doc.setDrawColor(226, 232, 240);
+
+  doc.line(
+    x + 6,
+    y + 11,
+    x + w - 6,
+    y + 11
+  );
+
+  doc.setFontSize(8.5);
+  doc.setTextColor(45, 55, 72);
+
+  const left = x + 7;
+  const right = x + 98;
+
+  const r1 = y + 20;
+  const r2 = y + 29;
+  const r3 = y + 38;
+  const r4 = y + 47;
+
+  const write = (label, value, px, py) => {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.text(label, px, py);
 
+    doc.setFont("helvetica", "normal");
     doc.text(
-      `Student Name: ${(
-        student.name || "N/A"
-      ).toUpperCase()}`,
-      14,
-      53
+      String(value || "N/A"),
+      px + (label.length * 2.1 + 5),
+      py
     );
-
-    doc.text(
-      `Class: ${student.class || "N/A"}`,
-      120,
-      53
-    );
-
-    doc.text(
-      `Batch: ${student.batch || "N/A"}`,
-      14,
-      60
-    );
-
-    doc.text(
-      `Batch Time: ${
-        student.batch_time || "N/A"
-      }`,
-      120,
-      60
-    );
-
-    doc.text(
-      `Session: ${student.session || "N/A"}`,
-      14,
-      67
-    );
-
-    doc.text(
-      `Contact No.: ${
-        student.mobile || "N/A"
-      }`,
-      120,
-      67
-    );
-
-    doc.text(
-      `Joining Date: ${formatDate(
-        student.joining_date
-      )}`,
-      14,
-      74
-    );
-
-    if (student.stream) {
-      doc.text(
-        `Stream: ${student.stream}`,
-        120,
-        74
-      );
-    }
   };
 
-  /* ================= PDF FOOTER ================= */
+  write(
+    "Name:",
+    String(student.name || "N/A").toUpperCase(),
+    left,
+    r1
+  );
 
-  const drawPDFFooter = (doc) => {
-    const pages =
-      doc.getNumberOfPages();
+  write(
+    "Class:",
+    student.class,
+    right,
+    r1
+  );
 
-    for (let i = 1; i <= pages; i++) {
-      doc.setPage(i);
+  write(
+    "Batch:",
+    student.batch,
+    left,
+    r2
+  );
 
-      doc.setFont(
-        "helvetica",
-        "normal"
-      );
+  write(
+    "Batch Time:",
+    student.batch_time,
+    right,
+    r2
+  );
 
-      doc.setFontSize(8);
-      doc.setTextColor(
-        100,
-        100,
-        100
-      );
+  write(
+    "Session:",
+    student.session,
+    left,
+    r3
+  );
 
-      doc.text(
-        `Teacher: ${TEACHER_NAME} | Smart Students`,
-        14,
-        287
-      );
+  write(
+    "Contact:",
+    student.mobile,
+    right,
+    r3
+  );
 
-      doc.text(
-        `Page ${i} of ${pages}`,
-        170,
-        287
-      );
-    }
-  };
+  write(
+    "Stream:",
+    student.stream,
+    left,
+    r4
+  );
 
-  /* ================= MONTH PDF ================= */
+  write(
+    "Joining Date:",
+    formatDate(student.joining_date),
+    right,
+    r4
+  );
+};
 
-  const addMonthToPDF = (
+
+/* ================= PDF FOOTER ================= */
+
+const drawPDFFooter = (doc) => {
+  const pages = doc.getNumberOfPages();
+
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+
+    doc.text(
+      `Teacher: ${TEACHER_NAME} | Smart Students`,
+      14,
+      287
+    );
+
+    doc.text(
+      `Page ${i} of ${pages}`,
+      170,
+      287
+    );
+  }
+};
+
+
+/* ================= MONTH PDF ================= */
+
+const addMonthToPDF = (doc, monthData, student) => {
+  const monthName = formatMonth(monthData.month);
+
+  const attendance =
+    monthData?.attendance?.summary || {};
+
+  const marks =
+    monthData?.marks?.records || [];
+
+  const assignments =
+    monthData?.assignments?.records || [];
+
+  const assignmentSummary =
+    monthData?.assignments?.summary || {};
+
+  const analysis =
+    getMonthAnalysis(monthData);
+
+  /* ================= NEW MONTH PAGE ================= */
+
+  doc.addPage();
+
+  drawPDFHeader(
     doc,
-    monthData,
-    student
-  ) => {
-    const monthName =
-      formatMonth(monthData.month);
-
-    const attendance =
-      monthData.attendance?.summary ||
-      {};
-
-    const marks =
-      monthData.marks?.records || [];
-
-    const assignments =
-      monthData.assignments?.records ||
-      [];
-
-    const assignmentSummary =
-      monthData.assignments?.summary ||
-      {};
-
-    const analysis =
-      getMonthAnalysis(monthData);
-
-    doc.addPage();
-
-    drawPDFHeader(
-      doc,
-      student,
-      monthName
-    );
-
-    let y = 88;
-
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
-    doc.setFontSize(13);
-    doc.setTextColor(
-      26,
-      35,
-      126
-    );
-
-    doc.text(
-      `${monthName} Monthly Report`,
-      14,
-      y
-    );
-
-    y += 10;
-
-    /* ATTENDANCE */
-
-    doc.setFontSize(12);
-
-    doc.text(
-      "Attendance",
-      14,
-      y
-    );
-
-    y += 5;
-
-    autoTable(doc, {
-      startY: y,
-
-      head: [[
-        "Present",
-        "Absent",
-        "Holiday",
-        "Working Days",
-        "Attendance %",
-      ]],
-
-      body: [[
-        attendance.present || 0,
-        attendance.absent || 0,
-        attendance.holiday || 0,
-        attendance.workingDays || 0,
-        `${attendance.percentage || 0}%`,
-      ]],
-
-      theme: "grid",
-
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-      },
-
-      bodyStyles: {
-        fontSize: 9,
-        halign: "center",
-      },
-
-      margin: {
-        left: 14,
-        right: 14,
-      },
-    });
-
-    y =
-      doc.lastAutoTable.finalY +
-      8;
-
-    doc.setFont(
-      "helvetica",
-      "normal"
-    );
-
-    doc.setFontSize(9);
-    doc.setTextColor(
-      50,
-      50,
-      50
-    );
-
-    doc.text(
-      `The student was present on ${
-        attendance.present || 0
-      } working days and absent on ${
-        attendance.absent || 0
-      } days. Attendance was ${
-        attendance.percentage || 0
-      }%.`,
-      14,
-      y,
-      {
-        maxWidth: 180,
-      }
-    );
-
-    y += 14;
-
-    /* MARKS */
-
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
-    doc.setFontSize(12);
-    doc.setTextColor(
-      26,
-      35,
-      126
-    );
-
-    doc.text(
-      "Marks / Test Performance",
-      14,
-      y
-    );
-
-    y += 5;
-
-    const markRows = marks.length
-      ? marks.map((m, i) => [
-          i + 1,
-          m.subject || "N/A",
-          m.total_marks ?? "-",
-          m.obtained_marks ?? "-",
-          formatDate(m.test_date),
-          m.status || "-",
-        ])
-      : [[
-          "-",
-          "No tests recorded",
-          "-",
-          "-",
-          "-",
-          "-",
-        ]];
-
-    autoTable(doc, {
-      startY: y,
-
-      head: [[
-        "S.No",
-        "Subject",
-        "Total",
-        "Obtained",
-        "Test Date",
-        "Status",
-      ]],
-
-      body: markRows,
-
-      theme: "grid",
-
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-      },
-
-      bodyStyles: {
-        fontSize: 8,
-      },
-
-      margin: {
-        left: 14,
-        right: 14,
-      },
-    });
-
-    y =
-      doc.lastAutoTable.finalY +
-      8;
-
-    doc.setFont(
-      "helvetica",
-      "normal"
-    );
-
-    doc.setFontSize(9);
-
-    doc.text(
-      marks.length
-        ? `${marks.length} test(s) were conducted during ${monthName}. Combined test score: ${analysis.marks}%.`
-        : `No tests were recorded during ${monthName}.`,
-      14,
-      y,
-      {
-        maxWidth: 180,
-      }
-    );
-
-    y += 14;
-
-    /* ASSIGNMENTS */
-
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
-    doc.setFontSize(12);
-    doc.setTextColor(
-      26,
-      35,
-      126
-    );
-
-    doc.text(
-      "Assignments",
-      14,
-      y
-    );
-
-    y += 6;
-
-    const assigned = Number(
-      assignmentSummary.assigned || 0
-    );
-
-    /*
-     * If assignments are zero:
-     * DO NOT create any assignment table.
-     */
-
-    if (assigned === 0) {
-      doc.setFont(
-        "helvetica",
-        "normal"
-      );
-
-      doc.setFontSize(10);
-      doc.setTextColor(
-        50,
-        50,
-        50
-      );
-
-      doc.text(
-        "No assignments were assigned by faculty.",
-        14,
-        y,
-        {
-          maxWidth: 180,
-        }
-      );
-
-      y += 12;
-    } else {
-      autoTable(doc, {
-        startY: y,
-
-        head: [[
-          "Assigned",
-          "Submitted",
-          "Pending",
-          "Completion %",
-        ]],
-
-        body: [[
-          assigned,
-          assignmentSummary.submitted || 0,
-          assignmentSummary.pending || 0,
-          `${analysis.assignments}%`,
-        ]],
-
-        theme: "grid",
-
-        headStyles: {
-          fillColor: [26, 35, 126],
-          textColor: [255, 255, 255],
-        },
-
-        bodyStyles: {
-          fontSize: 9,
-          halign: "center",
-        },
-
-        margin: {
-          left: 14,
-          right: 14,
-        },
-      });
-
-      y =
-        doc.lastAutoTable.finalY +
-        7;
-
-      const assignmentRows =
-        assignments.length
-          ? assignments.map((a, i) => [
-              i + 1,
-              a.subject || "N/A",
-              a.task_title || "N/A",
-              formatDate(a.deadline),
-              a.rating
-                ? `${a.rating}/5`
-                : "Not Done",
-              a.status || "-",
-            ])
-          : [[
-              "-",
-              "No assignment records",
-              "-",
-              "-",
-              "-",
-              "-",
-            ]];
-
-      autoTable(doc, {
-        startY: y,
-
-        head: [[
-          "S.No",
-          "Subject",
-          "Task",
-          "Deadline",
-          "Rating",
-          "Status",
-        ]],
-
-        body: assignmentRows,
-
-        theme: "grid",
-
-        headStyles: {
-          fillColor: [26, 35, 126],
-          textColor: [255, 255, 255],
-          fontSize: 7.5,
-        },
-
-        bodyStyles: {
-          fontSize: 7.5,
-        },
-
-        columnStyles: {
-          2: {
-            cellWidth: 55,
-          },
-        },
-
-        styles: {
-          overflow: "linebreak",
-        },
-
-        margin: {
-          left: 14,
-          right: 14,
-        },
-      });
-
-      y =
-        doc.lastAutoTable.finalY +
-        9;
-    }
-
-    /* REMARK */
-
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
+    student,
+    monthName
+  );
+
+  let y = 120;
+
+  /* ================= TITLE ================= */
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(17);
+  doc.setTextColor(26, 35, 126);
+
+  doc.text(
+    `${monthName} Monthly Report`,
+    14,
+    y
+  );
+
+  y += 7;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+
+  doc.text(
+    "Monthly Academic & Activity Performance",
+    14,
+    y
+  );
+
+  y += 12;
+
+  /* ================= ATTENDANCE ================= */
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(26, 35, 126);
+
+  doc.text("Attendance", 14, y);
+
+  y += 5;
+
+  autoTable(doc, {
+    startY: y,
+
+    head: [[
+      "Present",
+      "Absent",
+      "Holiday",
+      "Working Days",
+      "Attendance %",
+    ]],
+
+    body: [[
+      attendance.present || 0,
+      attendance.absent || 0,
+      attendance.holiday || 0,
+      attendance.workingDays || 0,
+      `${attendance.percentage || 0}%`,
+    ]],
+
+    theme: "grid",
+
+    headStyles: {
+      fillColor: [26, 35, 126],
+      textColor: [255, 255, 255],
+      fontSize: 8.5,
+    },
+
+    bodyStyles: {
+      fontSize: 9,
+      halign: "center",
+    },
+
+    margin: {
+      left: 14,
+      right: 14,
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 7;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(50, 50, 50);
+
+  doc.text(
+    `During ${monthName}, the student was present on ${
+      attendance.present || 0
+    } working days and absent on ${
+      attendance.absent || 0
+    } days. Total working days for this month were ${
+      attendance.workingDays || 0
+    }. Attendance was ${
+      attendance.percentage || 0
+    }%.`,
+    14,
+    y,
+    { maxWidth: 180 }
+  );
+
+  y += 14;
+
+  /* ================= MARKS ================= */
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(26, 35, 126);
+
+  doc.text(
+    "Marks / Test Performance",
+    14,
+    y
+  );
+
+  y += 5;
+
+  const markRows = marks.length
+    ? marks.map((m, i) => [
+        i + 1,
+        m.subject || "N/A",
+        m.total_marks ?? "-",
+        m.obtained_marks ?? "-",
+        formatDate(m.test_date),
+        m.status || "-",
+      ])
+    : [[
+        "-",
+        "No tests recorded",
+        "-",
+        "-",
+        "-",
+        "-",
+      ]];
+
+  autoTable(doc, {
+    startY: y,
+
+    head: [[
+      "S.No",
+      "Subject",
+      "Total",
+      "Obtained",
+      "Test Date",
+      "Status",
+    ]],
+
+    body: markRows,
+
+    theme: "grid",
+
+    headStyles: {
+      fillColor: [26, 35, 126],
+      textColor: [255, 255, 255],
+      fontSize: 8,
+    },
+
+    bodyStyles: {
+      fontSize: 8,
+    },
+
+    margin: {
+      left: 14,
+      right: 14,
+    },
+
+    styles: {
+      overflow: "linebreak",
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 7;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(50, 50, 50);
+
+  doc.text(
+    marks.length
+      ? `${marks.length} test(s) were conducted during ${monthName}. Combined test score: ${analysis.marks}%.`
+      : `No tests were recorded during ${monthName}.`,
+    14,
+    y,
+    { maxWidth: 180 }
+  );
+
+  y += 14;
+
+  /* ================= ASSIGNMENTS ================= */
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(26, 35, 126);
+
+  doc.text(
+    "Assignments",
+    14,
+    y
+  );
+
+  y += 6;
+
+  const assigned = Number(
+    assignmentSummary.assigned || 0
+  );
+
+  if (assigned === 0) {
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(
-      26,
-      35,
-      126
-    );
+    doc.setTextColor(50, 50, 50);
 
     doc.text(
-      "Overall Remark",
-      14,
-      y
-    );
-
-    y += 6;
-
-    doc.setFont(
-      "helvetica",
-      "normal"
-    );
-
-    doc.setFontSize(9);
-    doc.setTextColor(
-      50,
-      50,
-      50
-    );
-
-    doc.text(
-      getRemark(
-        analysis.attendance,
-        analysis.marks,
-        analysis.assignments
-      ),
+      "No assignments were assigned by faculty during this month.",
       14,
       y,
-      {
-        maxWidth: 180,
-      }
-    );
-  };
-
-  /* ================= GENERATE PDF ================= */
-
-  const generatePDF = async () => {
-    if (!reportData) return null;
-
-    const doc = new jsPDF(
-      "p",
-      "mm",
-      "a4"
+      { maxWidth: 180 }
     );
 
-    const student =
-      reportData.student || {};
-
-    const monthly =
-      reportData.monthly || [];
-
-    const firstMonth =
-      monthly[0]?.month ||
-      reportData.period?.from ||
-      singleMonth;
-
-    const lastMonth =
-      monthly[monthly.length - 1]?.month ||
-      reportData.period?.to ||
-      firstMonth;
-
-    const periodName =
-      firstMonth === lastMonth
-        ? formatMonth(firstMonth)
-        : `${formatMonth(firstMonth)} - ${formatMonth(
-            lastMonth
-          )}`;
-
-    /* ================= FIRST PAGE ================= */
-
-    drawPDFHeader(
-      doc,
-      student,
-      periodName
-    );
-
-    /* PROFILE PHOTO */
-
-    const photoUrl =
-      student.profile_photo ||
-      student.photo ||
-      activeStudent?.profile_photo ||
-      "";
-
-    if (photoUrl) {
-      const photo =
-        await getBase64ImageFromUrl(
-          photoUrl
-        );
-
-      if (photo) {
-        try {
-          doc.addImage(
-            photo,
-            "JPEG",
-            164,
-            5,
-            32,
-            32
-          );
-
-          doc.setDrawColor(
-            255,
-            255,
-            255
-          );
-
-          doc.rect(
-            164,
-            5,
-            32,
-            32
-          );
-        } catch (err) {
-          console.error(
-            "PDF photo error:",
-            err
-          );
-        }
-      }
-    }
-
-    let y = 88;
-
-    /* REPORT TITLE */
-
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
-    doc.setFontSize(17);
-    doc.setTextColor(
-      26,
-      35,
-      126
-    );
-
-    doc.text(
-      `${formatMonth(
-        firstMonth
-      )} Session Report of Student`,
-      14,
-      y
-    );
-
-    y += 13;
-
-    /* ================= ATTENDANCE ================= */
-
-    doc.setFontSize(12);
-
-    doc.text(
-      "Attendance",
-      14,
-      y
-    );
-
-    y += 5;
-
-    const overallAttendance =
-      reportData.overall?.attendance
-        ?.summary || {};
-
+    y += 12;
+  } else {
     autoTable(doc, {
       startY: y,
 
       head: [[
-        "Working Days",
-        "Present",
-        "Absent",
-        "Holiday",
-        "Attendance %",
+        "Assigned",
+        "Submitted",
+        "Pending",
+        "Completion %",
       ]],
 
       body: [[
-        overallAttendance.workingDays || 0,
-        overallAttendance.present || 0,
-        overallAttendance.absent || 0,
-        overallAttendance.holiday || 0,
-        `${
-          overallAttendance.percentage ||
-          0
-        }%`,
+        assigned,
+        assignmentSummary.submitted || 0,
+        assignmentSummary.pending || 0,
+        `${analysis.assignments}%`,
       ]],
 
       theme: "grid",
@@ -1211,44 +926,23 @@ const AdminReport = () => {
       },
     });
 
-    y =
-      doc.lastAutoTable.finalY +
-      12;
+    y = doc.lastAutoTable.finalY + 7;
 
-    /* ================= MARKS ================= */
-
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
-    doc.setFontSize(12);
-
-    doc.text(
-      "Marks",
-      14,
-      y
-    );
-
-    y += 5;
-
-    const overallMarks =
-      reportData.overall?.marks
-        ?.records || [];
-
-    const overallMarkRows =
-      overallMarks.length
-        ? overallMarks.map((m, i) => [
+    const assignmentRows =
+      assignments.length
+        ? assignments.map((a, i) => [
             i + 1,
-            m.subject || "N/A",
-            m.total_marks ?? "-",
-            m.obtained_marks ?? "-",
-            formatDate(m.test_date),
-            m.status || "-",
+            a.subject || "N/A",
+            a.task_title || "N/A",
+            formatDate(a.deadline),
+            a.rating
+              ? `${a.rating}/5`
+              : "Not Done",
+            a.status || "-",
           ])
         : [[
             "-",
-            "No tests recorded",
+            "No assignment records",
             "-",
             "-",
             "-",
@@ -1261,24 +955,34 @@ const AdminReport = () => {
       head: [[
         "S.No",
         "Subject",
-        "Total",
-        "Obtained",
-        "Date",
+        "Task",
+        "Deadline",
+        "Rating",
         "Status",
       ]],
 
-      body: overallMarkRows,
+      body: assignmentRows,
 
       theme: "grid",
 
       headStyles: {
         fillColor: [26, 35, 126],
         textColor: [255, 255, 255],
-        fontSize: 8,
+        fontSize: 7.5,
       },
 
       bodyStyles: {
-        fontSize: 8,
+        fontSize: 7.5,
+      },
+
+      columnStyles: {
+        2: {
+          cellWidth: 55,
+        },
+      },
+
+      styles: {
+        overflow: "linebreak",
       },
 
       margin: {
@@ -1287,192 +991,365 @@ const AdminReport = () => {
       },
     });
 
-    y =
-      doc.lastAutoTable.finalY +
-      12;
+    y = doc.lastAutoTable.finalY + 9;
+  }
 
-    /* ================= ASSIGNMENTS ================= */
+  /* ================= REMARK ================= */
 
-    doc.setFont(
-      "helvetica",
-      "bold"
+  if (y > 260) {
+    doc.addPage();
+
+    drawPDFHeader(
+      doc,
+      student,
+      monthName
     );
 
-    doc.setFontSize(12);
+    y = 120;
+  }
 
-    doc.text(
-      "Assignments",
-      14,
-      y
-    );
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(26, 35, 126);
 
-    y += 6;
+  doc.text(
+    "Overall Remark",
+    14,
+    y
+  );
 
-    const firstAssignments =
-      monthly.reduce(
-        (sum, m) =>
-          sum +
-          Number(
-            m.assignments?.summary
-              ?.assigned || 0
-          ),
-        0
-      );
+  y += 6;
 
-    if (firstAssignments === 0) {
-      doc.setFont(
-        "helvetica",
-        "normal"
-      );
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(50, 50, 50);
 
-      doc.setFontSize(10);
-
-      doc.text(
-        "No assignments were assigned by faculty.",
-        14,
-        y
-      );
-    } else {
-      doc.setFont(
-        "helvetica",
-        "normal"
-      );
-
-      doc.setFontSize(10);
-
-      doc.text(
-        "Assignments were assigned during the selected report period.",
-        14,
-        y
-      );
+  doc.text(
+    getRemark(
+      analysis.attendance,
+      analysis.marks,
+      analysis.assignments
+    ),
+    14,
+    y,
+    {
+      maxWidth: 180,
     }
+  );
+};
 
-    /* ================= MONTH PAGES ================= */
 
-    monthly.forEach(
-      (monthData) => {
-        addMonthToPDF(
-          doc,
-          monthData,
-          student
-        );
-      }
+/* =====================================================
+   GENERATE PDF
+   ===================================================== */
+
+const generatePDF = async () => {
+  if (!reportData) return null;
+
+  const doc = new jsPDF(
+    "p",
+    "mm",
+    "a4"
+  );
+
+  const student =
+    reportData.student || {};
+
+  const monthly =
+    Array.isArray(reportData.monthly)
+      ? reportData.monthly
+      : [];
+
+  if (!monthly.length) {
+    console.warn(
+      "No monthly report data found."
     );
 
-    drawPDFFooter(doc);
+    return null;
+  }
 
-    return doc;
-  };
+  /* ================= MONTHS ================= */
 
-  /* ================= NORMALIZE MOBILE ================= */
-  /* ================= NORMALIZE MOBILE ================= */
+  const firstMonth =
+    monthly[0]?.month ||
+    reportData.period?.from ||
+    singleMonth;
 
-  const getWhatsAppNumber = (student) => {
-    let number = String(student?.mobile || "").replace(/\D/g, "");
+  const lastMonth =
+    monthly[monthly.length - 1]?.month ||
+    reportData.period?.to ||
+    firstMonth;
 
-    if (number.length === 10) {
-      number = `91${number}`;
+  const periodName =
+    firstMonth === lastMonth
+      ? `${formatMonth(firstMonth)} Report`
+      : `${formatMonth(firstMonth)} - ${formatMonth(lastMonth)} Report`;
+
+  /* =================================================
+     PAGE 1
+     ONLY CENTER TEXT
+     NO OVERALL
+     NO STUDENT DETAILS
+     NO ATTENDANCE
+     NO MARKS
+     NO ASSIGNMENTS
+     ================================================= */
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(26, 35, 126);
+
+  doc.text(
+    periodName,
+    105,
+    145,
+    {
+      align: "center",
     }
+  );
 
-    return number;
-  };
+  /* Small subtitle */
 
-  /* ================= SHARE PDF ================= */
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139);
 
- const sharePDFReport = async () => {
+  doc.text(
+    "Smart Students Classes",
+    105,
+    155,
+    {
+      align: "center",
+    }
+  );
+
+  /* =================================================
+     MONTH-WISE PAGES
+     ================================================= */
+
+  monthly.forEach((monthData) => {
+    addMonthToPDF(
+      doc,
+      monthData,
+      student
+    );
+  });
+
+  /* ================= FOOTER ================= */
+
+  drawPDFFooter(doc);
+
+  return doc;
+};
+
+
+/* =====================================================
+   WHATSAPP NUMBER
+   ===================================================== */
+
+const getWhatsAppNumber = (student) => {
+  let number = String(
+    student?.mobile || ""
+  ).replace(/\D/g, "");
+
+  if (number.length === 10) {
+    number = `91${number}`;
+  }
+
+  return number;
+};
+
+
+/* =====================================================
+   SHARE PDF
+   ===================================================== */
+
+const sharePDFReport = async () => {
   if (!reportData) return;
 
-  const student = reportData.student || activeStudent || {};
-  const studentName = student.name || "Student";
-  const whatsapp = getWhatsAppNumber(student);
+  const student =
+    reportData.student ||
+    activeStudent ||
+    {};
+
+  const studentName =
+    student.name || "Student";
+
+  const whatsapp =
+    getWhatsAppNumber(student);
 
   if (!whatsapp) {
-    alert("Student WhatsApp number is not available.");
+    alert(
+      "Student WhatsApp number is not available."
+    );
     return;
   }
 
-  if (!window.confirm(
-    `Are you sure you want to share PDF report with ${studentName}?`
-  )) return;
+  if (
+    !window.confirm(
+      `Are you sure you want to share PDF report with ${studentName}?`
+    )
+  ) {
+    return;
+  }
 
   try {
     setPdfLoading(true);
 
-    const doc = await generatePDF();
+    const doc =
+      await generatePDF();
+
     if (!doc) return;
 
-    const blob = doc.output("blob");
+    const blob =
+      doc.output("blob");
 
-    const file = new File(
-      [blob],
-      `Smart_Students_Classes_Report_${studentName.replace(/\s+/g, "_")}.pdf`,
-      { type: "application/pdf" }
-    );
+    const file =
+      new File(
+        [blob],
+        `Smart_Students_Classes_Report_${studentName.replace(
+          /\s+/g,
+          "_"
+        )}.pdf`,
+        {
+          type: "application/pdf",
+        }
+      );
 
     if (
       navigator.share &&
       navigator.canShare &&
-      navigator.canShare({ files: [file] })
+      navigator.canShare({
+        files: [file],
+      })
     ) {
       await navigator.share({
-        title: `Smart Students Classes - ${studentName}`,
-        text: `Hello, please find the Smart Students Classes PDF report of ${studentName}.`,
+        title:
+          `Smart Students Classes - ${studentName}`,
+
+        text:
+          `Hello, please find the Smart Students Classes PDF report of ${studentName}.`,
+
         files: [file],
       });
     } else {
-      const url = `https://wa.me/${whatsapp}?text=${encodeURIComponent(
-        `Hello, please find the Smart Students Classes PDF report of ${studentName}.`
-      )}`;
+      const url =
+        `https://wa.me/${whatsapp}?text=${encodeURIComponent(
+          `Hello, please find the Smart Students Classes PDF report of ${studentName}.`
+        )}`;
 
-      window.open(url, "_blank");
-      alert("This browser cannot attach PDF directly. Use mobile Chrome/Edge with WhatsApp.");
+      window.open(
+        url,
+        "_blank"
+      );
+
+      alert(
+        "This browser cannot attach PDF directly. Use mobile Chrome/Edge with WhatsApp."
+      );
     }
   } catch (err) {
-    if (err?.name !== "AbortError") {
-      console.error("Share PDF Error:", err);
-      alert("Unable to share PDF report.");
+    if (
+      err?.name !== "AbortError"
+    ) {
+      console.error(
+        "Share PDF Error:",
+        err
+      );
+
+      alert(
+        "Unable to share PDF report."
+      );
     }
   } finally {
     setPdfLoading(false);
   }
 };
-  /* ================= DOWNLOAD PDF ================= */
 
-  const downloadPDF = async () => {
-    if (!reportData) return;
 
-    try {
-      setPdfLoading(true);
+/* =====================================================
+   DOWNLOAD PDF
+   ===================================================== */
 
-      const doc =
-        await generatePDF();
+const downloadPDF = async () => {
+  if (!reportData) return;
 
-      if (!doc) return;
+  try {
+    setPdfLoading(true);
 
-      const student =
-        reportData.student || {};
+    const doc =
+      await generatePDF();
 
-      const fileName =
-        `EduFlow_Report_${(
-          student.name ||
-          "Student"
-        ).replace(
-          /\s+/g,
-          "_"
-        )}.pdf`;
-
-      doc.save(fileName);
-    } catch (err) {
-      console.error(err);
-
+    if (!doc) {
       alert(
-        "Failed to export PDF."
+        "No monthly report data available."
       );
-    } finally {
-      setPdfLoading(false);
+      return;
     }
-  };
 
+    const student =
+      reportData.student || {};
+
+    const monthly =
+      Array.isArray(
+        reportData.monthly
+      )
+        ? reportData.monthly
+        : [];
+
+    const firstMonth =
+      monthly[0]?.month ||
+      reportData.period?.from ||
+      singleMonth;
+
+    const lastMonth =
+      monthly[monthly.length - 1]?.month ||
+      reportData.period?.to ||
+      firstMonth;
+
+    const firstMonthName =
+      formatMonth(firstMonth)
+        .replace(/\s+/g, "_");
+
+    const lastMonthName =
+      formatMonth(lastMonth)
+        .replace(/\s+/g, "_");
+
+    const studentName =
+      (
+        student.name ||
+        "Student"
+      ).replace(
+        /\s+/g,
+        "_"
+      );
+
+    let fileName;
+
+    if (
+      firstMonth === lastMonth
+    ) {
+      fileName =
+        `Smart_Students_Classes_${firstMonthName}_Report_${studentName}.pdf`;
+    } else {
+      fileName =
+        `Smart_Students_Classes_${firstMonthName}_to_${lastMonthName}_Report_${studentName}.pdf`;
+    }
+
+    doc.save(fileName);
+
+  } catch (err) {
+    console.error(
+      "PDF generation error:",
+      err
+    );
+
+    alert(
+      "Failed to export PDF."
+    );
+  } finally {
+    setPdfLoading(false);
+  }
+};
   /* ================= UI ================= */
 
   return (
@@ -1737,7 +1614,7 @@ const AdminReport = () => {
                     borderRadius:5,
                   }}
                 >
-                  EduFlow Management
+                  SmartZone Management
                 </span>
 
                 <h2

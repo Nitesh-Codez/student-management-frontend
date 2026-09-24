@@ -75,7 +75,6 @@ const AttemptQuizPage = () => {
         0%, 100% {
           transform: scale(1);
         }
-
         50% {
           transform: scale(1.04);
         }
@@ -85,7 +84,6 @@ const AttemptQuizPage = () => {
         0%, 100% {
           box-shadow: 0 0 0 rgba(99,102,241,0);
         }
-
         50% {
           box-shadow: 0 0 28px rgba(99,102,241,.22);
         }
@@ -96,20 +94,9 @@ const AttemptQuizPage = () => {
           opacity: 0;
           transform: translateY(12px);
         }
-
         to {
           opacity: 1;
           transform: translateY(0);
-        }
-      }
-
-      @keyframes shimmer {
-        0% {
-          background-position: -500px 0;
-        }
-
-        100% {
-          background-position: 500px 0;
         }
       }
 
@@ -152,7 +139,6 @@ const AttemptQuizPage = () => {
       }
 
       @media (max-width: 700px) {
-
         .desktop-hide {
           display: none !important;
         }
@@ -236,10 +222,7 @@ const AttemptQuizPage = () => {
     };
 
     Object.keys(fractions).forEach((f) => {
-      str = str.replace(
-        new RegExp(f, "g"),
-        fractions[f]
-      );
+      str = str.replace(new RegExp(f, "g"), fractions[f]);
     });
 
     str = str.replace(
@@ -270,16 +253,13 @@ const AttemptQuizPage = () => {
     };
 
     str = str.replace(
-      /\^(\((.*?)\)|[0-9nxy+-])/g,
+      /\^\((.*?)\)|\^([0-9nxy+-])/g,
       (match, p1, p2) => {
-        const content = p2 || p1;
+        const content = p1 || p2;
 
         return content
           .split("")
-          .map(
-            (char) =>
-              superscripts[char] || char
-          )
+          .map((char) => superscripts[char] || char)
           .join("");
       }
     );
@@ -295,46 +275,98 @@ const AttemptQuizPage = () => {
   };
 
   /* =========================================================
-     SUBMIT
+     GET STREAM + SESSION FROM LOCAL STORAGE
   ========================================================= */
 
-  const handleSubmit = useCallback(
-    async (finalAnswers = answers) => {
-      if (submitting) return;
+  const getLocalStudentData = () => {
+    let localUser = {};
 
-      setSubmitting(true);
+    try {
+      localUser = JSON.parse(
+        localStorage.getItem("user") || "{}"
+      );
+    } catch (error) {
+      console.error("User localStorage parse error:", error);
+    }
 
-      try {
-        const res = await api.post(
-          `/api/quiz/submit`,
-          {
-            student_id: studentId,
-            quiz_id: id,
-            answers: finalAnswers,
-          }
-        );
+    /*
+      Priority:
+      1. Dedicated localStorage keys
+      2. user object
+      3. empty string
+    */
 
-        localStorage.removeItem(TIMER_KEY);
-        localStorage.removeItem(ANSWERS_KEY);
+    const stream =
+      localStorage.getItem("stream") ||
+      localStorage.getItem("student_stream") ||
+      localUser?.stream ||
+      "";
 
-        setResult(res.data.data || res.data);
-      } catch (err) {
-        console.error(err);
-        alert("Error submitting quiz.");
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [
-      id,
-      studentId,
-      answers,
-      submitting,
-      TIMER_KEY,
-      ANSWERS_KEY,
-    ]
-  );
+    const session =
+      localStorage.getItem("session") ||
+      localStorage.getItem("student_session") ||
+      localUser?.session ||
+      "";
 
+    return {
+      stream,
+      session,
+    };
+  };
+
+  /* =========================================================
+     SUBMIT
+  ========================================================= */
+const handleSubmit = useCallback(
+  async (finalAnswers = answers) => {
+    if (submitting) return;
+
+    setSubmitting(true);
+
+    try {
+      // Always take stream & session from user object
+      const currentUser = JSON.parse(
+        localStorage.getItem("user") || "{}"
+      );
+
+      const stream = currentUser?.stream || "";
+      const session = currentUser?.session || "";
+
+      const res = await api.post(
+        "/api/quiz/submit",
+        {
+          student_id: studentId,
+          quiz_id: id,
+          answers: finalAnswers,
+          stream,
+          session,
+        }
+      );
+
+      localStorage.removeItem(TIMER_KEY);
+      localStorage.removeItem(ANSWERS_KEY);
+
+      setResult(res.data.data || res.data);
+    } catch (err) {
+      console.error(
+        "Quiz submission error:",
+        err?.response?.data || err
+      );
+
+      alert("Error submitting quiz.");
+    } finally {
+      setSubmitting(false);
+    }
+  },
+  [
+    id,
+    studentId,
+    answers,
+    submitting,
+    TIMER_KEY,
+    ANSWERS_KEY,
+  ]
+);
   /* =========================================================
      FETCH QUIZ
   ========================================================= */
@@ -344,9 +376,7 @@ const AttemptQuizPage = () => {
 
     const fetchQuiz = async () => {
       try {
-        const res = await api.get(
-          `/api/quiz/${id}`
-        );
+        const res = await api.get(`/api/quiz/${id}`);
 
         const quizData = res.data;
 
@@ -413,10 +443,7 @@ const AttemptQuizPage = () => {
   ========================================================= */
 
   useEffect(() => {
-    if (
-      timeLeft === null ||
-      result
-    ) {
+    if (timeLeft === null || result) {
       return;
     }
 
@@ -482,10 +509,7 @@ const AttemptQuizPage = () => {
   const formatTime = (seconds) => {
     if (seconds === null) return "--:--";
 
-    const mins = Math.floor(
-      seconds / 60
-    );
-
+    const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
 
     return `${mins}:${secs
@@ -494,7 +518,7 @@ const AttemptQuizPage = () => {
   };
 
   /* =========================================================
-     STATES
+     LOADING
   ========================================================= */
 
   if (!quiz) {
@@ -504,9 +528,7 @@ const AttemptQuizPage = () => {
           ⚡
         </div>
 
-        <div
-          style={styles.loadingSpinner}
-        />
+        <div style={styles.loadingSpinner} />
 
         <strong style={styles.loadingTitle}>
           Preparing your exam...
@@ -519,6 +541,10 @@ const AttemptQuizPage = () => {
     );
   }
 
+  /* =========================================================
+     RESULT
+  ========================================================= */
+
   if (result) {
     const percentage = Math.round(
       Number(result.percentage || 0)
@@ -526,7 +552,6 @@ const AttemptQuizPage = () => {
 
     return (
       <div style={styles.resultPage}>
-
         <motion.div
           initial={{
             opacity: 0,
@@ -543,7 +568,6 @@ const AttemptQuizPage = () => {
           }}
           style={styles.resultCard}
         >
-
           <div style={styles.resultTopGlow} />
 
           <div style={styles.resultIcon}>
@@ -575,11 +599,7 @@ const AttemptQuizPage = () => {
               )`,
             }}
           >
-            <div
-              style={
-                styles.resultCircleInner
-              }
-            >
+            <div style={styles.resultCircleInner}>
               <strong>
                 {percentage}%
               </strong>
@@ -591,9 +611,11 @@ const AttemptQuizPage = () => {
           </div>
 
           <div style={styles.resultStats}>
-
             <div style={styles.resultStat}>
-              <span>Correct Score</span>
+              <span>
+                Correct Score
+              </span>
+
               <strong>
                 {result.score || 0}
               </strong>
@@ -602,34 +624,36 @@ const AttemptQuizPage = () => {
             <div style={styles.resultDivider} />
 
             <div style={styles.resultStat}>
-              <span>Total Marks</span>
+              <span>
+                Total Marks
+              </span>
+
               <strong>
                 {quiz.total_marks || 0}
               </strong>
             </div>
-
           </div>
 
           <button
             className="action-button"
             onClick={() =>
-              navigate(
-                "/student/dashboard"
-              )
+              navigate("student/quiz-dashboard")
             }
             style={styles.dashboardButton}
           >
             Back to Dashboard
             <span>→</span>
           </button>
-
         </motion.div>
       </div>
     );
   }
 
-  const totalQuestions =
-    questions.length;
+  /* =========================================================
+     QUIZ DATA
+  ========================================================= */
+
+  const totalQuestions = questions.length;
 
   const attemptedCount =
     answers.filter(
@@ -638,14 +662,11 @@ const AttemptQuizPage = () => {
 
   const progress =
     totalQuestions > 0
-      ? (attemptedCount /
-          totalQuestions) *
-        100
+      ? (attemptedCount / totalQuestions) * 100
       : 0;
 
   const isLastQuestion =
-    currentIdx ===
-    totalQuestions - 1;
+    currentIdx === totalQuestions - 1;
 
   const isFirstQuestion =
     currentIdx === 0;
@@ -675,13 +696,11 @@ const AttemptQuizPage = () => {
           className="exam-info"
           style={styles.headerInner}
         >
-
           <div style={styles.examTitleArea}>
 
             <div style={styles.examBrand}>
-              <div
-                style={styles.brandIcon}
-              >
+
+              <div style={styles.brandIcon}>
                 ⚡
               </div>
 
@@ -699,6 +718,7 @@ const AttemptQuizPage = () => {
                   {totalQuestions} Questions
                 </div>
               </div>
+
             </div>
 
           </div>
@@ -724,17 +744,20 @@ const AttemptQuizPage = () => {
             className="timer-box"
             style={{
               ...styles.timer,
+
               color: timerDanger
                 ? "#f87171"
                 : timerWarning
                 ? "#fbbf24"
                 : "#67e8f9",
+
               borderColor:
                 timerDanger
                   ? "rgba(248,113,113,.4)"
                   : timerWarning
                   ? "rgba(251,191,36,.35)"
                   : "rgba(103,232,249,.2)",
+
               background:
                 timerDanger
                   ? "rgba(127,29,29,.25)"
@@ -772,62 +795,56 @@ const AttemptQuizPage = () => {
           className="quiz-scroll"
           style={styles.questionNavScroll}
         >
-
           <div style={styles.questionNav}>
 
-            {questions.map(
-              (_, index) => {
+            {questions.map((_, index) => {
+              const isCurrent =
+                currentIdx === index;
 
-                const isCurrent =
-                  currentIdx === index;
+              const isAttempted =
+                answers[index] !== null;
 
-                const isAttempted =
-                  answers[index] !==
-                  null;
+              return (
+                <motion.button
+                  key={index}
+                  whileTap={{
+                    scale: 0.9,
+                  }}
+                  className="nav-question"
+                  onClick={() =>
+                    setCurrentIdx(index)
+                  }
+                  style={{
+                    ...styles.questionNumber,
 
-                return (
-                  <motion.button
-                    key={index}
-                    whileTap={{
-                      scale: 0.9,
-                    }}
-                    className="nav-question"
-                    onClick={() =>
-                      setCurrentIdx(
-                        index
-                      )
-                    }
-                    style={{
-                      ...styles.questionNumber,
-                      background:
-                        isCurrent
-                          ? "#22d3ee"
-                          : isAttempted
-                          ? "#f8fafc"
-                          : "rgba(255,255,255,.07)",
-                      color:
-                        isCurrent ||
-                        isAttempted
-                          ? "#0f172a"
-                          : "#cbd5e1",
-                      borderColor:
-                        isCurrent
-                          ? "#a5f3fc"
-                          : isAttempted
-                          ? "#f8fafc"
-                          : "rgba(255,255,255,.1)",
-                    }}
-                  >
-                    {index + 1}
-                  </motion.button>
-                );
-              }
-            )}
+                    background:
+                      isCurrent
+                        ? "#22d3ee"
+                        : isAttempted
+                        ? "#f8fafc"
+                        : "rgba(255,255,255,.07)",
+
+                    color:
+                      isCurrent ||
+                      isAttempted
+                        ? "#0f172a"
+                        : "#cbd5e1",
+
+                    borderColor:
+                      isCurrent
+                        ? "#a5f3fc"
+                        : isAttempted
+                        ? "#f8fafc"
+                        : "rgba(255,255,255,.1)",
+                  }}
+                >
+                  {index + 1}
+                </motion.button>
+              );
+            })}
 
           </div>
-
         </div>
-
       </header>
 
       {/* =====================================================
@@ -838,7 +855,6 @@ const AttemptQuizPage = () => {
         className="question-area"
         style={styles.questionArea}
       >
-
         <div style={styles.questionContainer}>
 
           <AnimatePresence mode="wait">
@@ -867,11 +883,7 @@ const AttemptQuizPage = () => {
 
               <div style={styles.questionHeader}>
 
-                <div
-                  style={
-                    styles.questionBadge
-                  }
-                >
+                <div style={styles.questionBadge}>
                   QUESTION{" "}
                   {currentIdx + 1}
                 </div>
@@ -900,17 +912,14 @@ const AttemptQuizPage = () => {
 
               {/* OPTIONS */}
 
-              <div
-                style={styles.options}
-              >
+              <div style={styles.options}>
 
                 {currentQuestion?.options?.map(
                   (option, index) => {
 
                     const selected =
-                      answers[
-                        currentIdx
-                      ] === option;
+                      answers[currentIdx] ===
+                      option;
 
                     const letters = [
                       "A",
@@ -934,14 +943,17 @@ const AttemptQuizPage = () => {
                         className="option-card"
                         style={{
                           ...styles.option,
+
                           background:
                             selected
                               ? "linear-gradient(135deg,#ecfeff,#cffafe)"
                               : "#ffffff",
+
                           borderColor:
                             selected
                               ? "#22d3ee"
                               : "#e2e8f0",
+
                           boxShadow:
                             selected
                               ? "0 10px 30px rgba(6,182,212,.12)"
@@ -952,10 +964,12 @@ const AttemptQuizPage = () => {
                         <div
                           style={{
                             ...styles.optionLetter,
+
                             background:
                               selected
                                 ? "#0f172a"
                                 : "#f1f5f9",
+
                             color:
                               selected
                                 ? "#fff"
@@ -970,28 +984,30 @@ const AttemptQuizPage = () => {
                           className="quiz-option-text"
                           style={{
                             ...styles.optionText,
+
                             color:
                               selected
                                 ? "#0f172a"
                                 : "#334155",
+
                             fontWeight:
                               selected
                                 ? 750
                                 : 550,
                           }}
                         >
-                          {formatMath(
-                            option
-                          )}
+                          {formatMath(option)}
                         </span>
 
                         <div
                           style={{
                             ...styles.optionCheck,
+
                             borderColor:
                               selected
                                 ? "#0891b2"
                                 : "#cbd5e1",
+
                             background:
                               selected
                                 ? "#0891b2"
@@ -1027,7 +1043,6 @@ const AttemptQuizPage = () => {
           </AnimatePresence>
 
         </div>
-
       </main>
 
       {/* =====================================================
@@ -1038,7 +1053,6 @@ const AttemptQuizPage = () => {
         className="bottom-actions"
         style={styles.bottomBar}
       >
-
         <div style={styles.bottomInner}>
 
           <button
@@ -1058,10 +1072,12 @@ const AttemptQuizPage = () => {
             }}
             style={{
               ...styles.previousButton,
+
               opacity:
                 isFirstQuestion
                   ? 0.35
                   : 1,
+
               cursor:
                 isFirstQuestion
                   ? "not-allowed"
@@ -1074,20 +1090,18 @@ const AttemptQuizPage = () => {
 
           <div
             className="desktop-hide"
-            style={
-              styles.bottomProgress
-            }
+            style={styles.bottomProgress}
           >
             <strong>
               {currentIdx + 1}
             </strong>
+
             <span>
               / {totalQuestions}
             </span>
           </div>
 
           {isLastQuestion ? (
-
             <button
               disabled={submitting}
               className="action-button"
@@ -1096,6 +1110,7 @@ const AttemptQuizPage = () => {
               }
               style={{
                 ...styles.finishButton,
+
                 opacity: submitting
                   ? 0.7
                   : 1,
@@ -1105,9 +1120,7 @@ const AttemptQuizPage = () => {
                 ? "Submitting..."
                 : "Finish Quiz ✓"}
             </button>
-
           ) : (
-
             <button
               className="action-button"
               onClick={() => {
@@ -1125,11 +1138,9 @@ const AttemptQuizPage = () => {
               Next
               <span>→</span>
             </button>
-
           )}
 
         </div>
-
       </footer>
 
     </div>
@@ -1281,8 +1292,7 @@ const styles = {
 
   questionArea: {
     width: "100%",
-    padding:
-      "32px 20px 40px",
+    padding: "32px 20px 40px",
   },
 
   questionContainer: {
@@ -1407,8 +1417,7 @@ const styles = {
 
   previousButton: {
     minWidth: "120px",
-    border:
-      "1px solid #cbd5e1",
+    border: "1px solid #cbd5e1",
     background: "#fff",
     color: "#334155",
     padding: "11px 15px",
@@ -1489,8 +1498,7 @@ const styles = {
     width: "28px",
     height: "28px",
     borderRadius: "50%",
-    border:
-      "3px solid #e2e8f0",
+    border: "3px solid #e2e8f0",
     borderTopColor: "#4f46e5",
     animation:
       "spin .8s linear infinite",
@@ -1563,8 +1571,7 @@ const styles = {
 
   resultTitle: {
     color: "#fff",
-    margin:
-      "7px 0 5px",
+    margin: "7px 0 5px",
     fontSize: "27px",
     fontWeight: 900,
   },
@@ -1589,7 +1596,7 @@ const styles = {
     width: "126px",
     height: "126px",
     borderRadius: "50%",
-    background: "#0f172a",
+    background: "#dffff7",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -1600,13 +1607,12 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding:
-      "15px 20px",
+    padding: "15px 20px",
     borderRadius: "13px",
     background:
-      "rgba(255,255,255,.04)",
+      "rgb(255, 244, 244)",
     border:
-      "1px solid rgba(255,255,255,.07)",
+      "1px solid rgb(236, 226, 226)",
   },
 
   resultStat: {
@@ -1620,7 +1626,7 @@ const styles = {
     width: "1px",
     height: "35px",
     background:
-      "rgba(255,255,255,.12)",
+      "rgb(164, 213, 94)",
   },
 
   dashboardButton: {
@@ -1643,3 +1649,4 @@ const styles = {
 };
 
 export default AttemptQuizPage;
+

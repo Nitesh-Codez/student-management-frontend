@@ -283,7 +283,8 @@ const StudentMarks = () => {
           m.subject === subject &&
           new Date(m.test_date).toLocaleDateString() === date
       );
-      return mark
+      // Skip 0 or 1 marks from plotting line chart if they represent absent/not given, or handle as needed
+      return mark && Number(mark.obtained_marks) > 1
         ? +((mark.obtained_marks / mark.total_marks) * 100).toFixed(1)
         : null;
     }),
@@ -343,7 +344,6 @@ const StudentMarks = () => {
     return "Requires Immediate Focus. Work immediately.";
   };
 
-  // Helper function to calculate remark specific to an individual subject mark percentage
   const getSubjectSpecificRemark = (p) => {
     if (p >= 95) return "🏆 Outstanding! Masterpiece performance!";
     if (p >= 90) return "🌟 Excellent! Phenomenal execution!";
@@ -403,7 +403,6 @@ const StudentMarks = () => {
 
   return (
     <div style={styles.container}>
-      {/* TRIGGER POPUP UPON BACKGROUND SYNC DETECTING NEW SCORES */}
       <AnimatePresence>
         {showPrePopup && (
           <motion.div 
@@ -424,18 +423,22 @@ const StudentMarks = () => {
               </p>
 
               {lastUploadedSubjectDetail && (() => {
-                const subPct = ((lastUploadedSubjectDetail.obtained_marks / lastUploadedSubjectDetail.total_marks) * 100).toFixed(1);
+                const obt = Number(lastUploadedSubjectDetail.obtained_marks);
+                const tot = Number(lastUploadedSubjectDetail.total_marks);
+                const subPct = obt > 1 ? ((obt / tot) * 100).toFixed(1) : 0;
                 return (
                   <div style={{ background: "#f1f6fa", padding: "12px", borderRadius: "12px", marginBottom: "15px", border: "1px dashed #2b5876" }}>
                     <div style={{ fontSize: "16px", fontWeight: "bold", color: "#2b5876" }}>
                       📚 {lastUploadedSubjectDetail.subject}
                     </div>
                     <div style={{ fontSize: "18px", fontWeight: "900", color: "#D4AF37", margin: "4px 0" }}>
-                      Marks: {lastUploadedSubjectDetail.obtained_marks} / {lastUploadedSubjectDetail.total_marks} ({subPct}%)
+                      {obt === 0 ? "Absent" : obt === 1 ? "Not given" : `Marks: ${obt} / ${tot} (${subPct}%)`}
                     </div>
-                    <div style={{ fontSize: "13px", fontWeight: "bold", color: "#27ae60", marginTop: "6px" }}>
-                      {getSubjectSpecificRemark(subPct)}
-                    </div>
+                    {obt > 1 && (
+                      <div style={{ fontSize: "13px", fontWeight: "bold", color: "#27ae60", marginTop: "6px" }}>
+                        {getSubjectSpecificRemark(subPct)}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -472,18 +475,22 @@ const StudentMarks = () => {
               <p style={{ margin: "15px 0", fontSize: "16px", lineHeight: "1.5", color: "#333" }}>{performanceMsg}</p>
 
               {lastUploadedSubjectDetail && (() => {
-                const subPct = ((lastUploadedSubjectDetail.obtained_marks / lastUploadedSubjectDetail.total_marks) * 100).toFixed(1);
+                const obt = Number(lastUploadedSubjectDetail.obtained_marks);
+                const tot = Number(lastUploadedSubjectDetail.total_marks);
+                const subPct = obt > 1 ? ((obt / tot) * 100).toFixed(1) : 0;
                 return (
                   <div style={{ background: "#f8f9fa", padding: "12px", borderRadius: "12px", marginBottom: "20px", border: "1px solid #dcdde1" }}>
                     <div style={{ fontSize: "15px", fontWeight: "bold", color: "#2f3640" }}>
                       📖 Latest Subject: <span style={{ color: "#2b5876" }}>{lastUploadedSubjectDetail.subject}</span>
                     </div>
                     <div style={{ fontSize: "17px", fontWeight: "900", color: "#e67e22", margin: "4px 0" }}>
-                      Score: {lastUploadedSubjectDetail.obtained_marks} / {lastUploadedSubjectDetail.total_marks} ({subPct}%)
+                      {obt === 0 ? "Absent" : obt === 1 ? "Not given" : `Score: ${obt} / ${tot} (${subPct}%)`}
                     </div>
-                    <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2980b9", marginTop: "5px" }}>
-                      {getSubjectSpecificRemark(subPct)}
-                    </div>
+                    {obt > 1 && (
+                      <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2980b9", marginTop: "5px" }}>
+                        {getSubjectSpecificRemark(subPct)}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -509,7 +516,6 @@ const StudentMarks = () => {
         </p>
       </div>
 
-      {/* RECENT MARKS RECORD TRACKING COMPONENT (ALWAYS PERSISTENT ON TOP) */}
       {latestCheckedMarks.length > 0 && (
         <motion.div 
           initial={{ x: -50, opacity: 0 }} 
@@ -525,8 +531,9 @@ const StudentMarks = () => {
                 .filter((old) => old.subject === m.subject && old.id !== m.id)
                 .sort((a, b) => new Date(b.test_date) - new Date(a.test_date))[0];
 
-              let currentPct = (m.obtained_marks / m.total_marks) * 100;
-              let prevPct = prevMarks ? (prevMarks.obtained_marks / prevMarks.total_marks) * 100 : null;
+              const obt = Number(m.obtained_marks);
+              let currentPct = obt > 1 ? (obt / m.total_marks) * 100 : 0;
+              let prevPct = prevMarks && Number(prevMarks.obtained_marks) > 1 ? (prevMarks.obtained_marks / prevMarks.total_marks) * 100 : null;
               let formattedTestDate = new Date(m.test_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 
               return (
@@ -536,11 +543,11 @@ const StudentMarks = () => {
                   style={styles.latestBadge}
                 >
                   <div style={{ fontWeight: "bold", fontSize: '13px' }}>
-                    {m.subject}: {m.obtained_marks}/{m.total_marks} 
+                    {m.subject}: {obt === 0 ? "Absent" : obt === 1 ? "Not given" : `${obt}/${m.total_marks}`} 
                     <span style={{ fontSize: '10px', marginLeft: '8px', opacity: 0.8, fontWeight: 'normal' }}>({formattedTestDate})</span>
                   </div>
                   <div style={{ fontSize: "11px", marginTop: "4px", color: "rgba(255,255,255,0.9)", fontWeight: 'normal' }}>
-                    {prevPct !== null ? (
+                    {obt === 0 ? "⚠️ Marked Absent" : obt === 1 ? "⚠️ Not Given" : prevPct !== null ? (
                       currentPct > prevPct ? "↑ Improved Score" :
                       currentPct < prevPct ? "↓ Target Area" :
                       "→ Maintained Line"
@@ -682,18 +689,36 @@ const StudentMarks = () => {
             </thead>
             <tbody>
               {grouped[subject].map((m) => {
-                const p = ((m.obtained_marks / m.total_marks) * 100).toFixed(1);
+                const obt = Number(m.obtained_marks);
+                const isAbsent = obt === 0;
+                const isNotGiven = obt === 1;
+                
+                const p = (!isAbsent && !isNotGiven) ? ((obt / m.total_marks) * 100).toFixed(1) : 0;
                 const isPass = parseFloat(p) >= 33;
+
+                // Row background style based on condition
+                let rowBgColor = "transparent";
+                if (isAbsent) rowBgColor = "#cecde4"; // soft red highlight for absent
+                else if (isNotGiven) rowBgColor = "#ffeeb6"; // soft yellow highlight for not given
+
                 return (
-                  <tr key={m.id} style={{ borderBottom: "1px solid #f1f2f6" }}>
+                  <tr key={m.id} style={{ borderBottom: "1px solid #f1f2f6", backgroundColor: rowBgColor }}>
                     <td style={{ padding: "12px", fontSize: "14px" }}>{new Date(m.test_date).toLocaleDateString()}</td>
                     <td style={{ padding: "12px", fontSize: "14px" }}>{m.total_marks}</td>
-                    <td style={{ padding: "12px", fontSize: "14px" }}>{m.obtained_marks}</td>
-                    <td style={{ padding: "12px", fontSize: "14px", fontWeight: "bold", color: "#2b5876" }}>{p}%</td>
+                    
+                    {/* Obtained marks column modification */}
+                    <td style={{ padding: "12px", fontSize: "14px", fontWeight: isAbsent || isNotGiven ? "bold" : "normal", color: isAbsent ? "#c62828" : isNotGiven ? "#f57f17" : "inherit" }}>
+                      {isAbsent ? "Absent" : isNotGiven ? "Not given" : obt}
+                    </td>
+
+                    <td style={{ padding: "12px", fontSize: "14px", fontWeight: "bold", color: "#2b5876" }}>
+                      {isAbsent || isNotGiven ? "-" : `${p}%`}
+                    </td>
+
                     <td style={{ padding: "12px" }}>
-                        <span style={{ padding: "5px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "900", color: "#fff", background: isPass ? "#2ECC71" : "#E74C3C" }}>
-                            {isPass ? "PASS" : "FAIL"}
-                        </span>
+                      <span style={{ padding: "5px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "900", color: "#fff", background: isAbsent ? "#923074" : isNotGiven ? "#f39c12" : isPass ? "#2ECC71" : "#E74C3C" }}>
+                        {isAbsent ? "ABSENT" : isNotGiven ? "NOT GIVEN" : isPass ? "PASS" : "FAIL"}
+                      </span>
                     </td>
                   </tr>
                 );
