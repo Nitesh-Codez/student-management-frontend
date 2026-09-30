@@ -29,6 +29,7 @@ export default function StudentPage() {
   const studentClass = String(user.class || "").trim();
   const studentId = user.id || "";
   const studentStream = String(user.stream || "").toLowerCase();
+  const studentJoiningDate = user.joining_date ? new Date(user.joining_date) : null;
 
   /**
    * EFFECT: LIVE CLOCK
@@ -80,9 +81,19 @@ export default function StudentPage() {
   };
 
   /**
-   * STRICT STREAM FILTERING FOR CLASS 12
+   * STRICT DEADLINE & STREAM FILTERING
    */
-  const filterTaskByStream = (task) => {
+  const filterTask = (task) => {
+    // 1. Joining Date Validation based on Deadline
+    if (studentJoiningDate && task.deadline) {
+      const deadlineDate = new Date(task.deadline);
+      // Agar task ki deadline joining date se pehle ki hai, toh hide kar do
+      if (deadlineDate < studentJoiningDate) {
+        return false;
+      }
+    }
+
+    // 2. Stream Filtering for Class 12
     if (studentClass !== "12" && studentClass !== "12th") {
       return true;
     }
@@ -99,7 +110,7 @@ export default function StudentPage() {
     return isMatched;
   };
 
-  const processedTasks = tasks.filter(filterTaskByStream);
+  const processedTasks = tasks.filter(filterTask);
 
   const pendingTasks = processedTasks.filter((t) => t.status !== "SUBMITTED");
   const completedTasksList = processedTasks.filter((t) => t.status === "SUBMITTED");

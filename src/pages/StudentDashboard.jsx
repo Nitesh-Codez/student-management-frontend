@@ -234,6 +234,9 @@ percentage: 0,
 today: "Not Marked",
 records:[]
 });
+const [showSubjectAttendance, setShowSubjectAttendance] = useState(false);
+const [subjectAttendance, setSubjectAttendance] = useState([]);
+const [subjectLoading, setSubjectLoading] = useState(false);
 
 const getPollColor = (classDate) => {
 
@@ -306,6 +309,19 @@ const fetchAttendance = useCallback(async () => {
         today: todayRec ? todayRec.status : "Not Marked",
         records: monthData
       });
+      // Subject-wise attendance fetch
+try {
+  const subjectRes = await api.get(
+    `/api/attendance/subject-wise/${user.id}`
+  );
+
+  if (subjectRes.data.success) {
+    setSubjectAttendance(subjectRes.data.subjects || []);
+  }
+} catch (err) {
+  console.log("Subject attendance error:", err);
+  setSubjectAttendance([]);
+}
     }
   } catch (err) {
     console.log("Fetch error:", err);
@@ -452,52 +468,227 @@ useEffect(() => {
                 <FaChevronRight style={{opacity: 0.5}} />
             </div>
             <div style={cardBottomBody}>
+{c.title === "Attendance" && (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      marginBottom: "10px",
+      position: "relative"
+    }}
+  >
 
- {c.title === "Attendance" && (
-  <div style={{
-    display:'flex',
-    alignItems:'center',
-    
-    gap:'12px',
-    marginBottom:'10px'
-  }}>
-
-    <div style={{
-      width:'105px',
-      height:'105px',
-      borderRadius:'50%',
-      background:`conic-gradient(${attendanceStats.percentage >= 85 ? "#15ae4d" : attendanceStats.percentage >= 75 ? "#facc15" : "#ef4444"} ${attendanceStats.percentage * 3.6}deg,#ffffff33 0deg)`,
-      display:'flex',
-      border:'1px solid white',
-      alignItems:'center',
-      justifyContent:'center'
-    }}>
-
-      <div style={{
-        width:'60px',
-        height:'60px',
-        borderRadius:'50%',
-        background:'rgba(0,0,0,0.35)',
-        display:'flex',
-        alignItems:'center',
-        justifyContent:'center',
-        border:'1px solid white',
-        fontSize:'11px',
-        fontWeight:'bold'
-      }}>
+    {/* ATTENDANCE CIRCLE */}
+    <div
+      onClick={(e) => {
+        e.stopPropagation();
+        setShowSubjectAttendance(true);
+      }}
+      style={{
+        width: "105px",
+        height: "105px",
+        borderRadius: "50%",
+        background: `conic-gradient(
+          ${
+            attendanceStats.percentage >= 85
+              ? "#15ae4d"
+              : attendanceStats.percentage >= 75
+              ? "#facc15"
+              : "#ef4444"
+          }
+          ${attendanceStats.percentage * 3.6}deg,
+          #ffffff33 0deg
+        )`,
+        display: "flex",
+        border: "1px solid white",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer"
+      }}
+    >
+      <div
+        style={{
+          width: "60px",
+          height: "60px",
+          borderRadius: "50%",
+          background: "rgba(0,0,0,0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: "1px solid white",
+          fontSize: "11px",
+          fontWeight: "bold"
+        }}
+      >
         {attendanceStats.percentage}%
       </div>
-
     </div>
 
-    <div style={{fontSize:'15px'}}>
-      <b>{attendanceStats.present}/{attendanceStats.total}</b>
-      
+    {/* PRESENT / TOTAL */}
+    <div style={{ fontSize: "15px" }}>
+      <b>
+        {attendanceStats.present}/{attendanceStats.total}
+      </b>
     </div>
+
+    {/* SUBJECT LIST POPUP */}
+    {showSubjectAttendance && (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "absolute",
+          left: "0",
+          top: "115px",
+          width: "min(330px, calc(100vw - 60px))",
+          background: "rgba(15, 23, 42, 0.97)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          borderRadius: "14px",
+          padding: "14px",
+          zIndex: 1000,
+          boxShadow: "0 15px 35px rgba(0,0,0,0.35)"
+        }}
+      >
+
+        {/* HEADER */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "12px"
+          }}
+        >
+          <span
+            style={{
+              fontSize: "14px",
+              fontWeight: "800",
+              color: "#fff"
+            }}
+          >
+            Subject Attendance
+          </span>
+
+          {/* CROSS */}
+          <button
+            onClick={() => setShowSubjectAttendance(false)}
+            style={{
+              width: "25px",
+              height: "25px",
+              borderRadius: "50%",
+              border: "none",
+              background: "#ef4444",
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* LOADING */}
+        {subjectLoading ? (
+          <div
+            style={{
+              color: "#fff",
+              textAlign: "center",
+              padding: "15px",
+              fontSize: "12px"
+            }}
+          >
+            Loading...
+          </div>
+        ) : subjectAttendance.length === 0 ? (
+          
+          /* NO DATA */
+          <div
+            style={{
+              color: "#cbd5e1",
+              textAlign: "center",
+              padding: "15px",
+              fontSize: "12px"
+            }}
+          >
+            No subject attendance found
+          </div>
+
+        ) : (
+
+          /* SUBJECT LIST */
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "7px",
+              maxHeight: "250px",
+              overflowY: "auto"
+            }}
+          >
+            {subjectAttendance.map((subject, index) => (
+              <div
+                key={index}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "9px 10px",
+                  background: "rgba(255,255,255,0.08)",
+                  borderRadius: "8px"
+                }}
+              >
+
+                {/* SUBJECT */}
+                <span
+                  style={{
+                    color: "#fff",
+                    fontSize: "12px",
+                    fontWeight: "700"
+                  }}
+                >
+                  {subject.subjectCode}
+                </span>
+
+                {/* COUNT */}
+                <span
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "11px"
+                  }}
+                >
+                  {subject.present}/{subject.total}
+                </span>
+
+                {/* PERCENTAGE */}
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    color:
+                      subject.percentage >= 85
+                        ? "#22c55e"
+                        : subject.percentage >= 75
+                        ? "#facc15"
+                        : "#ef4444"
+                  }}
+                >
+                  {subject.percentage}%
+                </span>
+
+              </div>
+            ))}
+          </div>
+        )}
+
+      </div>
+    )}
 
   </div>
 )}
-
 
   <h3 style={cardMainTitle}>{c.title}</h3>
 
@@ -864,12 +1055,35 @@ const StudentDashboard = () => {
           setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
         }
 
-       const taskRes = await api.get(
+        //=========================================
+        //TASK PORTION START HERE
+        //======================================================
+
+const taskRes = await api.get(
   `/api/assignments/class/${storedUser.class}/${storedUser.id}`
 );
 
 if (taskRes.data.success) {
-  const allAssignments = taskRes.data.assignments || [];
+  let allAssignments = taskRes.data.assignments || [];
+
+  // 🔍 Extract joining date from storedUser
+  const rawJoiningDate = storedUser.joining_date || storedUser.admission_date || storedUser.joined_date || null;
+  const joiningDate = rawJoiningDate ? new Date(rawJoiningDate) : null;
+
+  // 🛡️ Filter assignments based on joining date & DEADLINE
+  // Agar joining date hai, toh wahi task allow honge jinki deadline joining date ke baad ki hai
+  if (joiningDate && !isNaN(joiningDate.getTime())) {
+    allAssignments = allAssignments.filter(t => {
+      // Yaha 'deadline' ya 'due_date' ko primary rakha hai. 
+      // Agar deadline key backend se kuch aur aati hai (jaise 'end_date'), toh use add kar lena.
+      const taskDeadlineStr = t.deadline || t.due_date || t.date || t.created_at; 
+      
+      if (!taskDeadlineStr) return true; // Agar deadline/date completely missing hai toh fallback pass kardo
+      
+      // Check: Deadline joining date ke baad (ya uske barabar) honi chahiye
+      return new Date(taskDeadlineStr) >= joiningDate;
+    });
+  }
   
   // Stream-based filtering for 11th/12th students
   const userClass = String(storedUser.student_class || storedUser.class || '').toLowerCase();
@@ -905,103 +1119,132 @@ if (taskRes.data.success) {
   }
 }
 
+
+//==============================================
+//TASK PART DONE
+//==============================================
+
    /* =========================
-    🔥 FINAL SMART FEE LOGIC (SYNCED WITH BACKEND)
+    🔥 FINAL SMART FEE LOGIC (SYNCED WITH BACKEND + JOINING DATE)
 ========================= */
 
-    try {
-     const studentId = storedUser.id;
-      
-      // Retrieve session dynamically from localStorage (fallback to "2026-27" if not found)
-      const currentSession = localStorage.getItem("session") || "2026-27";
-      const feeRes = await api.get(`/api/fees/${studentId}`, {
-        params: { session: currentSession }
+try {
+  const studentId = storedUser.id;
+  
+  // Retrieve session dynamically from localStorage (fallback to "2026-27" if not found)
+  const currentSession = localStorage.getItem("session") || "2026-27";
+  const feeRes = await api.get(`/api/fees/${studentId}`, {
+    params: { session: currentSession }
+  });
+
+  // Initial State Reset
+  setIsFeeUnpaid(false);
+  setShowFeePopup(false);
+
+  if (feeRes.data.success) {
+    let feesData = feeRes.data.fees || feeRes.data.records || [];
+    
+    // 🔍 Extract joining date from storedUser or student profile object
+    const rawJoiningDate = storedUser.joining_date || storedUser.admission_date || storedUser.joined_date || null;
+    let joiningDate = rawJoiningDate ? new Date(rawJoiningDate) : null;
+
+    // 🛡️ Filter fees based on joining date if present
+    if (joiningDate && !isNaN(joiningDate.getTime())) {
+      feesData = feesData.filter(f => {
+        const recordDateStr = f.date || f.created_at || f.payment_date;
+        if (!recordDateStr) return true;
+        return new Date(recordDateStr) >= joiningDate;
       });
+    }
 
-      // Initial State Reset
-      setIsFeeUnpaid(false);
-      setShowFeePopup(false);
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0-11
+    const currentYear = today.getFullYear();
 
-      if (feeRes.data.success) {
-        const feesData = feeRes.data.fees || feeRes.data.records || [];
-         // Backend flag (New student handled here)
-        const today = new Date();
+    let lastPaidDate = null;
+    let pendingMonths = 0;
 
-        const currentMonth = today.getMonth(); // 0-11
-        const currentYear = today.getFullYear();
+    /* =========================
+        📅 FIND LAST PAID DATE
+    ========================= */
+    if (feesData.length > 0) {
+      const paidFees = feesData
+        .filter(f => (f.payment_status || f.status || "").toUpperCase() === "SUCCESS" || (f.payment_status || f.status || "").toUpperCase() === "PAID" || f.amount > 0)
+        .sort((a, b) => new Date(b.payment_date || b.date || b.created_at) - new Date(a.payment_date || a.date || a.created_at));
 
-        let lastPaidDate = null;
-        let pendingMonths = 0;
-
-        /* =========================
-            📅 FIND LAST PAID DATE
-        ========================= */
-        if (feesData.length > 0) {
-          const paidFees = feesData
-            .filter(f => (f.payment_status || f.status || "").toUpperCase() === "SUCCESS" || (f.payment_status || f.status || "").toUpperCase() === "PAID" || f.amount > 0)
-            .sort((a, b) => new Date(b.payment_date || b.date || b.created_at) - new Date(a.payment_date || a.date || a.created_at));
-
-          if (paidFees.length > 0) {
-            const rawDate = paidFees[0].payment_date || paidFees[0].date || paidFees[0].created_at;
-            if (rawDate) {
-              lastPaidDate = new Date(rawDate);
-            }
-          }
-        }
-
-        /* =========================
-            🔢 PENDING CALCULATION (ONLY IF BACKEND SAYS SO)
-        ========================= */
-        // Agar backend ne mana kiya hai (nayi joining), toh calculation skip hogi
-       if (feesData.length > 0) {
-          if (!lastPaidDate) {
-            // Purana baccha jisne kabhi pay nahi kiya
-            pendingMonths = 1; 
-          } else {
-            // Gap mahine calculate karo
-            let temp = new Date(lastPaidDate);
-            temp.setMonth(temp.getMonth() + 1);
-
-            while (
-              temp.getFullYear() < currentYear ||
-              (temp.getFullYear() === currentYear && temp.getMonth() <= currentMonth)
-            ) {
-              pendingMonths++;
-              temp.setMonth(temp.getMonth() + 1);
-            }
-          }
-        }
-
-        /* =========================
-            💵 AMOUNT CALCULATION
-        ========================= */
-        const monthlyFee = feesData.length > 0 && feesData[0].amount 
-          ? Number(feesData[0].amount) 
-          : 1000;
-
-        const totalPendingAmount = pendingMonths * monthlyFee;
-
-        /* =========================
-            🚨 FINAL TRIGGER
-        ========================= */
-        // Ab pendingMonths 0 hi rahega agar showPopupFromServer false hai
-        if (pendingMonths > 0) {
-          setShowFeePopup(true);
-          setIsFeeUnpaid(true);
-          setDynamicFeeAmount(totalPendingAmount);
-
-          activeNotis.push({
-            title: "Fees Pending",
-            desc: `${pendingMonths} month(s) pending • ₹${totalPendingAmount}`,
-            icon: <FaMoneyBillWave />,
-            path: "fees",
-            color: theme?.gradients?.warning || "#f59e0b"
-          });
+      if (paidFees.length > 0) {
+        const rawDate = paidFees[0].payment_date || paidFees[0].date || paidFees[0].created_at;
+        if (rawDate) {
+          lastPaidDate = new Date(rawDate);
         }
       }
-    } catch (err) {
-      console.error("Fee Error:", err);
     }
+
+    /* =========================
+        🔢 PENDING CALCULATION (WITH JOINING DATE SUPPORT)
+    ========================= */
+    if (feesData.length > 0 || joiningDate) {
+      if (!lastPaidDate) {
+        // Agar payment nahi mili, toh baseline joining date ya 1 month default set hoga
+        let baselineDate = joiningDate && !isNaN(joiningDate.getTime()) ? new Date(joiningDate) : new Date();
+        
+        let temp = new Date(baselineDate);
+        // Agar joining date current month/year se purani hai toh gap count hoga
+        while (
+          temp.getFullYear() < currentYear ||
+          (temp.getFullYear() === currentYear && temp.getMonth() <= currentMonth)
+        ) {
+          pendingMonths++;
+          temp.setMonth(temp.getMonth() + 1);
+        }
+        if (pendingMonths === 0) pendingMonths = 1; // Minimum 1 if current/new session
+      } else {
+        // Gap mahine calculate karo last paid date se
+        let temp = new Date(lastPaidDate);
+        temp.setMonth(temp.getMonth() + 1);
+
+        while (
+          temp.getFullYear() < currentYear ||
+          (temp.getFullYear() === currentYear && temp.getMonth() <= currentMonth)
+        ) {
+          pendingMonths++;
+          temp.setMonth(temp.getMonth() + 1);
+        }
+      }
+    }
+
+    /* =========================
+        💵 AMOUNT CALCULATION
+    ========================= */
+    const monthlyFee = feesData.length > 0 && feesData[0].amount 
+      ? Number(feesData[0].amount) 
+      : 1000;
+
+    const totalPendingAmount = pendingMonths * monthlyFee;
+
+    /* =========================
+        🚨 FINAL TRIGGER
+    ========================= */
+    if (pendingMonths > 0) {
+      setShowFeePopup(true);
+      setIsFeeUnpaid(true);
+      setDynamicFeeAmount(totalPendingAmount);
+
+      activeNotis.push({
+        title: "Fees Pending",
+        desc: `${pendingMonths} month(s) pending • ₹${totalPendingAmount}`,
+        icon: <FaMoneyBillWave />,
+        path: "fees",
+        color: theme?.gradients?.warning || "#f59e0b"
+      });
+    }
+  }
+} catch (err) {
+  console.error("Fee Error:", err);
+}
+//========================================
+//FEE NOTICE DONE 
+//===============================
 
         const marksRes = await api.post("/api/marks/check", { studentId: storedUser.id, studentName: storedUser.name });
         if (marksRes.data.success && marksRes.data.data.length > 0) {
