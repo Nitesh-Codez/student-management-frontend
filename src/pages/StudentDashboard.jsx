@@ -717,9 +717,9 @@ useEffect(() => {
     style={{
       position: "absolute",
       top: "115px",
-            right:"10%",
-            top:"30px",
-            width: "310px",
+            right:"20%",
+            top:"2px",
+            width: "340px",
             background: "#fff",
             borderRadius: "5px",
             border:"1px solid black",
