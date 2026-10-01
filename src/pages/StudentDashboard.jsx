@@ -718,8 +718,8 @@ useEffect(() => {
       position: "absolute",
       top: "115px",
             right:"20%",
-            top:"2px",
-            width: "340px",
+            top:"-40px",
+            width: "350px",
             background: "#fff",
             borderRadius: "5px",
             border:"1px solid black",
@@ -823,7 +823,7 @@ useEffect(() => {
                           style={{
                             color: "#172963",
                             fontSize: "15px",
-                            fontWeight: "700",
+                            fontWeight: "600",
                             whiteSpace: "nowrap"
                           }}
                         >
