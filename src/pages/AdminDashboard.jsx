@@ -107,7 +107,7 @@ const AdminDashboard = () => {
         <Link to="/admin" style={{ textDecoration: 'none' }}>
           <div style={logoSection}>
             <div style={logoIcon}><FaThLarge /></div>
-            {isSidebarOpen && <span style={logoText}>EduFlow</span>}
+            {isSidebarOpen && <span style={logoText}>SmartZone</span>}
           </div>
         </Link>
         

@@ -237,6 +237,36 @@ records:[]
 const [showSubjectAttendance, setShowSubjectAttendance] = useState(false);
 const [subjectAttendance, setSubjectAttendance] = useState([]);
 const [subjectLoading, setSubjectLoading] = useState(false);
+const [selectedAttendanceCategory, setSelectedAttendanceCategory] = useState(null);
+
+const greenSubjects = subjectAttendance.filter(
+  (s) => Number(s.percentage) >= 85
+);
+
+const yellowSubjects = subjectAttendance.filter(
+  (s) =>
+    Number(s.percentage) >= 75 &&
+    Number(s.percentage) < 85
+);
+
+const redSubjects = subjectAttendance.filter(
+  (s) => Number(s.percentage) < 75
+);
+
+const totalSubjects = subjectAttendance.length;
+
+const greenPercent =
+  totalSubjects > 0
+    ? (greenSubjects.length / totalSubjects) * 100
+    : 0;
+
+const yellowPercent =
+  totalSubjects > 0
+    ? (yellowSubjects.length / totalSubjects) * 100
+    : 0;
+
+const greenEnd = greenPercent * 3.6;
+const yellowEnd = greenEnd + yellowPercent * 3.6;
 
 const getPollColor = (classDate) => {
 
@@ -311,16 +341,26 @@ const fetchAttendance = useCallback(async () => {
       });
       // Subject-wise attendance fetch
 try {
+  setSubjectLoading(true);
+
   const subjectRes = await api.get(
     `/api/attendance/subject-wise/${user.id}`
   );
 
   if (subjectRes.data.success) {
     setSubjectAttendance(subjectRes.data.subjects || []);
+  } else {
+    setSubjectAttendance([]);
   }
 } catch (err) {
-  console.log("Subject attendance error:", err);
+  console.log(
+    "Subject attendance error:",
+    err.response?.data || err.message
+  );
   setSubjectAttendance([]);
+} finally {
+  setSubjectLoading(false);
+
 }
     }
   } catch (err) {
@@ -426,280 +466,543 @@ useEffect(() => {
       </div>
       
 
-      <div style={cardGrid}>
-        {cards.map((c, i) => (
-          <motion.div
- key={i}
- whileTap={{ scale: 0.95 }}
- onClick={() => navigate(c.path)}
- style={{
-   ...cardBase,
-   background: c.grad,
-   overflow: c.title === "Fees" ? "visible" : "hidden"
- }}
->
-            {c.title === "Fees" && isFeeUnpaid && (
-  <div style={feeNoticeBox}>
-    <div style={{ fontSize: "15px", fontWeight: "900" }}>
-      ⚠ PAYMENT NOTICE
-    </div>
-
-    <div style={{ fontSize: "12px", marginTop: "6px" }}>
-      Your monthly fee is pending.
-    </div>
-
-    <div style={{ marginTop: "6px", fontWeight: "bold" }}>
-      Amount Due : ₹{dynamicFeeAmount}
-    </div>
-
-    <div style={{ fontSize: "10px", opacity: 0.8, marginTop: "4px" }}>
-      Please clear dues to avoid interruption.
-    </div>
-  </div>
-)}
-
-{c.title === "Marks" && hasNewMarks && (
-  <div style={miniNoticeBadge}>CHECK NOW</div>
-)}
-
-            {c.count > 0 && <div style={miniNoticeBadge}>{c.count} NEW</div>}
-            <div style={cardTopRow}>
-                <div style={iconCircle}>{c.icon}</div>
-                <FaChevronRight style={{opacity: 0.5}} />
-            </div>
-            <div style={cardBottomBody}>
-{c.title === "Attendance" && (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
-      marginBottom: "10px",
-      position: "relative"
-    }}
-  >
-
-    {/* ATTENDANCE CIRCLE */}
-    <div
-      onClick={(e) => {
-        e.stopPropagation();
-        setShowSubjectAttendance(true);
-      }}
+     <div style={cardGrid}>
+  {cards.map((c, i) => (
+    <motion.div
+      key={i}
+      whileTap={{ scale: 0.95 }}
+      onClick={() => navigate(c.path)}
       style={{
-        width: "105px",
-        height: "105px",
-        borderRadius: "50%",
-        background: `conic-gradient(
-          ${
-            attendanceStats.percentage >= 85
-              ? "#15ae4d"
-              : attendanceStats.percentage >= 75
-              ? "#facc15"
-              : "#ef4444"
-          }
-          ${attendanceStats.percentage * 3.6}deg,
-          #ffffff33 0deg
-        )`,
-        display: "flex",
-        border: "1px solid white",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer"
+        ...cardBase,
+        background: c.grad,
+        overflow:
+          c.title === "Fees" || c.title === "Attendance"
+            ? "visible"
+            : "hidden"
       }}
     >
-      <div
-        style={{
-          width: "60px",
-          height: "60px",
-          borderRadius: "50%",
-          background: "rgba(0,0,0,0.35)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          border: "1px solid white",
-          fontSize: "11px",
-          fontWeight: "bold"
-        }}
-      >
-        {attendanceStats.percentage}%
-      </div>
-    </div>
-
-    {/* PRESENT / TOTAL */}
-    <div style={{ fontSize: "15px" }}>
-      <b>
-        {attendanceStats.present}/{attendanceStats.total}
-      </b>
-    </div>
-
-    {/* SUBJECT LIST POPUP */}
-    {showSubjectAttendance && (
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "absolute",
-          left: "0",
-          top: "115px",
-          width: "min(330px, calc(100vw - 60px))",
-          background: "rgba(15, 23, 42, 0.97)",
-          border: "1px solid rgba(255,255,255,0.2)",
-          borderRadius: "14px",
-          padding: "14px",
-          zIndex: 1000,
-          boxShadow: "0 15px 35px rgba(0,0,0,0.35)"
-        }}
-      >
-
-        {/* HEADER */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "12px"
-          }}
-        >
-          <span
+      {/* ================= FEE NOTICE ================= */}
+      {c.title === "Fees" && isFeeUnpaid && (
+        <div style={feeNoticeBox}>
+          <div
             style={{
-              fontSize: "14px",
-              fontWeight: "800",
-              color: "#fff"
+              fontSize: "15px",
+              fontWeight: "900"
             }}
           >
-            Subject Attendance
-          </span>
+            ⚠ PAYMENT NOTICE
+          </div>
 
-          {/* CROSS */}
-          <button
-            onClick={() => setShowSubjectAttendance(false)}
+          <div
             style={{
-              width: "25px",
-              height: "25px",
-              borderRadius: "50%",
+              fontSize: "12px",
+              marginTop: "6px"
+            }}
+          >
+            Your monthly fee is pending.
+          </div>
+
+          <div
+            style={{
+              marginTop: "6px",
+              fontWeight: "bold"
+            }}
+          >
+            Amount Due : ₹{dynamicFeeAmount}
+          </div>
+
+          <div
+            style={{
+              fontSize: "10px",
+              opacity: 0.8,
+              marginTop: "4px"
+            }}
+          >
+            Please clear dues to avoid interruption.
+          </div>
+        </div>
+      )}
+
+      {/* ================= MARKS NOTICE ================= */}
+      {c.title === "Marks" && hasNewMarks && (
+        <div style={miniNoticeBadge}>
+          CHECK NOW
+        </div>
+      )}
+
+      {/* ================= NEW COUNT ================= */}
+      {c.count > 0 && (
+        <div style={miniNoticeBadge}>
+          {c.count} NEW
+        </div>
+      )}
+
+      {/* ================= CARD TOP ================= */}
+      <div style={cardTopRow}>
+        <div style={iconCircle}>
+          {c.icon}
+        </div>
+
+        <FaChevronRight style={{ opacity: 0.5 }} />
+      </div>
+
+      {/* ================= CARD BOTTOM BODY ================= */}
+      <div style={cardBottomBody}>
+
+        {/* ================= ATTENDANCE ================= */}
+
+{/* ================= ATTENDANCE ================= */}
+
+{c.title === "Attendance" && (() => {
+  const totalSubjects = subjectAttendance.length;
+
+  const greenSubjects = subjectAttendance.filter(
+    (s) => Number(s.percentage) >= 85
+  );
+
+  const yellowSubjects = subjectAttendance.filter(
+    (s) =>
+      Number(s.percentage) >= 75 &&
+      Number(s.percentage) < 85
+  );
+
+  const redSubjects = subjectAttendance.filter(
+    (s) => Number(s.percentage) < 75
+  );
+
+  const greenPercent =
+    totalSubjects > 0
+      ? (greenSubjects.length / totalSubjects) * 100
+      : 0;
+
+  const yellowPercent =
+    totalSubjects > 0
+      ? (yellowSubjects.length / totalSubjects) * 100
+      : 0;
+
+  const greenEnd = greenPercent * 3.6;
+  const yellowEnd = greenEnd + yellowPercent * 3.6;
+
+  const getCategoryFromClick = (e) => {
+  e.stopPropagation();
+
+  if (totalSubjects === 0) return;
+
+  const rect = e.currentTarget.getBoundingClientRect();
+
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  const x = e.clientX - centerX;
+  const y = e.clientY - centerY;
+
+  let angle = Math.atan2(y, x) * (180 / Math.PI);
+
+  angle += 90;
+
+  if (angle < 0) {
+    angle += 360;
+  }
+
+  if (angle < greenEnd) {
+    setSelectedAttendanceCategory("green");
+  } else if (angle < yellowEnd) {
+    setSelectedAttendanceCategory("yellow");
+  } else {
+    setSelectedAttendanceCategory("red");
+  }
+
+  setShowSubjectAttendance(true);
+};
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        marginBottom: "10px",
+        position: "relative"
+      }}
+    >
+
+    {/* ATTENDANCE CIRCLE */}
+<div
+  onClick={getCategoryFromClick}
+  style={{
+    width: "115px",
+    height: "115px",
+    borderRadius: "50%",
+
+    marginLeft: "8px",
+    marginTop: "16px",
+
+    background:
+  totalSubjects === 0
+    ? "#e5e7eb"
+    : `conic-gradient(
+        #15ae4d 0deg ${greenEnd}deg,
+        #facc15 ${greenEnd}deg ${yellowEnd}deg,
+        #ef4444 ${yellowEnd}deg 360deg
+      )`,
+
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+
+    cursor: totalSubjects > 0 ? "pointer" : "default",
+    flexShrink: 0,
+
+    /* OUTER OUTLINE */
+    border: "1px solid #ffffff",
+
+    /* OUTER SHADOW */
+    boxShadow:
+      "0 0 0 1px rgba(219, 220, 222, 0.8), 0 5px 15px rgba(0,0,0,0.15)",
+
+    transition: "all 0.25s ease"
+  }}
+>
+  {/* INNER CIRCLE */}
+  <div
+    style={{
+      width: "71px",
+      height: "71px",
+      borderRadius: "50%",
+
+      background: "#ffff",
+
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+
+      /* INNER OUTLINE */
+      border: "1px solid rgba(246, 247, 249, 0.96)",
+
+      /* INNER SHADOW */
+      boxShadow:
+        "inset 0 1px 4px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.08)"
+    }}
+  >
+    <strong
+      style={{
+        fontSize: "20px",
+        fontWeight: "800",
+        color: "#111827",
+        lineHeight: 1,
+        marginTop:"8px",
+        marginLeft:"10px"
+      }}
+    >
+      {attendanceStats.percentage}%
+    </strong>
+
+    <span
+      style={{
+        marginTop: "5px",
+        fontSize: "10px",
+        color: "#6b7280",
+        fontWeight: "600"
+      }}
+    >
+      {attendanceStats.present}/{attendanceStats.total}
+    </span>
+  </div>
+</div>
+
+      {/* POPUP */}
+     {showSubjectAttendance && (
+  <div
+    onClick={(e) => e.stopPropagation()}
+    style={{
+      position: "absolute",
+      top: "115px",
+            right:"12.6%",
+            top:"25px",
+            width: "350px",
+            background: "#fff",
+            borderRadius: "5px",
+            border:"1px solid black",
+            boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
+            border: "1px solid #e5e7eb",
+            zIndex: 1000,
+            overflow: "hidden"
+          }}
+        >
+
+          {/* CLOSE BUTTON */}
+          <button
+            onClick={() => {
+              setShowSubjectAttendance(false);
+              setSelectedAttendanceCategory(null);
+            }}
+            style={{
+              position: "absolute",
+              right: "8px",
+              top: "6px",
               border: "none",
-              background: "#ef4444",
-              color: "#fff",
+              background: "#fff6f6",
+              borderRadius:"50%",
+              fontSize: "22px",
               cursor: "pointer",
-              fontSize: "16px",
-              fontWeight: "bold",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
+              color: "#555",
+              zIndex: 2
             }}
           >
             ×
           </button>
+
+
+          {/* LOADING */}
+          {subjectLoading ? (
+            <div
+              style={{
+                padding: "20px",
+                textAlign: "center",
+                color: "#666"
+              }}
+            >
+              Loading...
+            </div>
+          ) : (
+
+            <>
+              {/* RED */}
+              {selectedAttendanceCategory === "red" &&
+                redSubjects.length > 0 && (
+                  <>
+                    <div
+                      style={{
+                        background: "#D93829",
+                        color: "#fff",
+                        padding: "11px 14px",
+                        fontSize: "14px",
+                        fontWeight: "700"
+                      }}
+                    >
+                      🔴 Below 75%
+                    </div>
+
+                    {redSubjects.map((subject, index) => (
+                      <div
+                        key={`red-${index}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "75px 1fr auto",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "11px 12px",
+                          borderBottom:
+                            index !== redSubjects.length - 1
+                              ? "1px solid #e5e7eb"
+                              : "none"
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "#18191b",
+                            fontSize: "12px",
+                            fontWeight: "600"
+                          }}
+                        >
+                          {subject.subjectname || "SB"}
+                        </span>
+
+                        <span
+                          style={{
+                            color: "#84848a",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                            textTransform: "uppercase"
+                          }}
+                        >
+                          {subject.subjectCode || "Subject"}
+                        </span>
+
+                        <span
+                          style={{
+                            color: "#172963",
+                            fontSize: "15px",
+                            fontWeight: "700",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {subject.percentage}% ({subject.present}/
+                          {subject.total})
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+
+              {/* YELLOW */}
+              {selectedAttendanceCategory === "yellow" &&
+                yellowSubjects.length > 0 && (
+                  <>
+                    <div
+                      style={{
+                        background: "#172963",
+                        color: "#111827",
+                        padding: "11px 14px",
+                        fontSize: "14px",
+                        fontWeight: "700"
+                      }}
+                    >
+                      🟡 75% - Below 85%
+                    </div>
+
+                    {yellowSubjects.map((subject, index) => (
+                      <div
+                        key={`yellow-${index}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "75px 1fr auto",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "11px 12px",
+                          borderBottom:
+                            index !== yellowSubjects.length - 1
+                              ? "1px solid #e5e7eb"
+                              : "none"
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "#18191b",
+                            fontSize: "12px",
+                            fontWeight: "600"
+                          }}
+                        >
+                          {subject.subjectname || "SB"}
+                        </span>
+
+                        <span
+                          style={{
+                            color: "#7d7d84",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            textTransform: "uppercase"
+                          }}
+                        >
+                          {subject.subjectCode || "Subject"}
+                        </span>
+
+                        <span
+                          style={{
+                            color: "#172963",
+                            fontSize: "15px",
+                            fontWeight: "700",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {subject.percentage}% ({subject.present}/
+                          {subject.total})
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+
+              {/* GREEN */}
+              {selectedAttendanceCategory === "green" &&
+                greenSubjects.length > 0 && (
+                  <>
+                    <div
+                      style={{
+                        background: "#15ae4d",
+                        color: "#fff",
+                        padding: "11px 14px",
+                        fontSize: "14px",
+                        fontWeight: "700"
+                      }}
+                    >
+                      🟢 85% & Above
+                    </div>
+
+                    {greenSubjects.map((subject, index) => (
+                      <div
+                        key={`green-${index}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "75px 1fr auto",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "11px 12px",
+                          borderBottom:
+                            index !== greenSubjects.length - 1
+                              ? "1px solid #e5e7eb"
+                              : "none"
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "#18191b",
+                            fontSize: "12px",
+                            fontWeight: "600"
+                          }}
+                        >
+                          {subject.subjectname || "SB"}
+                        </span>
+
+                        <span
+                          style={{
+                            color: "#7e7e83",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            textTransform: "uppercase"
+                          }}
+                        >
+                          {subject.subjectCode || "Subject"}
+                        </span>
+
+                        <span
+                          style={{
+                            color: "#172963",
+                            fontSize: "15px",
+                            fontWeight: "600",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {subject.percentage}% ({subject.present}/
+                          {subject.total})
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                )}
+            </>
+          )}
         </div>
+      )}
+    </div>
+  );
+})()}
 
-        {/* LOADING */}
-        {subjectLoading ? (
-          <div
+            
+        {/* ================= CARD TITLE ================= */}
+        <div>
+          <h3 style={cardMainTitle}>
+            {c.title}
+          </h3>
+
+          <p
             style={{
-              color: "#fff",
-              textAlign: "center",
-              padding: "15px",
-              fontSize: "12px"
+              margin: 0,
+              fontSize: "11px",
+              opacity: 0.11
             }}
           >
-            Loading...
-          </div>
-        ) : subjectAttendance.length === 0 ? (
-          
-          /* NO DATA */
-          <div
-            style={{
-              color: "#cbd5e1",
-              textAlign: "center",
-              padding: "15px",
-              fontSize: "12px"
-            }}
-          >
-            No subject attendance found
-          </div>
-
-        ) : (
-
-          /* SUBJECT LIST */
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "7px",
-              maxHeight: "250px",
-              overflowY: "auto"
-            }}
-          >
-            {subjectAttendance.map((subject, index) => (
-              <div
-                key={index}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "9px 10px",
-                  background: "rgba(255,255,255,0.08)",
-                  borderRadius: "8px"
-                }}
-              >
-
-                {/* SUBJECT */}
-                <span
-                  style={{
-                    color: "#fff",
-                    fontSize: "12px",
-                    fontWeight: "700"
-                  }}
-                >
-                  {subject.subjectCode}
-                </span>
-
-                {/* COUNT */}
-                <span
-                  style={{
-                    color: "#cbd5e1",
-                    fontSize: "11px"
-                  }}
-                >
-                  {subject.present}/{subject.total}
-                </span>
-
-                {/* PERCENTAGE */}
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "800",
-                    color:
-                      subject.percentage >= 85
-                        ? "#22c55e"
-                        : subject.percentage >= 75
-                        ? "#facc15"
-                        : "#ef4444"
-                  }}
-                >
-                  {subject.percentage}%
-                </span>
-
-              </div>
-            ))}
-          </div>
-        )}
-
-      </div>
-    )}
-
-  </div>
-)}
-
-  <h3 style={cardMainTitle}>{c.title}</h3>
-
-  <p style={{margin: 0, fontSize: '11px', opacity: 0.11}}>
-    {c.sub}
-  </p>
-
+            {c.sub}
+          </p>
+        </div>
+        </div>
+      
+    </motion.div>
+  ))}
 </div>
 
-          </motion.div>
-        ))}
 {/* Today's Schedule Section */}
 <div style={{ 
     width: '100%', 
@@ -886,11 +1189,10 @@ useEffect(() => {
           <p style={{ fontSize: '16px' }}>No classes scheduled for this day.</p> 
         </div> 
       );
-    })()}
-  </div> 
+        })()}
+  </div>
 </div>
-  
-</div>
+
 {headTeacher && (
   <div style={{
     width: '100vw',
