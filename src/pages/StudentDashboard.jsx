@@ -221,7 +221,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
     .get(`/api/teachers/admin/teachers`)
     .then((res) => {
       if (res.data.length > 0) {
-        setHeadTeacher(res.data[2]); // first teacher = head
+        setHeadTeacher(res.data[0]); // first teacher = head
       }
     })
     .catch((err) => console.log(err));
