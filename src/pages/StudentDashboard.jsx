@@ -718,8 +718,8 @@ useEffect(() => {
     style={{
       position: "absolute",
       top: "115px",
-            right:"5%",
-            top:"-70px",
+            right:"2%",
+            top:"-100px",
             width: "360px",
             background: "#fff",
             borderRadius: "5px",
@@ -806,7 +806,7 @@ useEffect(() => {
                             fontWeight: "600"
                           }}
                         >
-                          {subject.subjectname || "SB"}
+                          {subject.subjectname || "SUBJECT"}
                         </span>
 
                         <span
