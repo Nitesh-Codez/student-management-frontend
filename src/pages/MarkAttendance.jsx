@@ -14,10 +14,9 @@ const MarkAttendance = () => {
   const [selectedBatchFilter, setSelectedBatchFilter] = useState(""); 
   const [selectedClassFilter, setSelectedClassFilter] = useState(""); 
    
-  // State for storing attendance, subject per student, and stream per student 
-  const [attendanceData, setAttendanceData] = useState({}); // { studentId: 'Present' / 'Absent' } 
-  const [studentSubjects, setStudentSubjects] = useState({}); // { studentId: subjectName } 
-  const [studentStreams, setStudentStreams] = useState({}); // { studentId: streamName } 
+  const [attendanceData, setAttendanceData] = useState({}); 
+  const [studentSubjects, setStudentSubjects] = useState({}); 
+  const [studentStreams, setStudentStreams] = useState({}); 
    
   const [loading, setLoading] = useState(true); 
   const [refreshing, setRefreshing] = useState(false); 
@@ -25,11 +24,22 @@ const MarkAttendance = () => {
   const [error, setError] = useState(""); 
   const [successMessage, setSuccessMessage] = useState(""); 
   
-  // New state to toggle view after successful submission
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [lastSubmitSummary, setLastSubmitSummary] = useState(null);
+
+  const normalizeBatch = (batch) => {
+    const value = String(batch || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
+
+    if (value.includes("batch3")) return "Batch 3";
+    if (value.includes("batch2")) return "Batch 2";
+    if (value.includes("batch1")) return "Batch 1";
+
+    return "Not Assigned";
+  };
  
-  // Fetch attendance list, banned students, and teacher lectures for the selected date 
   const fetchData = useCallback(async (showFullLoader = true) => { 
     try { 
       if (showFullLoader) { 
@@ -39,7 +49,6 @@ const MarkAttendance = () => {
       } 
       setError(""); 
        
-      // 1. Fetch Banned Students List first 
       let bannedSet = new Set(); 
       try { 
         const bannedRes = await api.get("/api/auth/banned-students"); 
@@ -57,7 +66,6 @@ const MarkAttendance = () => {
       } 
       setBannedStudentIds(bannedSet); 
  
-      // 2. Fetch Attendance List 
       const attendanceRes = await api.get(`/api/attendance/list?date=${selectedDate}`); 
       const rawData = attendanceRes.data; 
        
@@ -68,7 +76,6 @@ const MarkAttendance = () => {
         rawStudents = rawData; 
       } 
  
-      // Filter out banned students immediately 
       const initialStudents = rawStudents.filter(st => { 
         const sId = String(st.studentId || st._id || ""); 
         return !bannedSet.has(sId); 
@@ -76,7 +83,6 @@ const MarkAttendance = () => {
  
       setStudents(initialStudents); 
  
-      // 3. Fetch Teacher Assignments / Lectures Schedule for 1st to 12th classes 
       let fetchedAssignments = []; 
       try { 
         const classesParam = "1st,2nd,3rd,4th,5th,6th,7th,8th,9th,10th,11th,12th"; 
@@ -92,7 +98,6 @@ const MarkAttendance = () => {
         setAssignments([]); 
       } 
  
-      // Helper for stream-aware subject mapping 
       const getAutoSubjectForStudent = (student, assigns) => { 
         const cls = (student.class || "").toLowerCase(); 
         const isHigher = cls.includes("12") || cls.includes("xii") || cls.includes("11") || cls.includes("xi"); 
@@ -151,30 +156,38 @@ const MarkAttendance = () => {
       const initialSubjects = {}; 
       const initialStreams = {}; 
  
-      initialStudents.forEach(st => { 
-        if (st.status) { 
-          initialAttendance[st.studentId] = st.status; 
-        } else { 
-          initialAttendance[st.studentId] = "Present";  
-        } 
- 
-        const availableStreams = getStreamsForStudentHelper(st, fetchedAssignments); 
-        if (st.stream) { 
-          initialStreams[st.studentId] = st.stream; 
-        } else if (availableStreams.length > 0) { 
-          initialStreams[st.studentId] = availableStreams[0]; 
-        } 
- 
-        if (st.subjectCode || st.subject_name) { 
-          initialSubjects[st.studentId] = st.subjectCode || st.subject_name; 
-        } else { 
-          initialSubjects[st.studentId] = getAutoSubjectForStudent(st, fetchedAssignments); 
-        } 
-      }); 
+      let hasExistingAttendance = false;
+
+      initialStudents.forEach((st) => {
+        const id = st.studentId;
+
+        if (st.attendanceId) {
+          hasExistingAttendance = true;
+          initialAttendance[id] = st.status;
+        } else {
+          initialAttendance[id] = "Present";
+        }
+
+        if (st.subjectCode) {
+          initialSubjects[id] = st.subjectCode;
+        } else {
+          initialSubjects[id] = getAutoSubjectForStudent(st, fetchedAssignments);
+        }
+
+        if (st.stream) {
+          initialStreams[id] = st.stream;
+        } else {
+          const availableStreams = getStreamsForStudentHelper(st, fetchedAssignments);
+          if (availableStreams.length > 0) {
+            initialStreams[id] = availableStreams[0];
+          }
+        }
+      });
  
       setAttendanceData(initialAttendance); 
       setStudentSubjects(initialSubjects); 
       setStudentStreams(initialStreams); 
+      setIsEditing(hasExistingAttendance);
  
     } catch (err) { 
       console.error("Error fetching data:", err); 
@@ -187,17 +200,9 @@ const MarkAttendance = () => {
   }, [selectedDate]); 
  
   useEffect(() => { 
-    setIsSubmitted(false); // Reset submitted state on date change
+    setSuccessMessage("");
     fetchData(true); 
   }, [selectedDate, fetchData]); 
- 
-  const normalizeBatch = (batchStr, batchTimeStr) => { 
-    const text = `${batchStr || ""} ${batchTimeStr || ""}`.toLowerCase(); 
-    if (text.includes("batch 2") || text.includes("batch2") || text.includes("4:30 pm")) { 
-      return "Batch 2"; 
-    } 
-    return "Batch 1"; 
-  }; 
  
   const uniqueClasses = useMemo(() => { 
     if (!Array.isArray(students)) return []; 
@@ -249,7 +254,7 @@ const MarkAttendance = () => {
   const filteredStudents = useMemo(() => { 
     if (!Array.isArray(students)) return []; 
     return students.filter(student => { 
-      const studentBatchCategory = normalizeBatch(student.batch, student.batchTime); 
+      const studentBatchCategory = normalizeBatch(student.batch); 
       const matchBatch = selectedBatchFilter ? studentBatchCategory === selectedBatchFilter : true; 
       const matchClass = selectedClassFilter ? student.class === selectedClassFilter : true; 
       return matchBatch && matchClass; 
@@ -285,9 +290,8 @@ const MarkAttendance = () => {
       const attendancePayload = filteredStudents.map((student) => { 
         const classLectures = assignments.filter( 
           (a) => 
-            a.class_name && 
-            String(a.class_name).trim().toLowerCase() === 
-              String(student.class || "").trim().toLowerCase() 
+            String(a.class_name || "").trim().toLowerCase() === 
+            String(student.class || "").trim().toLowerCase() 
         ); 
    
         const subject = 
@@ -295,23 +299,22 @@ const MarkAttendance = () => {
           student.subjectCode || 
           null; 
    
-        const selectedLecture = classLectures.find( 
+        const lecture = classLectures.find( 
           (a) => 
-            subject && 
             String(a.subject_name || "").trim().toLowerCase() === 
-              String(subject).trim().toLowerCase() 
+            String(subject || "").trim().toLowerCase() 
         ); 
    
         return { 
           studentId: student.studentId, 
           status: attendanceData[student.studentId] || "Present", 
-          class: student.class, 
           subjectCode: subject, 
-          stream: studentStreams[student.studentId] || student.stream || null, 
-          startTime: selectedLecture?.start_time || null, 
-          endTime: selectedLecture?.end_time || null, 
-          batch: normalizeBatch(student.batch, student.batchTime), 
-          batchTime: student.batchTime, 
+          stream: 
+            studentStreams[student.studentId] || 
+            student.stream || 
+            null, 
+          startTime: lecture?.start_time || null, 
+          endTime: lecture?.end_time || null 
         }; 
       }); 
    
@@ -319,33 +322,35 @@ const MarkAttendance = () => {
         "/api/attendance/mark", 
         { 
           date: selectedDate, 
-          attendance: attendancePayload, 
+          attendance: attendancePayload 
         } 
       ); 
    
       const { 
         inserted = 0, 
-        updated = 0, 
-        skipped = 0, 
-        skippedStudents = [], 
+        updated = 0 
       } = response.data; 
    
-      const msg = `Attendance successfully saved! Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}`;
-      setSuccessMessage(msg); 
-      setLastSubmitSummary({ inserted, updated, skipped, total: filteredStudents.length });
-      setIsSubmitted(true); // Close the active list & show success view
+      setLastSubmitSummary({ 
+        inserted, 
+        updated, 
+        total: filteredStudents.length 
+      }); 
    
-      if (skippedStudents.length > 0) { 
-        console.warn("========== SKIPPED STUDENTS =========="); 
-        console.table(skippedStudents); 
-      } 
+      setIsEditing(true); 
+   
+      setSuccessMessage( 
+        `Attendance saved successfully. Inserted: ${inserted}, Updated: ${updated}` 
+      ); 
+   
+      await fetchData(false); 
    
     } catch (err) { 
-      console.error("========== ATTENDANCE SUBMIT ERROR =========="); 
-      console.error(err); 
+      console.error("Attendance submit error:", err); 
+   
       setError( 
         err.response?.data?.message || 
-          "Failed to submit attendance. Please try again." 
+        "Failed to save attendance." 
       ); 
     } finally { 
       setSubmitting(false); 
@@ -354,9 +359,10 @@ const MarkAttendance = () => {
  
   const stats = useMemo(() => { 
     const total = filteredStudents.length; 
-    const present = filteredStudents.filter(s => attendanceData[s.studentId] !== "Absent").length; 
+    const present = filteredStudents.filter(s => attendanceData[s.studentId] === "Present").length; 
     const absent = filteredStudents.filter(s => attendanceData[s.studentId] === "Absent").length; 
-    return { total, present, absent }; 
+    const holiday = filteredStudents.filter(s => attendanceData[s.studentId] === "Holiday").length; 
+    return { total, present, absent, holiday }; 
   }, [filteredStudents, attendanceData]); 
  
   if (loading) { 
@@ -400,36 +406,33 @@ const MarkAttendance = () => {
               /> 
             </div> 
 
-            {!isSubmitted && (
-              <>
-                <div style={inputGroupStyle}> 
-                  <label style={labelStyle}>Select Batch</label> 
-                  <select 
-                    value={selectedBatchFilter} 
-                    onChange={(e) => setSelectedBatchFilter(e.target.value)} 
-                    style={selectStyle} 
-                  > 
-                    <option value="">-- All Batches --</option> 
-                    <option value="Batch 1">Batch 1 (3:00 PM - 4:30 PM)</option> 
-                    <option value="Batch 2">Batch 2 (4:30 PM - 6:00 PM)</option> 
-                  </select> 
-                </div> 
-     
-                <div style={inputGroupStyle}> 
-                  <label style={labelStyle}>Filter by Class</label> 
-                  <select 
-                    value={selectedClassFilter} 
-                    onChange={(e) => setSelectedClassFilter(e.target.value)} 
-                    style={selectStyle} 
-                  > 
-                    <option value="">-- All Classes --</option> 
-                    {uniqueClasses.map((cls, idx) => ( 
-                      <option key={idx} value={cls}>{cls}</option> 
-                    ))} 
-                  </select> 
-                </div> 
-              </>
-            )}
+            <div style={inputGroupStyle}> 
+              <label style={labelStyle}>Select Batch</label> 
+              <select 
+                value={selectedBatchFilter} 
+                onChange={(e) => setSelectedBatchFilter(e.target.value)} 
+                style={selectStyle} 
+              > 
+                <option value="">-- All Batches --</option> 
+                <option value="Batch 1">Batch 1 (3:00 PM - 4:30 PM)</option> 
+                <option value="Batch 2">Batch 2 (4:30 PM - 6:00 PM)</option> 
+                <option value="Batch 3">Batch 3 (6:00 PM - 7:30 PM)</option> 
+              </select> 
+            </div> 
+ 
+            <div style={inputGroupStyle}> 
+              <label style={labelStyle}>Filter by Class</label> 
+              <select 
+                value={selectedClassFilter} 
+                onChange={(e) => setSelectedClassFilter(e.target.value)} 
+                style={selectStyle} 
+              > 
+                <option value="">-- All Classes --</option> 
+                {uniqueClasses.map((cls, idx) => ( 
+                  <option key={idx} value={cls}>{cls}</option> 
+                ))} 
+              </select> 
+            </div> 
  
             <button 
               type="button" 
@@ -443,188 +446,187 @@ const MarkAttendance = () => {
         </div> 
  
         {error && <div style={errorStyle}>{error}</div>} 
-        {successMessage && <div style={successStyle}>{successMessage}</div>} 
-
-        {/* Successfully Submitted State View */}
-        {isSubmitted ? (
-          <div style={{ ...cardStyle, textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ fontSize: "48px", marginBottom: "12px" }}>✅</div>
-            <h2 style={{ margin: "0 0 8px 0", color: "#065f46" }}>Attendance Successfully Submitted!</h2>
-            <p style={{ color: "#475569", fontSize: "14px", marginBottom: "24px" }}>
-              Attendance records for <strong>{selectedDate}</strong> have been securely recorded.
-            </p>
-
-            {lastSubmitSummary && (
-              <div style={{ display: "flex", justifyContent: "center", gap: "16px", marginBottom: "30px", flexWrap: "wrap" }}>
-                <div style={summaryBadgeStyle}>Total: <strong>{lastSubmitSummary.total}</strong></div>
-                <div style={summaryBadgeStyle}>Inserted: <strong>{lastSubmitSummary.inserted}</strong></div>
-                <div style={summaryBadgeStyle}>Updated: <strong>{lastSubmitSummary.updated}</strong></div>
-                <div style={summaryBadgeStyle}>Skipped: <strong>{lastSubmitSummary.skipped}</strong></div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setIsSubmitted(false)}
-              style={editAttendanceButtonStyle}
-            >
-              ✏️ Edit Attendance
-            </button>
+        {successMessage && (
+          <div style={successStyle}>
+            {successMessage}
           </div>
-        ) : (
-          <>
+        )}
+
+        {filteredStudents.length > 0 && ( 
+          <div style={metricsGridStyle}> 
+            <div style={{ ...metricCardStyle, borderLeft: "4px solid #6366f1" }}> 
+              <div style={metricLabelStyle}>Active Students</div> 
+              <div style={metricValueStyle}>{stats.total}</div> 
+            </div> 
+            <div style={{ ...metricCardStyle, borderLeft: "4px solid #10b981" }}> 
+              <div style={metricLabelStyle}>Present</div> 
+              <div style={{ ...metricValueStyle, color: "#10b981" }}>{stats.present}</div> 
+            </div> 
+            <div style={{ ...metricCardStyle, borderLeft: "4px solid #ef4444" }}> 
+              <div style={metricLabelStyle}>Absent</div> 
+              <div style={{ ...metricValueStyle, color: "#ef4444" }}>{stats.absent}</div> 
+            </div> 
+            <div style={{ ...metricCardStyle, borderLeft: "4px solid #f59e0b" }}> 
+              <div style={metricLabelStyle}>Holiday</div> 
+              <div style={{ ...metricValueStyle, color: "#d97706" }}>{stats.holiday}</div> 
+            </div> 
+          </div> 
+        )} 
+ 
+        <div style={cardStyle}> 
+          <div style={tableHeaderStyle}> 
+            <h3 style={tableTitleStyle}> 
+              Students List {selectedBatchFilter ? `(${selectedBatchFilter})` : ""} 
+            </h3> 
             {filteredStudents.length > 0 && ( 
-              <div style={metricsGridStyle}> 
-                <div style={{ ...metricCardStyle, borderLeft: "4px solid #6366f1" }}> 
-                  <div style={metricLabelStyle}>Active Students</div> 
-                  <div style={metricValueStyle}>{stats.total}</div> 
-                </div> 
-                <div style={{ ...metricCardStyle, borderLeft: "4px solid #10b981" }}> 
-                  <div style={metricLabelStyle}>Present</div> 
-                  <div style={{ ...metricValueStyle, color: "#10b981" }}>{stats.present}</div> 
-                </div> 
-                <div style={{ ...metricCardStyle, borderLeft: "4px solid #ef4444" }}> 
-                  <div style={metricLabelStyle}>Absent</div> 
-                  <div style={{ ...metricValueStyle, color: "#ef4444" }}>{stats.absent}</div> 
-                </div> 
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}> 
+                <button type="button" onClick={() => markAll("Present")} style={quickBtnPresent}>Mark All Present</button> 
+                <button type="button" onClick={() => markAll("Absent")} style={quickBtnAbsent}>Mark All Absent</button> 
+                <button type="button" onClick={() => markAll("Holiday")} style={quickBtnHoliday}>Mark All Holiday</button> 
               </div> 
             )} 
-     
-            <div style={cardStyle}> 
-              <div style={tableHeaderStyle}> 
-                <h3 style={tableTitleStyle}> 
-                  Students List {selectedBatchFilter ? `(${selectedBatchFilter})` : ""} 
-                </h3> 
-                {filteredStudents.length > 0 && ( 
-                  <div style={{ display: "flex", gap: "8px" }}> 
-                    <button type="button" onClick={() => markAll("Present")} style={quickBtnPresent}>Mark All Present</button> 
-                    <button type="button" onClick={() => markAll("Absent")} style={quickBtnAbsent}>Mark All Absent</button> 
-                  </div> 
-                )} 
-              </div> 
-     
-              {filteredStudents.length > 0 ? ( 
-                <div style={{ overflowX: "auto" }}> 
-                  <table style={tableStyle}> 
-                    <thead> 
-                      <tr style={thRowStyle}> 
-                        <th style={thStyle}>#</th> 
-                        <th style={thStyle}>Student Name</th> 
-                        <th style={thStyle}>Class & Batch</th> 
-                        <th style={thStyle}>Subject</th> 
-                        <th style={thStyle}>Stream</th> 
-                        <th style={{ ...thStyle, textAlign: "center" }}>Attendance (Radio)</th> 
-                      </tr> 
-                    </thead> 
-                    <tbody> 
-                      {filteredStudents.map((student, index) => { 
-                        const currentStatus = attendanceData[student.studentId] || "Present"; 
-                        const assignedBatch = normalizeBatch(student.batch, student.batchTime); 
-                        const classSubjects = getSubjectsForClass(student.class); 
-                        const studentStreamsList = getStreamsForStudent(student); 
-                        const isHigherClass = studentStreamsList.length > 0; 
-     
-                        const rowBgStyle = currentStatus === "Absent"  
-                          ? { backgroundColor: "#fee2e2" }  
-                          : { backgroundColor: "#d1fae5" };  
-     
-                        return ( 
-                          <tr key={student.studentId || index} style={{ borderBottom: "1px solid #cbd5e1", transition: "background-color 0.2s ease", ...rowBgStyle }}> 
-                            <td style={tdStyle}>{index + 1}</td> 
-                            <td style={{ ...tdStyle, fontWeight: "700", color: "#0f172a" }}>{student.studentName}</td> 
-                            <td style={{ ...tdStyle, color: "#475569", fontSize: "13px" }}> 
-                              <div>Class: <strong>{student.class}</strong></div> 
-                              <div style={{ fontSize: "11px", color: "#4f46e5", fontWeight: "700" }}>{assignedBatch}</div> 
-                            </td> 
+          </div> 
+ 
+          {filteredStudents.length > 0 ? ( 
+            <div style={{ overflowX: "auto" }}> 
+              <table style={tableStyle}> 
+                <thead> 
+                  <tr style={thRowStyle}> 
+                    <th style={thStyle}>#</th> 
+                    <th style={thStyle}>Student Name</th> 
+                    <th style={thStyle}>Class & Batch</th> 
+                    <th style={thStyle}>Subject</th> 
+                    <th style={thStyle}>Stream</th> 
+                    <th style={{ ...thStyle, textAlign: "center" }}>Attendance Status</th> 
+                  </tr> 
+                </thead> 
+                <tbody> 
+                  {filteredStudents.map((student, index) => { 
+                    const currentStatus = attendanceData[student.studentId] || "Present"; 
+                    const assignedBatch = normalizeBatch(student.batch); 
+                    const classSubjects = getSubjectsForClass(student.class); 
+                    const studentStreamsList = getStreamsForStudent(student); 
+                    const isHigherClass = studentStreamsList.length > 0; 
+ 
+                    let rowBgStyle = { backgroundColor: "#d1fae5" }; 
+                    if (currentStatus === "Absent") {
+                      rowBgStyle = { backgroundColor: "#fee2e2" };
+                    } else if (currentStatus === "Holiday") {
+                      rowBgStyle = { backgroundColor: "#fef3c7" };
+                    }
+ 
+                    return ( 
+                      <tr key={`${student.studentId || "st"}-${index}`} style={{ borderBottom: "1px solid #cbd5e1", transition: "background-color 0.2s ease", ...rowBgStyle }}> 
+                        <td style={tdStyle}>{index + 1}</td> 
+                        <td style={{ ...tdStyle, fontWeight: "700", color: "#0f172a" }}>{student.studentName}</td> 
+                        <td style={{ ...tdStyle, color: "#475569", fontSize: "13px" }}> 
+                          <div>Class: <strong>{student.class}</strong></div> 
+                          <div style={{ fontSize: "11px", color: "#4f46e5", fontWeight: "700" }}>{assignedBatch}</div> 
+                        </td> 
+                         
+                        <td style={tdStyle}> 
+                          <select 
+                            value={studentSubjects[student.studentId] || ""} 
+                            onChange={(e) => handleSubjectRowChange(student.studentId, e.target.value)} 
+                            style={rowSelectStyle} 
+                          > 
+                            <option value="">-- Select Subject --</option> 
+                            {classSubjects.map((sub, sIdx) => ( 
+                              <option key={sIdx} value={sub}>{sub}</option> 
+                            ))} 
+                          </select> 
+                        </td> 
+ 
+                        <td style={tdStyle}> 
+                          {isHigherClass ? ( 
+                            <select 
+                              value={studentStreams[student.studentId] || ""} 
+                              onChange={(e) => handleStreamRowChange(student.studentId, e.target.value)} 
+                              style={{ ...rowSelectStyle, borderColor: "#7c3aed", backgroundColor: "#f5f3ff", fontWeight: "600" }} 
+                            > 
+                              <option value="">-- Select Stream --</option> 
+                              {studentStreamsList.map((strm, stIdx) => ( 
+                                <option key={stIdx} value={strm}>{strm}</option> 
+                              ))} 
+                            </select> 
+                          ) : ( 
+                            <span style={{ fontSize: "12px", color: "#64748b" }}>N/A</span> 
+                          )} 
+                        </td> 
+ 
+                        <td style={{ ...tdStyle, textAlign: "center" }}> 
+                          <div style={{ display: "flex", justifyContent: "center", gap: "18px", alignItems: "center", flexWrap: "wrap" }}> 
                              
-                            <td style={tdStyle}> 
-                              <select 
-                                value={studentSubjects[student.studentId] || ""} 
-                                onChange={(e) => handleSubjectRowChange(student.studentId, e.target.value)} 
-                                style={rowSelectStyle} 
-                              > 
-                                <option value="">-- Select Subject --</option> 
-                                {classSubjects.map((sub, sIdx) => ( 
-                                  <option key={sIdx} value={sub}>{sub}</option> 
-                                ))} 
-                              </select> 
-                            </td> 
-     
-                            <td style={tdStyle}> 
-                              {isHigherClass ? ( 
-                                <select 
-                                  value={studentStreams[student.studentId] || ""} 
-                                  onChange={(e) => handleStreamRowChange(student.studentId, e.target.value)} 
-                                  style={{ ...rowSelectStyle, borderColor: "#7c3aed", backgroundColor: "#f5f3ff", fontWeight: "600" }} 
-                                > 
-                                  <option value="">-- Select Stream --</option> 
-                                  {studentStreamsList.map((strm, stIdx) => ( 
-                                    <option key={stIdx} value={strm}>{strm}</option> 
-                                  ))} 
-                                </select> 
-                              ) : ( 
-                                <span style={{ fontSize: "12px", color: "#64748b" }}>N/A</span> 
-                              )} 
-                            </td> 
-     
-                            <td style={{ ...tdStyle, textAlign: "center" }}> 
-                              <div style={{ display: "flex", justifyContent: "center", gap: "20px", alignItems: "center" }}> 
-                                 
-                                <label style={radioLabelStyle}> 
-                                  <input 
-                                    type="radio" 
-                                    name={`attendance-${student.studentId}`} 
-                                    checked={currentStatus === "Present"} 
-                                    onChange={() => handleStatusChange(student.studentId, "Present")} 
-                                    style={{ accentColor: "#059669", width: "18px", height: "18px", cursor: "pointer" }} 
-                                  /> 
-                                  <span style={{ color: "#065f46", fontWeight: currentStatus === "Present" ? "800" : "600" }}> 
-                                    Present 
-                                  </span> 
-                                </label> 
-     
-                                <label style={radioLabelStyle}> 
-                                  <input 
-                                    type="radio" 
-                                    name={`attendance-${student.studentId}`} 
-                                    checked={currentStatus === "Absent"} 
-                                    onChange={() => handleStatusChange(student.studentId, "Absent")} 
-                                    style={{ accentColor: "#dc2626", width: "18px", height: "18px", cursor: "pointer" }} 
-                                  /> 
-                                  <span style={{ color: "#991b1b", fontWeight: currentStatus === "Absent" ? "800" : "600" }}> 
-                                    Absent 
-                                  </span> 
-                                </label> 
-     
-                              </div> 
-                            </td> 
-                          </tr> 
-                        ); 
-                      })} 
-                    </tbody> 
-                  </table> 
-                </div> 
-              ) : ( 
-                <div style={emptyStyle}> 
-                  No active students found for the selected filters and batch. 
-                </div> 
-              )} 
-     
-              {filteredStudents.length > 0 && ( 
-                <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}> 
-                  <button 
-                    type="button" 
-                    onClick={handleSubmitAttendance} 
-                    disabled={submitting} 
-                    style={submitButtonStyle} 
-                  > 
-                    {submitting ? "Saving Attendance..." : "Submit Attendance"} 
-                  </button> 
-                </div> 
-              )} 
+                            <label style={radioLabelStyle}> 
+                              <input 
+                                type="radio" 
+                                name={`attendance-${student.studentId}-${index}`} 
+                                checked={currentStatus === "Present"} 
+                                onChange={() => handleStatusChange(student.studentId, "Present")} 
+                                style={{ accentColor: "#059669", width: "18px", height: "18px", cursor: "pointer" }} 
+                              /> 
+                              <span style={{ color: "#065f46", fontWeight: currentStatus === "Present" ? "800" : "600" }}> 
+                                Present 
+                              </span> 
+                            </label> 
+ 
+                            <label style={radioLabelStyle}> 
+                              <input 
+                                type="radio" 
+                                name={`attendance-${student.studentId}-${index}`} 
+                                checked={currentStatus === "Absent"} 
+                                onChange={() => handleStatusChange(student.studentId, "Absent")} 
+                                style={{ accentColor: "#dc2626", width: "18px", height: "18px", cursor: "pointer" }} 
+                              /> 
+                              <span style={{ color: "#991b1b", fontWeight: currentStatus === "Absent" ? "800" : "600" }}> 
+                                Absent 
+                              </span> 
+                            </label> 
+
+                            <label style={radioLabelStyle}> 
+                              <input 
+                                type="radio" 
+                                name={`attendance-${student.studentId}-${index}`} 
+                                checked={currentStatus === "Holiday"} 
+                                onChange={() => handleStatusChange(student.studentId, "Holiday")} 
+                                style={{ accentColor: "#d97706", width: "18px", height: "18px", cursor: "pointer" }} 
+                              /> 
+                              <span style={{ color: "#b45309", fontWeight: currentStatus === "Holiday" ? "800" : "600" }}> 
+                                Holiday 
+                              </span> 
+                            </label> 
+ 
+                          </div> 
+                        </td> 
+                      </tr> 
+                    ); 
+                  })} 
+                </tbody> 
+              </table> 
             </div> 
-          </>
-        )}
+          ) : ( 
+            <div style={emptyStyle}> 
+              No active students found for the selected filters and batch. 
+            </div> 
+          )} 
+ 
+          {filteredStudents.length > 0 && ( 
+            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}> 
+              <button 
+                type="button" 
+                onClick={handleSubmitAttendance} 
+                disabled={submitting} 
+                style={submitButtonStyle} 
+              > 
+                {submitting 
+                  ? "Saving Attendance..." 
+                  : isEditing 
+                    ? "✏️ Edit Attendance" 
+                    : "Submit Attendance"} 
+              </button> 
+            </div> 
+          )} 
+        </div> 
  
       </div> 
     </div> 
@@ -684,16 +686,17 @@ const selectStyle = { height: "42px", padding: "0 12px", borderRadius: "8px", bo
 const rowSelectStyle = { height: "36px", padding: "0 8px", borderRadius: "6px", border: "1px solid #cbd5e1", backgroundColor: "#ffffff", color: "#1e293b", fontSize: "13px", outline: "none", width: "100%" }; 
 const buttonStyle = { height: "42px", padding: "0 20px", borderRadius: "8px", border: "none", backgroundColor: "#4f46e5", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 4px rgba(79, 70, 229, 0.2)" }; 
  
-const metricsGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }; 
+const metricsGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }; 
 const metricCardStyle = { backgroundColor: "#ffffff", borderRadius: "16px", padding: "20px", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)", border: "1px solid #e2e8f0" }; 
 const metricLabelStyle = { fontSize: "13px", color: "#64748b", fontWeight: "600", marginBottom: "6px" }; 
 const metricValueStyle = { fontSize: "22px", fontWeight: "700", color: "#0f172a" }; 
  
-const tableHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }; 
+const tableHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }; 
 const tableTitleStyle = { margin: 0, fontSize: "16px", fontWeight: "700", color: "#0f172a" }; 
  
 const quickBtnPresent = { backgroundColor: "#059669", color: "#ffffff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" }; 
 const quickBtnAbsent = { backgroundColor: "#dc2626", color: "#ffffff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" }; 
+const quickBtnHoliday = { backgroundColor: "#d97706", color: "#ffffff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" }; 
  
 const tableStyle = { width: "100%", borderCollapse: "collapse", fontSize: "14px", textAlign: "left" }; 
 const thRowStyle = { borderBottom: "2px solid #cbd5e1", backgroundColor: "#f1f5f9" }; 
@@ -702,8 +705,6 @@ const tdStyle = { padding: "12px 14px", color: "#334155", verticalAlign: "middle
 const radioLabelStyle = { display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", cursor: "pointer", userSelect: "none" }; 
  
 const submitButtonStyle = { backgroundColor: "#059669", color: "#ffffff", border: "none", padding: "12px 28px", borderRadius: "10px", fontSize: "15px", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 6px rgba(5, 150, 105, 0.3)" }; 
-const editAttendanceButtonStyle = { backgroundColor: "#4f46e5", color: "#ffffff", border: "none", padding: "10px 24px", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 4px rgba(79, 70, 229, 0.2)" };
-const summaryBadgeStyle = { backgroundColor: "#f1f5f9", padding: "8px 16px", borderRadius: "8px", fontSize: "13px", color: "#334155", border: "1px solid #cbd5e1" };
 
 const errorStyle = { padding: "14px", backgroundColor: "#fee2e2", color: "#991b1b", borderRadius: "8px", fontSize: "14px", marginBottom: "24px", border: "1px solid #fca5a5", fontWeight: "500" }; 
 const successStyle = { padding: "14px", backgroundColor: "#d1fae5", color: "#065f46", borderRadius: "8px", fontSize: "14px", marginBottom: "24px", border: "1px solid #6ee7b7", fontWeight: "500" }; 

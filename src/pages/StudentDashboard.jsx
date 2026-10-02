@@ -632,6 +632,7 @@ useEffect(() => {
     width: "125px",
     height: "125px",
     borderRadius: "50%",
+    
 
     marginLeft: "8px",
     marginTop: "16px",
@@ -842,7 +843,7 @@ useEffect(() => {
                   <>
                     <div
                       style={{
-                        background: "#32ff20e6",
+                        background: "#75fc00fa",
                         color: "#112712",
                         padding: "11px 14px",
                         fontSize: "15px",
