@@ -629,8 +629,8 @@ useEffect(() => {
 <div
   onClick={getCategoryFromClick}
   style={{
-    width: "115px",
-    height: "115px",
+    width: "125px",
+    height: "125px",
     borderRadius: "50%",
 
     marginLeft: "8px",
@@ -717,14 +717,14 @@ useEffect(() => {
     style={{
       position: "absolute",
       top: "115px",
-            right:"20%",
-            top:"-40px",
-            width: "350px",
+            right:"5%",
+            top:"-70px",
+            width: "360px",
             background: "#fff",
             borderRadius: "5px",
             border:"1px solid black",
             boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-            border: "1px solid #e5e7eb",
+            border: "2px solid #e5e7eb",
             zIndex: 1000,
             overflow: "hidden"
           }}
@@ -776,7 +776,7 @@ useEffect(() => {
                         background: "#D93829",
                         color: "#fff",
                         padding: "11px 14px",
-                        fontSize: "14px",
+                        fontSize: "15px",
                         fontWeight: "700"
                       }}
                     >
@@ -842,10 +842,10 @@ useEffect(() => {
                   <>
                     <div
                       style={{
-                        background: "#172963",
-                        color: "#111827",
+                        background: "#32ff20e6",
+                        color: "#112712",
                         padding: "11px 14px",
-                        fontSize: "14px",
+                        fontSize: "15px",
                         fontWeight: "700"
                       }}
                     >
@@ -914,7 +914,7 @@ useEffect(() => {
                         background: "#15ae4d",
                         color: "#fff",
                         padding: "11px 14px",
-                        fontSize: "14px",
+                        fontSize: "15px",
                         fontWeight: "700"
                       }}
                     >
