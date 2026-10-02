@@ -684,18 +684,21 @@ useEffect(() => {
             alignItems: "center",
             justifyContent: "center",
             border: "1px solid rgba(92, 95, 101, 0.96)",
+            border:"1px solid black",
             boxShadow:
               "inset 0 1px 4px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.08)"
           }}
         >
+        
           <strong
             style={{
-              fontSize: "20px",
-              fontWeight: "800",
-              color: "#111827",
-              lineHeight: 1,
-              marginTop: "8px",
-              marginLeft: "10px"
+               color: "#3e2424",
+
+fontSize: "20px",
+fontWeight: "900",
+borderRadius: "2px", 
+marginTop:"8.5%",
+textShadow: "0 1px 2px rgb(89, 156, 96)" 
             }}
           >
             {attendanceStats.percentage}%
@@ -782,7 +785,8 @@ useEffect(() => {
 padding: "11px 14px",
 fontSize: "17px",
 fontWeight: "700",
-borderRadius: "2px", 
+borderRadius: "2px",
+border:"1px solid black", 
 boxShadow: "0 4px 12px rgba(21, 174, 77, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
 textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)" 
                       }}
@@ -818,7 +822,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#84848a",
-                            fontSize: "13px",
+                            fontSize: "15px",
                             fontWeight: "500",
                             textTransform: "uppercase"
                           }}
@@ -829,7 +833,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "14px",
+                            fontSize: "15px",
                             fontWeight: "600",
                             whiteSpace: "nowrap"
                           }}
@@ -849,13 +853,14 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                     <div
                       style={{
                         background: "#75fc00fa",
-                       color: "#fff",
+                       color: "#121010",
 padding: "11px 14px",
 fontSize: "17px",
 fontWeight: "700",
 borderRadius: "2px", 
+border:"1px solid black",
 boxShadow: "0 4px 12px rgba(21, 174, 77, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
-textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)" 
+textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)" 
                       }}
                     >
                       🟡 75% - Below 85%
@@ -889,7 +894,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#7d7d84",
-                            fontSize: "13px",
+                            fontSize: "15px",
                             fontWeight: "600",
                             textTransform: "uppercase"
                           }}
@@ -900,7 +905,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "14px",
+                            fontSize: "15px",
                             fontWeight: "700",
                             whiteSpace: "nowrap"
                           }}
@@ -923,6 +928,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
 color: "#fff",
 padding: "11px 14px",
 fontSize: "17px",
+border:"1px solid black",
 fontWeight: "700",
 borderRadius: "2px", 
 boxShadow: "0 4px 12px rgba(21, 174, 77, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
@@ -960,7 +966,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#7e7e83",
-                            fontSize: "13px",
+                            fontSize: "15px",
                             fontWeight: "600",
                             textTransform: "uppercase"
                           }}
@@ -971,7 +977,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "14px",
+                            fontSize: "15px",
                             fontWeight: "600",
                             whiteSpace: "nowrap"
                           }}
