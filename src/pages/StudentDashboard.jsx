@@ -216,6 +216,7 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
   const [showTaskAlert, setShowTaskAlert] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [headTeacher, setHeadTeacher] = useState(null);
+  
   useEffect(() => {
   api
     .get(`/api/teachers/admin/teachers`)
@@ -238,7 +239,27 @@ const [showSubjectAttendance, setShowSubjectAttendance] = useState(false);
 const [subjectAttendance, setSubjectAttendance] = useState([]);
 const [subjectLoading, setSubjectLoading] = useState(false);
 const [selectedAttendanceCategory, setSelectedAttendanceCategory] = useState(null);
+// Bahar click ya touch karne par popup close karne ke liye
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSubjectAttendance) {
+        // Agar popup open hai, toh use band kar do
+        setShowSubjectAttendance(false);
+        setSelectedAttendanceCategory(null);
+      }
+    };
 
+    if (showSubjectAttendance) {
+      // Thoda delay taaki turant wala click event conflict na kare
+      document.addEventListener("click", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [showSubjectAttendance]);
 const greenSubjects = subjectAttendance.filter(
   (s) => Number(s.percentage) >= 85
 );
@@ -550,9 +571,7 @@ useEffect(() => {
       <div style={cardBottomBody}>
 
         {/* ================= ATTENDANCE ================= */}
-
 {/* ================= ATTENDANCE ================= */}
-
 {c.title === "Attendance" && (() => {
   const totalSubjects = subjectAttendance.length;
 
@@ -584,36 +603,37 @@ useEffect(() => {
   const yellowEnd = greenEnd + yellowPercent * 3.6;
 
   const getCategoryFromClick = (e) => {
-  e.stopPropagation();
+    e.stopPropagation();
 
-  if (totalSubjects === 0) return;
+    if (totalSubjects === 0) return;
 
-  const rect = e.currentTarget.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
 
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
 
-  const x = e.clientX - centerX;
-  const y = e.clientY - centerY;
+    const x = e.clientX - centerX;
+    const y = e.clientY - centerY;
 
-  let angle = Math.atan2(y, x) * (180 / Math.PI);
+    let angle = Math.atan2(y, x) * (180 / Math.PI);
 
-  angle += 90;
+    angle += 90;
 
-  if (angle < 0) {
-    angle += 360;
-  }
+    if (angle < 0) {
+      angle += 360;
+    }
 
-  if (angle < greenEnd) {
-    setSelectedAttendanceCategory("green");
-  } else if (angle < yellowEnd) {
-    setSelectedAttendanceCategory("yellow");
-  } else {
-    setSelectedAttendanceCategory("red");
-  }
+    if (angle < greenEnd) {
+      setSelectedAttendanceCategory("green");
+    } else if (angle < yellowEnd) {
+      setSelectedAttendanceCategory("yellow");
+    } else {
+      setSelectedAttendanceCategory("red");
+    }
 
-  setShowSubjectAttendance(true);
-};
+    setShowSubjectAttendance(true);
+  };
+
   return (
     <div
       style={{
@@ -624,114 +644,94 @@ useEffect(() => {
         position: "relative"
       }}
     >
+      {/* ATTENDANCE CIRCLE */}
+      <div
+        onClick={getCategoryFromClick}
+        style={{
+          width: "125px",
+          height: "125px",
+          borderRadius: "50%",
+          marginLeft: "8px",
+          marginTop: "16px",
+          background:
+            totalSubjects === 0
+              ? "#e5e7eb"
+              : `conic-gradient(
+                  #15ae4d 0deg ${greenEnd}deg,
+                  #facc15 ${greenEnd}deg ${yellowEnd}deg,
+                  #ef4444 ${yellowEnd}deg 360deg
+                )`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: totalSubjects > 0 ? "pointer" : "default",
+          flexShrink: 0,
+          border: "1px solid #ffffff",
+          boxShadow:
+            "0 0 0 1px rgba(219, 220, 222, 0.8), 0 5px 15px rgba(0,0,0,0.15)",
+          transition: "all 0.1s ease"
+        }}
+      >
+        {/* INNER CIRCLE */}
+        <div
+          style={{
+            width: "71px",
+            height: "71px",
+            borderRadius: "50%",
+            background: "#ffff",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid rgba(92, 95, 101, 0.96)",
+            boxShadow:
+              "inset 0 1px 4px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.08)"
+          }}
+        >
+          <strong
+            style={{
+              fontSize: "20px",
+              fontWeight: "800",
+              color: "#111827",
+              lineHeight: 1,
+              marginTop: "8px",
+              marginLeft: "10px"
+            }}
+          >
+            {attendanceStats.percentage}%
+          </strong>
 
-    {/* ATTENDANCE CIRCLE */}
-<div
-  onClick={getCategoryFromClick}
-  style={{
-    width: "125px",
-    height: "125px",
-    borderRadius: "50%",
-    
-
-    marginLeft: "8px",
-    marginTop: "16px",
-
-    background:
-  totalSubjects === 0
-    ? "#e5e7eb"
-    : `conic-gradient(
-        #15ae4d 0deg ${greenEnd}deg,
-        #facc15 ${greenEnd}deg ${yellowEnd}deg,
-        #ef4444 ${yellowEnd}deg 360deg
-      )`,
-
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-
-    cursor: totalSubjects > 0 ? "pointer" : "default",
-    flexShrink: 0,
-
-    /* OUTER OUTLINE */
-    border: "1px solid #ffffff",
-
-    /* OUTER SHADOW */
-    boxShadow:
-      "0 0 0 1px rgba(219, 220, 222, 0.8), 0 5px 15px rgba(0,0,0,0.15)",
-
-    transition: "all 0.25s ease"
-  }}
->
-  {/* INNER CIRCLE */}
-  <div
-    style={{
-      width: "71px",
-      height: "71px",
-      borderRadius: "50%",
-
-      background: "#ffff",
-
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-
-      /* INNER OUTLINE */
-      border: "1px solid rgba(246, 247, 249, 0.96)",
-
-      /* INNER SHADOW */
-      boxShadow:
-        "inset 0 1px 4px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.08)"
-    }}
-  >
-    <strong
-      style={{
-        fontSize: "20px",
-        fontWeight: "800",
-        color: "#111827",
-        lineHeight: 1,
-        marginTop:"8px",
-        marginLeft:"10px"
-      }}
-    >
-      {attendanceStats.percentage}%
-    </strong>
-
-    <span
-      style={{
-        marginTop: "5px",
-        fontSize: "10px",
-        color: "#6b7280",
-        fontWeight: "600"
-      }}
-    >
-      {attendanceStats.present}/{attendanceStats.total}
-    </span>
-  </div>
-</div>
+          <span
+            style={{
+              marginTop: "5px",
+              fontSize: "10px",
+              color: "#6b7280",
+              fontWeight: "600"
+            }}
+          >
+            {attendanceStats.present}/{attendanceStats.total}
+          </span>
+        </div>
+      </div>
 
       {/* POPUP */}
-     {showSubjectAttendance && (
-  <div
-    onClick={(e) => e.stopPropagation()}
-    style={{
-      position: "absolute",
-      top: "115px",
-            right:"2%",
-            top:"-100px",
-            width: "360px",
+      {showSubjectAttendance && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute",
+            right: "-10%",
+            top: "-150px",
+            width: "390px",
             background: "#fff",
             borderRadius: "5px",
-            border:"1px solid black",
             boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
             border: "2px solid #e5e7eb",
             zIndex: 1000,
             overflow: "hidden"
           }}
         >
-
-          {/* CLOSE BUTTON */}
+          {/* CLOSE BUTTON - Ab iska click area bada kar diya hai */}
           <button
             onClick={() => {
               setShowSubjectAttendance(false);
@@ -741,10 +741,15 @@ useEffect(() => {
               position: "absolute",
               right: "8px",
               top: "6px",
+              width: "32px",
+              height: "32px",
               border: "none",
               background: "#fff6f6",
-              borderRadius:"50%",
+              borderRadius: "50%",
               fontSize: "22px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               cursor: "pointer",
               color: "#555",
               zIndex: 2
@@ -752,7 +757,6 @@ useEffect(() => {
           >
             ×
           </button>
-
 
           {/* LOADING */}
           {subjectLoading ? (
@@ -766,7 +770,6 @@ useEffect(() => {
               Loading...
             </div>
           ) : (
-
             <>
               {/* RED */}
               {selectedAttendanceCategory === "red" &&
@@ -776,9 +779,12 @@ useEffect(() => {
                       style={{
                         background: "#D93829",
                         color: "#fff",
-                        padding: "11px 14px",
-                        fontSize: "15px",
-                        fontWeight: "700"
+padding: "11px 14px",
+fontSize: "17px",
+fontWeight: "700",
+borderRadius: "2px", 
+boxShadow: "0 4px 12px rgba(21, 174, 77, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
+textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)" 
                       }}
                     >
                       🔴 Below 75%
@@ -789,10 +795,10 @@ useEffect(() => {
                         key={`red-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "75px 1fr auto",
+                          gridTemplateColumns: "130px 1fr auto",
                           alignItems: "center",
-                          gap: "8px",
-                          padding: "11px 12px",
+                          gap: "10px",
+                          padding: "12px 14px",
                           borderBottom:
                             index !== redSubjects.length - 1
                               ? "1px solid #e5e7eb"
@@ -802,7 +808,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#18191b",
-                            fontSize: "12px",
+                            fontSize: "13px",
                             fontWeight: "600"
                           }}
                         >
@@ -812,7 +818,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#84848a",
-                            fontSize: "14px",
+                            fontSize: "13px",
                             fontWeight: "500",
                             textTransform: "uppercase"
                           }}
@@ -823,7 +829,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "15px",
+                            fontSize: "14px",
                             fontWeight: "600",
                             whiteSpace: "nowrap"
                           }}
@@ -836,7 +842,6 @@ useEffect(() => {
                   </>
                 )}
 
-
               {/* YELLOW */}
               {selectedAttendanceCategory === "yellow" &&
                 yellowSubjects.length > 0 && (
@@ -844,10 +849,13 @@ useEffect(() => {
                     <div
                       style={{
                         background: "#75fc00fa",
-                        color: "#112712",
-                        padding: "11px 14px",
-                        fontSize: "15px",
-                        fontWeight: "700"
+                       color: "#fff",
+padding: "11px 14px",
+fontSize: "17px",
+fontWeight: "700",
+borderRadius: "2px", 
+boxShadow: "0 4px 12px rgba(21, 174, 77, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
+textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)" 
                       }}
                     >
                       🟡 75% - Below 85%
@@ -858,10 +866,10 @@ useEffect(() => {
                         key={`yellow-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "75px 1fr auto",
+                          gridTemplateColumns: "130px 1fr auto",
                           alignItems: "center",
-                          gap: "8px",
-                          padding: "11px 12px",
+                          gap: "10px",
+                          padding: "12px 14px",
                           borderBottom:
                             index !== yellowSubjects.length - 1
                               ? "1px solid #e5e7eb"
@@ -871,7 +879,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#18191b",
-                            fontSize: "12px",
+                            fontSize: "13px",
                             fontWeight: "600"
                           }}
                         >
@@ -881,7 +889,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#7d7d84",
-                            fontSize: "14px",
+                            fontSize: "13px",
                             fontWeight: "600",
                             textTransform: "uppercase"
                           }}
@@ -892,7 +900,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "15px",
+                            fontSize: "14px",
                             fontWeight: "700",
                             whiteSpace: "nowrap"
                           }}
@@ -905,7 +913,6 @@ useEffect(() => {
                   </>
                 )}
 
-
               {/* GREEN */}
               {selectedAttendanceCategory === "green" &&
                 greenSubjects.length > 0 && (
@@ -913,10 +920,13 @@ useEffect(() => {
                     <div
                       style={{
                         background: "#15ae4d",
-                        color: "#fff",
-                        padding: "11px 14px",
-                        fontSize: "15px",
-                        fontWeight: "700"
+color: "#fff",
+padding: "11px 14px",
+fontSize: "17px",
+fontWeight: "700",
+borderRadius: "2px", 
+boxShadow: "0 4px 12px rgba(21, 174, 77, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
+textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)" 
                       }}
                     >
                       🟢 85% & Above
@@ -927,10 +937,10 @@ useEffect(() => {
                         key={`green-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "75px 1fr auto",
+                          gridTemplateColumns: "130px 1fr auto",
                           alignItems: "center",
-                          gap: "8px",
-                          padding: "11px 12px",
+                          gap: "10px",
+                          padding: "12px 14px",
                           borderBottom:
                             index !== greenSubjects.length - 1
                               ? "1px solid #e5e7eb"
@@ -940,7 +950,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#18191b",
-                            fontSize: "12px",
+                            fontSize: "13px",
                             fontWeight: "600"
                           }}
                         >
@@ -950,7 +960,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#7e7e83",
-                            fontSize: "14px",
+                            fontSize: "13px",
                             fontWeight: "600",
                             textTransform: "uppercase"
                           }}
@@ -961,7 +971,7 @@ useEffect(() => {
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "15px",
+                            fontSize: "14px",
                             fontWeight: "600",
                             whiteSpace: "nowrap"
                           }}
@@ -980,7 +990,6 @@ useEffect(() => {
     </div>
   );
 })()}
-
             
         {/* ================= CARD TITLE ================= */}
         <div>
