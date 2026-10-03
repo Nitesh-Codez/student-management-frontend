@@ -718,14 +718,15 @@ marginTop:"18.5%",
       </div>
 
       {/* POPUP */}
+    {/* POPUP */}
       {showSubjectAttendance && (
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "absolute",
-            right: "-20%",
+            right: "20%", // -170% ki jagah left use karein taaki circle ke right mein khule
             top: "-150px",
-            width: "330px",
+            width: "340px",
             background: "#fff",
             borderRadius: "5px",
             boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
@@ -824,6 +825,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                             color: "#84848a",
                             fontSize: "15px",
                             fontWeight: "500",
+                            right: "250%", 
                             textTransform: "uppercase"
                           }}
                         >
@@ -896,6 +898,8 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                             color: "#7d7d84",
                             fontSize: "16px",
                             fontWeight: "600",
+                            right: "250%",
+                            
                             textTransform: "uppercase"
                           }}
                         >
@@ -960,7 +964,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                             fontWeight: "600"
                           }}
                         >
-                          {subject.subjectname || "SB"}
+                          {subject.subjectname || "SUBJECT"}
                         </span>
 
                         <span
@@ -968,6 +972,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                             color: "#7e7e83",
                             fontSize: "15px",
                             fontWeight: "600",
+                            right: "250%",
                             textTransform: "uppercase"
                           }}
                         >
