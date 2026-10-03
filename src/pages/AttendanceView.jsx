@@ -3,10 +3,10 @@ import api from "../services/api";
 import { 
   FaSearch, FaGraduationCap, FaChartPie, 
   FaCalendarCheck, FaTrophy, FaSyncAlt, 
-  FaTimes, FaCheck, FaFilter, FaUserCircle, FaEye
+  FaTimes, FaCheck, FaFilter, FaEye, FaBook
 } from "react-icons/fa";
 
-const AdminAttendanceRequests = () => {
+const AdminAttendance = () => {
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -17,19 +17,18 @@ const AdminAttendanceRequests = () => {
   
   // Selected student for individual side panel analysis
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentSubjectData, setStudentSubjectData] = useState([]);
+  const [subjectLoading, setSubjectLoading] = useState(false);
   const [studentSpecificRequests, setStudentSpecificRequests] = useState([]);
 
   // Active Tab: 'analytics' or 'requests'
   const [activeTab, setActiveTab] = useState("analytics");
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  // Month Selector for current view filtering
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-  });
+  // Month Selector for current view filtering (Default: 2026-09)
+  const [currentMonth, setCurrentMonth] = useState("2026-09");
 
-  // 1. FETCH ALL DATA (Students, Today Percentages, & Admin Requests API)
+  // 1. FETCH ALL DATA
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
@@ -41,11 +40,8 @@ const AdminAttendanceRequests = () => {
 
       const basicInfo = Array.isArray(resStudents.data) ? resStudents.data : (resStudents.data.students || []);
       const attendanceInfo = resAttendance.data.students || [];
-      
-      // Directly extract requests array from backend response format
       const requestsData = resRequests.data.requests || resRequests.data.student || (Array.isArray(resRequests.data) ? resRequests.data : []);
 
-      // Merge student info with live attendance info
       const mergedData = basicInfo.map(student => {
         const attendanceRecord = attendanceInfo.find(a => 
           (a.studentId === student.id) || (a.id === student.id)
@@ -73,7 +69,7 @@ const AdminAttendanceRequests = () => {
     fetchAllData(); 
   }, [fetchAllData]);
 
-  // 2. HANDLE REQUEST STATUS UPDATE (Accept / Reject)
+  // 2. HANDLE REQUEST STATUS UPDATE
   const handleUpdateStatus = async (requestId, newStatus) => {
     setActionLoadingId(requestId);
     try {
@@ -91,14 +87,20 @@ const AdminAttendanceRequests = () => {
     }
   };
 
-  // 3. FILTER LOGIC FOR STUDENTS
+  // 3. FILTER LOGIC FOR STUDENTS (Class-first, then Search & Attendance Status)
   useEffect(() => {
     let result = students;
+
+    // Filter by Class first
+    if (selectedClass !== "All") {
+      result = result.filter((s) => String(s.class) === String(selectedClass));
+    }
+
+    // Filter by Attendance percentage category
     if (activeFilter === "Top") result = result.filter(s => Number(s.percentage) >= 85);
     else if (activeFilter === "Low") result = result.filter(s => Number(s.percentage) < 60);
 
-    if (selectedClass !== "All") result = result.filter((s) => String(s.class) === String(selectedClass));
-
+    // Filter by Search Query
     if (searchTerm) {
       result = result.filter((s) =>
         s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -108,11 +110,27 @@ const AdminAttendanceRequests = () => {
     setFilteredStudents(result);
   }, [searchTerm, selectedClass, activeFilter, students]);
 
-  // Open individual student side panel & filter requests for them
-  const handleOpenStudentDetails = (student) => {
+  // Open individual student side panel & fetch subject-wise attendance via GET /api/attendance/admin/subject-wise
+  const handleOpenStudentDetails = async (student) => {
     setSelectedStudent(student);
     const matchedReqs = requests.filter(r => String(r.studentId) === String(student.id) || String(r.studentId) === String(student._id));
     setStudentSpecificRequests(matchedReqs);
+
+    setSubjectLoading(true);
+    try {
+      const res = await api.get(`/api/attendance/admin/subject-wise?month=${currentMonth}`);
+      if (res.data && res.data.success) {
+        const foundStudent = res.data.students.find(
+          s => String(s.studentId) === String(student.id || student._id)
+        );
+        setStudentSubjectData(foundStudent ? foundStudent.subjects : []);
+      }
+    } catch (err) {
+      console.error("Error fetching subject-wise attendance:", err);
+      setStudentSubjectData([]);
+    } finally {
+      setSubjectLoading(false);
+    }
   };
 
   const uniqueClasses = ["All", ...new Set(students.map((s) => s.class))].filter(Boolean);
@@ -133,7 +151,7 @@ const AdminAttendanceRequests = () => {
         input, select, button { font-family: inherit; }
       `}</style>
 
-      {/* --- STATS SUMMARY CARDS (Thin / Clean Font) --- */}
+      {/* --- STATS SUMMARY CARDS --- */}
       <div style={statsGrid}>
         <div style={{...statCard, borderBottom: activeFilter === "All" ? '2px solid #0f172a' : '1px solid #f1f5f9'}} onClick={() => { setActiveFilter("All"); setActiveTab("analytics"); }}>
           <div style={{...iconCircle, background: '#f8fafc', color: '#0f172a'}}><FaGraduationCap /></div>
@@ -183,24 +201,45 @@ const AdminAttendanceRequests = () => {
               style={monthInputStyle}
             />
           </div>
-
-          {activeTab === 'analytics' && (
-            <>
-              <div style={searchWrapper}>
-                <FaSearch style={sIcon} />
-                <input placeholder="Search student..." style={sInput} value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
-              </div>
-              <div style={filterBox}>
-                <FaFilter size={11} color="#64748b" />
-                <select style={miniSelect} value={selectedClass} onChange={(e)=>setSelectedClass(e.target.value)}>
-                  {uniqueClasses.map(c => <option key={c} value={c}>{c === "All" ? "All Classes" : `Class ${c}`}</option>)}
-                </select>
-              </div>
-            </>
-          )}
           <button onClick={fetchAllData} style={refreshBtn} title="Refresh"><FaSyncAlt /></button>
         </div>
       </div>
+
+      {/* --- CLASS FILTER BAR (Prominent Selection Flow) --- */}
+      {activeTab === 'analytics' && (
+        <div style={classFilterSection}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
+            <span style={{fontSize: '13px', color: '#334155', fontWeight: 'bold'}}><FaFilter style={{marginRight: '5px'}} /> Filter by Class:</span>
+            <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
+              {uniqueClasses.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setSelectedClass(c)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    border: selectedClass === c ? '1px solid #0f172a' : '1px solid #cbd5e1',
+                    background: selectedClass === c ? '#0f172a' : '#fff',
+                    color: selectedClass === c ? '#fff' : '#334155',
+                    fontWeight: selectedClass === c ? 'bold' : 'normal'
+                  }}
+                >
+                  {c === "All" ? "All Classes" : `Class ${c}`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+            <div style={searchWrapper}>
+              <FaSearch style={sIcon} />
+              <input placeholder="Search student..." style={sInput} value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- TAB 1: STUDENT ANALYTICS TABLE --- */}
       {activeTab === 'analytics' && (
@@ -244,14 +283,14 @@ const AdminAttendanceRequests = () => {
                   </td>
                   <td style={tdC}>
                     <button style={viewBtn} onClick={() => handleOpenStudentDetails(s)}>
-                      <FaEye size={12} style={{marginRight: '4px'}} /> View Profile
+                      <FaEye size={12} style={{marginRight: '4px'}} /> View Subject Attendance
                     </button>
                   </td>
                 </tr>
               ))}
               {filteredStudents.length === 0 && !loading && (
                 <tr>
-                  <td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#64748b', fontStyle: 'italic'}}>No matching student records found.</td>
+                  <td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#64748b', fontStyle: 'italic'}}>No students found for Class {selectedClass}.</td>
                 </tr>
               )}
             </tbody>
@@ -338,57 +377,60 @@ const AdminAttendanceRequests = () => {
         </div>
       )}
 
-      {/* --- SIDE PANEL: INDIVIDUAL STUDENT PERSONAL BREAKDOWN --- */}
+      {/* --- SIDE PANEL: SUBJECT-WISE ATTENDANCE DRILL-DOWN --- */}
       {selectedStudent && (
         <>
           <div style={overlay} onClick={() => setSelectedStudent(null)} />
           <div style={sidePanel}>
             <div style={panelHeader}>
-              <h3 style={{fontSize: '16px', color: '#0f172a', fontWeight: 'normal'}}>Individual Profile View</h3>
+              <h3 style={{fontSize: '16px', color: '#0f172a', fontWeight: 'normal'}}>Subject Attendance Breakdown</h3>
               <button onClick={() => setSelectedStudent(null)} style={closeIconBtn}><FaTimes /></button>
             </div>
 
             <div style={panelBody}>
-              <img 
-                src={selectedStudent.profile_photo || selectedStudent.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedStudent.name || 'Student')}&background=cbd5e1&color=0f172a`} 
-                style={largeImg} 
-                alt="p" 
-              />
-              <h2 style={{marginTop: '12px', color: '#0f172a', fontSize: '18px'}}>{selectedStudent.name}</h2>
-              <p style={{color: '#64748b', fontSize: '12px', marginTop: '2px', fontStyle: 'italic'}}>Class {selectedStudent.class} | ID: {selectedStudent.id}</p>
-              
-              <div style={infoCard}>
-                 <div style={infoItem}><span>Live Attendance</span><strong>{selectedStudent.percentage}%</strong></div>
-                 <div style={infoItem}><span>Present Sessions</span><strong>{selectedStudent.present || 0}</strong></div>
-                 <div style={infoItem}><span>Total Sessions</span><strong>{selectedStudent.total || 0}</strong></div>
-                 <div style={infoItem}>
-                   <span>Category</span>
-                   <strong style={{color: selectedStudent.percentage >= 75 ? '#166534' : '#991b1b'}}>
-                     {selectedStudent.percentage >= 75 ? 'Regular' : 'Irregular'}
-                   </strong>
-                 </div>
+              <div style={panelProfileCard}>
+                <img 
+                  src={selectedStudent.profile_photo || selectedStudent.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedStudent.name || 'Student')}&background=cbd5e1&color=0f172a`} 
+                  alt="Student" style={panelAvatar}
+                />
+                <div>
+                  <div style={{fontSize: '16px', fontWeight: 'bold', color: '#0f172a'}}>{selectedStudent.name}</div>
+                  <div style={{fontSize: '12px', color: '#64748b'}}>Class: {selectedStudent.class} | ID: {selectedStudent.id || selectedStudent._id}</div>
+                  <div style={{fontSize: '12px', color: '#166534', marginTop: '4px'}}>Overall Attendance: <strong>{selectedStudent.percentage}%</strong></div>
+                </div>
               </div>
 
-              {/* Personal Drop History */}
-              <div style={{marginTop: '20px', textAlign: 'left'}}>
-                <h4 style={{fontSize: '13px', color: '#0f172a', marginBottom: '8px', fontStyle: 'italic'}}>Student Request History</h4>
-                {studentSpecificRequests.length === 0 ? (
-                  <p style={{fontSize: '12px', color: '#64748b', fontStyle: 'italic'}}>No requests filed by this student.</p>
-                ) : (
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                    {studentSpecificRequests.map((r, i) => (
-                      <div key={i} style={{background: '#f8fafc', padding: '10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px'}}>
-                        <div style={{display: 'flex', justifyContent: 'between', marginBottom: '4px'}}>
-                          <span style={{fontWeight: 'normal', color: '#0f172a'}}>{r.dropType || 'Leave'}</span>
-                          <span style={{color: r.requestStatus?.toLowerCase() === 'accepted' ? '#166534' : '#991b1b', textTransform: 'uppercase'}}>{r.requestStatus || 'Pending'}</span>
-                        </div>
-                        <div style={{color: '#475569', fontSize: '11px'}}>{formatDate(r.dropStartDate)} &rarr; {formatDate(r.dropEndDate)}</div>
-                        <div style={{color: '#334155', marginTop: '4px', fontStyle: 'italic'}}>"{r.reason}"</div>
+              <h4 style={{fontSize: '13px', color: '#475569', margin: '20px 0 10px 0', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px'}}>
+                <FaBook style={{marginRight: '6px'}} /> Subjects for Month: {currentMonth}
+              </h4>
+
+              {subjectLoading ? (
+                <div style={{textAlign: 'center', padding: '25px', color: '#64748b', fontSize: '13px', fontStyle: 'italic'}}>Loading subject attendance...</div>
+              ) : studentSubjectData.length > 0 ? (
+                <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                  {studentSubjectData.map((subj, i) => (
+                    <div key={i} style={subjectCard}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '4px'}}>
+                        <span style={{fontWeight: 'bold', fontSize: '13px', color: '#0f172a'}}>{subj.subjectCode}</span>
+                        <span style={{fontSize: '13px', fontWeight: 'bold', color: subj.percentage >= 75 ? '#166534' : '#991b1b'}}>
+                          {subj.percentage}%
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <div style={{fontSize: '12px', color: '#64748b', display: 'flex', justifyContent: 'space-between'}}>
+                        <span>Present: {subj.present} | Absent: {subj.absent}</span>
+                        <span>Total: {subj.total}</span>
+                      </div>
+                      <div style={{...barContainer, marginTop: '6px'}}>
+                        <div style={{...barFill, width: `${subj.percentage}%`, background: subj.percentage >= 75 ? '#166534' : '#991b1b'}}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{textAlign: 'center', padding: '30px', color: '#64748b', fontStyle: 'italic', fontSize: '13px'}}>
+                  No subject records found for {currentMonth}.
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -397,57 +439,58 @@ const AdminAttendanceRequests = () => {
   );
 };
 
-// --- STYLING (Clean, Thin, Minimalist Corporate Layout) ---
-const appContainer = { background: "#ffffff", minHeight: "100vh", paddingBottom: "40px" };
-const statsGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", borderBottom: "1px solid #cbd5e1" };
-const statCard = { padding: "18px 20px", display: "flex", alignItems: "center", gap: "14px", cursor: "pointer", background: "#fff" };
-const iconCircle = { width: "36px", height: "36px", borderRadius: "6px", display: "flex", justifyContent: "center", alignItems: "center", border: "1px solid #cbd5e1" };
-const statLabel = { fontSize: "11px", color: "#64748b", textTransform: 'uppercase', fontStyle: 'italic' };
-const statNumber = { fontSize: "20px", color: "#0f172a", marginTop: '2px' };
+// --- STYLES ---
+const appContainer = { padding: '24px', background: '#f8fafc', minHeight: '100vh' };
+const statsGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' };
+const statCard = { background: '#fff', padding: '16px', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' };
+const iconCircle = { width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' };
+const statLabel = { fontSize: '12px', color: '#64748b' };
+const statNumber = { fontSize: '18px', fontWeight: 'bold', color: '#0f172a', marginTop: '2px' };
 
-const commandBar = { display: "flex", justifyContent: "space-between", padding: "20px", alignItems: "center", flexWrap: 'wrap', gap: '15px', borderBottom: "1px solid #cbd5e1" };
-const leftBar = { display: "flex", alignItems: "center", gap: "20px", flexWrap: 'wrap' };
-const titleText = { fontSize: "16px", color: "#0f172a", fontStyle: 'italic' };
-const tabSwitchContainer = { display: 'flex', gap: '4px', background: '#f8fafc', padding: '3px', borderRadius: '4px', border: '1px solid #cbd5e1' };
-const tabBtn = { padding: '6px 12px', borderRadius: '3px', border: 'none', fontSize: '12px', cursor: 'pointer' };
+const commandBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '16px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' };
+const leftBar = { display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' };
+const titleText = { fontSize: '18px', color: '#0f172a', fontWeight: 'normal', margin: 0 };
+const tabSwitchContainer = { display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '4px' };
+const tabBtn = { padding: '6px 14px', border: 'none', borderRadius: '3px', fontSize: '12px', cursor: 'pointer', transition: '0.2s' };
 
-const rightBar = { display: "flex", gap: "10px", alignItems: 'center', flexWrap: 'wrap' };
-const searchWrapper = { position: "relative" };
-const sIcon = { position: "absolute", left: "10px", top: "11px", color: "#64748b" };
-const sInput = { padding: "8px 10px 8px 32px", borderRadius: "4px", border: "1px solid #cbd5e1", background: "#fff", width: "170px", outline: 'none', fontSize: '13px' };
-const filterBox = { display: "flex", alignItems: "center", gap: "6px", background: "#fff", padding: "0 10px", borderRadius: "4px", border: "1px solid #cbd5e1", height: '36px' };
-const monthInputStyle = { border: "none", background: "transparent", fontSize: "12px", color: "#0f172a", outline: 'none', cursor: 'pointer' };
-const miniSelect = { border: "none", background: "none", height: "100%", outline: "none", fontSize: "12px", cursor: 'pointer', color: '#0f172a' };
-const refreshBtn = { padding: "8px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", cursor: "pointer", height: '36px' };
+const rightBar = { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' };
+const filterBox = { display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '5px 10px', borderRadius: '4px' };
+const monthInputStyle = { border: 'none', background: 'transparent', fontSize: '12px', color: '#0f172a', outline: 'none', cursor: 'pointer' };
+const refreshBtn = { background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '8px 10px', borderRadius: '4px', cursor: 'pointer', color: '#475569' };
 
-const tableWrapper = { padding: "20px", overflowX: "auto" };
-const fullTable = { width: "100%", borderCollapse: "collapse", minWidth: '700px', fontSize: '13px' };
-const thRow = { background: "#f8fafc", borderBottom: "1px solid #cbd5e1" };
-const th = { padding: "12px 14px", textAlign: "left", fontSize: "11px", color: "#64748b", fontStyle: 'italic' };
-const thC = { ...th, textAlign: "center" };
-const trStyle = { borderBottom: "1px solid #e2e8f0" };
-const td = { padding: "12px 14px" };
-const tdC = { ...td, textAlign: "center" };
-const idGroup = { display: "flex", alignItems: "center", gap: "10px" };
-const photoBox = { width: "36px", height: "36px", borderRadius: "50%", overflow: "hidden", border: "1px solid #cbd5e1", flexShrink: 0 };
-const avatarImg = { width: "100%", height: "100%", objectFit: "cover" };
-const nameTxt = { fontSize: "13px", color: '#0f172a' };
-const subTxt = { fontSize: "11px", color: "#64748b", fontStyle: 'italic' };
-const batchBadge = { background: "#f8fafc", padding: "2px 8px", borderRadius: "3px", color: "#334155", fontSize: "11px", border: "1px solid #cbd5e1" };
-const statValue = { color: '#0f172a' };
-const barContainer = { width: "80px", height: "5px", background: "#f1f5f9", borderRadius: "2px", margin: "0 auto", overflow: 'hidden', border: "1px solid #cbd5e1" };
-const barFill = { height: "100%" };
-const viewBtn = { padding: "5px 10px", borderRadius: "3px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontSize: "11px", color: '#0f172a', display: 'inline-flex', alignItems: 'center' };
-const actionBtn = { padding: '4px 8px', borderRadius: '3px', border: 'none', fontSize: '11px', cursor: 'pointer' };
-const loader = { textAlign: "center", padding: "50px", color: "#64748b", fontStyle: 'italic', fontSize: '13px' };
+const classFilterSection = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '14px 16px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' };
+const searchWrapper = { position: 'relative', display: 'flex', alignItems: 'center' };
+const sIcon = { position: 'absolute', left: '10px', color: '#94a3b8', fontSize: '12px' };
+const sInput = { padding: '6px 10px 6px 30px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none', width: '200px' };
 
-const overlay = { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.2)", zIndex: 99 };
-const sidePanel = { position: "fixed", right: 0, top: 0, width: "340px", height: "100%", background: "#fff", zIndex: 100, borderLeft: '1px solid #cbd5e1', overflowY: 'auto' };
-const panelHeader = { padding: "16px 20px", borderBottom: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' };
-const closeIconBtn = { background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#64748b' };
-const panelBody = { padding: "20px", textAlign: "center" };
-const largeImg = { width: "90px", height: "90px", borderRadius: "50%", objectFit: "cover", border: "1px solid #cbd5e1", margin: '0 auto' };
-const infoCard = { background: "#f8fafc", borderRadius: "4px", padding: "12px", marginTop: "16px", textAlign: "left", border: '1px solid #cbd5e1' };
-const infoItem = { display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #e2e8f0", fontSize: '12px' };
+const tableWrapper = { background: '#fff', borderRadius: '6px', border: '1px solid #e2e8f0', overflowX: 'auto' };
+const fullTable = { width: '100%', borderCollapse: 'collapse', textAlign: 'left' };
+const thRow = { background: '#f8fafc', borderBottom: '1px solid #e2e8f0' };
+const th = { padding: '12px 16px', fontSize: '11px', color: '#475569', letterSpacing: '0.5px' };
+const thC = { ...th, textAlign: 'center' };
+const trStyle = { borderBottom: '1px solid #f1f5f9' };
+const td = { padding: '12px 16px', fontSize: '13px' };
+const tdC = { ...td, textAlign: 'center' };
+const idGroup = { display: 'flex', alignItems: 'center', gap: '10px' };
+const photoBox = { width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', background: '#e2e8f0' };
+const avatarImg = { width: '100%', height: '100%', objectFit: 'cover' };
+const nameTxt = { fontWeight: 'bold', color: '#0f172a' };
+const subTxt = { fontSize: '11px', color: '#64748b' };
+const batchBadge = { background: '#f1f5f9', padding: '3px 8px', borderRadius: '3px', fontSize: '11px', color: '#334155', border: '1px solid #cbd5e1' };
+const statValue = { fontWeight: 'bold', color: '#0f172a' };
+const barContainer = { width: '80px', height: '6px', background: '#f1f5f9', borderRadius: '3px', margin: '0 auto', overflow: 'hidden' };
+const barFill = { height: '100%', borderRadius: '3px' };
+const viewBtn = { background: '#0f172a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' };
+const actionBtn = { border: 'none', padding: '4px 8px', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' };
+const loader = { padding: '20px', textAlign: 'center', color: '#64748b', fontStyle: 'italic', fontSize: '13px' };
 
-export default AdminAttendanceRequests;
+const overlay = { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', zIndex: 1000 };
+const sidePanel = { position: 'fixed', top: 0, right: 0, width: '420px', maxWidth: '100%', height: '100vh', background: '#fff', zIndex: 1001, boxShadow: '-4px 0 15px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column' };
+const panelHeader = { padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
+const closeIconBtn = { background: 'transparent', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#64748b' };
+const panelBody = { padding: '20px', overflowY: 'auto', flex: 1 };
+const panelProfileCard = { display: 'flex', alignItems: 'center', gap: '14px', background: '#f8fafc', padding: '14px', borderRadius: '6px', border: '1px solid #e2e8f0' };
+const panelAvatar = { width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', objectPosition: 'center', background: '#cbd5e1' };
+const subjectCard = { background: '#f8fafc', padding: '10px 14px', borderRadius: '6px', border: '1px solid #e2e8f0' };
+
+export default AdminAttendance;
