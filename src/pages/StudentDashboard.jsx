@@ -724,9 +724,9 @@ marginTop:"18.5%",
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "absolute",
-            right: "-2%", // -170% ki jagah left use karein taaki circle ke right mein khule
+            right: "-8%", // -170% ki jagah left use karein taaki circle ke right mein khule
             top: "-180px",
-            width: "340px",
+            width: "380px",
             background: "#fff",
             borderRadius: "5px",
             boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
