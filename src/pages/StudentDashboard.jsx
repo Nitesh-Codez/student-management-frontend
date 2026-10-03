@@ -724,9 +724,9 @@ marginTop:"18.5%",
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "absolute",
-            right: "-8%", // -170% ki jagah left use karein taaki circle ke right mein khule
+            right: "-9%", // -170% ki jagah left use karein taaki circle ke right mein khule
             top: "-180px",
-            width: "380px",
+            width: "370px",
             background: "#fff",
             borderRadius: "5px",
             boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
@@ -823,8 +823,8 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#84848a",
-                            fontSize: "15px",
-                            fontWeight: "500",
+                            fontSize: "17px",
+                            fontWeight: "700",
                             right: "250%", 
                             textTransform: "uppercase"
                           }}
@@ -835,8 +835,8 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "16px",
-                            fontWeight: "600",
+                            fontSize: "17px",
+                            fontWeight: "700",
                             whiteSpace: "nowrap"
                           }}
                         >
@@ -897,7 +897,7 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                           style={{
                             color: "#7d7d84",
                             fontSize: "16px",
-                            fontWeight: "600",
+                            fontWeight: "700",
                             right: "250%",
                             
                             textTransform: "uppercase"
@@ -909,8 +909,8 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                         <span
                           style={{
                             color: "#172963",
-                             fontSize: "16px",
-                            fontWeight: "600",
+                             fontSize: "18px",
+                            fontWeight: "700",
                             whiteSpace: "nowrap"
                           }}
                         >
@@ -970,7 +970,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#7e7e83",
-                            fontSize: "18px",
+                            fontSize: "16px",
                             fontWeight: "700",
                             right: "250%",
                             textTransform: "uppercase"
