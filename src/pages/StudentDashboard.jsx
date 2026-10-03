@@ -683,22 +683,22 @@ useEffect(() => {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            border: "1px solid rgba(92, 95, 101, 0.96)",
+            border: "1px solid rgba(187, 209, 255, 0.66)",
             border:"1px solid black",
             boxShadow:
-              "inset 0 1px 4px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.08)"
+              "inset 0 1px 4px rgba(192, 167, 167, 0.34), 0 2px 6px rgba(152, 123, 123, 0.08)"
           }}
         >
         
           <strong
             style={{
-               color: "#3e2424",
+               color: "#524242",
 
 fontSize: "20px",
-fontWeight: "900",
+fontWeight: "550",
 borderRadius: "2px", 
-marginTop:"8.5%",
-textShadow: "0 1px 2px rgb(89, 156, 96)" 
+marginTop:"18.5%",
+ 
             }}
           >
             {attendanceStats.percentage}%
@@ -723,9 +723,9 @@ textShadow: "0 1px 2px rgb(89, 156, 96)"
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "absolute",
-            right: "-10%",
+            right: "-20%",
             top: "-150px",
-            width: "390px",
+            width: "330px",
             background: "#fff",
             borderRadius: "5px",
             boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
@@ -833,7 +833,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "15px",
+                            fontSize: "16px",
                             fontWeight: "600",
                             whiteSpace: "nowrap"
                           }}
@@ -858,8 +858,8 @@ padding: "11px 14px",
 fontSize: "17px",
 fontWeight: "700",
 borderRadius: "2px", 
-border:"1px solid black",
-boxShadow: "0 4px 12px rgba(21, 174, 77, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
+border:"1px solid #31d100ea",
+boxShadow: "0 4px 12px rgba(74, 203, 121, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
 textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)" 
                       }}
                     >
@@ -894,7 +894,7 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                         <span
                           style={{
                             color: "#7d7d84",
-                            fontSize: "15px",
+                            fontSize: "16px",
                             fontWeight: "600",
                             textTransform: "uppercase"
                           }}
@@ -905,8 +905,8 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "15px",
-                            fontWeight: "700",
+                             fontSize: "16px",
+                            fontWeight: "600",
                             whiteSpace: "nowrap"
                           }}
                         >
@@ -928,7 +928,7 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
 color: "#fff",
 padding: "11px 14px",
 fontSize: "17px",
-border:"1px solid black",
+border:"1px solid #55ce0fa8",
 fontWeight: "700",
 borderRadius: "2px", 
 boxShadow: "0 4px 12px rgba(21, 174, 77, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)", 
@@ -977,7 +977,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "15px",
+                            fontSize: "16px",
                             fontWeight: "600",
                             whiteSpace: "nowrap"
                           }}
