@@ -724,8 +724,8 @@ marginTop:"18.5%",
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "absolute",
-            right: "5%", // -170% ki jagah left use karein taaki circle ke right mein khule
-            top: "-200px",
+            right: "-2%", // -170% ki jagah left use karein taaki circle ke right mein khule
+            top: "-180px",
             width: "340px",
             background: "#fff",
             borderRadius: "5px",
@@ -970,8 +970,8 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#7e7e83",
-                            fontSize: "15px",
-                            fontWeight: "600",
+                            fontSize: "18px",
+                            fontWeight: "700",
                             right: "250%",
                             textTransform: "uppercase"
                           }}
@@ -982,8 +982,8 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#172963",
-                            fontSize: "16px",
-                            fontWeight: "600",
+                            fontSize: "18px",
+                            fontWeight: "700",
                             whiteSpace: "nowrap"
                           }}
                         >
