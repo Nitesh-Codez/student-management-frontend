@@ -692,10 +692,10 @@ useEffect(() => {
         
           <strong
             style={{
-               color: "#524242",
+               color: "#6a5353",
 
 fontSize: "20px",
-fontWeight: "550",
+fontWeight: "750",
 borderRadius: "2px", 
 marginTop:"18.5%",
  
@@ -800,10 +800,11 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         key={`red-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "130px 1fr auto",
+                          gridTemplateColumns: "80px 1fr auto",
+                          borderBottom: "1px solid #191a1d",
                           alignItems: "center",
-                          gap: "10px",
-                          padding: "12px 14px",
+                          gap: "10px",                         
+                          padding: "18px 18px",
                           borderBottom:
                             index !== redSubjects.length - 1
                               ? "1px solid #e5e7eb"
@@ -817,7 +818,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                             fontWeight: "600"
                           }}
                         >
-                          {subject.subjectname || "SUBJECT"}
+                          {subject.subjectname || `SUB ${index + 1}`}
                         </span>
 
                         <span
@@ -873,10 +874,11 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                         key={`yellow-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "130px 1fr auto",
+                          gridTemplateColumns: "80px 1fr auto",
                           alignItems: "center",
                           gap: "10px",
-                          padding: "12px 14px",
+                           borderBottom: "1px solid #191a1d",
+                          padding: "18px 18px",
                           borderBottom:
                             index !== yellowSubjects.length - 1
                               ? "1px solid #e5e7eb"
@@ -890,7 +892,7 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                             fontWeight: "600"
                           }}
                         >
-                          {subject.subjectname || "SB"}
+                          {subject.subjectname || `SUB ${index + 1}`}
                         </span>
 
                         <span
@@ -947,10 +949,11 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         key={`green-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "130px 1fr auto",
+                          gridTemplateColumns: "80px 1fr auto",
                           alignItems: "center",
                           gap: "10px",
-                          padding: "12px 14px",
+                           borderBottom: "1px solid #191a1d",
+                          padding: "18px 18px",
                           borderBottom:
                             index !== greenSubjects.length - 1
                               ? "1px solid #e5e7eb"
@@ -964,7 +967,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                             fontWeight: "600"
                           }}
                         >
-                          {subject.subjectname || "SUBJECT"}
+                          {subject.subjectname || `SUB ${index + 1}`}
                         </span>
 
                         <span
