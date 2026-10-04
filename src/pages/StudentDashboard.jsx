@@ -290,16 +290,31 @@ const greenEnd = greenPercent * 3.6;
 const yellowEnd = greenEnd + yellowPercent * 3.6;
 
 const getPollColor = (classDate) => {
+  const formatDate = (date) => {
+    const d = new Date(date);
 
- const rec = attendanceStats.records.find(a =>
-   new Date(a.date).toDateString() === new Date(classDate).toDateString()
- );
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
 
- if (!rec) return "#3b82f6";      // Not Marked
- if (rec.status === "Present") return "#22c55e";
- if (rec.status === "Absent") return "#ef4444";
+  const targetDate = formatDate(classDate);
 
- return "#0e6bff";
+  const records = attendanceStats.records.filter(a => {
+    return formatDate(a.date) === targetDate;
+  });
+
+  console.log("Poll Date:", targetDate);
+  console.log("Matching Records:", records);
+
+  if (!records.length) return "#3b82f6"; // Blue
+
+  const hasPresent = records.some(a => a.status === "Present");
+  const hasAbsent = records.some(a => a.status === "Absent");
+
+  if (hasPresent && hasAbsent) return "#f59e0b"; // Orange
+  if (hasPresent) return "#22c55e";              // Green
+  if (hasAbsent) return "#ef4444";               // Red
+
+  return "#0e6bff";
 };
 
 
@@ -353,13 +368,15 @@ const fetchAttendance = useCallback(async () => {
         ? 0
         : ((presentDays.length / validDays.length) * 100).toFixed(1);
 
-      setAttendanceStats({
-        present: presentDays.length,
-        total: validDays.length,
-        percentage: percent,
-        today: todayRec ? todayRec.status : "Not Marked",
-        records: monthData
-      });
+     setAttendanceStats({
+  present: presentDays.length,
+  total: validDays.length,
+  percentage: percent,
+  today: todayRec ? todayRec.status : "Not Marked",
+
+  // IMPORTANT: Poll ke liye saari dates
+  records: data
+});
       // Subject-wise attendance fetch
 try {
   setSubjectLoading(true);
@@ -1366,16 +1383,21 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
             {/* Class Details */} 
             <div style={{ flex: 1 }}> 
               {/* POLL RIGHT */} 
-              <div style={{ 
-                width:'12px', 
-                height:'12px', 
-                borderRadius:'50%', 
-                background: getPollColor(selectedDate), 
-                boxShadow:'0 0 2px rgba(0,0,0,0.2)', 
-                marginLeft: '110px', 
-                marginTop:'30px', 
-                border:"0.2px solid black" 
-              }}/> 
+              <div
+  style={{
+    width: "13px",
+    height: "13px",
+    borderRadius: "50%",
+    background: getPollColor(selectedDate),
+
+    border: "0.7px solid rgba(0,0,0,0.25)",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+
+    marginLeft: "110px",
+    marginTop: "30px",
+    boxSizing: "border-box"
+  }}
+/>
               <div style={{ fontWeight: 'bold', color: '#4b0082', fontSize: '20px', textTransform: 'uppercase' }}> 
                 {cls.subject_name} 
               </div> 
