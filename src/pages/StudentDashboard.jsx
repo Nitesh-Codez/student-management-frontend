@@ -323,33 +323,46 @@ const fetchAttendance = useCallback(async () => {
   if (!user?.id) return;
 
   try {
-    const res = await api.get(`/api/attendance/${user.id}`);
+    setSubjectLoading(true);
 
-    if (res.data.success) {
-      const data = res.data.attendance;
+    const [attendanceRes, subjectRes] = await Promise.all([
+      api.get(`/api/attendance/${user.id}`),
+      api.get(`/api/attendance/subject-wise/${user.id}`)
+    ]);
 
-      const todayStr = new Date().toDateString();
+    // =====================================================
+    // NORMAL ATTENDANCE
+    // =====================================================
 
-      // Find today's record
+    if (attendanceRes.data.success) {
+      const data = attendanceRes.data.attendance || [];
+
+      const today = new Date();
+      const todayStr = today.toDateString();
+
       const todayRec = data.find(
         a => new Date(a.date).toDateString() === todayStr
       );
 
-      const [currentYear, currentMonth] = [
-        new Date().getFullYear(),
-        new Date().getMonth() + 1
-      ];
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1;
 
-      // Filter data for current month & year
       let monthData = data.filter(a => {
         const d = new Date(a.date);
-        return d.getFullYear() === currentYear && d.getMonth() + 1 === currentMonth;
+
+        return (
+          d.getFullYear() === currentYear &&
+          d.getMonth() + 1 === currentMonth
+        );
       });
 
-      // Add today if not present
+      // Add today only if not available
       if (!todayRec) {
-        const newToday = { date: new Date().toISOString(), status: "Not Marked", isToday: true };
-        monthData.push(newToday);
+        monthData.push({
+          date: today.toISOString(),
+          status: "Not Marked",
+          isToday: true
+        });
       } else {
         monthData = monthData.map(rec =>
           new Date(rec.date).toDateString() === todayStr
@@ -358,52 +371,56 @@ const fetchAttendance = useCallback(async () => {
         );
       }
 
-      // Count present & total days, skipping holidays
+      // Valid attendance days
       const validDays = monthData.filter(
-        a => a.status === "Present" || a.status === "Absent"
+        a =>
+          a.status === "Present" ||
+          a.status === "Absent"
       );
-      const presentDays = validDays.filter(a => a.status === "Present");
 
-      const percent = validDays.length === 0
-        ? 0
-        : ((presentDays.length / validDays.length) * 100).toFixed(1);
+      const presentDays = validDays.filter(
+        a => a.status === "Present"
+      );
 
-     setAttendanceStats({
-  present: presentDays.length,
-  total: validDays.length,
-  percentage: percent,
-  today: todayRec ? todayRec.status : "Not Marked",
+      const percent =
+        validDays.length === 0
+          ? 0
+          : ((presentDays.length / validDays.length) * 100).toFixed(1);
 
-  // IMPORTANT: Poll ke liye saari dates
-  records: data
-});
-      // Subject-wise attendance fetch
-try {
-  setSubjectLoading(true);
-
-  const subjectRes = await api.get(
-    `/api/attendance/subject-wise/${user.id}`
-  );
-
-  if (subjectRes.data.success) {
-    setSubjectAttendance(subjectRes.data.subjects || []);
-  } else {
-    setSubjectAttendance([]);
-  }
-} catch (err) {
-  console.log(
-    "Subject attendance error:",
-    err.response?.data || err.message
-  );
-  setSubjectAttendance([]);
-} finally {
-  setSubjectLoading(false);
-
-}
+      setAttendanceStats({
+        present: presentDays.length,
+        total: validDays.length,
+        percentage: percent,
+        today: todayRec?.status || "Not Marked",
+        records: data
+      });
     }
+
+    // =====================================================
+    // SUBJECT ATTENDANCE
+    // =====================================================
+
+    if (subjectRes.data.success) {
+      setSubjectAttendance(
+        subjectRes.data.subjects || []
+      );
+    } else {
+      setSubjectAttendance([]);
+    }
+
   } catch (err) {
-    console.log("Fetch error:", err);
+
+    console.log(
+      "Attendance fetch error:",
+      err.response?.data || err.message
+    );
+
+    setSubjectAttendance([]);
+
+  } finally {
+    setSubjectLoading(false);
   }
+
 }, [user]);
 
 useEffect(() => {
@@ -438,159 +455,171 @@ const fetchTodaySchedule = useCallback(async () => {
     // =====================================================
     // 2. ONLY PREVIOUS DATE
     // =====================================================
+// =====================================================
+// 2. ATTENDANCE STATUS MERGE
+//    Schedule kabhi hide nahi hoga
+// =====================================================
 
-    if (selectedDateStr < todayStr) {
+if (selectedDateStr <= todayStr) {
+  try {
+    const doneRes = await api.get(
+      `/api/attendance/student/${user.id}/done-classes`
+    );
 
-      try {
-        const doneRes = await api.get(
-          `/api/attendance/student/${user.id}/done-classes`
-        );
+    if (doneRes.data.success) {
+      const doneClasses = doneRes.data.classes || [];
 
-        if (doneRes.data.success) {
+      const attendanceRecords = doneClasses.filter(cls => {
+        const recordDate = new Date(cls.date)
+          .toISOString()
+          .split("T")[0];
 
-          const doneClasses = doneRes.data.classes || [];
+        return recordDate === selectedDateStr;
+      });
 
-          console.log("TEACHER CLASSES:", classes);
-          console.log("DONE CLASSES:", doneClasses);
-          console.log("SELECTED DATE:", selectedDateStr);
+      // =====================================================
+// SPECIAL CASE:
+// Previous date + 2 subjects
+// Sirf wahi subjects dikhao jinki attendance mili hai
+// =====================================================
 
-          // -------------------------------------------------
-          // Selected date ke attendance records
-          // -------------------------------------------------
+if (selectedDateStr < todayStr && classes.length === 2) {
 
-          const attendanceRecords = doneClasses.filter(cls => {
+  const matchedClasses = classes.filter(cls => {
 
-            const recordDate = new Date(cls.date)
-              .toISOString()
-              .split("T")[0];
+    const teacherSubject = String(
+      cls.subject_name ||
+      cls.subjectName ||
+      cls.subjectCode ||
+      cls.subject_code ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
 
-            return recordDate === selectedDateStr;
-          });
+    return attendanceRecords.some(record => {
 
-          console.log(
-            "ATTENDANCE RECORDS FOR DATE:",
-            attendanceRecords
-          );
+      const attendanceSubject = String(
+        record.subject ||
+        record.subjectCode ||
+        record.subject_name ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
-          // -------------------------------------------------
-          // Teacher classes ko attendance records se match
-          // -------------------------------------------------
+      return teacherSubject === attendanceSubject;
+    });
+  });
 
-          classes = classes
-            .filter(cls => {
+  classes = matchedClasses.map(cls => {
 
-              const teacherSubject = String(
-                cls.subject_name ||
-                cls.subjectName ||
-                cls.subjectCode ||
-                cls.subject_code ||
-                ""
-              )
-                .trim()
-                .toLowerCase();
+    const teacherSubject = String(
+      cls.subject_name ||
+      cls.subjectName ||
+      cls.subjectCode ||
+      cls.subject_code ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
 
-              const matchedAttendance =
-                attendanceRecords.find(record => {
+    const attendance = attendanceRecords.find(record => {
 
-                  const attendanceSubject = String(
-                    record.subject ||
-                    record.subjectCode ||
-                    record.subject_name ||
-                    ""
-                  )
-                    .trim()
-                    .toLowerCase();
+      const attendanceSubject = String(
+        record.subject ||
+        record.subjectCode ||
+        record.subject_name ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
-                  return teacherSubject === attendanceSubject;
-                });
+      return teacherSubject === attendanceSubject;
+    });
 
-              return !!matchedAttendance;
-            })
-            .map(cls => {
+    return {
+      ...cls,
 
-              const teacherSubject = String(
-                cls.subject_name ||
-                cls.subjectName ||
-                cls.subjectCode ||
-                cls.subject_code ||
-                ""
-              )
-                .trim()
-                .toLowerCase();
+      attendanceStatus: attendance?.status || "Not Marked",
 
-              const attendance =
-                attendanceRecords.find(record => {
+      attendanceId:
+        attendance?.attendanceId || null,
 
-                  const attendanceSubject = String(
-                    record.subject ||
-                    record.subjectCode ||
-                    record.subject_name ||
-                    ""
-                  )
-                    .trim()
-                    .toLowerCase();
+      class_date:
+        attendance?.date || selectedDateStr,
 
-                  return teacherSubject === attendanceSubject;
-                });
+      attendanceStartTime:
+        attendance?.startTime || null,
 
-              if (!attendance) {
-                return cls;
-              }
+      attendanceEndTime:
+        attendance?.endTime || null
+    };
+  });
 
-              // ---------------------------------------------
-              // Teacher API + Attendance API merge
-              // ---------------------------------------------
+} else {
 
-              return {
-                ...cls,
+  // Normal logic
+  classes = classes.map(cls => {
 
-                // Attendance API se subject
-                subject_name:
-                  attendance.subject ||
-                  attendance.subjectCode ||
-                  cls.subject_name,
+    const teacherSubject = String(
+      cls.subject_name ||
+      cls.subjectName ||
+      cls.subjectCode ||
+      cls.subject_code ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
 
-                subjectCode:
-                  attendance.subject ||
-                  attendance.subjectCode ||
-                  cls.subjectCode,
+    const attendance = attendanceRecords.find(record => {
 
-                // Attendance API se actual timing
-                start_time:
-                  attendance.startTime ||
-                  cls.start_time,
+      const attendanceSubject = String(
+        record.subject ||
+        record.subjectCode ||
+        record.subject_name ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
-                end_time:
-                  attendance.endTime ||
-                  cls.end_time,
+      return teacherSubject === attendanceSubject;
+    });
 
-                // Attendance status
-                attendanceStatus:
-                  attendance.status,
+    return {
+      ...cls,
 
-                // Attendance date
-                class_date:
-                  attendance.date,
+      attendanceStatus: attendance?.status || "Not Marked",
 
-                // Attendance ID agar available ho
-                attendanceId:
-                  attendance.attendanceId ||
-                  null
-              };
-            });
-        }
+      attendanceId:
+        attendance?.attendanceId || null,
 
-      } catch (attendanceErr) {
+      class_date:
+        attendance?.date || selectedDateStr,
 
-        console.log(
-          "Previous attendance API error:",
-          attendanceErr.response?.data ||
-          attendanceErr.message
-        );
+      attendanceStartTime:
+        attendance?.startTime || null,
 
-        // API error par teacher schedule hi rahega
-      }
+      attendanceEndTime:
+        attendance?.endTime || null
+    };
+  });
+}
     }
+
+  } catch (attendanceErr) {
+    console.log(
+      "Previous attendance API error:",
+      attendanceErr.response?.data ||
+      attendanceErr.message
+    );
+
+    classes = classes.map(cls => ({
+      ...cls,
+      attendanceStatus: "Not Marked"
+    }));
+  }
+}
 
     // =====================================================
     // 3. FINAL
@@ -629,7 +658,15 @@ useEffect(() => {
     }, 8000);
     return () => clearInterval(interval);
   }, []);
+const getClassStatusColor = (cls) => {
+  const status = String(cls.attendanceStatus || "").toLowerCase();
 
+  if (status === "present") return "#22c55e";
+  if (status === "absent") return "#ef4444";
+  if (status === "not marked") return "#3b82f6";
+
+  return "#3b82f6";
+};
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good Morning");
@@ -875,12 +912,12 @@ useEffect(() => {
             width: "71px",
             height: "71px",
             borderRadius: "50%",
-            background: "#ffff",
+            background: "#ffffff",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            border: "1px solid rgba(187, 209, 255, 0.66)",
+            border: "1px solid rgb(243, 245, 248)",
             border:"1px solid black",
             boxShadow:
               "inset 0 1px 4px rgba(192, 167, 167, 0.34), 0 2px 6px rgba(152, 123, 123, 0.08)"
@@ -997,11 +1034,11 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         key={`red-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "80px 1fr auto",
+                          gridTemplateColumns: "60px 1fr auto",
                           borderBottom: "1px solid #191a1d",
                           alignItems: "center",
                           gap: "10px",                         
-                          padding: "18px 18px",
+                          padding: "16px 16px",
                           borderBottom:
                             index !== redSubjects.length - 1
                               ? "1px solid #e5e7eb"
@@ -1021,8 +1058,8 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#84848a",
-                            fontSize: "17px",
-                            fontWeight: "700",
+                            fontSize: "16.2px",
+                            fontWeight: "500",
                             right: "250%", 
                             textTransform: "uppercase"
                           }}
@@ -1071,7 +1108,7 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                         key={`yellow-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "80px 1fr auto",
+                          gridTemplateColumns: "60px 1fr auto",
                           alignItems: "center",
                           gap: "10px",
                            borderBottom: "1px solid #191a1d",
@@ -1095,8 +1132,8 @@ textShadow: "0 1px 2px rgba(251, 255, 255, 0.99)"
                         <span
                           style={{
                             color: "#7d7d84",
-                            fontSize: "16px",
-                            fontWeight: "700",
+                            fontSize: "16.2px",
+                            fontWeight: "500",
                             right: "250%",
                             
                             textTransform: "uppercase"
@@ -1146,7 +1183,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         key={`green-${index}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "80px 1fr auto",
+                          gridTemplateColumns: "60px 1fr auto",
                           alignItems: "center",
                           gap: "10px",
                            borderBottom: "1px solid #191a1d",
@@ -1170,8 +1207,8 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                         <span
                           style={{
                             color: "#7e7e83",
-                            fontSize: "16px",
-                            fontWeight: "700",
+                            fontSize: "16.2px",
+                            fontWeight: "500",
                             right: "250%",
                             textTransform: "uppercase"
                           }}
@@ -1349,6 +1386,8 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                 color: '#033841', 
                 fontWeight: '500', 
                 fontSize: '14px',
+                marginRight:"-5%",
+                
                 textAlign: 'center'
             }}>
               {cls.start_time}<br/>-<br/>{cls.end_time}
@@ -1361,7 +1400,8 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
                 borderRadius: '50%', 
                 backgroundColor: '#05ff44', 
                 overflow: 'hidden', 
-                flexShrink: 0, 
+                flexShrink: 0,
+                 
                 border: '1px solid #e2e8f0' 
             }}>
               <img 
@@ -1388,7 +1428,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
     width: "13px",
     height: "13px",
     borderRadius: "50%",
-    background: getPollColor(selectedDate),
+    background: getClassStatusColor(cls),
 
     border: "0.7px solid rgba(0,0,0,0.25)",
     boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
@@ -1578,19 +1618,17 @@ const StudentDashboard = () => {
        
   
 
-        const photoRes = await api.get(`/api/students/${storedUser.id}/profile-photo`)
-        if (photoRes.data.success && photoRes.data.user?.profile_photo) {
-          setUser(prev => ({ ...prev, photo: photoRes.data.user.profile_photo }));
-        }
+       const [photoRes, taskRes] = await Promise.all([
+  api.get(`/api/students/${storedUser.id}/profile-photo`),
+  api.get(`/api/assignments/class/${storedUser.class}/${storedUser.id}`)
+]);
 
-        //=========================================
-        //TASK PORTION START HERE
-        //======================================================
-
-const taskRes = await api.get(
-  `/api/assignments/class/${storedUser.class}/${storedUser.id}`
-);
-
+if (photoRes.data.success && photoRes.data.user?.profile_photo) {
+  setUser(prev => ({
+    ...prev,
+    photo: photoRes.data.user.profile_photo
+  }));
+}
 if (taskRes.data.success) {
   let allAssignments = taskRes.data.assignments || [];
 
@@ -1886,6 +1924,7 @@ try {
         <div style={{ ...drawerHeader, borderBottom: "1px solid #e2e8f0", paddingBottom: "20px" }}>
           <div style={{ ...drawerLogo, background: "#6366f1", color: "#fff", boxShadow: "0 8px 16px rgba(99, 102, 241, 0.3)" }}><FaUserGraduate /></div>
           <h4 style={{ color: "#0f172a", margin: 0, fontWeight: "800", letterSpacing: "-0.5px" }}>SmartZone</h4>
+          
         </div>
 
         <nav style={{ ...drawerNav, gap: "10px" }}>
