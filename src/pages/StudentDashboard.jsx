@@ -394,29 +394,209 @@ useEffect(() => {
 }, [fetchAttendance]);
 
   // 2. Schedule Fetch karne ka main function
-  const fetchTodaySchedule = useCallback(async () => {
-
-  if (!user?.class) return;
+const fetchTodaySchedule = useCallback(async () => {
+  if (!user?.class || !user?.id) return;
 
   try {
-    const date = selectedDate.toISOString().split("T")[0];
+    const selectedDateStr = selectedDate
+      .toISOString()
+      .split("T")[0];
+
+    const todayStr = new Date()
+      .toISOString()
+      .split("T")[0];
+
+    // =====================================================
+    // 1. TEACHER API ALWAYS BASE SCHEDULE
+    // =====================================================
 
     const res = await api.get(
-  `/api/teacher-assignments/student/${user.class}/${date}`
-);
+      `/api/teacher-assignments/student/${user.class}/${selectedDateStr}`
+    );
 
-    if (res.data.success) {
-      setTodayClasses(res.data.assignments);
+    let classes = res.data.success
+      ? (res.data.assignments || [])
+      : [];
+
+    // =====================================================
+    // 2. ONLY PREVIOUS DATE
+    // =====================================================
+
+    if (selectedDateStr < todayStr) {
+
+      try {
+        const doneRes = await api.get(
+          `/api/attendance/student/${user.id}/done-classes`
+        );
+
+        if (doneRes.data.success) {
+
+          const doneClasses = doneRes.data.classes || [];
+
+          console.log("TEACHER CLASSES:", classes);
+          console.log("DONE CLASSES:", doneClasses);
+          console.log("SELECTED DATE:", selectedDateStr);
+
+          // -------------------------------------------------
+          // Selected date ke attendance records
+          // -------------------------------------------------
+
+          const attendanceRecords = doneClasses.filter(cls => {
+
+            const recordDate = new Date(cls.date)
+              .toISOString()
+              .split("T")[0];
+
+            return recordDate === selectedDateStr;
+          });
+
+          console.log(
+            "ATTENDANCE RECORDS FOR DATE:",
+            attendanceRecords
+          );
+
+          // -------------------------------------------------
+          // Teacher classes ko attendance records se match
+          // -------------------------------------------------
+
+          classes = classes
+            .filter(cls => {
+
+              const teacherSubject = String(
+                cls.subject_name ||
+                cls.subjectName ||
+                cls.subjectCode ||
+                cls.subject_code ||
+                ""
+              )
+                .trim()
+                .toLowerCase();
+
+              const matchedAttendance =
+                attendanceRecords.find(record => {
+
+                  const attendanceSubject = String(
+                    record.subject ||
+                    record.subjectCode ||
+                    record.subject_name ||
+                    ""
+                  )
+                    .trim()
+                    .toLowerCase();
+
+                  return teacherSubject === attendanceSubject;
+                });
+
+              return !!matchedAttendance;
+            })
+            .map(cls => {
+
+              const teacherSubject = String(
+                cls.subject_name ||
+                cls.subjectName ||
+                cls.subjectCode ||
+                cls.subject_code ||
+                ""
+              )
+                .trim()
+                .toLowerCase();
+
+              const attendance =
+                attendanceRecords.find(record => {
+
+                  const attendanceSubject = String(
+                    record.subject ||
+                    record.subjectCode ||
+                    record.subject_name ||
+                    ""
+                  )
+                    .trim()
+                    .toLowerCase();
+
+                  return teacherSubject === attendanceSubject;
+                });
+
+              if (!attendance) {
+                return cls;
+              }
+
+              // ---------------------------------------------
+              // Teacher API + Attendance API merge
+              // ---------------------------------------------
+
+              return {
+                ...cls,
+
+                // Attendance API se subject
+                subject_name:
+                  attendance.subject ||
+                  attendance.subjectCode ||
+                  cls.subject_name,
+
+                subjectCode:
+                  attendance.subject ||
+                  attendance.subjectCode ||
+                  cls.subjectCode,
+
+                // Attendance API se actual timing
+                start_time:
+                  attendance.startTime ||
+                  cls.start_time,
+
+                end_time:
+                  attendance.endTime ||
+                  cls.end_time,
+
+                // Attendance status
+                attendanceStatus:
+                  attendance.status,
+
+                // Attendance date
+                class_date:
+                  attendance.date,
+
+                // Attendance ID agar available ho
+                attendanceId:
+                  attendance.attendanceId ||
+                  null
+              };
+            });
+        }
+
+      } catch (attendanceErr) {
+
+        console.log(
+          "Previous attendance API error:",
+          attendanceErr.response?.data ||
+          attendanceErr.message
+        );
+
+        // API error par teacher schedule hi rahega
+      }
     }
 
+    // =====================================================
+    // 3. FINAL
+    // =====================================================
+
+    console.log("FINAL CLASSES:", classes);
+
+    setTodayClasses(classes);
+
   } catch (err) {
-    console.error("Schedule error:", err.response?.data || err.message);
+
+    console.error(
+      "Schedule error:",
+      err.response?.data ||
+      err.message
+    );
+
+    setTodayClasses([]);
   }
 
-}, [user, selectedDate, setTodayClasses]);
+}, [user, selectedDate]);
 
-  // 3. SINGLE useEffect - Jo date aur user dono pe chale
- useEffect(() => {
+useEffect(() => {
   fetchTodaySchedule();
 }, [fetchTodaySchedule]);
 
