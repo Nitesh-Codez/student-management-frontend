@@ -312,7 +312,7 @@ const getPollColor = (classDate) => {
 
   if (hasPresent && hasAbsent) return "#f59e0b"; // Orange
   if (hasPresent) return "#22c55e";              // Green
-  if (hasAbsent) return "#ef4444";               // Red
+  if (hasAbsent) return "#970f0f";               // Red
 
   return "#0e6bff";
 };
@@ -661,9 +661,9 @@ useEffect(() => {
 const getClassStatusColor = (cls) => {
   const status = String(cls.attendanceStatus || "").toLowerCase();
 
-  if (status === "present") return "#22c55e";
-  if (status === "absent") return "#ef4444";
-  if (status === "not marked") return "#3b82f6";
+  if (status === "present") return "#16b24f";
+  if (status === "absent") return "#d63939";
+  if (status === "not marked") return "#2566ce";
 
   return "#3b82f6";
 };
@@ -1431,7 +1431,7 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
     background: getClassStatusColor(cls),
 
     border: "0.7px solid rgba(0,0,0,0.25)",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+    boxShadow: "0 2px 2.5px rgba(0,0,0,0.25)",
 
     marginLeft: "110px",
     marginTop: "30px",

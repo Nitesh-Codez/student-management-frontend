@@ -6,26 +6,35 @@ const MarkAttendance = () => {
   const [selectedDate, setSelectedDate] = useState( 
     now.toISOString().split("T")[0] 
   ); 
-   
+    
   const [students, setStudents] = useState([]); 
   const [assignments, setAssignments] = useState([]); 
   const [bannedStudentIds, setBannedStudentIds] = useState(new Set()); 
-   
+    
   const [selectedBatchFilter, setSelectedBatchFilter] = useState(""); 
   const [selectedClassFilter, setSelectedClassFilter] = useState(""); 
-   
+    
   const [attendanceData, setAttendanceData] = useState({}); 
   const [studentSubjects, setStudentSubjects] = useState({}); 
   const [studentStreams, setStudentStreams] = useState({}); 
-   
-  const [loading, setLoading] = useState(true); 
+    
+  // Substitution & Custom Class / Exam Mode States
+  const [showSubstituteModal, setShowSubstituteModal] = useState(false);
+  const [substituteConfig, setSubstituteConfig] = useState({
+    lectureType: "REGULAR", // REGULAR, EXTRA_CLASS, SUBSTITUTE, EXAM
+    examName: "",           // e.g. Pre Final Exam, Final Exam, etc.
+    className: "",
+    subjectName: "",
+    startTime: "06:00",
+    endTime: "07:30"
+  });
+
+  const [loading, setLoading] = useState(false); 
   const [refreshing, setRefreshing] = useState(false); 
   const [submitting, setSubmitting] = useState(false); 
   const [error, setError] = useState(""); 
   const [successMessage, setSuccessMessage] = useState(""); 
-  
   const [isEditing, setIsEditing] = useState(false);
-  const [lastSubmitSummary, setLastSubmitSummary] = useState(null);
 
   const normalizeBatch = (batch) => {
     const value = String(batch || "")
@@ -40,13 +49,10 @@ const MarkAttendance = () => {
     return "Not Assigned";
   };
  
-  const fetchData = useCallback(async (showFullLoader = true) => { 
+  const fetchData = useCallback(async (showFullLoader = false) => { 
     try { 
-      if (showFullLoader) { 
-        setLoading(true); 
-      } else { 
-        setRefreshing(true); 
-      } 
+      if (showFullLoader) setLoading(true); 
+      else setRefreshing(true); 
       setError(""); 
        
       let bannedSet = new Set(); 
@@ -97,34 +103,7 @@ const MarkAttendance = () => {
         console.warn("Could not fetch teacher lectures schedule:", err); 
         setAssignments([]); 
       } 
- 
-      const getAutoSubjectForStudent = (student, assigns) => { 
-        const cls = (student.class || "").toLowerCase(); 
-        const isHigher = cls.includes("12") || cls.includes("xii") || cls.includes("11") || cls.includes("xi"); 
-         
-        const classAssigns = assigns.filter( 
-          a => a.class_name && a.class_name.toLowerCase() === cls 
-        ); 
- 
-        if (isHigher && student.stream) { 
-          const streamMatch = classAssigns.find( 
-            a => a.streams && Array.isArray(a.streams) && a.streams.some(s => s.toLowerCase().includes(student.stream.toLowerCase())) 
-          ); 
-          if (streamMatch && streamMatch.subject_name) { 
-            return streamMatch.subject_name; 
-          } 
-        } 
- 
-        if (classAssigns.length > 0 && classAssigns[0].subject_name) { 
-          return classAssigns[0].subject_name; 
-        } 
- 
-        if (isHigher) { 
-          return "Maths"; 
-        } 
-        return "Science"; 
-      }; 
- 
+
       const getStreamsForStudentHelper = (student, assigns) => { 
         const cls = (student.class || "").toLowerCase(); 
         const is12thOr11th = cls.includes("12") || cls.includes("xii") || cls.includes("11") || cls.includes("xi"); 
@@ -134,22 +113,53 @@ const MarkAttendance = () => {
         assigns 
           .filter(a => a.class_name && a.class_name.toLowerCase() === cls) 
           .forEach(a => { 
-            if (Array.isArray(a.streams)) { 
-              a.streams.forEach(s => streamsSet.add(s)); 
-            } 
+            if (Array.isArray(a.streams)) {
+              a.streams.forEach(s => streamsSet.add(s));
+            } else if (a.streams) {
+              streamsSet.add(a.streams);
+            }
           }); 
  
         if (streamsSet.size === 0 && student.stream) { 
-          streamsSet.add(student.stream); 
+          streamsSet.add(student.stream);
         } 
  
         if (streamsSet.size === 0) { 
-          streamsSet.add("Maths"); 
-          streamsSet.add("Biology"); 
-          streamsSet.add("Commerce"); 
+          streamsSet.add("Chemistry,Maths"); 
+          streamsSet.add("Hindi,English"); 
         } 
  
         return [...streamsSet]; 
+      }; 
+
+      const getAutoSubjectForStudent = (student, assigns, availableSubjects) => { 
+        const cls = (student.class || "").toLowerCase(); 
+        const isHigher = cls.includes("12") || cls.includes("xii") || cls.includes("11") || cls.includes("xi"); 
+         
+        const classAssigns = assigns.filter( 
+          a => a.class_name && a.class_name.toLowerCase() === cls 
+        ); 
+ 
+        const studentStreamVal = String(student.stream || "").toLowerCase();
+        if (isHigher && studentStreamVal) {
+          const streamKeywords = studentStreamVal.split(/[,/]+/).map(s => s.trim());
+          for (const sub of availableSubjects) {
+            const subLower = sub.toLowerCase();
+            if (streamKeywords.some(kw => subLower.includes(kw) || kw.includes(subLower))) {
+              return sub;
+            }
+          }
+        }
+
+        if (classAssigns.length > 0 && classAssigns[0].subject_name) { 
+          return classAssigns[0].subject_name; 
+        } 
+ 
+        if (availableSubjects.length > 0) {
+          return availableSubjects[0];
+        }
+
+        return isHigher ? "Maths" : "Science"; 
       }; 
  
       const initialAttendance = {}; 
@@ -161,28 +171,44 @@ const MarkAttendance = () => {
       initialStudents.forEach((st) => {
         const id = st.studentId;
 
-        if (st.attendanceId) {
+        if (st.attendanceId || st.status) {
           hasExistingAttendance = true;
-          initialAttendance[id] = st.status;
+          initialAttendance[id] = st.status || "Present";
         } else {
           initialAttendance[id] = "Present";
+        }
+
+        const className = st.class;
+        let subs = [];
+        if (className) {
+          const matched = fetchedAssignments.filter(
+            a => a.class_name && a.class_name.toLowerCase() === className.toLowerCase()
+          );
+          subs = matched.map(a => a.subject_name).filter(Boolean);
+          if (subs.length === 0) {
+            const clsLower = className.toLowerCase();
+            if (clsLower.includes("12") || clsLower.includes("11")) {
+              subs = ["Maths", "Chemistry", "Hindi", "English", "Physics", "Biology", "English Communication"];
+            } else {
+              subs = ["Maths", "Science", "English", "Hindi", "Social Science"];
+            }
+          }
+        }
+        const uniqueSubs = [...new Set(subs)];
+
+        const availableStreams = getStreamsForStudentHelper(st, fetchedAssignments);
+        if (st.stream) {
+          initialStreams[id] = st.stream;
+        } else if (availableStreams.length > 0) {
+          initialStreams[id] = availableStreams[0];
         }
 
         if (st.subjectCode) {
           initialSubjects[id] = st.subjectCode;
         } else {
-          initialSubjects[id] = getAutoSubjectForStudent(st, fetchedAssignments);
+          initialSubjects[id] = getAutoSubjectForStudent(st, fetchedAssignments, uniqueSubs);
         }
-
-        if (st.stream) {
-          initialStreams[id] = st.stream;
-        } else {
-          const availableStreams = getStreamsForStudentHelper(st, fetchedAssignments);
-          if (availableStreams.length > 0) {
-            initialStreams[id] = availableStreams[0];
-          }
-        }
-      });
+      }); 
  
       setAttendanceData(initialAttendance); 
       setStudentSubjects(initialSubjects); 
@@ -201,30 +227,33 @@ const MarkAttendance = () => {
  
   useEffect(() => { 
     setSuccessMessage("");
-    fetchData(true); 
+    fetchData(false); 
   }, [selectedDate, fetchData]); 
  
   const uniqueClasses = useMemo(() => { 
     if (!Array.isArray(students)) return []; 
     return [...new Set(students.map(s => s.class).filter(Boolean))]; 
   }, [students]); 
+
+  const allPossibleSubjects = useMemo(() => {
+    return [
+      "Mathematics",
+      "Science",
+      "Physics",
+      "Chemistry",
+      "Biology",
+      "English",
+      "Hindi",
+      "Social Science",
+      "Computer Science",
+      "Accountancy",
+      "Business Studies",
+      "Economics",
+      "English Communication"
+    ];
+  }, []);
  
-  const getSubjectsForClass = (className) => { 
-    if (!className) return []; 
-    const matched = assignments.filter( 
-      a => a.class_name && a.class_name.toLowerCase() === className.toLowerCase() 
-    ); 
-    const subs = matched.map(a => a.subject_name).filter(Boolean); 
-    if (subs.length > 0) return [...new Set(subs)]; 
-     
-    const clsLower = className.toLowerCase(); 
-    if (clsLower.includes("12") || clsLower.includes("11")) { 
-      return ["Maths", "Chemistry", "Hindi", "English", "Physics", "Biology"]; 
-    } 
-    return ["Maths", "Science", "English", "Hindi", "Social Science"]; 
-  }; 
- 
-  const getStreamsForStudent = (student) => { 
+  const getStreamsForStudent = useCallback((student) => { 
     const cls = (student.class || "").toLowerCase(); 
     const is12thOr11th = cls.includes("12") || cls.includes("xii") || cls.includes("11") || cls.includes("xi"); 
     if (!is12thOr11th) return []; 
@@ -233,22 +262,39 @@ const MarkAttendance = () => {
     assignments 
       .filter(a => a.class_name && a.class_name.toLowerCase() === cls) 
       .forEach(a => { 
-        if (Array.isArray(a.streams)) { 
-          a.streams.forEach(s => streamsSet.add(s)); 
-        } 
+        if (Array.isArray(a.streams)) {
+          a.streams.forEach(s => streamsSet.add(s));
+        } else if (a.streams) {
+          streamsSet.add(a.streams);
+        }
       }); 
  
     if (streamsSet.size === 0 && student.stream) { 
-      streamsSet.add(student.stream); 
+      streamsSet.add(student.stream);
     } 
  
     if (streamsSet.size === 0) { 
-      streamsSet.add("Maths"); 
-      streamsSet.add("Biology"); 
-      streamsSet.add("Commerce"); 
+      streamsSet.add("Chemistry,Maths"); 
+      streamsSet.add("Hindi,English"); 
     } 
  
     return [...streamsSet]; 
+  }, [assignments]); 
+ 
+  const getSubjectsForClassAndStudent = (student) => { 
+    const className = student.class;
+    if (!className) return allPossibleSubjects; 
+
+    const matched = assignments.filter( 
+      a => a.class_name && a.class_name.toLowerCase() === className.toLowerCase() 
+    ); 
+    
+    let subs = matched.map(a => a.subject_name).filter(Boolean); 
+    if (subs.length === 0) {
+      subs = allPossibleSubjects;
+    }
+
+    return [...new Set(subs)];
   }; 
  
   const filteredStudents = useMemo(() => { 
@@ -288,22 +334,10 @@ const MarkAttendance = () => {
       setSuccessMessage(""); 
    
       const attendancePayload = filteredStudents.map((student) => { 
-        const classLectures = assignments.filter( 
-          (a) => 
-            String(a.class_name || "").trim().toLowerCase() === 
-            String(student.class || "").trim().toLowerCase() 
-        ); 
-   
         const subject = 
-          studentSubjects[student.studentId] || 
-          student.subjectCode || 
-          null; 
-   
-        const lecture = classLectures.find( 
-          (a) => 
-            String(a.subject_name || "").trim().toLowerCase() === 
-            String(subject || "").trim().toLowerCase() 
-        ); 
+          (substituteConfig.className && student.class === substituteConfig.className && substituteConfig.subjectName) 
+            ? substituteConfig.subjectName 
+            : (studentSubjects[student.studentId] || student.subjectCode || null); 
    
         return { 
           studentId: student.studentId, 
@@ -313,8 +347,10 @@ const MarkAttendance = () => {
             studentStreams[student.studentId] || 
             student.stream || 
             null, 
-          startTime: lecture?.start_time || null, 
-          endTime: lecture?.end_time || null 
+          lectureType: substituteConfig.lectureType,
+          examName: substituteConfig.lectureType === "EXAM" ? substituteConfig.examName : null,
+          startTime: substituteConfig.startTime || null, 
+          endTime: substituteConfig.endTime || null 
         }; 
       }); 
    
@@ -322,36 +358,23 @@ const MarkAttendance = () => {
         "/api/attendance/mark", 
         { 
           date: selectedDate, 
-          attendance: attendancePayload 
+          attendance: attendancePayload,
+          lectureType: substituteConfig.lectureType,
+          examName: substituteConfig.examName
         } 
       ); 
    
-      const { 
-        inserted = 0, 
-        updated = 0 
-      } = response.data; 
-   
-      setLastSubmitSummary({ 
-        inserted, 
-        updated, 
-        total: filteredStudents.length 
-      }); 
-   
+      const { inserted = 0, updated = 0 } = response.data; 
       setIsEditing(true); 
-   
+      setShowSubstituteModal(false);
       setSuccessMessage( 
-        `Attendance saved successfully. Inserted: ${inserted}, Updated: ${updated}` 
+        `Attendance saved successfully (${substituteConfig.lectureType}${substituteConfig.examName ? ` - ${substituteConfig.examName}` : ""}). Inserted: ${inserted}, Updated: ${updated}` 
       ); 
-   
       await fetchData(false); 
    
     } catch (err) { 
       console.error("Attendance submit error:", err); 
-   
-      setError( 
-        err.response?.data?.message || 
-        "Failed to save attendance." 
-      ); 
+      setError(err.response?.data?.message || "Failed to save attendance."); 
     } finally { 
       setSubmitting(false); 
     } 
@@ -365,17 +388,6 @@ const MarkAttendance = () => {
     return { total, present, absent, holiday }; 
   }, [filteredStudents, attendanceData]); 
  
-  if (loading) { 
-    return ( 
-      <div style={pageStyle}> 
-        <div style={loadingCardStyle}> 
-          <div style={spinnerStyle}></div> 
-          <div style={loadingTextStyle}>Loading active students...</div> 
-        </div> 
-      </div> 
-    ); 
-  } 
- 
   return ( 
     <div style={pageStyle}> 
       <div style={containerStyle}> 
@@ -386,10 +398,26 @@ const MarkAttendance = () => {
             <div style={badgeStyle}>SMART STUDENTS CLASSES</div> 
             <h1 style={titleStyle}>Attendance Management</h1> 
             <p style={subtitleStyle}> 
-              Banned students automatically hidden. Quick stream-based auto-selection enabled. 
+              Fast performance. Configure Regular, Extra Class, Substitute Class, or Exam with custom options. 
             </p> 
           </div> 
-          <div style={headerIconStyle}>📚</div> 
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            {isEditing && (
+              <button 
+                onClick={() => setIsEditing(false)} 
+                style={{ ...buttonStyle, backgroundColor: "#f59e0b", boxShadow: "0 2px 4px rgba(245, 158, 11, 0.3)" }}
+              >
+                ✏️ Edit Mode Active
+              </button>
+            )}
+            <button 
+              onClick={() => setShowSubstituteModal(true)} 
+              style={{ ...buttonStyle, backgroundColor: "#7c3aed" }}
+            >
+              ⚙️ Class / Exam Configuration
+            </button>
+            <div style={headerIconStyle}>📚</div> 
+          </div>
         </div> 
  
         {/* Filter & Controls Bar */} 
@@ -446,11 +474,7 @@ const MarkAttendance = () => {
         </div> 
  
         {error && <div style={errorStyle}>{error}</div>} 
-        {successMessage && (
-          <div style={successStyle}>
-            {successMessage}
-          </div>
-        )}
+        {successMessage && <div style={successStyle}>{successMessage}</div>}
 
         {filteredStudents.length > 0 && ( 
           <div style={metricsGridStyle}> 
@@ -476,7 +500,7 @@ const MarkAttendance = () => {
         <div style={cardStyle}> 
           <div style={tableHeaderStyle}> 
             <h3 style={tableTitleStyle}> 
-              Students List {selectedBatchFilter ? `(${selectedBatchFilter})` : ""} 
+              Students List {selectedBatchFilter ? `(${selectedBatchFilter})` : ""} {substituteConfig.lectureType !== "REGULAR" && <span style={{ color: "#7c3aed", fontSize: "14px" }}>[{substituteConfig.lectureType}{substituteConfig.examName ? ` - ${substituteConfig.examName}` : ""}]</span>}
             </h3> 
             {filteredStudents.length > 0 && ( 
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}> 
@@ -504,7 +528,7 @@ const MarkAttendance = () => {
                   {filteredStudents.map((student, index) => { 
                     const currentStatus = attendanceData[student.studentId] || "Present"; 
                     const assignedBatch = normalizeBatch(student.batch); 
-                    const classSubjects = getSubjectsForClass(student.class); 
+                    const classSubjects = getSubjectsForClassAndStudent(student); 
                     const studentStreamsList = getStreamsForStudent(student); 
                     const isHigherClass = studentStreamsList.length > 0; 
  
@@ -526,7 +550,11 @@ const MarkAttendance = () => {
                          
                         <td style={tdStyle}> 
                           <select 
-                            value={studentSubjects[student.studentId] || ""} 
+                            value={ 
+                              (substituteConfig.className && student.class === substituteConfig.className && substituteConfig.subjectName)
+                                ? substituteConfig.subjectName
+                                : (studentSubjects[student.studentId] || "")
+                            } 
                             onChange={(e) => handleSubjectRowChange(student.studentId, e.target.value)} 
                             style={rowSelectStyle} 
                           > 
@@ -606,12 +634,12 @@ const MarkAttendance = () => {
             </div> 
           ) : ( 
             <div style={emptyStyle}> 
-              No active students found for the selected filters and batch. 
+              No active students found for the selected filters and class. 
             </div> 
           )} 
  
           {filteredStudents.length > 0 && ( 
-            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}> 
+            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "12px" }}> 
               <button 
                 type="button" 
                 onClick={handleSubmitAttendance} 
@@ -621,13 +649,131 @@ const MarkAttendance = () => {
                 {submitting 
                   ? "Saving Attendance..." 
                   : isEditing 
-                    ? "✏️ Edit Attendance" 
+                    ? "✏️ Update / Edit Attendance" 
                     : "Submit Attendance"} 
               </button> 
             </div> 
           )} 
         </div> 
- 
+
+        {/* Configuration Modal */}
+        {showSubstituteModal && (
+          <div style={modalBackdropStyle}>
+            <div style={modalContentStyle}>
+              <h2 style={{ margin: "0 0 16px 0", color: "#0f172a", fontSize: "20px" }}>Class / Exam Mode Configuration</h2>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Select Lecture / Session Type</label>
+                  <select 
+                    value={substituteConfig.lectureType}
+                    onChange={(e) => setSubstituteConfig(prev => ({ ...prev, lectureType: e.target.value }))}
+                    style={selectStyle}
+                  >
+                    <option value="REGULAR">Regular Lecture</option>
+                    <option value="EXTRA_CLASS">Extra Class</option>
+                    <option value="SUBSTITUTE">Substitute Class</option>
+                    <option value="EXAM">Exam</option>
+                  </select>
+                </div>
+
+                {substituteConfig.lectureType === "EXAM" && (
+                  <div style={inputGroupStyle}>
+                    <label style={labelStyle}>Exam Name (e.g. Pre Final Exam, Final Exam, Unit Test)</label>
+                    <input 
+                      type="text" 
+                      placeholder="Enter Exam Name"
+                      value={substituteConfig.examName}
+                      onChange={(e) => setSubstituteConfig(prev => ({ ...prev, examName: e.target.value }))}
+                      style={selectStyle}
+                    />
+                  </div>
+                )}
+
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Target Class (Auto Filters Data List)</label>
+                  <select 
+                    value={substituteConfig.className}
+                    onChange={(e) => setSubstituteConfig(prev => ({ ...prev, className: e.target.value }))}
+                    style={selectStyle}
+                  >
+                    <option value="">-- Select Target Class --</option>
+                    {uniqueClasses.map((cls, idx) => (
+                      <option key={idx} value={cls}>{cls}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {(substituteConfig.lectureType === "SUBSTITUTE" || substituteConfig.lectureType === "EXTRA_CLASS" || substituteConfig.lectureType === "EXAM") && (
+                  <div style={inputGroupStyle}>
+                    <label style={labelStyle}>
+                      {substituteConfig.lectureType === "EXAM" ? "Select Exam Subject" : "Select Subject"}
+                    </label>
+                    <select 
+                      value={substituteConfig.subjectName}
+                      onChange={(e) => setSubstituteConfig(prev => ({ ...prev, subjectName: e.target.value }))}
+                      style={selectStyle}
+                    >
+                      <option value="">-- Select Subject --</option>
+                      {allPossibleSubjects.map((sub, idx) => (
+                        <option key={idx} value={sub}>
+                          {sub} {substituteConfig.lectureType === "EXAM" ? "Exam" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <div style={{ ...inputGroupStyle, flex: 1 }}>
+                    <label style={labelStyle}>Start Time</label>
+                    <input 
+                      type="time" 
+                      value={substituteConfig.startTime}
+                      onChange={(e) => setSubstituteConfig(prev => ({ ...prev, startTime: e.target.value }))}
+                      style={selectStyle}
+                    />
+                  </div>
+                  <div style={{ ...inputGroupStyle, flex: 1 }}>
+                    <label style={labelStyle}>End Time</label>
+                    <input 
+                      type="time" 
+                      value={substituteConfig.endTime}
+                      onChange={(e) => setSubstituteConfig(prev => ({ ...prev, endTime: e.target.value }))}
+                      style={selectStyle}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px" }}>
+                <button 
+                  onClick={() => setShowSubstituteModal(false)}
+                  style={{ ...buttonStyle, backgroundColor: "#64748b" }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowSubstituteModal(false);
+                    if (substituteConfig.className) {
+                      setSelectedClassFilter(substituteConfig.className);
+                    }
+                  }}
+                  style={buttonStyle}
+                >
+                  Apply Settings & Filter Class
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", marginTop: "20px", fontSize: "12px", color: "#64748b" }}>
+          Start Building for Smart Education | © 2026 SmartZone
+        </div> 
       </div> 
     </div> 
   ); 
@@ -655,6 +801,8 @@ const headerStyle = {
   marginBottom: "24px", 
   boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)", 
   border: "1px solid #e2e8f0", 
+  flexWrap: "wrap",
+  gap: "16px"
 }; 
  
 const badgeStyle = { 
@@ -682,7 +830,7 @@ const cardStyle = {
 const filterGridStyle = { display: "flex", gap: "16px", alignItems: "flex-end", flexWrap: "wrap" }; 
 const inputGroupStyle = { display: "flex", flexDirection: "column", gap: "6px", flex: "1", minWidth: "200px" }; 
 const labelStyle = { fontSize: "12px", fontWeight: "600", color: "#475569" }; 
-const selectStyle = { height: "42px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", backgroundColor: "#ffffff", color: "#1e293b", fontSize: "14px", outline: "none" }; 
+const selectStyle = { height: "42px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", backgroundColor: "#ffffff", color: "#1e293b", fontSize: "14px", outline: "none", width: "100%" }; 
 const rowSelectStyle = { height: "36px", padding: "0 8px", borderRadius: "6px", border: "1px solid #cbd5e1", backgroundColor: "#ffffff", color: "#1e293b", fontSize: "13px", outline: "none", width: "100%" }; 
 const buttonStyle = { height: "42px", padding: "0 20px", borderRadius: "8px", border: "none", backgroundColor: "#4f46e5", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 4px rgba(79, 70, 229, 0.2)" }; 
  
@@ -709,9 +857,8 @@ const submitButtonStyle = { backgroundColor: "#059669", color: "#ffffff", border
 const errorStyle = { padding: "14px", backgroundColor: "#fee2e2", color: "#991b1b", borderRadius: "8px", fontSize: "14px", marginBottom: "24px", border: "1px solid #fca5a5", fontWeight: "500" }; 
 const successStyle = { padding: "14px", backgroundColor: "#d1fae5", color: "#065f46", borderRadius: "8px", fontSize: "14px", marginBottom: "24px", border: "1px solid #6ee7b7", fontWeight: "500" }; 
 const emptyStyle = { textAlign: "center", padding: "40px", color: "#64748b", fontSize: "14px" }; 
- 
-const loadingCardStyle = { backgroundColor: "#ffffff", borderRadius: "16px", padding: "40px", textAlign: "center", border: "1px solid #e2e8f0", maxWidth: "400px", margin: "100px auto", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)" }; 
-const spinnerStyle = { width: "32px", height: "32px", border: "3px solid #e2e8f0", borderTopColor: "#4f46e5", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }; 
-const loadingTextStyle = { fontSize: "14px", color: "#64748b", fontWeight: "600" }; 
+
+const modalBackdropStyle = { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "16px" };
+const modalContentStyle = { backgroundColor: "#ffffff", borderRadius: "16px", padding: "24px", width: "100%", maxWidth: "500px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", border: "1px solid #e2e8f0" };
  
 export default MarkAttendance;
