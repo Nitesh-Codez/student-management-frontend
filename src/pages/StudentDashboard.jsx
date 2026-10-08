@@ -427,7 +427,7 @@ useEffect(() => {
   fetchAttendance();
 }, [fetchAttendance]);
 
-  // 2. Schedule Fetch karne ka main function
+  // 2. // Schedule Fetch karne ka main function
 const fetchTodaySchedule = useCallback(async () => {
   if (!user?.class || !user?.id) return;
 
@@ -439,6 +439,23 @@ const fetchTodaySchedule = useCallback(async () => {
     const todayStr = new Date()
       .toISOString()
       .split("T")[0];
+
+    // Helper to format time to 12-hour AM/PM string if needed
+    const formatTo12Hour = (timeStr) => {
+      if (!timeStr) return null;
+      if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
+      
+      const parts = timeStr.split(":");
+      if (parts.length >= 2) {
+        let hours = parseInt(parts[0], 10);
+        const minutes = parts[1];
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
+      }
+      return timeStr;
+    };
 
     // =====================================================
     // 1. TEACHER API ALWAYS BASE SCHEDULE
@@ -453,190 +470,200 @@ const fetchTodaySchedule = useCallback(async () => {
       : [];
 
     // =====================================================
-    // 2. ONLY PREVIOUS DATE
+    // 2. ATTENDANCE & EXAM STATUS MERGE
     // =====================================================
+
+    if (selectedDateStr <= todayStr) {
+      try {
+        const doneRes = await api.get(
+          `/api/attendance/student/${user.id}/done-classes`
+        );
+
+        if (doneRes.data.success) {
+          const doneClasses = doneRes.data.classes || [];
+
+          const attendanceRecords = doneClasses.filter(cls => {
+            const recordDate = new Date(cls.date)
+              .toISOString()
+              .split("T")[0];
+
+            return recordDate === selectedDateStr;
+          });
+
+          // =====================================================
+          // SPECIAL CASE: Previous date + 2 subjects / Exams
+          // =====================================================
+
+        // =====================================================
+// MERGE SCHEDULE + ATTENDANCE
 // =====================================================
-// 2. ATTENDANCE STATUS MERGE
-//    Schedule kabhi hide nahi hoga
-// =====================================================
 
-if (selectedDateStr <= todayStr) {
-  try {
-    const doneRes = await api.get(
-      `/api/attendance/student/${user.id}/done-classes`
-    );
+if (attendanceRecords.length > 0) {
 
-    if (doneRes.data.success) {
-      const doneClasses = doneRes.data.classes || [];
+  // Agar schedule mein classes hain
+  if (classes.length > 0) {
 
-      const attendanceRecords = doneClasses.filter(cls => {
-        const recordDate = new Date(cls.date)
-          .toISOString()
-          .split("T")[0];
+    classes = classes.map(cls => {
+      const teacherSubject = String(
+        cls.subject_name ||
+        cls.subjectName ||
+        cls.subjectCode ||
+        cls.subject_code ||
+        ""
+      ).trim().toLowerCase();
 
-        return recordDate === selectedDateStr;
+      const attendance = attendanceRecords.find(record => {
+        const attendanceSubject = String(
+          record.subject ||
+          record.subjectCode ||
+          record.subject_name ||
+          ""
+        ).trim().toLowerCase();
+
+        return teacherSubject === attendanceSubject;
       });
 
-      // =====================================================
-// SPECIAL CASE:
-// Previous date + 2 subjects
-// Sirf wahi subjects dikhao jinki attendance mili hai
-// =====================================================
+      return {
+        ...cls,
+        attendanceStatus: attendance?.status || "Not Marked",
+        attendanceId: attendance?.attendanceId || null,
+        class_date: attendance?.date || selectedDateStr,
 
-if (selectedDateStr < todayStr && classes.length === 2) {
+        attendanceStartTime: formatTo12Hour(
+          attendance?.startTime ||
+          attendance?.start_time ||
+          cls.startTime ||
+          cls.start_time
+        ),
 
-  const matchedClasses = classes.filter(cls => {
+        attendanceEndTime: formatTo12Hour(
+          attendance?.endTime ||
+          attendance?.end_time ||
+          cls.endTime ||
+          cls.end_time
+        ),
 
-    const teacherSubject = String(
-      cls.subject_name ||
-      cls.subjectName ||
-      cls.subjectCode ||
-      cls.subject_code ||
-      ""
-    )
-      .trim()
-      .toLowerCase();
+        isExam: String(
+          attendance?.subjectCode ||
+          cls.subject_name ||
+          ""
+        ).toLowerCase().includes("exam")
+      };
+    });
 
-    return attendanceRecords.some(record => {
+  } 
+  // =====================================================
+  // IMPORTANT:
+  // Schedule empty hai, lekin attendance record available hai
+  // =====================================================
+  else {
 
-      const attendanceSubject = String(
+    classes = attendanceRecords.map((record, index) => {
+
+      const subject = String(
         record.subject ||
         record.subjectCode ||
         record.subject_name ||
-        ""
-      )
-        .trim()
-        .toLowerCase();
+        "Subject"
+      ).trim();
 
-      return teacherSubject === attendanceSubject;
+      return {
+        id: record.attendanceId || `attendance-${index}`,
+
+        subject_name: subject,
+
+        teacher_name: record.teacher_name || "Teacher",
+
+        teacher_code: record.teacher_code || record.teacher_id || "ID",
+
+        room_no: record.room_no || "HOME",
+
+        start_time: formatTo12Hour(
+          record.startTime || record.start_time
+        ),
+
+        end_time: formatTo12Hour(
+          record.endTime || record.end_time
+        ),
+
+        attendanceStatus: record.status || "Not Marked",
+
+        attendanceId: record.attendanceId || null,
+
+        class_date: record.date || selectedDateStr,
+
+        isExam: subject.toLowerCase().includes("exam")
+      };
     });
-  });
-
-  classes = matchedClasses.map(cls => {
-
-    const teacherSubject = String(
-      cls.subject_name ||
-      cls.subjectName ||
-      cls.subjectCode ||
-      cls.subject_code ||
-      ""
-    )
-      .trim()
-      .toLowerCase();
-
-    const attendance = attendanceRecords.find(record => {
-
-      const attendanceSubject = String(
-        record.subject ||
-        record.subjectCode ||
-        record.subject_name ||
-        ""
-      )
-        .trim()
-        .toLowerCase();
-
-      return teacherSubject === attendanceSubject;
-    });
-
-    return {
-      ...cls,
-
-      attendanceStatus: attendance?.status || "Not Marked",
-
-      attendanceId:
-        attendance?.attendanceId || null,
-
-      class_date:
-        attendance?.date || selectedDateStr,
-
-      attendanceStartTime:
-        attendance?.startTime || null,
-
-      attendanceEndTime:
-        attendance?.endTime || null
-    };
-  });
-
-} else {
-
-  // Normal logic
-  classes = classes.map(cls => {
-
-    const teacherSubject = String(
-      cls.subject_name ||
-      cls.subjectName ||
-      cls.subjectCode ||
-      cls.subject_code ||
-      ""
-    )
-      .trim()
-      .toLowerCase();
-
-    const attendance = attendanceRecords.find(record => {
-
-      const attendanceSubject = String(
-        record.subject ||
-        record.subjectCode ||
-        record.subject_name ||
-        ""
-      )
-        .trim()
-        .toLowerCase();
-
-      return teacherSubject === attendanceSubject;
-    });
-
-    return {
-      ...cls,
-
-      attendanceStatus: attendance?.status || "Not Marked",
-
-      attendanceId:
-        attendance?.attendanceId || null,
-
-      class_date:
-        attendance?.date || selectedDateStr,
-
-      attendanceStartTime:
-        attendance?.startTime || null,
-
-      attendanceEndTime:
-        attendance?.endTime || null
-    };
-  });
-}
-    }
-
-  } catch (attendanceErr) {
-    console.log(
-      "Previous attendance API error:",
-      attendanceErr.response?.data ||
-      attendanceErr.message
-    );
-
-    classes = classes.map(cls => ({
-      ...cls,
-      attendanceStatus: "Not Marked"
-    }));
   }
-}
+} else {
+            // Normal logic mapping with AM/PM time formatting
+            classes = classes.map(cls => {
+              const teacherSubject = String(
+                cls.subject_name ||
+                cls.subjectName ||
+                cls.subjectCode ||
+                cls.subject_code ||
+                ""
+              )
+                .trim()
+                .toLowerCase();
+
+              const attendance = attendanceRecords.find(record => {
+                const attendanceSubject = String(
+                  record.subject ||
+                  record.subjectCode ||
+                  record.subject_name ||
+                  ""
+                )
+                  .trim()
+                  .toLowerCase();
+
+                return teacherSubject === attendanceSubject;
+              });
+
+              return {
+                ...cls,
+                attendanceStatus: attendance?.status || "Not Marked",
+                attendanceId: attendance?.attendanceId || null,
+                class_date: attendance?.date || selectedDateStr,
+                attendanceStartTime: formatTo12Hour(attendance?.startTime || attendance?.start_time || cls.startTime || cls.start_time),
+                attendanceEndTime: formatTo12Hour(attendance?.endTime || attendance?.end_time || cls.endTime || cls.end_time),
+                isExam: (attendance?.subjectCode || cls.subject_name || "").toLowerCase().includes("exam")
+              };
+            });
+          }
+        }
+
+      } catch (attendanceErr) {
+        console.log(
+          "Previous attendance API error:",
+          attendanceErr.response?.data ||
+          attendanceErr.message
+        );
+
+        classes = classes.map(cls => ({
+          ...cls,
+          attendanceStatus: "Not Marked",
+          attendanceStartTime: formatTo12Hour(cls.startTime || cls.start_time),
+          attendanceEndTime: formatTo12Hour(cls.endTime || cls.end_time),
+          isExam: (cls.subject_name || cls.subjectCode || "").toLowerCase().includes("exam")
+        }));
+      }
+    }
 
     // =====================================================
     // 3. FINAL
     // =====================================================
 
-    console.log("FINAL CLASSES:", classes);
-
     setTodayClasses(classes);
 
   } catch (err) {
-
     console.error(
       "Schedule error:",
       err.response?.data ||
       err.message
     );
-
     setTodayClasses([]);
   }
 
@@ -645,7 +672,6 @@ if (selectedDateStr < todayStr && classes.length === 2) {
 useEffect(() => {
   fetchTodaySchedule();
 }, [fetchTodaySchedule]);
-
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good Morning");

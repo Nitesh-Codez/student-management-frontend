@@ -14,12 +14,29 @@ const MarkAttendance = () => {
   const [selectedBatchFilter, setSelectedBatchFilter] = useState(""); 
   const [selectedClassFilter, setSelectedClassFilter] = useState(""); 
   
+  // Batch Timings Configuration State
+  const [batchTimings, setBatchTimings] = useState({
+    "Batch 1": { start: "03:00 PM", end: "04:30 PM" },
+    "Batch 2": { start: "04:30 PM", end: "06:00 PM" },
+    "Batch 3": { start: "06:00 PM", end: "07:30 PM" }
+  });
+  const [showTimingModal, setShowTimingModal] = useState(false);
+  const [editingBatchName, setEditingBatchName] = useState("Batch 1");
+  const [tempStartTime, setTempStartTime] = useState("03:00 PM");
+  const [tempEndTime, setTempEndTime] = useState("04:30 PM");
+
   // Lecture Configuration States
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [lectureType, setLectureType] = useState(""); 
   const [classRangeStart, setClassRangeStart] = useState("");
   const [classRangeEnd, setClassRangeEnd] = useState("");
   const [configuredSubject, setConfiguredSubject] = useState("");
+
+  // Batch Shifting States
+  const [showShiftModal, setShowShiftModal] = useState(false);
+  const [studentToShift, setStudentToShift] = useState(null);
+  const [targetBatch, setTargetBatch] = useState("Batch 1");
+  const [shifting, setShifting] = useState(false);
 
   const [attendanceData, setAttendanceData] = useState({}); 
   const [studentSubjects, setStudentSubjects] = useState({}); 
@@ -244,7 +261,7 @@ const MarkAttendance = () => {
   }, [lectureType]);
 
   const isClassInRange = (studentClass) => {
-    if (!classRangeStart || !classRangeEnd || !studentClass) return true;
+    if (!classRangeStart || !classRangeEnd || !studentClass) return false;
     
     const parseClassNum = (c) => {
       const match = String(c).match(/\d+/);
@@ -258,7 +275,7 @@ const MarkAttendance = () => {
     if (sNum && startNum && endNum) {
       return sNum >= startNum && sNum <= endNum;
     }
-    return true;
+    return false;
   };
 
   const handleApplyLectureConfig = () => {
@@ -284,7 +301,55 @@ const MarkAttendance = () => {
     setStudentSubjects(updatedSubjects);
     setAttendanceData(updatedAttendance);
     setShowConfigModal(false);
-    setSuccessMessage(`Lecture Configuration (${lectureType}) applied successfully!`);
+    setSuccessMessage(`Lecture Configuration (${lectureType}) applied successfully to selected class range!`);
+  };
+
+  const handleOpenTimingModal = (batchName) => {
+    setEditingBatchName(batchName);
+    setTempStartTime(batchTimings[batchName]?.start || "03:00 PM");
+    setTempEndTime(batchTimings[batchName]?.end || "04:30 PM");
+    setShowTimingModal(true);
+  };
+
+  const handleSaveBatchTiming = () => {
+    setBatchTimings(prev => ({
+      ...prev,
+      [editingBatchName]: { start: tempStartTime, end: tempEndTime }
+    }));
+    setShowTimingModal(false);
+    setSuccessMessage(`Timing updated for ${editingBatchName} (${tempStartTime} - ${tempEndTime})!`);
+  };
+
+  const handleOpenShiftModal = (student) => {
+    setStudentToShift(student);
+    setTargetBatch(normalizeBatch(student.batch) !== "Not Assigned" ? normalizeBatch(student.batch) : "Batch 1");
+    setShowShiftModal(true);
+  };
+
+  const handleConfirmShiftBatch = async () => {
+    if (!studentToShift) return;
+
+    try {
+      setShifting(true);
+      setError("");
+      setSuccessMessage("");
+
+      const response = await api.put(`/api/attendance/student/${studentToShift.studentId}/batch`, {
+        batch: targetBatch
+      });
+
+      if (response.data && response.data.success) {
+        setSuccessMessage(response.data.message || `${studentToShift.studentName} shifted successfully to ${targetBatch}!`);
+        setShowShiftModal(false);
+        setStudentToShift(null);
+        await fetchData(false);
+      }
+    } catch (err) {
+      console.error("Error shifting student batch:", err);
+      setError(err.response?.data?.message || "Failed to shift student batch.");
+    } finally {
+      setShifting(false);
+    }
   };
 
   const getStreamsForStudent = useCallback((student) => { 
@@ -316,7 +381,7 @@ const MarkAttendance = () => {
   }, [assignments]); 
 
   const getSubjectsForClassAndStudent = (student) => { 
-    if (lectureType === "Exam" || lectureType === "Substitution") {
+    if (lectureType && lectureType !== "Holiday" && isClassInRange(student.class)) {
       return availableConfigurationSubjects;
     }
 
@@ -329,7 +394,12 @@ const MarkAttendance = () => {
     
     let subs = matched.map(a => a.subject_name).filter(Boolean); 
     if (subs.length === 0) {
-      subs = availableConfigurationSubjects;
+      const clsLower = className.toLowerCase();
+      if (clsLower.includes("12") || clsLower.includes("11")) {
+        subs = ["Maths", "Chemistry", "Hindi", "English", "Physics", "Biology"];
+      } else {
+        subs = ["Maths", "Science", "English", "Hindi", "Social Science"];
+      }
     }
 
     return [...new Set(subs)];
@@ -365,7 +435,7 @@ const MarkAttendance = () => {
     setAttendanceData(updated); 
   }; 
 
-  const handleSubmitAttendance = async () => { 
+ const handleSubmitAttendance = async () => { 
     try { 
       setSubmitting(true); 
       setError(""); 
@@ -373,11 +443,16 @@ const MarkAttendance = () => {
     
       const attendancePayload = filteredStudents.map((student) => { 
         const subject = studentSubjects[student.studentId] || student.subjectCode || null; 
+        const assignedBatch = normalizeBatch(student.batch);
+        const bTimeObj = batchTimings[assignedBatch] || { start: "03:00 PM", end: "04:30 PM" };
+
         return { 
           studentId: student.studentId, 
           status: attendanceData[student.studentId] || "Present", 
           subjectCode: subject, 
-          stream: studentStreams[student.studentId] || student.stream || null 
+          stream: studentStreams[student.studentId] || student.stream || null,
+          startTime: bTimeObj.start,
+          endTime: bTimeObj.end
         }; 
       }); 
     
@@ -402,8 +477,7 @@ const MarkAttendance = () => {
     } finally { 
       setSubmitting(false); 
     } 
-  }; 
-
+  };
   const stats = useMemo(() => { 
     const total = filteredStudents.length; 
     const present = filteredStudents.filter(s => attendanceData[s.studentId] === "Present").length; 
@@ -430,6 +504,45 @@ const MarkAttendance = () => {
           </div> 
         </div> 
 
+        {/* Batch Timing Configuration Modal */}
+        {showTimingModal && (
+          <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+              <h3 style={{ margin: "0 0 12px 0", color: "#0f172a", fontSize: "20px", fontWeight: "800" }}>
+                ⏰ Edit Timings for {editingBatchName}
+              </h3>
+              
+              <div style={inputGroupStyle}>
+                <label style={labelStyle}>Start Time</label>
+                <input 
+                  type="text" 
+                  value={tempStartTime} 
+                  onChange={(e) => setTempStartTime(e.target.value)} 
+                  placeholder="e.g. 03:00 PM"
+                  style={selectStyle} 
+                />
+              </div>
+
+              <div style={{ ...inputGroupStyle, marginTop: "12px" }}>
+                <label style={labelStyle}>End Time</label>
+                <input 
+                  type="text" 
+                  value={tempEndTime} 
+                  onChange={(e) => setTempEndTime(e.target.value)} 
+                  placeholder="e.g. 04:30 PM"
+                  style={selectStyle} 
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px" }}>
+                <button type="button" onClick={() => setShowTimingModal(false)} style={cancelButtonStyle}>Cancel</button>
+                <button type="button" onClick={handleSaveBatchTiming} style={submitButtonStyle}>Save Timing</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Lecture Configuration Modal */}
         {showConfigModal && (
           <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -474,7 +587,7 @@ const MarkAttendance = () => {
 
               {lectureType !== "Holiday" && (
                 <div style={{ ...inputGroupStyle, marginTop: "12px" }}>
-                  <label style={labelStyle}>Select Subject / Paper</label>
+                  <label style={labelStyle}>Select Subject / Paper (Only for selected class range)</label>
                   <select value={configuredSubject} onChange={(e) => setConfiguredSubject(e.target.value)} style={selectStyle}>
                     <option value="">-- Select Subject --</option>
                     {availableConfigurationSubjects.map((sub, idx) => (<option key={idx} value={sub}>{sub}</option>))}
@@ -485,6 +598,36 @@ const MarkAttendance = () => {
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px" }}>
                 <button type="button" onClick={() => setShowConfigModal(false)} style={cancelButtonStyle}>Cancel</button>
                 <button type="button" onClick={handleApplyLectureConfig} style={submitButtonStyle}>Apply Configuration</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Batch Shift Modal */}
+        {showShiftModal && studentToShift && (
+          <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+              <h3 style={{ margin: "0 0 8px 0", color: "#0f172a", fontSize: "20px", fontWeight: "800" }}>
+                🔄 Shift Student Batch
+              </h3>
+              <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "16px" }}>
+                Moving <strong>{studentToShift.studentName}</strong> (Class {studentToShift.class}) to a new batch.
+              </p>
+
+              <div style={inputGroupStyle}>
+                <label style={labelStyle}>Target Batch</label>
+                <select value={targetBatch} onChange={(e) => setTargetBatch(e.target.value)} style={selectStyle}>
+                  <option value="Batch 1">Batch 1 ({batchTimings["Batch 1"].start} - {batchTimings["Batch 1"].end})</option>
+                  <option value="Batch 2">Batch 2 ({batchTimings["Batch 2"].start} - {batchTimings["Batch 2"].end})</option>
+                  <option value="Batch 3">Batch 3 ({batchTimings["Batch 3"].start} - {batchTimings["Batch 3"].end})</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px" }}>
+                <button type="button" onClick={() => setShowShiftModal(false)} style={cancelButtonStyle}>Cancel</button>
+                <button type="button" onClick={handleConfirmShiftBatch} disabled={shifting} style={submitButtonStyle}>
+                  {shifting ? "Shifting..." : "Confirm Shift"}
+                </button>
               </div>
             </div>
           </div>
@@ -501,9 +644,9 @@ const MarkAttendance = () => {
               <label style={labelStyle}>Select Batch</label> 
               <select value={selectedBatchFilter} onChange={(e) => setSelectedBatchFilter(e.target.value)} style={selectStyle}> 
                 <option value="">-- All Batches --</option> 
-                <option value="Batch 1">Batch 1 (3:00 PM - 4:30 PM)</option> 
-                <option value="Batch 2">Batch 2 (4:30 PM - 6:00 PM)</option> 
-                <option value="Batch 3">Batch 3 (6:00 PM - 7:30 PM)</option> 
+                <option value="Batch 1">Batch 1 ({batchTimings["Batch 1"].start} - {batchTimings["Batch 1"].end})</option> 
+                <option value="Batch 2">Batch 2 ({batchTimings["Batch 2"].start} - {batchTimings["Batch 2"].end})</option> 
+                <option value="Batch 3">Batch 3 ({batchTimings["Batch 3"].start} - {batchTimings["Batch 3"].end})</option> 
               </select> 
             </div> 
 
@@ -519,6 +662,26 @@ const MarkAttendance = () => {
               {refreshing ? "Refreshing..." : "🔄 Refresh Data"} 
             </button> 
           </div> 
+
+          {/* Quick Timing Quick-Bar */}
+          <div style={timingQuickBarStyle}>
+            <span style={{ fontSize: "12px", fontWeight: "700", color: "#475569" }}>🕒 Current Batch Timings:</span>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+              {Object.entries(batchTimings).map(([bName, tObj]) => (
+                <div key={bName} style={timingBadgeStyle}>
+                  <span><strong>{bName}:</strong> {tObj.start} - {tObj.end}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => handleOpenTimingModal(bName)}
+                    style={editTimeBtnStyle}
+                    title="Change timing"
+                  >
+                    ✏️
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div> 
 
         {error && <div style={errorStyle}>{error}</div>} 
@@ -548,7 +711,7 @@ const MarkAttendance = () => {
         <div style={cardStyle}> 
           <div style={tableHeaderStyle}> 
             <h3 style={tableTitleStyle}> 
-              Students List {selectedBatchFilter ? `• ${selectedBatchFilter}` : ""} 
+              Students List {selectedBatchFilter ? `• ${selectedBatchFilter} (${batchTimings[selectedBatchFilter]?.start} - ${batchTimings[selectedBatchFilter]?.end})` : ""} 
               {lectureType && <span style={configBadgeHeaderStyle}>Mode: {lectureType}</span>}
             </h3> 
             {filteredStudents.length > 0 && ( 
@@ -567,7 +730,7 @@ const MarkAttendance = () => {
                   <tr style={thRowStyle}> 
                     <th style={thStyle}>#</th> 
                     <th style={thStyle}>Student Name</th> 
-                    <th style={thStyle}>Class & Batch</th> 
+                    <th style={thStyle}>Class & Batch Time</th> 
                     <th style={thStyle}>Subject / Paper</th> 
                     <th style={thStyle}>Stream</th> 
                     <th style={{ ...thStyle, textAlign: "center" }}>Attendance Status</th> 
@@ -577,6 +740,7 @@ const MarkAttendance = () => {
                   {filteredStudents.map((student, index) => { 
                     const currentStatus = attendanceData[student.studentId] || "Present"; 
                     const assignedBatch = normalizeBatch(student.batch); 
+                    const bTimeObj = batchTimings[assignedBatch] || { start: "3:00 PM", end: "4:30 PM" };
                     const classSubjects = getSubjectsForClassAndStudent(student); 
                     const studentStreamsList = getStreamsForStudent(student); 
                     const isHigherClass = studentStreamsList.length > 0; 
@@ -591,7 +755,19 @@ const MarkAttendance = () => {
                         <td style={{ ...tdStyle, fontWeight: "700", color: "#0f172a" }}>{student.studentName}</td> 
                         <td style={{ ...tdStyle, color: "#475569", fontSize: "13px" }}> 
                           <div>Class: <strong>{student.class}</strong></div> 
-                          <div style={{ fontSize: "11px", color: "#4f46e5", fontWeight: "700" }}>{assignedBatch}</div> 
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", flexWrap: "wrap" }}>
+                            <span style={{ fontSize: "11px", backgroundColor: "#e0e7ff", color: "#3730a3", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                              {assignedBatch} ({bTimeObj.start} - {bTimeObj.end})
+                            </span>
+                            <button 
+                              type="button" 
+                              onClick={() => handleOpenShiftModal(student)}
+                              style={shiftBatchBtnStyle}
+                              title="Shift Student to another batch"
+                            >
+                              🔄 Shift
+                            </button>
+                          </div>
                         </td> 
                         
                         <td style={tdStyle}> 
@@ -686,11 +862,15 @@ const headerStyle = { display: "flex", justifyContent: "space-between", alignIte
 const badgeStyle = { backgroundColor: "#e0e7ff", color: "#4338ca", padding: "4px 12px", borderRadius: "20px", fontSize: "11px", fontWeight: "700", display: "inline-block", marginBottom: "8px", letterSpacing: "0.5px" };
 const editBadgeStyle = { backgroundColor: "#fef3c7", color: "#b45309", padding: "6px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: "700", border: "1px solid #fde68a" };
 const configTriggerButtonStyle = { padding: "8px 16px", backgroundColor: "#7c3aed", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" };
+const shiftBatchBtnStyle = { padding: "2px 6px", backgroundColor: "#e0e7ff", color: "#3730a3", border: "1px solid #c7d2fe", borderRadius: "4px", fontSize: "10px", fontWeight: "700", cursor: "pointer" };
 const configBadgeHeaderStyle = { backgroundColor: "#ede9fe", color: "#6d28d9", padding: "3px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700", marginLeft: "12px" };
 const titleStyle = { fontSize: "26px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px 0" };
 const subtitleStyle = { fontSize: "14px", color: "#64748b", margin: "0" };
 const cardStyle = { backgroundColor: "#ffffff", borderRadius: "14px", padding: "22px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)", marginBottom: "24px", border: "1px solid #e2e8f0" };
 const filterGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "16px", alignItems: "end" };
+const timingQuickBarStyle = { marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" };
+const timingBadgeStyle = { backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", color: "#334155", display: "flex", alignItems: "center", gap: "6px" };
+const editTimeBtnStyle = { background: "none", border: "none", cursor: "pointer", fontSize: "11px", padding: "0" };
 const inputGroupStyle = { display: "flex", flexDirection: "column", gap: "6px" };
 const labelStyle = { fontSize: "13px", fontWeight: "600", color: "#334155" };
 const selectStyle = { padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", backgroundColor: "#fff", outline: "none", color: "#0f172a", width: "100%" };
@@ -699,23 +879,23 @@ const errorStyle = { padding: "12px 16px", backgroundColor: "#fee2e2", color: "#
 const successStyle = { padding: "12px 16px", backgroundColor: "#d1fae5", color: "#065f46", borderRadius: "8px", marginBottom: "20px", fontSize: "14px", fontWeight: "600", border: "1px solid #a7f3d0" };
 const metricsGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" };
 const metricCardStyle = { backgroundColor: "#fff", padding: "18px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0" };
-const metricLabelStyle = { fontSize: "13px", color: "#64748b", fontWeight: "600", marginBottom: "4px" };
-const metricValueStyle = { fontSize: "24px", fontWeight: "800", color: "#0f172a" };
+const metricLabelStyle = { fontSize: "13px", fontWeight: "600", color: "#64748b", marginBottom: "4px" };
+const metricValueStyle = { fontSize: "22px", fontWeight: "800", color: "#0f172a" };
 const tableHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" };
-const tableTitleStyle = { fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: "0", display: "flex", alignItems: "center", gap: "8px" };
-const quickBtnPresent = { padding: "6px 12px", backgroundColor: "#059669", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer" };
-const quickBtnAbsent = { padding: "6px 12px", backgroundColor: "#dc2626", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer" };
-const quickBtnHoliday = { padding: "6px 12px", backgroundColor: "#d97706", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer" };
+const tableTitleStyle = { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: "0" };
+const quickBtnPresent = { padding: "6px 12px", backgroundColor: "#059669", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
+const quickBtnAbsent = { padding: "6px 12px", backgroundColor: "#dc2626", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
+const quickBtnHoliday = { padding: "6px 12px", backgroundColor: "#d97706", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
 const tableStyle = { width: "100%", borderCollapse: "collapse", textAlign: "left" };
 const thRowStyle = { backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0" };
-const thStyle = { padding: "12px 14px", fontSize: "13px", fontWeight: "700", color: "#475569" };
-const tdStyle = { padding: "12px 14px", fontSize: "14px" };
-const rowSelectStyle = { padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", backgroundColor: "#fff", width: "100%", outline: "none" };
+const thStyle = { padding: "12px 14px", fontSize: "13px", fontWeight: "700", color: "#334155" };
+const tdStyle = { padding: "12px 14px", fontSize: "14px", color: "#334155", verticalAlign: "middle" };
+const rowSelectStyle = { padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", backgroundColor: "#fff", outline: "none", color: "#0f172a", width: "100%" };
 const radioLabelStyle = { display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "13px" };
-const emptyStyle = { padding: "40px", textAlign: "center", color: "#64748b", fontSize: "15px" };
-const submitButtonStyle = { padding: "12px 24px", backgroundColor: "#059669", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "15px", cursor: "pointer" };
-const cancelButtonStyle = { padding: "12px 20px", backgroundColor: "#64748b", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "14px", cursor: "pointer" };
+const emptyStyle = { padding: "30px", textAlign: "center", color: "#64748b", fontSize: "14px" };
 const modalOverlayStyle = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "16px" };
-const modalContentStyle = { backgroundColor: "#fff", borderRadius: "14px", padding: "24px", width: "100%", maxWidth: "500px", boxShadow: "0 10px 25px rgba(0,0,0,0.15)" };
+const modalContentStyle = { backgroundColor: "#fff", borderRadius: "14px", padding: "24px", width: "100%", maxWidth: "420px", boxShadow: "0 10px 25px rgba(0,0,0,0.15)", border: "1px solid #e2e8f0" };
+const cancelButtonStyle = { padding: "9px 16px", backgroundColor: "#e2e8f0", color: "#334155", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" };
+const submitButtonStyle = { padding: "9px 18px", backgroundColor: "#4f46e5", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" };
 
 export default MarkAttendance;
