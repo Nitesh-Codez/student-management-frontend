@@ -48,6 +48,7 @@ const MarkAttendance = () => {
   const [error, setError] = useState(""); 
   const [successMessage, setSuccessMessage] = useState(""); 
   const [isEditing, setIsEditing] = useState(false);
+  const [attendanceIds, setAttendanceIds] = useState({});
 
   const normalizeBatch = (batch) => {
     const value = String(batch || "").trim().toLowerCase().replace(/\s+/g, "");
@@ -170,14 +171,18 @@ const MarkAttendance = () => {
         return isHigher ? "Maths" : "Science"; 
       }; 
 
-      const initialAttendance = {}; 
-      const initialSubjects = {}; 
-      const initialStreams = {}; 
+    const initialAttendance = {};
+const initialSubjects = {};
+const initialStreams = {};
+const initialAttendanceIds = {};
 
       let hasExistingAttendance = false;
 
       initialStudents.forEach((st) => {
         const id = st.studentId;
+        if (st.attendanceId) {
+  initialAttendanceIds[id] = st.attendanceId;
+}
 
         if (st.attendanceId || st.status) {
           hasExistingAttendance = true;
@@ -221,6 +226,7 @@ const MarkAttendance = () => {
       setAttendanceData(initialAttendance); 
       setStudentSubjects(initialSubjects); 
       setStudentStreams(initialStreams); 
+      setAttendanceIds(initialAttendanceIds);
       setIsEditing(hasExistingAttendance);
 
     } catch (err) { 
@@ -435,49 +441,79 @@ const MarkAttendance = () => {
     setAttendanceData(updated); 
   }; 
 
- const handleSubmitAttendance = async () => { 
-    try { 
-      setSubmitting(true); 
-      setError(""); 
-      setSuccessMessage(""); 
-    
-      const attendancePayload = filteredStudents.map((student) => { 
-        const subject = studentSubjects[student.studentId] || student.subjectCode || null; 
-        const assignedBatch = normalizeBatch(student.batch);
-        const bTimeObj = batchTimings[assignedBatch] || { start: "03:00 PM", end: "04:30 PM" };
+const handleSubmitAttendance = async () => {
+try {
+setSubmitting(true);
+setError("");
+setSuccessMessage("");
 
-        return { 
-          studentId: student.studentId, 
-          status: attendanceData[student.studentId] || "Present", 
-          subjectCode: subject, 
-          stream: studentStreams[student.studentId] || student.stream || null,
-          startTime: bTimeObj.start,
-          endTime: bTimeObj.end
-        }; 
-      }); 
-    
-      const response = await api.post( 
-        "/api/attendance/mark", 
-        { 
-          date: selectedDate, 
-          attendance: attendancePayload
-        } 
-      ); 
-    
-      const { inserted = 0, updated = 0 } = response.data; 
-      setIsEditing(true); 
-      setSuccessMessage( 
-        `Attendance saved successfully. Inserted: ${inserted}, Updated: ${updated}` 
-      ); 
-      await fetchData(false); 
-    
-    } catch (err) { 
-      console.error("Attendance submit error:", err); 
-      setError(err.response?.data?.message || "Failed to save attendance."); 
-    } finally { 
-      setSubmitting(false); 
-    } 
+
+const attendancePayload = filteredStudents.map((student) => {
+  const subject =
+    studentSubjects[student.studentId] ||
+    student.subjectCode ||
+    null;
+
+  const assignedBatch = normalizeBatch(student.batch);
+
+  const bTimeObj = batchTimings[assignedBatch] || {
+    start: "03:00 PM",
+    end: "04:30 PM",
   };
+
+ return {
+  ...(attendanceIds[student.studentId]
+    ? { id: attendanceIds[student.studentId] }
+    : {}),
+
+  studentId: student.studentId,
+  status: attendanceData[student.studentId] || "Present",
+  subjectCode: subject,
+  stream: studentStreams[student.studentId] || student.stream || null,
+  startTime: bTimeObj.start,
+  endTime: bTimeObj.end,
+  reason: null,
+};
+});
+
+// Same endpoint handles both new and existing attendance.
+const response = await api.post("/api/attendance/mark", {
+  date: selectedDate,
+  attendance: attendancePayload,
+});
+
+const {
+  inserted = 0,
+  updated = 0,
+  skipped = 0,
+} = response.data;
+
+setIsEditing(true);
+
+setSuccessMessage(
+  `Attendance saved successfully. Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}`
+);
+
+await fetchData(false);
+
+
+} catch (err) {
+console.error(
+"Attendance submit error:",
+err.response?.data || err.message
+);
+
+
+setError(
+  err.response?.data?.message ||
+  "Failed to save attendance."
+);
+
+} finally {
+setSubmitting(false);
+}
+};
+
   const stats = useMemo(() => { 
     const total = filteredStudents.length; 
     const present = filteredStudents.filter(s => attendanceData[s.studentId] === "Present").length; 
@@ -745,14 +781,14 @@ const MarkAttendance = () => {
                     const studentStreamsList = getStreamsForStudent(student); 
                     const isHigherClass = studentStreamsList.length > 0; 
 
-                    let rowBgStyle = { backgroundColor: "#f0fdf4" }; 
-                    if (currentStatus === "Absent") rowBgStyle = { backgroundColor: "#fef2f2" }; 
-                    else if (currentStatus === "Holiday") rowBgStyle = { backgroundColor: "#fffbeb" }; 
+                    let rowBgStyle = { backgroundColor: "#44e574" }; 
+                    if (currentStatus === "Absent") rowBgStyle = { backgroundColor: "#ffb4b4" }; 
+                    else if (currentStatus === "Holiday") rowBgStyle = { backgroundColor: "#cfff77" }; 
 
                     return ( 
                       <tr key={`${student.studentId || "st"}-${index}`} style={{ borderBottom: "1px solid #e2e8f0", ...rowBgStyle }}> 
                         <td style={tdStyle}>{index + 1}</td> 
-                        <td style={{ ...tdStyle, fontWeight: "700", color: "#0f172a" }}>{student.studentName}</td> 
+                        <td style={{ ...tdStyle, fontWeight: "550",fontSize: "17px", color: "#0f172a" }}>{student.studentName}</td> 
                         <td style={{ ...tdStyle, color: "#475569", fontSize: "13px" }}> 
                           <div>Class: <strong>{student.class}</strong></div> 
                           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", flexWrap: "wrap" }}>
@@ -881,18 +917,114 @@ const metricsGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fi
 const metricCardStyle = { backgroundColor: "#fff", padding: "18px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0" };
 const metricLabelStyle = { fontSize: "13px", fontWeight: "600", color: "#64748b", marginBottom: "4px" };
 const metricValueStyle = { fontSize: "22px", fontWeight: "800", color: "#0f172a" };
-const tableHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" };
-const tableTitleStyle = { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: "0" };
-const quickBtnPresent = { padding: "6px 12px", backgroundColor: "#059669", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
-const quickBtnAbsent = { padding: "6px 12px", backgroundColor: "#dc2626", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
-const quickBtnHoliday = { padding: "6px 12px", backgroundColor: "#d97706", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
-const tableStyle = { width: "100%", borderCollapse: "collapse", textAlign: "left" };
-const thRowStyle = { backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0" };
-const thStyle = { padding: "12px 14px", fontSize: "13px", fontWeight: "700", color: "#334155" };
-const tdStyle = { padding: "12px 14px", fontSize: "14px", color: "#334155", verticalAlign: "middle" };
-const rowSelectStyle = { padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", backgroundColor: "#fff", outline: "none", color: "#0f172a", width: "100%" };
-const radioLabelStyle = { display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "13px" };
-const emptyStyle = { padding: "30px", textAlign: "center", color: "#64748b", fontSize: "14px" };
+const tableHeaderStyle = { 
+  display: "flex", 
+  justifyContent: "space-between", 
+  alignItems: "center", 
+  marginBottom: "20px", 
+  flexWrap: "wrap", 
+  gap: "12px",
+  paddingBottom: "12px",
+  borderBottom: "1px solid #cbd5e1"
+};
+
+const tableTitleStyle = { 
+  fontSize: "18px", 
+  fontWeight: "800", 
+  color: "#0f172a", 
+  margin: "0",
+  letterSpacing: "-0.025em"
+};
+
+const quickBtnPresent = { 
+  padding: "8px 14px", 
+  backgroundColor: "#059669", 
+  color: "#fff", 
+  border: "none", 
+  borderRadius: "8px", 
+  fontSize: "12px", 
+  fontWeight: "700", 
+  cursor: "pointer",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+  transition: "all 0.2s ease"
+};
+
+const quickBtnAbsent = { 
+  padding: "8px 14px", 
+  backgroundColor: "#dc2626", 
+  color: "#fff", 
+  border: "none", 
+  borderRadius: "8px", 
+  fontSize: "12px", 
+  fontWeight: "700", 
+  cursor: "pointer",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+  transition: "all 0.2s ease"
+};
+
+const quickBtnHoliday = { 
+  padding: "8px 14px", 
+  backgroundColor: "#d97706", 
+  color: "#fff", 
+  border: "none", 
+  borderRadius: "8px", 
+  fontSize: "12px", 
+  fontWeight: "700", 
+  cursor: "pointer",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+  transition: "all 0.2s ease"
+};
+
+const tableStyle = { 
+  width: "100%", 
+  borderCollapse: "collapse", 
+  textAlign: "left" 
+};
+
+const thRowStyle = { 
+  backgroundColor: "#f8fafc", 
+  borderBottom: "2px solid #0f172a" 
+};
+
+const thStyle = { 
+  padding: "14px 16px", 
+  fontSize: "13px", 
+  fontWeight: "700", 
+  color: "#0f172a",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  borderRight: "1px solid #cbd5e1" // Optional: Agar columns ke beech mein bhi line chahiye
+};
+
+const tdStyle = { 
+  padding: "14px 16px", 
+  fontSize: "14px", 
+  color: "#0f172a", 
+  verticalAlign: "middle",
+  borderBottom: "1px solid #334155" // Ye wali line rows ke beech mein patli dark/black line dikhayegi
+};
+
+const rowSelectStyle = { 
+  padding: "8px 12px", 
+  borderRadius: "8px", 
+  border: "1px solid #cbd5e1", 
+  fontSize: "13px", 
+  backgroundColor: "#fff", 
+  outline: "none", 
+  color: "#0f172a", 
+  width: "100%",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02)"
+};
+
+const radioLabelStyle = { 
+  display: "flex", 
+  alignItems: "center", 
+  gap: "8px", 
+  cursor: "pointer", 
+  fontSize: "13px",
+  fontWeight: "600",
+  color: "#0f172a"
+};const emptyStyle = { padding: "30px", textAlign: "center", color: "#64748b", fontSize: "14px" };
 const modalOverlayStyle = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "16px" };
 const modalContentStyle = { backgroundColor: "#fff", borderRadius: "14px", padding: "24px", width: "100%", maxWidth: "420px", boxShadow: "0 10px 25px rgba(0,0,0,0.15)", border: "1px solid #e2e8f0" };
 const cancelButtonStyle = { padding: "9px 16px", backgroundColor: "#e2e8f0", color: "#334155", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" };
