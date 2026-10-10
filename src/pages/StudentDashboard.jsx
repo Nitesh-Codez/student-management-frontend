@@ -264,12 +264,14 @@ const greenSubjects = subjectAttendance.filter(
   (s) => Number(s.percentage) >= 85
 );
 
+//Yellow Subjects
 const yellowSubjects = subjectAttendance.filter(
   (s) =>
     Number(s.percentage) >= 75 &&
     Number(s.percentage) < 85
 );
 
+//Red Subjects
 const redSubjects = subjectAttendance.filter(
   (s) => Number(s.percentage) < 75
 );
