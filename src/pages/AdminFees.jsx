@@ -8,7 +8,8 @@ const AdminFees = () => {
   const { session: routeSession, month: routeMonth } = useParams();
   const navigate = useNavigate();
 
-  // --- MONTH & SESSION SELECTION STATES ---
+  // --- SESSIONS STATE (WITH DYNAMIC ADD & DELETE LIST) ---
+  const [sessionsList, setSessionsList] = useState(["2024-25", "2025-26", "2026-27"]);
   const [selectedSession, setSelectedSession] = useState(routeSession || "2026-27");
   const [selectedMonth, setSelectedMonth] = useState(routeMonth || "");
   const [isMonthSelected, setIsMonthSelected] = useState(!!routeMonth);
@@ -21,12 +22,18 @@ const AdminFees = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // --- SECURITY STATES ---
+  // --- SECURITY & PDF EXPORT MODAL STATES ---
   const [isDecrypted, setIsDecrypted] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [showPdfPasswordModal, setShowPdfPasswordModal] = useState(false);
   const [pdfPasswordInput, setPdfPasswordInput] = useState("");
+  const [pdfExportScope, setPdfExportScope] = useState("month"); // "month" or "session"
+  const [showPdfScopeModal, setShowPdfScopeModal] = useState(false);
+
+  // --- SESSION MANAGEMENT MODAL ---
+  const [showManageSessionModal, setShowManageSessionModal] = useState(false);
+  const [newSessionInput, setNewSessionInput] = useState("");
 
   const getCurrentTime12Hour = () => {
     const now = new Date();
@@ -45,6 +52,15 @@ const AdminFees = () => {
     h = h % 12 || 12;
     const formattedHour = h < 10 ? `0${h}` : h;
     return `${formattedHour}:${m} ${ampm}`;
+  };
+
+  const getMonthName = (monthNum) => {
+    const months = {
+      "1": "January", "2": "February", "3": "March", "4": "April",
+      "5": "May", "6": "June", "7": "July", "8": "August",
+      "9": "September", "10": "October", "11": "November", "12": "December"
+    };
+    return months[String(monthNum)] || `Month ${monthNum}`;
   };
 
   const [form, setForm] = useState({
@@ -120,6 +136,35 @@ const AdminFees = () => {
 
   const totalAmount = filteredFees.reduce((sum, f) => sum + Number(f.amount || 0), 0);
 
+  // --- SESSIONS MANAGEMENT HANDLERS ---
+  const handleAddSession = (e) => {
+    e.preventDefault();
+    const formattedNewSession = newSessionInput.trim();
+    if (!formattedNewSession) return;
+    if (sessionsList.includes(formattedNewSession)) {
+      alert("Session already exists!");
+      return;
+    }
+    const updatedList = [...sessionsList, formattedNewSession].sort();
+    setSessionsList(updatedList);
+    setSelectedSession(formattedNewSession);
+    setNewSessionInput("");
+  };
+
+  const handleDeleteSession = (sessionToDelete) => {
+    if (sessionsList.length <= 1) {
+      alert("At least one session must remain in the system!");
+      return;
+    }
+    if (window.confirm(`Are you sure you want to delete session '${sessionToDelete}'?`)) {
+      const updatedList = sessionsList.filter(s => s !== sessionToDelete);
+      setSessionsList(updatedList);
+      if (selectedSession === sessionToDelete) {
+        setSelectedSession(updatedList[updatedList.length - 1]);
+      }
+    }
+  };
+
   const handleDecryptUnlock = (e) => {
     e.preventDefault();
     if (passwordInput === "nite15") {
@@ -144,83 +189,209 @@ const AdminFees = () => {
     }
   };
 
-  const executePdfGeneration = () => {
+  // --- DRAW MAIN PDF DOCUMENT HEADER (CENTERED) ---
+  const drawMainDocumentHeader = (doc, sessionText, sessionSubtext) => {
+    doc.setFillColor(26, 35, 126);
+    doc.rect(0, 0, 210, 36, 'F');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text("SMART STUDENTS CLASSES", 105, 12, { align: "center" });
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Official Fee Collection Ledger & Secure Financial Statement", 105, 19, { align: "center" });
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(`Academic Session: ${sessionText} (${sessionSubtext})`, 105, 26, { align: "center" });
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`Generated On: ${new Date().toLocaleDateString("en-IN")}`, 105, 32, { align: "center" });
+  };
+
+  // --- EXECUTE PDF GENERATION ---
+  const executePdfGeneration = async () => {
     try {
       const doc = new jsPDF('p', 'mm', 'a4');
-      doc.setFillColor(26, 35, 126);
-      doc.rect(0, 0, 210, 38, 'F');
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(255, 255, 255);
-      doc.text("SMART STUDENT CLASSES", 14, 15);
-      
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text("Official Fee Collection Ledger & Secure Financial Statement", 14, 23);
-      doc.text("Digitally Signed & Authorized Financial Document", 14, 30);
+      if (pdfExportScope === "month") {
+        // --- MONTHLY PDF EXPORT ---
+        drawMainDocumentHeader(doc, selectedSession, `Month: ${getMonthName(selectedMonth)}`);
 
-      doc.setTextColor(50, 50, 50);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Academic Session: ${selectedSession}`, 14, 48);
-      doc.text(`Target Month: ${selectedMonth}`, 80, 48);
-      doc.text(`Generated On: ${new Date().toLocaleDateString("en-IN")}`, 145, 48);
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Target Month: ${getMonthName(selectedMonth)}`, 14, 45);
 
-      const tableColumn = ["S.No", "Date", "Time", "Student Name", "Class", "Mode", "Amount (INR)", "Status"];
-      const tableRows = filteredFees.map((fee, index) => [
-        index + 1,
-        formatDate(fee.payment_date),
-        formatTime12Hour(fee.payment_time) || "10:00 AM",
-        (fee.student_name || "").toUpperCase(),
-        fee.class_name || "",
-        fee.payment_mode || "Online",
-        Number(fee.amount).toLocaleString('en-IN'),
-        fee.status === "On Time" ? "On Time" : fee.status === "Late" ? "Late" : "Early"
-      ]);
+        const tableColumn = ["S.No", "Date", "Time", "Student Name", "Class", "Mode", "Amount (₹)", "Status"];
+        const tableRows = filteredFees.map((fee, index) => [
+          index + 1,
+          formatDate(fee.payment_date),
+          formatTime12Hour(fee.payment_time) || "10:00 AM",
+          (fee.student_name || "").toUpperCase(),
+          fee.class_name || "",
+          fee.payment_mode || "Online",
+          `Rs. ${Number(fee.amount).toLocaleString('en-IN')}`,
+          fee.status === "On Time" ? "On Time" : fee.status === "Late" ? "Late" : "Early"
+        ]);
 
-      autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: 55,
-        theme: 'grid',
-        headStyles: { fillColor: [26, 35, 126], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'center' },
-        bodyStyles: { fontSize: 9, textColor: [40, 40, 40] },
-        columnStyles: {
-          0: { halign: 'center', cellWidth: 10 },
-          1: { halign: 'center', cellWidth: 24 },
-          2: { halign: 'center', cellWidth: 20 },
-          4: { halign: 'center', cellWidth: 18 },
-          5: { halign: 'center', cellWidth: 20 },
-          6: { halign: 'right', cellWidth: 26, fontStyle: 'bold' },
-          7: { halign: 'center', cellWidth: 22 }
-        },
-        alternateRowStyles: { fillColor: [248, 249, 250] },
-        margin: { left: 14, right: 14 }
-      });
+        autoTable(doc, {
+          head: [tableColumn],
+          body: tableRows,
+          startY: 50,
+          theme: 'grid',
+          headStyles: { fillColor: [26, 35, 126], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'center' },
+          bodyStyles: { fontSize: 9, textColor: [40, 40, 40] },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 10 },
+            1: { halign: 'center', cellWidth: 24 },
+            2: { halign: 'center', cellWidth: 20 },
+            4: { halign: 'center', cellWidth: 18 },
+            5: { halign: 'center', cellWidth: 20 },
+            6: { halign: 'right', cellWidth: 28, fontStyle: 'bold' },
+            7: { halign: 'center', cellWidth: 22 }
+          },
+          alternateRowStyles: { fillColor: [248, 249, 250] },
+          margin: { top: 15, left: 14, right: 14 }
+        });
 
-      const finalY = doc.lastAutoTable.finalY + 10;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(26, 35, 126);
-      doc.text(`Total Verified Collection Amount: INR ${totalAmount.toLocaleString('en-IN')}`, 14, finalY);
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(26, 35, 126);
+        doc.text(`Total Verified Collection Amount: INR ${totalAmount.toLocaleString('en-IN')}`, 14, finalY);
 
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Digitally Signed, Approved & Authorized By:", 14, finalY + 18);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(26, 35, 126);
-      doc.text("SMART STUDENT CLASSES - ADMINISTRATION", 14, finalY + 24);
-      
-      doc.setDrawColor(26, 35, 126);
-      doc.setLineWidth(0.5);
-      doc.line(14, finalY + 35, 75, finalY + 35);
-      doc.text("Nitesh Kushwah", 14, finalY + 41);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text("Authorized Signatory (Digital Stamp Verified)", 14, finalY + 46);
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Digitally Signed & Approved By:", 14, finalY + 18);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(26, 35, 126);
+        doc.text("SMART STUDENTS CLASSES - ADMINISTRATION", 14, finalY + 24);
+        
+        doc.setDrawColor(26, 35, 126);
+        doc.setLineWidth(0.5);
+        doc.line(14, finalY + 35, 75, finalY + 35);
+        doc.text("Nitesh Kushwah", 14, finalY + 41);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text("Authorized Signatory (Digital Stamp Verified)", 14, finalY + 46);
 
-      doc.save(`Secure_Fee_Statement_${selectedMonth}_${selectedSession}.pdf`);
+        doc.save(`Smarts_Students_Session_Fee_Record_${selectedSession}_Month_${selectedMonth}.pdf`);
+
+      } else {
+        // --- FULL SESSION MONTH-WISE PDF EXPORT ---
+        const res = await api.get(`/api/fees/session`, { params: { session: selectedSession } });
+        const allSessionFees = res.data.fees || res.data || [];
+
+        // Parse session start year (e.g., "2025-26" -> startYear = 2025)
+        const startYear = parseInt(selectedSession.split("-")[0], 10) || 2026;
+        const endYear = startYear + 1;
+
+        const isCurrentSession = selectedSession === "2026-27";
+        const sessionSubtext = isCurrentSession 
+          ? `April ${startYear} to Ongoing till now` 
+          : `April ${startYear} to March ${endYear}`;
+
+        // Academic session months order: April (4) to March (3 of next year)
+        const sessionMonthsOrder = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
+
+        let isFirstMonth = true;
+        let grandTotalSession = 0;
+
+        for (const m of sessionMonthsOrder) {
+          const monthFees = allSessionFees.filter(f => String(f.month || f.fee_month) === String(m));
+          if (monthFees.length === 0) continue;
+
+          const monthTotal = monthFees.reduce((sum, f) => sum + Number(f.amount || 0), 0);
+          grandTotalSession += monthTotal;
+
+          if (!isFirstMonth) {
+            doc.addPage();
+          }
+          isFirstMonth = false;
+
+          drawMainDocumentHeader(doc, selectedSession, sessionSubtext);
+
+          let currentY = 42;
+
+          // Compute year label for the month (April-December belong to startYear, January-March belong to endYear)
+          const mYear = m >= 4 ? startYear : endYear;
+          const monthTitleLabel = `${getMonthName(m)} ${mYear} (Fee Paid in ${getMonthName(m+1)})`;
+
+          // MONTH SECTION HEADER
+          doc.setFillColor(238, 242, 255);
+          doc.rect(14, currentY, 182, 8, 'F');
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(26, 35, 126);
+          doc.text(`Month: ${monthTitleLabel}   |   Total Collection: INR ${monthTotal.toLocaleString('en-IN')}`, 18, currentY + 6);
+          currentY += 12;
+
+          const tableColumn = ["S.No", "Date", "Time", "Student Name", "Class", "Mode", "Amount (₹)", "Status"];
+          const tableRows = monthFees.map((fee, index) => [
+            index + 1,
+            formatDate(fee.payment_date),
+            formatTime12Hour(fee.payment_time) || "10:00 AM",
+            (fee.student_name || "").toUpperCase(),
+            fee.class_name || "",
+            fee.payment_mode || "Online",
+            `Rs. ${Number(fee.amount).toLocaleString('en-IN')}`,
+            fee.status === "On Time" ? "On Time" : fee.status === "Late" ? "Late" : "Early"
+          ]);
+
+          autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: currentY,
+            theme: 'grid',
+            headStyles: { fillColor: [26, 35, 126], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+            bodyStyles: { fontSize: 8, textColor: [40, 40, 40] },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 10 },
+              1: { halign: 'center', cellWidth: 24 },
+              2: { halign: 'center', cellWidth: 20 },
+              4: { halign: 'center', cellWidth: 18 },
+              5: { halign: 'center', cellWidth: 20 },
+              6: { halign: 'right', cellWidth: 28, fontStyle: 'bold' },
+              7: { halign: 'center', cellWidth: 22 }
+            },
+            alternateRowStyles: { fillColor: [248, 249, 250] },
+            margin: { top: 15, left: 14, right: 14 }
+          });
+        }
+
+        let finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 50;
+        if (finalY > 250) {
+          doc.addPage();
+          finalY = 30;
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(26, 35, 126);
+        doc.text(`Grand Total Session Collection: INR ${grandTotalSession.toLocaleString('en-IN')}`, 14, finalY);
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Digitally Signed & Approved By:", 14, finalY + 15);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(26, 35, 126);
+        doc.text("SMART STUDENTS CLASSES - ADMINISTRATION", 14, finalY + 21);
+        
+        doc.setDrawColor(26, 35, 126);
+        doc.setLineWidth(0.5);
+        doc.line(14, finalY + 32, 75, finalY + 32);
+        doc.text("Nitesh Kushwah", 14, finalY + 38);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text("Authorized Signatory (Digital Stamp Verified)", 14, finalY + 43);
+        doc.text("THANK YOU", 20, finalY + 49, { align: "left" });
+
+        doc.save(`Smarts_Students_Session_Fee_Record_${selectedSession}.pdf`);
+      }
     } catch (err) {
       alert("Failed to export secure PDF. Error: " + err.message);
     }
@@ -271,20 +442,25 @@ const AdminFees = () => {
   if (!isMonthSelected) {
     return (
       <div style={containerStyle}>
-        <div style={{ maxWidth: '500px', margin: '80px auto', background: 'white', padding: '40px', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
+        <div style={{ maxWidth: '500px', margin: '60px auto', background: 'white', padding: '40px', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#1a237e', marginTop: 0, textAlign: 'center' }}>🏫 SmartZone Fee Ledger</h2>
-          <p style={{ textAlign: 'center', color: '#666', fontSize: '14px', marginBottom: '30px' }}>Please select the Session and Month to load records & manage fees.</p>
+          <p style={{ textAlign: 'center', color: '#666', fontSize: '14px', marginBottom: '25px' }}>Please select or manage the Session and Month to proceed.</p>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
-              <label style={labelStyle}>Academic Session</label>
-              <input 
-                type="text" 
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                <label style={labelStyle}>Academic Session</label>
+                <button type="button" onClick={() => setShowManageSessionModal(true)} style={addSessionLink}>⚙️ Manage Sessions</button>
+              </div>
+              <select 
                 value={selectedSession} 
                 onChange={(e) => setSelectedSession(e.target.value)} 
-                style={inputStyle} 
-                placeholder="e.g. 2026-27"
-              />
+                style={inputStyle}
+              >
+                {sessionsList.map((s) => (
+                  <option key={s} value={s}>{s} {s === "2026-27" ? "(Ongoing)" : ""}</option>
+                ))}
+              </select>
             </div>
             
             <div>
@@ -318,6 +494,48 @@ const AdminFees = () => {
             </button>
           </div>
         </div>
+
+        {/* MANAGE SESSIONS MODAL (ADD & DELETE SESSIONS) */}
+        {showManageSessionModal && (
+          <div style={modalOverlay}>
+            <div style={{...modalContent, width: '420px'}}>
+              <h3 style={{ margin: '0 0 10px 0', color: '#1a237e' }}>⚙️ Academic Sessions Manager</h3>
+              
+              <form onSubmit={handleAddSession} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <input 
+                  type="text" 
+                  placeholder="New Session e.g. 2027-28" 
+                  value={newSessionInput} 
+                  onChange={(e) => setNewSessionInput(e.target.value)} 
+                  style={inputStyle} 
+                  required 
+                />
+                <button type="submit" style={{...primaryBtn, width: '120px', padding: '10px'}}>+ Add</button>
+              </form>
+
+              <label style={{...labelStyle, marginBottom: '8px'}}>All Available Sessions:</label>
+              <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px', padding: '10px', marginBottom: '20px' }}>
+                {sessionsList.map((s) => (
+                  <div key={s} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <span style={{ fontWeight: s === selectedSession ? 'bold' : 'normal', color: s === selectedSession ? '#1a237e' : '#333' }}>
+                      {s} {s === selectedSession ? "(Active)" : ""}
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={() => handleDeleteSession(s)} 
+                      style={deleteSessionBtn}
+                      title="Delete Session"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button type="button" onClick={() => setShowManageSessionModal(false)} style={cancelBtn}>Done / Close</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -329,13 +547,13 @@ const AdminFees = () => {
           <h2 style={brandTitle}>🏫 SmartZone | Secure Fee Ledger</h2>
           <div style={badgeWrapper}>
             <span style={topBadge}>Session: {selectedSession}</span>
-            <span style={topBadge}>Month: {selectedMonth}</span>
+            <span style={topBadge}>Month: {getMonthName(selectedMonth)}</span>
             <span style={{...topBadge, background: '#2e7d32'}}>✒️ Signed PDF Export</span>
           </div>
         </div>
         <div style={actionButtonGroup}>
-           <button onClick={() => setShowPdfPasswordModal(true)} style={printBtn}>🖨️ Export PDF</button>
-           <button onClick={() => setIsMonthSelected(false)} style={backBtn}>Change Month</button>
+           <button onClick={() => setShowPdfScopeModal(true)} style={printBtn}>🖨️ Export PDF</button>
+           <button onClick={() => setIsMonthSelected(false)} style={backBtn}>Change Month / Session</button>
         </div>
       </div>
 
@@ -361,6 +579,29 @@ const AdminFees = () => {
         </div>
       )}
 
+      {showPdfScopeModal && (
+        <div style={modalOverlay}>
+          <div style={modalContent}>
+            <h3 style={{ margin: '0 0 10px 0', color: '#1a237e' }}>📄 Select PDF Export Scope</h3>
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px' }}>Choose export mode for session fee statements.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                <input type="radio" name="pdfScope" value="month" checked={pdfExportScope === "month"} onChange={(e) => setPdfExportScope(e.target.value)} />
+                Current Month Only ({getMonthName(selectedMonth)})
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                <input type="radio" name="pdfScope" value="session" checked={pdfExportScope === "session"} onChange={(e) => setPdfExportScope(e.target.value)} />
+                Full Academic Session Month-Wise ({selectedSession})
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => { setShowPdfScopeModal(false); setShowPdfPasswordModal(true); }} style={primaryBtn}>Proceed to Sign</button>
+              <button type="button" onClick={() => setShowPdfScopeModal(false)} style={cancelBtn}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showPdfPasswordModal && (
         <div style={modalOverlay}>
           <div style={modalContent}>
@@ -381,7 +622,7 @@ const AdminFees = () => {
           <div style={cardStyle}>
             <div style={formHeader}>
               <h3 style={{ margin: 0, color: '#1a237e' }}>{form.id ? "✏️ Edit Record" : "➕ Add Fee"}</h3>
-              <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Session: {selectedSession} | Month: {selectedMonth}</p>
+              <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Session: {selectedSession} | Month: {getMonthName(selectedMonth)}</p>
             </div>
            
             <form onSubmit={handleSubmit} style={flexCol}>
@@ -457,7 +698,7 @@ const AdminFees = () => {
               <div style={revIcon}>₹</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <div>
-                  <small style={{ opacity: 0.8, fontWeight: '600' }}>TOTAL COLLECTION (MONTH {selectedMonth})</small>
+                  <small style={{ opacity: 0.8, fontWeight: '600' }}>TOTAL COLLECTION ({getMonthName(selectedMonth).toUpperCase()})</small>
                   <h2 style={{ margin: 0, fontSize: '28px' }}>
                     {isDecrypted ? `₹${totalAmount.toLocaleString('en-IN')}` : "🔒••••••••"}
                   </h2>
@@ -487,7 +728,7 @@ const AdminFees = () => {
           <div style={tableWrapper}>
             <div style={{ padding: '16px 20px', backgroundColor: '#1a237e', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: '600', fontSize: '14px' }}>
-                Showing Records for Month: <span style={{ color: '#93c5fd' }}>{selectedMonth}</span> ({filteredFees.length} Entries)
+                Showing Records for Month: <span style={{ color: '#93c5fd' }}>{getMonthName(selectedMonth)}</span> ({filteredFees.length} Entries)
               </span>
             </div>
             <table style={fullTable}>
@@ -542,7 +783,7 @@ const AdminFees = () => {
             </table>
             
             {filteredFees.length === 0 && !loading && (
-              <div style={emptyState}><p>No fee records found for Month {selectedMonth}.</p></div>
+              <div style={emptyState}><p>No fee records found for {getMonthName(selectedMonth)}.</p></div>
             )}
             {loading && <div style={{padding: '40px', textAlign: 'center', color: '#1a237e'}}>Synchronizing Database...</div>}
           </div>
@@ -573,7 +814,7 @@ const searchInput = { border: 'none', width: '100%', fontSize: '16px', padding: 
 const decryptToggleBtn = { backgroundColor: '#d97706', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' };
 const decryptToggleBtnActive = { backgroundColor: '#4b5563', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const modalContent = { backgroundColor: 'white', padding: '30px', borderRadius: '12px', width: '350px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' };
+const modalContent = { backgroundColor: 'white', padding: '30px', borderRadius: '12px', width: '380px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' };
 const tableWrapper = { backgroundColor: 'white', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', overflow: 'hidden' };
 const fullTable = { width: '100%', borderCollapse: 'collapse' };
 const tableHeaderRow = { backgroundColor: '#1a237e' };
@@ -581,7 +822,7 @@ const thStyle = { padding: '18px 20px', fontSize: '12px', color: 'white', textTr
 const tdStyle = { padding: '16px 20px', borderBottom: '1px solid #f0f0f0' };
 const studentNameCell = { fontWeight: '600', color: '#111827', fontSize: '15px' };
 const cardStyle = { backgroundColor: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' };
-const flexCol = { display: 'flex', flexDirection: 'column', gap: '15px' };
+let flexCol = { display: 'flex', flexDirection: 'column', gap: '15px' };
 const inputStyle = { padding: '12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', width: '100%', boxSizing: 'border-box' };
 const labelStyle = { fontSize: '12px', fontWeight: 'bold', color: '#444', marginBottom: '5px', display: 'block' };
 const primaryBtn = { backgroundColor: '#1a237e', color: 'white', padding: '15px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '700', width: '100%' };
@@ -593,5 +834,7 @@ const errorBanner = { background: '#fee2e2', color: '#991b1b', padding: '15px', 
 const retryLink = { marginLeft: '10px', background: '#991b1b', color: 'white', border: 'none', padding: '3px 10px', borderRadius: '4px', cursor: 'pointer' };
 const emptyState = { padding: '50px', textAlign: 'center', color: '#999' };
 const trStyle = { cursor: 'default' };
+const addSessionLink = { background: 'none', border: 'none', color: '#1a237e', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' };
+const deleteSessionBtn = { backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' };
 
 export default AdminFees;
