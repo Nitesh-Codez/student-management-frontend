@@ -892,8 +892,21 @@ setSubmitting(false);
   ); 
 }; 
 
-const pageStyle = { minHeight: "100vh", backgroundColor: "#f8fafc", padding: "28px 20px", fontFamily: "Inter, system-ui, sans-serif" };
-const containerStyle = { maxWidth: "1200px", margin: "0 auto" };
+// Isko 100% aur full-width kar do
+const pageStyle = {
+  width: "100%",
+  minHeight: "100vh",
+  padding: "20px 10px", // Side padding kam kar di taaki poori jagah mile
+  boxSizing: "border-box",
+  background: "#f8fafc",
+};
+
+const containerStyle = {
+  width: "100%",       // Max-width ki limit hata kar 100% kar diya
+  maxWidth: "100%",    // Yahan pehle koi fixed px hoga, usko 100% kar lo
+  margin: "0 auto",
+  boxSizing: "border-box",
+};
 const headerStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px", flexWrap: "wrap", gap: "16px" };
 const badgeStyle = { backgroundColor: "#e0e7ff", color: "#4338ca", padding: "4px 12px", borderRadius: "20px", fontSize: "11px", fontWeight: "700", display: "inline-block", marginBottom: "8px", letterSpacing: "0.5px" };
 const editBadgeStyle = { backgroundColor: "#fef3c7", color: "#b45309", padding: "6px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: "700", border: "1px solid #fde68a" };

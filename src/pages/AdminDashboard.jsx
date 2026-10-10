@@ -1,25 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  FaUserGraduate, FaMoneyBillWave, FaClipboardCheck,FaUpload,
-  FaBookOpen, FaFileUpload, FaStar, FaComments, FaChartBar,
-  FaArrowRight, FaThLarge, FaSearch, FaBell, FaBars, FaChevronLeft,FaQuestionCircle,FaCheck, FaTimes,
+  FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
+  FaBookOpen, FaStar, FaChartBar, FaArrowRight, FaThLarge, 
+  FaSearch, FaBell, FaBars, FaTimes, FaQuestionCircle, FaCheck, 
   FaChalkboardTeacher
 } from "react-icons/fa";
 
-
 import api from "../services/api";
-
 
 const AdminDashboard = () => {
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Initially false (hidden)
   const [stats, setStats] = useState({ students: 45, batches: 2, avgMarks: 82 });
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
-  
 
   const bgImages = [
     "https://images.unsplash.com/photo-1523050853023-8c2d27543054?auto=format&fit=crop&q=80&w=1200",
@@ -77,50 +74,44 @@ const AdminDashboard = () => {
     { title: "Check ExamForms", path: "check-examform", icon: <FaUserGraduate />, color: "#07106e", category: "Management" },
     { title: "Internal Marks", path: "admin-internal-marks", icon: <FaBookOpen />, color: "#26d91d", category: "Management" },
     { title: "Meetings", path: "admin-meeting", icon: <FaChalkboardTeacher />, color: "#33a551", category: "Management" },
-   
-    {
-  title: "Manage Quiz",
-  path: "quiz",
-  icon: <FaQuestionCircle />,
-  color: "#14b8a6",
-  category: "Exams"
-},
-{
-  title: "Students Reports",
-  path: "student-summary",
-  icon: <FaUserGraduate />,
-  color: "#cb8728",
-  category: "Exams"
-},
+    { title: "Manage Quiz", path: "quiz", icon: <FaQuestionCircle />, color: "#14b8a6", category: "Exams" },
+    { title: "Students Reports", path: "student-summary", icon: <FaUserGraduate />, color: "#cb8728", category: "Exams" },
   ];
+
   const filteredLinks = links.filter(link =>
     link.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // FIX: Dashboard Grid tabhi dikhega jab path exact "/admin" ho
   const isBaseAdmin = location.pathname === "/admin" || location.pathname === "/admin/";
 
   return (
     <div style={layout}>
-      {/* Sidebar - Ab hamesha clickable rahega */}
-      <aside style={{ ...sidebar, width: isSidebarOpen ? '260px' : '80px' }}>
-        <Link to="/admin" style={{ textDecoration: 'none' }}>
-          <div style={logoSection}>
-            <div style={logoIcon}><FaThLarge /></div>
-            {isSidebarOpen && <span style={logoText}>SmartZone</span>}
-          </div>
-        </Link>
-        
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} style={toggleBtn}>
-          {isSidebarOpen ? <FaChevronLeft size={10} /> : <FaBars size={10} />}
-        </button>
+      {/* Overlay when sidebar is open on mobile */}
+      {isSidebarOpen && (
+        <div style={sidebarOverlay} onClick={() => setIsSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar - Hidden Initially, Animated Drawer */}
+      <aside style={{ ...sidebar, transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)' }}>
+        <div style={sidebarHeader}>
+          <Link to="/admin" style={{ textDecoration: 'none' }} onClick={() => setIsSidebarOpen(false)}>
+            <div style={logoSection}>
+              <div style={logoIcon}><FaThLarge /></div>
+              <span style={logoText}>SmartZone</span>
+            </div>
+          </Link>
+          <button onClick={() => setIsSidebarOpen(false)} style={closeSidebarBtn}>
+            <FaTimes size={16} />
+          </button>
+        </div>
 
         <nav style={navLinks}>
-          {isSidebarOpen && <div style={navLabel}>Management</div>}
+          <div style={navLabel}>Management</div>
           {links.map((link) => (
             <Link 
               key={link.path} 
               to={link.path} 
+              onClick={() => setIsSidebarOpen(false)}
               className="side-nav-link"
               style={{ 
                 ...sideNavLink, 
@@ -129,7 +120,7 @@ const AdminDashboard = () => {
               }} 
             >
               <span style={{ fontSize: '20px' }}>{link.icon}</span>
-              {isSidebarOpen && <span>{link.title}</span>}
+              <span>{link.title}</span>
             </Link>
           ))}
         </nav>
@@ -146,17 +137,28 @@ const AdminDashboard = () => {
             .glass-card:hover { border-color: #f97316; box-shadow: 0 10px 25px -5px rgba(249,115,22,0.1); transform: translateY(-5px); }
             @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             @keyframes marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+            @media (max-width: 768px) {
+              .desktop-nav-links { display: none !important; }
+              .header-tag-text { font-size: 20px !important; }
+            }
           `}
         </style>
 
-        {/* Header - Ab har page par navigation support karega */}
+        {/* Header */}
         <header style={orangeHeader}>
           <div style={headerLeft}>
+            {/* Hamburger Menu Button */}
+            <button onClick={() => setIsSidebarOpen(true)} style={menuBurgerBtn} aria-label="Open Sidebar">
+              <FaBars size={20} color="#fff" />
+            </button>
+
             <Link to="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <span style={headerTag}>SMART STUDENTS</span>
+              <span style={headerTag} className="header-tag-text">SMART STUDENTS</span>
             </Link>
-            <div style={vDivider}></div>
-            <div style={headerNav}>
+            
+            <div style={vDivider} className="desktop-nav-links"></div>
+            
+            <div style={headerNav} className="desktop-nav-links">
               <Link to="admin-feedback" style={headerLink} className="top-nav-item">Feedback</Link>
               <Link to="student-submission" style={headerLink} className="top-nav-item">Submissions</Link>
               <Link to="study-material" style={headerLink} className="top-nav-item">Study Material</Link>
@@ -177,41 +179,41 @@ const AdminDashboard = () => {
 
             <div style={{ position: 'relative' }}>
                 <div style={headerIconBtn} onClick={() => setShowNotif(!showNotif)}>
-                <FaBell size={18} />
-                {notifications.length > 0 && <span style={headerBadge}>{notifications.length}</span>}
+                  <FaBell size={18} />
+                  {notifications.length > 0 && <span style={headerBadge}>{notifications.length}</span>}
                 </div>
                 
                 {showNotif && (
-                <div style={notifDropdown}>
-                    <div style={notifTitle}>Pending Edit Requests</div>
-                    <div style={notifScroll}>
-                    {notifications.length === 0 ? (
-                        <div style={emptyNotif}>No pending requests ✅</div>
-                    ) : (
-                        notifications.map(n => (
-                        <div key={n.id} style={notifCard}>
-                            <p style={notifDesc}><b>{n.student_name}</b> wants to change <b>{n.field_name}</b></p>
-                            <p style={notifValues}>New: {n.requested_value}</p>
-                            <div style={notifActions}>
-                            <button onClick={() => handleApproveReject(n.id, "approved")} style={approveBtn}><FaCheck size={10} /> Approve</button>
-                            <button onClick={() => handleApproveReject(n.id, "rejected")} style={rejectBtn}><FaTimes size={10} /> Reject</button>
-                            </div>
-                        </div>
-                        ))
-                    )}
-                    </div>
-                </div>
+                  <div style={notifDropdown}>
+                      <div style={notifTitle}>Pending Edit Requests</div>
+                      <div style={notifScroll}>
+                      {notifications.length === 0 ? (
+                          <div style={emptyNotif}>No pending requests ✅</div>
+                      ) : (
+                          notifications.map(n => (
+                          <div key={n.id} style={notifCard}>
+                              <p style={notifDesc}><b>{n.student_name}</b> wants to change <b>{n.field_name}</b></p>
+                              <p style={notifValues}>New: {n.requested_value}</p>
+                              <div style={notifActions}>
+                              <button onClick={() => handleApproveReject(n.id, "approved")} style={approveBtn}><FaCheck size={10} /> Approve</button>
+                              <button onClick={() => handleApproveReject(n.id, "rejected")} style={rejectBtn}><FaTimes size={10} /> Reject</button>
+                              </div>
+                          </div>
+                          ))
+                      )}
+                      </div>
+                  </div>
                 )}
             </div>
 
             <div style={headerUser}>
               <img src="https://ui-avatars.com/api/?name=Nitesh+Admin&background=fff&color=f97316" style={avatarSmall} alt="admin" />
-              <span>Nitesh Admin</span>
+              <span className="desktop-nav-links">Nitesh Admin</span>
             </div>
           </div>
         </header>
 
-        {/* Content Area - Toggle logic fix */}
+        {/* Content Area */}
         <div style={pagePadding}>
           {isBaseAdmin ? (
             <>
@@ -222,9 +224,7 @@ const AdminDashboard = () => {
                   <div style={heroStats}>
                     <div style={hStatCard}>
                       <span style={hStatVal}>{stats.avgMarks}%</span>
-                      <span style={hStatLab}>Avg. Perform
-                        
-                        ance</span>
+                      <span style={hStatLab}>Avg. Performance</span>
                     </div>
                     <div style={hStatCard}>
                       <span style={hStatVal}>Live</span>
@@ -262,39 +262,55 @@ const AdminDashboard = () => {
   );
 };
 
-// --- STYLES (Fixed heights and responsiveness) ---
-const layout = { display: 'flex', minHeight: '100vh', background: '#f8fafc' };
-const sidebar = { background: '#fff', borderRight: '1px solid #e2e8f0', padding: '20px 15px', position: 'sticky', top: 0, height: '100vh', transition: '0.3s', zIndex: 1000 };
-const logoSection = { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '35px', padding: '0 10px', cursor: 'pointer' };
+// --- STYLES & LAYOUTS ---
+const layout = { display: 'flex', minHeight: '100vh', background: '#f8fafc', position: 'relative', overflowX: 'hidden' };
+
+const sidebarOverlay = {
+  position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+  background: 'rgba(0,0,0,0.5)', zIndex: 1400, transition: '0.3s'
+};
+
+const sidebar = { 
+  background: '#fff', borderRight: '1px solid #e2e8f0', padding: '20px 15px', 
+  position: 'fixed', top: 0, left: 0, height: '100vh', width: '280px', 
+  transition: 'transform 0.3s ease-in-out', zIndex: 1500, overflowY: 'auto',
+  boxShadow: '5px 0 25px rgba(0,0,0,0.1)'
+};
+
+const sidebarHeader = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px' };
+const logoSection = { display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' };
 const logoIcon = { background: 'linear-gradient(135deg, #f97316, #fb923c)', color: '#fff', width: '35px', height: '35px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const logoText = { fontSize: '18px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.5px' };
-const toggleBtn = { position: 'absolute', right: '-12px', top: '25px', width: '24px', height: '24px', borderRadius: '50%', background: '#1e293b', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const navLinks = { display: 'flex', flexDirection: 'column', gap: '4px' };
+const closeSidebarBtn = { background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' };
+
+const menuBurgerBtn = { background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', borderRadius: '8px' };
+
+const navLinks = { display: 'flex', flexDirection: 'column', gap: '6px' };
 const navLabel = { fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', margin: '15px 0 10px 10px' };
 const sideNavLink = { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 15px', textDecoration: 'none', fontWeight: '600', borderRadius: '10px', transition: '0.2s', fontSize: '14px' };
-const mainContent = { flex: 1, display: 'flex', flexDirection: 'column' };
+const mainContent = { flex: 1, display: 'flex', flexDirection: 'column', width: '100%' };
 
 const orangeHeader = {
-  height: '96px', background: 'linear-gradient(90deg, #f97316 0%, #cc4700 100%)',
+  height: '75px', background: 'linear-gradient(90deg, #f97316 0%, #cc4700 100%)',
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '0 25px', color: '#fff', position: 'sticky', top: 0, zIndex: 1100,
+  padding: '0 20px', color: '#fff', position: 'sticky', top: 0, zIndex: 1100,
   boxShadow: '0 4px 12px rgba(234, 88, 12, 0.15)'
 };
-const headerLeft = { display: 'flex', alignItems: 'center', gap: '30px' };
-const headerTag = { fontSize: '31px', fontWeight: '800', opacity: 0.8, letterSpacing: '1px' };
+const headerLeft = { display: 'flex', alignItems: 'center', gap: '15px' };
+const headerTag = { fontSize: '24px', fontWeight: '800', opacity: 0.9, letterSpacing: '0.5px' };
 const vDivider = { width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)' };
-const headerNav = { display: 'flex', gap: '25px' };
-const headerLink = { color: '#fff', textDecoration: 'none', fontSize: '19px', fontWeight: '800' };
-const headerRight = { display: 'flex', alignItems: 'center', gap: '20px' };
-const searchBox = { background: '#fff', borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px' };
-const topSearchInput = { border: 'none', background: 'transparent', color: '#333', outline: 'none', fontSize: '13px', width: '150px' };
-const headerIconBtn = { cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center' };
-const headerBadge = { position: 'absolute', top: '-8px', right: '-8px', background: '#fff', color: '#f97316', fontSize: '10px', fontWeight: '800', padding: '2px 5px', borderRadius: '10px' };
-const headerUser = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '600', paddingLeft: '20px', borderLeft: '1px solid rgba(255,255,255,0.3)' };
+const headerNav = { display: 'flex', gap: '20px' };
+const headerLink = { color: '#fff', textDecoration: 'none', fontSize: '15px', fontWeight: '700' };
+const headerRight = { display: 'flex', alignItems: 'center', gap: '15px' };
+const searchBox = { background: '#fff', borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '200px' };
+const topSearchInput = { border: 'none', background: 'transparent', color: '#333', outline: 'none', fontSize: '13px', width: '100%' };
+const headerIconBtn = { cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', padding: '5px' };
+const headerBadge = { position: 'absolute', top: '0px', right: '0px', background: '#fff', color: '#f97316', fontSize: '10px', fontWeight: '800', padding: '2px 5px', borderRadius: '10px' };
+const headerUser = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '600', paddingLeft: '15px', borderLeft: '1px solid rgba(255,255,255,0.3)' };
 const avatarSmall = { width: '30px', height: '30px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' };
 
 const notifDropdown = {
-  position: 'absolute', top: '45px', right: '0', width: '300px', background: '#fff',
+  position: 'absolute', top: '45px', right: '0', width: '280px', background: '#fff',
   borderRadius: '12px', boxShadow: '0 15px 35px rgba(0,0,0,0.2)', zIndex: 2000, overflow: 'hidden', color: '#333'
 };
 const notifTitle = { padding: '12px', background: '#f8fafc', color: '#475569', fontSize: '12px', fontWeight: '700', borderBottom: '1px solid #f1f5f9' };
@@ -307,25 +323,25 @@ const approveBtn = { background: '#10b981', color: '#fff', border: 'none', paddi
 const rejectBtn = { background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' };
 const emptyNotif = { padding: '30px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' };
 
-const pagePadding = { padding: '30px 20px 100px', maxWidth: '1400px', margin: '0 auto', width: '100%' };
-const hero = { height: '240px', borderRadius: '24px', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', padding: '0 40px', color: '#fff', marginBottom: '35px' };
+const pagePadding = { padding: '25px 15px 80px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box' };
+const hero = { height: '220px', borderRadius: '20px', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', padding: '0 25px', color: '#fff', marginBottom: '25px' };
 const heroContent = { maxWidth: '600px' };
-const heroTitle = { fontSize: '32px', margin: 0, fontWeight: '800' };
-const heroSub = { fontSize: '15px', opacity: 0.9, margin: '10px 0 25px', lineHeight: '1.5' };
-const heroStats = { display: 'flex', gap: '25px' };
-const hStatCard = { background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', padding: '10px 20px', borderRadius: '12px', display: 'flex', flexDirection: 'column' };
-const hStatVal = { fontSize: '18px', fontWeight: '800' };
-const hStatLab = { fontSize: '11px', opacity: 0.8, textTransform: 'uppercase' };
+const heroTitle = { fontSize: '26px', margin: 0, fontWeight: '800' };
+const heroSub = { fontSize: '14px', opacity: 0.9, margin: '8px 0 20px', lineHeight: '1.5' };
+const heroStats = { display: 'flex', gap: '20px' };
+const hStatCard = { background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', padding: '8px 15px', borderRadius: '10px', display: 'flex', flexDirection: 'column' };
+const hStatVal = { fontSize: '16px', fontWeight: '800' };
+const hStatLab = { fontSize: '10px', opacity: 0.8, textTransform: 'uppercase' };
 
-const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' };
-const cardStyle = { padding: '24px', borderRadius: '20px', textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '15px', position: 'relative' };
-const iconBox = { width: '45px', height: '45px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '20px' };
+const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '15px' };
+const cardStyle = { padding: '20px', borderRadius: '16px', textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' };
+const iconBox = { width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '18px' };
 const cardCategory = { fontSize: '10px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' };
-const cardTitle = { margin: 0, fontSize: '16px', color: '#1e293b', fontWeight: '700' };
-const cardArrow = { position: 'absolute', bottom: '24px', right: '24px', color: '#cbd5e1' };
-const footerStyle = { position: 'fixed', height: '56px', bottom: 0, left: 0, right: 0, background: '#1e293b', padding: '10px 0', zIndex: 1200 };
+const cardTitle = { margin: 0, fontSize: '15px', color: '#1e293b', fontWeight: '700' };
+const cardArrow = { position: 'absolute', bottom: '20px', right: '20px', color: '#cbd5e1' };
+const footerStyle = { position: 'fixed', height: '4px', bottom: 0, left: 0, right: 0, background: '#1e293b', padding: '8px 0', zIndex: 1200 };
 const tickerWrapper = { overflow: 'hidden', whiteSpace: 'nowrap' };
-const tickerText = { display: 'inline-block', animation: 'marquee 25s linear infinite', color: '#8cde19a4', fontSize: '53px', margin: 0, paddingLeft: '100%' };
-const outletStyle = { background: '#fff', padding: '25px', borderRadius: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', minHeight: '60vh' };
+const tickerText = { display: 'inline-block', animation: 'marquee 25s linear infinite', color: '#8cde19a4', fontSize: '16px', margin: 0, paddingLeft: '100%' };
+const outletStyle = { background: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', minHeight: '60vh' };
 
 export default AdminDashboard;
