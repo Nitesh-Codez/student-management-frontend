@@ -3,8 +3,10 @@ import api from "../services/api";
 import { 
   FaSearch, FaGraduationCap, FaChartPie, 
   FaCalendarCheck, FaTrophy, FaSyncAlt, 
-  FaTimes, FaCheck, FaFilter, FaEye, FaBook
+  FaTimes, FaCheck, FaFilter, FaEye, FaBook, FaFilePdf
 } from "react-icons/fa";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const AdminAttendance = () => {
   const [students, setStudents] = useState([]);
@@ -27,6 +29,14 @@ const AdminAttendance = () => {
 
   // Month Selector for current view filtering (Default: 2026-09)
   const [currentMonth, setCurrentMonth] = useState("2026-09");
+
+  // FIXED: Corrected lowercase "long" property
+  const getFormattedMonthName = (monthStr) => {
+    if (!monthStr) return "";
+    const [year, month] = monthStr.split("-");
+    const date = new Date(year, parseInt(month, 10) - 1, 1);
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
 
   // 1. FETCH ALL DATA
   const fetchAllData = useCallback(async () => {
@@ -87,20 +97,17 @@ const AdminAttendance = () => {
     }
   };
 
-  // 3. FILTER LOGIC FOR STUDENTS (Class-first, then Search & Attendance Status)
+  // 3. FILTER LOGIC FOR STUDENTS
   useEffect(() => {
     let result = students;
 
-    // Filter by Class first
     if (selectedClass !== "All") {
       result = result.filter((s) => String(s.class) === String(selectedClass));
     }
 
-    // Filter by Attendance percentage category
     if (activeFilter === "Top") result = result.filter(s => Number(s.percentage) >= 85);
     else if (activeFilter === "Low") result = result.filter(s => Number(s.percentage) < 60);
 
-    // Filter by Search Query
     if (searchTerm) {
       result = result.filter((s) =>
         s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,7 +117,164 @@ const AdminAttendance = () => {
     setFilteredStudents(result);
   }, [searchTerm, selectedClass, activeFilter, students]);
 
-  // Open individual student side panel & fetch subject-wise attendance via GET /api/attendance/admin/subject-wise
+  // --- DRAW MAIN PDF DOCUMENT HEADER ---
+  const drawMainDocumentHeader = (doc, title, subtitle) => {
+    doc.setFillColor(26, 35, 126); // #1a237e Navy Blue
+    doc.rect(0, 0, 210, 36, 'F');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text("SMART STUDENTS CLASSES", 105, 12, { align: "center" });
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(title, 105, 19, { align: "center" });
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(subtitle, 105, 26, { align: "center" });
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`Generated On: ${new Date().toLocaleDateString("en-IN")}`, 105, 32, { align: "center" });
+  };
+
+  // 4. GENERATE SUBJECT-WISE LOW ATTENDANCE PDF REPORT (<75%) - STUDENT BOX TABLE VIEW
+  const downloadLowAttendancePDF = async () => {
+    try {
+      const res = await api.get(`/api/attendance/admin/subject-wise?month=${currentMonth}`);
+      if (!res.data || !res.data.success || !res.data.students) {
+        alert("Failed to fetch subject-wise attendance for PDF report.");
+        return;
+      }
+
+      const subjectStudents = res.data.students;
+
+      const filteredByClass = selectedClass === "All" 
+        ? subjectStudents 
+        : subjectStudents.filter(s => String(s.class) === String(selectedClass));
+
+      // Filter defaulters and exclude 0/0 total classes
+      const defaultersList = [];
+
+      filteredByClass.forEach(student => {
+        if (!student.subjects || student.subjects.length === 0) return;
+
+        const validSubjects = student.subjects.filter(subj => Number(subj.total) > 0);
+        if (validSubjects.length === 0) return;
+
+        const lowSubjects = validSubjects.filter(subj => Number(subj.percentage) < 75);
+
+        if (lowSubjects.length > 0) {
+          defaultersList.push({
+            name: (student.name || "N/A").toUpperCase(),
+            uid: student.studentId || student.id || "N/A",
+            class: student.class || "N/A",
+            subjects: lowSubjects
+          });
+        }
+      });
+
+      if (defaultersList.length === 0) {
+        alert("No students found with subject attendance below 75% for the selected month (0/0 records excluded).");
+        return;
+      }
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      
+      const formattedMonth = getFormattedMonthName(currentMonth) || currentMonth;
+      const classText = selectedClass === "All" ? "All Classes" : `Class ${selectedClass}`;
+      
+      drawMainDocumentHeader(
+        doc, 
+        "Official Subject-Wise Low Attendance List (< 75% Attendance)",
+        `Class: ${classText} | Month: ${formattedMonth}`
+      );
+
+      let currentY = 42;
+
+      defaultersList.forEach((st, index) => {
+        // Page overflow check
+        if (currentY > 240) {
+          doc.addPage();
+          drawMainDocumentHeader(
+            doc, 
+            "Official Subject-Wise Defaulters Ledger (< 75% Attendance)",
+            `Class: ${classText} | Month: ${formattedMonth}`
+          );
+          currentY = 42;
+        }
+
+        // Student Section Header Box
+        doc.setFillColor(238, 242, 255); // Light indigo background
+        doc.setDrawColor(26, 35, 126);
+        doc.rect(14, currentY, 182, 8, 'FD');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(26, 35, 126);
+        doc.text(`${index + 1}. Student: ${st.name}   |   UID: ${st.uid}   |   Class: ${st.class}`, 18, currentY + 5.5);
+
+        currentY += 10;
+
+        // Subject Table for Student
+        const tableColumn = ["Subject Name", "Present Classes", "Total Classes", "Attendance %"];
+        const tableRows = st.subjects.map(subj => [
+          subj.subjectCode || subj.subject || "Subject",
+          subj.present || 0,
+          subj.total || 0,
+          `${subj.percentage}%`
+        ]);
+
+        autoTable(doc, {
+          head: [tableColumn],
+          body: tableRows,
+          startY: currentY,
+          theme: 'grid',
+          headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontSize: 8.5, fontStyle: 'bold', halign: 'center' },
+          bodyStyles: { fontSize: 12.5, textColor: [30, 41, 59] ,minCellHeight: 10},
+          columnStyles: {
+            0: { halign: 'left', cellWidth: 70 },
+            1: { halign: 'center', cellWidth: 35 },
+            2: { halign: 'center', cellWidth: 35 },
+            3: { halign: 'center', cellWidth: 42, fontStyle: 'bold' }
+          },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: 14, right: 14 }
+        });
+
+        currentY = doc.lastAutoTable.finalY + 8;
+      });
+
+      // Digital Signature Block
+      if (currentY > 240) {
+        doc.addPage();
+        currentY = 30;
+      }
+
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text("Digitally Signed & Approved By:", 14, currentY + 5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(26, 35, 126);
+      doc.text("SMART STUDENTS CLASSES - ACADEMIC ADMINISTRATION", 14, currentY + 11);
+      
+      doc.setDrawColor(26, 35, 126);
+      doc.setLineWidth(0.5);
+      doc.line(14, currentY + 20, 75, currentY + 20);
+      doc.text("Nitesh Kushwah", 14, currentY + 26);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("Authorized Signatory (Digital Stamp Verified)", 14, currentY + 31);
+
+      doc.save(`Subject_Low_Attendance_Report_${selectedClass}_${currentMonth}.pdf`);
+    } catch (err) {
+      console.error("PDF Generation Error:", err);
+      alert("Failed to generate PDF report. Error: " + err.message);
+    }
+  };
+
   const handleOpenStudentDetails = async (student) => {
     setSelectedStudent(student);
     const matchedReqs = requests.filter(r => String(r.studentId) === String(student.id) || String(r.studentId) === String(student._id));
@@ -205,7 +369,7 @@ const AdminAttendance = () => {
         </div>
       </div>
 
-      {/* --- CLASS FILTER BAR (Prominent Selection Flow) --- */}
+      {/* --- CLASS FILTER BAR & PDF DOWNLOAD BUTTON --- */}
       {activeTab === 'analytics' && (
         <div style={classFilterSection}>
           <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
@@ -232,7 +396,10 @@ const AdminAttendance = () => {
             </div>
           </div>
 
-          <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+          <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
+            <button onClick={downloadLowAttendancePDF} style={pdfBtn}>
+              <FaFilePdf size={13} /> Export Defaulters PDF
+            </button>
             <div style={searchWrapper}>
               <FaSearch style={sIcon} />
               <input placeholder="Search student..." style={sInput} value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
@@ -462,6 +629,8 @@ const classFilterSection = { display: 'flex', justifyContent: 'space-between', a
 const searchWrapper = { position: 'relative', display: 'flex', alignItems: 'center' };
 const sIcon = { position: 'absolute', left: '10px', color: '#94a3b8', fontSize: '12px' };
 const sInput = { padding: '6px 10px 6px 30px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none', width: '200px' };
+
+const pdfBtn = { background: '#1a237e', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' };
 
 const tableWrapper = { background: '#fff', borderRadius: '6px', border: '1px solid #e2e8f0', overflowX: 'auto' };
 const fullTable = { width: '100%', borderCollapse: 'collapse', textAlign: 'left' };
