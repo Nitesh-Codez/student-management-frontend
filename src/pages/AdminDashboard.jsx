@@ -4,7 +4,7 @@ import {
   FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
   FaBookOpen, FaStar, FaChartBar, FaArrowRight, FaThLarge, 
   FaSearch, FaBell, FaBars, FaTimes, FaQuestionCircle, FaCheck, 
-  FaChalkboardTeacher
+  FaChalkboardTeacher, FaPlus, FaMinus
 } from "react-icons/fa";
 
 import api from "../services/api";
@@ -12,11 +12,22 @@ import api from "../services/api";
 const AdminDashboard = () => {
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Initially false (hidden)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [stats, setStats] = useState({ students: 45, batches: 2, avgMarks: 82 });
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
+  
+  // Zoom Level State (Default 1 = 100%)
+  const [zoomLevel, setZoomLevel] = useState(1);
+
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.1, 1.3)); // Max 130% tak zoom
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 0.1, 0.2)); // Min 20% tak zoom out
+  };
 
   const bgImages = [
     "https://images.unsplash.com/photo-1523050853023-8c2d27543054?auto=format&fit=crop&q=80&w=1200",
@@ -85,185 +96,211 @@ const AdminDashboard = () => {
   const isBaseAdmin = location.pathname === "/admin" || location.pathname === "/admin/";
 
   return (
-    <div style={layout}>
-      {/* Overlay when sidebar is open on mobile */}
-      {isSidebarOpen && (
-        <div style={sidebarOverlay} onClick={() => setIsSidebarOpen(false)} />
-      )}
+    <div style={desktopWrapper}>
+      {/* Floating Zoom Controller Controls (+ / -) */}
+      <div style={zoomControlsStyle}>
+        <button onClick={handleZoomIn} style={zoomBtn} title="Zoom In">+</button>
+        <span style={zoomText}>{Math.round(zoomLevel * 100)}%</span>
+        <button onClick={handleZoomOut} style={zoomBtn} title="Zoom Out">-</button>
+      </div>
 
-      {/* Sidebar - Hidden Initially, Animated Drawer */}
-      <aside style={{ ...sidebar, transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)' }}>
-        <div style={sidebarHeader}>
-          <Link to="/admin" style={{ textDecoration: 'none' }} onClick={() => setIsSidebarOpen(false)}>
-            <div style={logoSection}>
-              <div style={logoIcon}><FaThLarge /></div>
-              <span style={logoText}>SmartZone</span>
-            </div>
-          </Link>
-          <button onClick={() => setIsSidebarOpen(false)} style={closeSidebarBtn}>
-            <FaTimes size={16} />
-          </button>
-        </div>
+      <div style={{ ...layout, transform: `scale(${zoomLevel})`, transformOrigin: 'top left', width: `${100 / zoomLevel}%` }}>
+        {/* Overlay when sidebar is open */}
+        {isSidebarOpen && (
+          <div style={sidebarOverlay} onClick={() => setIsSidebarOpen(false)} />
+        )}
 
-        <nav style={navLinks}>
-          <div style={navLabel}>Management</div>
-          {links.map((link) => (
-            <Link 
-              key={link.path} 
-              to={link.path} 
-              onClick={() => setIsSidebarOpen(false)}
-              className="side-nav-link"
-              style={{ 
-                ...sideNavLink, 
-                background: location.pathname.includes(link.path) ? '#fdf2f0' : 'transparent',
-                color: location.pathname.includes(link.path) ? '#f97316' : '#64748b'
-              }} 
-            >
-              <span style={{ fontSize: '20px' }}>{link.icon}</span>
-              <span>{link.title}</span>
-            </Link>
-          ))}
-        </nav>
-      </aside>
-
-      <main style={mainContent}>
-        <style>
-          {`
-            .side-nav-link:hover { background: #f8fafc; color: #f97316 !important; transform: translateX(5px); }
-            .top-nav-item { position: relative; padding: 5px 0; }
-            .top-nav-item::after { content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 2px; background: #fff; transition: 0.3s; }
-            .top-nav-item:hover::after { width: 100%; }
-            .glass-card { background: #fff; border: 1px solid #f1f5f9; transition: 0.3s; height: 100%; }
-            .glass-card:hover { border-color: #f97316; box-shadow: 0 10px 25px -5px rgba(249,115,22,0.1); transform: translateY(-5px); }
-            @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
-            @media (max-width: 768px) {
-              .desktop-nav-links { display: none !important; }
-              .header-tag-text { font-size: 20px !important; }
-            }
-          `}
-        </style>
-
-        {/* Header */}
-        <header style={orangeHeader}>
-          <div style={headerLeft}>
-            {/* Hamburger Menu Button */}
-            <button onClick={() => setIsSidebarOpen(true)} style={menuBurgerBtn} aria-label="Open Sidebar">
-              <FaBars size={20} color="#fff" />
-            </button>
-
-            <Link to="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <span style={headerTag} className="header-tag-text">SMART STUDENTS</span>
-            </Link>
-            
-            <div style={vDivider} className="desktop-nav-links"></div>
-            
-            <div style={headerNav} className="desktop-nav-links">
-              <Link to="admin-feedback" style={headerLink} className="top-nav-item">Feedback</Link>
-              <Link to="student-submission" style={headerLink} className="top-nav-item">Submissions</Link>
-              <Link to="study-material" style={headerLink} className="top-nav-item">Study Material</Link>
-              <Link to="add-exam-marks" style={headerLink} className="top-nav-item">Exam Marks</Link>
-            </div>
-          </div>
-          
-          <div style={headerRight}>
-            <div style={searchBox}>
-              <FaSearch size={14} color="#f97316" />
-              <input 
-                type="text" 
-                placeholder="Quick search..." 
-                style={topSearchInput} 
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div style={{ position: 'relative' }}>
-                <div style={headerIconBtn} onClick={() => setShowNotif(!showNotif)}>
-                  <FaBell size={18} />
-                  {notifications.length > 0 && <span style={headerBadge}>{notifications.length}</span>}
-                </div>
-                
-                {showNotif && (
-                  <div style={notifDropdown}>
-                      <div style={notifTitle}>Pending Edit Requests</div>
-                      <div style={notifScroll}>
-                      {notifications.length === 0 ? (
-                          <div style={emptyNotif}>No pending requests ✅</div>
-                      ) : (
-                          notifications.map(n => (
-                          <div key={n.id} style={notifCard}>
-                              <p style={notifDesc}><b>{n.student_name}</b> wants to change <b>{n.field_name}</b></p>
-                              <p style={notifValues}>New: {n.requested_value}</p>
-                              <div style={notifActions}>
-                              <button onClick={() => handleApproveReject(n.id, "approved")} style={approveBtn}><FaCheck size={10} /> Approve</button>
-                              <button onClick={() => handleApproveReject(n.id, "rejected")} style={rejectBtn}><FaTimes size={10} /> Reject</button>
-                              </div>
-                          </div>
-                          ))
-                      )}
-                      </div>
-                  </div>
-                )}
-            </div>
-
-            <div style={headerUser}>
-              <img src="https://ui-avatars.com/api/?name=Nitesh+Admin&background=fff&color=f97316" style={avatarSmall} alt="admin" />
-              <span className="desktop-nav-links">Nitesh Admin</span>
-            </div>
-          </div>
-        </header>
-
-        {/* Content Area */}
-        <div style={pagePadding}>
-          {isBaseAdmin ? (
-            <>
-              <section style={{...hero, backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url(${bgImages[currentImg]})`}}>
-                <div style={heroContent}>
-                  <h1 style={heroTitle}>Welcome Back, Nitesh! 👋</h1>
-                  <p style={heroSub}>Everything looks good today. You have {stats.students} students across {stats.batches} active batches.</p>
-                  <div style={heroStats}>
-                    <div style={hStatCard}>
-                      <span style={hStatVal}>{stats.avgMarks}%</span>
-                      <span style={hStatLab}>Avg. Performance</span>
-                    </div>
-                    <div style={hStatCard}>
-                      <span style={hStatVal}>Live</span>
-                      <span style={hStatLab}>System Status</span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <div style={grid}>
-                {filteredLinks.map((link, index) => (
-                  <Link to={link.path} key={link.title} className="glass-card" style={{...cardStyle, animation: `slideIn 0.3s ease forwards ${index * 0.05}s`}}>
-                    <div style={{ ...iconBox, background: link.color }}>{link.icon}</div>
-                    <div>
-                      <span style={cardCategory}>{link.category}</span>
-                      <h3 style={cardTitle}>{link.title}</h3>
-                    </div>
-                    <div style={cardArrow}><FaArrowRight size={12} /></div>
-                  </Link>
-                ))}
+        {/* Sidebar */}
+        <aside style={{ ...sidebar, transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)' }}>
+          <div style={sidebarHeader}>
+            <Link to="/admin" style={{ textDecoration: 'none' }} onClick={() => setIsSidebarOpen(false)}>
+              <div style={logoSection}>
+                <div style={logoIcon}><FaThLarge /></div>
+                <span style={logoText}>SmartZone</span>
               </div>
-            </>
-          ) : (
-            <div style={outletStyle}><Outlet /></div>
-          )}
-        </div>
-
-        <footer style={footerStyle}>
-          <div style={tickerWrapper}>
-             <p style={tickerText}>Start Building for Smart Education | © 2026 EduFlow</p>
+            </Link>
+            <button onClick={() => setIsSidebarOpen(false)} style={closeSidebarBtn}>
+              <FaTimes size={16} />
+            </button>
           </div>
-        </footer>
-      </main>
+
+          <nav style={navLinks}>
+            <div style={navLabel}>Management</div>
+            {links.map((link) => (
+              <Link 
+                key={link.path} 
+                to={link.path} 
+                onClick={() => setIsSidebarOpen(false)}
+                className="side-nav-link"
+                style={{ 
+                  ...sideNavLink, 
+                  background: location.pathname.includes(link.path) ? '#fdf2f0' : 'transparent',
+                  color: location.pathname.includes(link.path) ? '#f97316' : '#64748b'
+                }} 
+              >
+                <span style={{ fontSize: '20px' }}>{link.icon}</span>
+                <span>{link.title}</span>
+              </Link>
+            ))}
+          </nav>
+        </aside>
+
+        <main style={mainContent}>
+          <style>
+            {`
+              .side-nav-link:hover { background: #f8fafc; color: #f97316 !important; transform: translateX(5px); }
+              .top-nav-item { position: relative; padding: 5px 0; }
+              .top-nav-item::after { content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 2px; background: #fff; transition: 0.3s; }
+              .top-nav-item:hover::after { width: 100%; }
+              .glass-card { background: #fff; border: 1px solid #f1f5f9; transition: 0.3s; height: 100%; }
+              .glass-card:hover { border-color: #f97316; box-shadow: 0 10px 25px -5px rgba(249,115,22,0.1); transform: translateY(-5px); }
+              @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+              @keyframes marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+            `}
+          </style>
+
+          {/* Header */}
+          <header style={orangeHeader}>
+            <div style={headerLeft}>
+              <button onClick={() => setIsSidebarOpen(true)} style={menuBurgerBtn} aria-label="Open Sidebar">
+                <FaBars size={20} color="#fff" />
+              </button>
+
+              <Link to="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <span style={headerTag}>SMART STUDENTS</span>
+              </Link>
+              
+              <div style={vDivider}></div>
+              
+              <div style={headerNav}>
+                <Link to="admin-feedback" style={headerLink} className="top-nav-item">Feedback</Link>
+                <Link to="student-submission" style={headerLink} className="top-nav-item">Submissions</Link>
+                <Link to="study-material" style={headerLink} className="top-nav-item">Study Material</Link>
+                <Link to="add-exam-marks" style={headerLink} className="top-nav-item">Exam Marks</Link>
+              </div>
+            </div>
+            
+            <div style={headerRight}>
+              <div style={searchBox}>
+                <FaSearch size={14} color="#f97316" />
+                <input 
+                  type="text" 
+                  placeholder="Quick search..." 
+                  style={topSearchInput} 
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <div style={{ position: 'relative' }}>
+                  <div style={headerIconBtn} onClick={() => setShowNotif(!showNotif)}>
+                    <FaBell size={18} />
+                    {notifications.length > 0 && <span style={headerBadge}>{notifications.length}</span>}
+                  </div>
+                  
+                  {showNotif && (
+                    <div style={notifDropdown}>
+                        <div style={notifTitle}>Pending Edit Requests</div>
+                        <div style={notifScroll}>
+                        {notifications.length === 0 ? (
+                            <div style={emptyNotif}>No pending requests ✅</div>
+                        ) : (
+                            notifications.map(n => (
+                            <div key={n.id} style={notifCard}>
+                                <p style={notifDesc}><b>{n.student_name}</b> wants to change <b>{n.field_name}</b></p>
+                                <p style={notifValues}>New: {n.requested_value}</p>
+                                <div style={notifActions}>
+                                <button onClick={() => handleApproveReject(n.id, "approved")} style={approveBtn}><FaCheck size={10} /> Approve</button>
+                                <button onClick={() => handleApproveReject(n.id, "rejected")} style={rejectBtn}><FaTimes size={10} /> Reject</button>
+                                </div>
+                            </div>
+                            ))
+                        )}
+                        </div>
+                    </div>
+                  )}
+              </div>
+
+              <div style={headerUser}>
+                <img src="https://ui-avatars.com/api/?name=Nitesh+Admin&background=fff&color=f97316" style={avatarSmall} alt="admin" />
+                <span>Nitesh Admin</span>
+              </div>
+            </div>
+          </header>
+
+          {/* Content Area */}
+          <div style={pagePadding}>
+            {isBaseAdmin ? (
+              <>
+                <section style={{...hero, backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url(${bgImages[currentImg]})`}}>
+                  <div style={heroContent}>
+                    <h1 style={heroTitle}>Welcome Back, Nitesh! 👋</h1>
+                    <p style={heroSub}>Everything looks good today. You have {stats.students} students across {stats.batches} active batches.</p>
+                    <div style={heroStats}>
+                      <div style={hStatCard}>
+                        <span style={hStatVal}>{stats.avgMarks}%</span>
+                        <span style={hStatLab}>Avg. Performance</span>
+                      </div>
+                      <div style={hStatCard}>
+                        <span style={hStatVal}>Live</span>
+                        <span style={hStatLab}>System Status</span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <div style={grid}>
+                  {filteredLinks.map((link, index) => (
+                    <Link 
+                      to={link.path} 
+                      key={link.title} 
+                      className="glass-card" 
+                      style={{
+                        ...cardStyle, 
+                        animation: `slideIn 0.3s ease forwards ${index * 0.05}s`
+                      }}
+                    >
+                      <div style={{ ...iconBox, background: link.color }}>{link.icon}</div>
+                      <div>
+                        <span style={cardCategory}>{link.category}</span>
+                        <h3 style={cardTitle}>{link.title}</h3>
+                      </div>
+                      <div style={cardArrow}><FaArrowRight size={12} /></div>
+                    </Link>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={outletStyle}><Outlet /></div>
+            )}
+          </div>
+
+          <footer style={footerStyle}>
+            <div style={tickerWrapper}>
+               <p style={tickerText}>Start Building for Smart Education | © 2026 EduFlow</p>
+            </div>
+          </footer>
+        </main>
+      </div>
     </div>
   );
 };
 
 // --- STYLES & LAYOUTS ---
-const layout = { display: 'flex', minHeight: '100vh', background: '#f8fafc', position: 'relative', overflowX: 'hidden' };
+const desktopWrapper = { width: '100vw', overflowX: 'auto', background: '#f8fafc', position: 'relative' };
+const layout = { display: 'flex', minHeight: '100vh', minWidth: '1200px', background: '#f8fafc', position: 'relative', transition: 'transform 0.2s ease' };
+
+// Floating Zoom Control Styles
+const zoomControlsStyle = {
+  position: 'fixed', bottom: '60px', right: '20px', zIndex: 9999,
+  background: '#1e293b', borderRadius: '30px', display: 'flex', alignItems: 'center',
+  padding: '6px 10px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', gap: '8px'
+};
+const zoomBtn = {
+  background: '#f97316', color: '#fff', border: 'none', width: '28px', height: '28px',
+  borderRadius: '50%', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center'
+};
+const zoomText = { color: '#fff', fontSize: '12px', fontWeight: 'bold', minWidth: '36px', textAlign: 'center' };
 
 const sidebarOverlay = {
   position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -302,7 +339,7 @@ const vDivider = { width: '1px', height: '20px', background: 'rgba(255,255,255,0
 const headerNav = { display: 'flex', gap: '20px' };
 const headerLink = { color: '#fff', textDecoration: 'none', fontSize: '15px', fontWeight: '700' };
 const headerRight = { display: 'flex', alignItems: 'center', gap: '15px' };
-const searchBox = { background: '#fff', borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '200px' };
+const searchBox = { background: '#fff', borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', width: '200px' };
 const topSearchInput = { border: 'none', background: 'transparent', color: '#333', outline: 'none', fontSize: '13px', width: '100%' };
 const headerIconBtn = { cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', padding: '5px' };
 const headerBadge = { position: 'absolute', top: '0px', right: '0px', background: '#fff', color: '#f97316', fontSize: '10px', fontWeight: '800', padding: '2px 5px', borderRadius: '10px' };
@@ -339,9 +376,9 @@ const iconBox = { width: '40px', height: '40px', borderRadius: '10px', display: 
 const cardCategory = { fontSize: '10px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' };
 const cardTitle = { margin: 0, fontSize: '15px', color: '#1e293b', fontWeight: '700' };
 const cardArrow = { position: 'absolute', bottom: '20px', right: '20px', color: '#cbd5e1' };
-const footerStyle = { position: 'fixed', height: '4px', bottom: 0, left: 0, right: 0, background: '#1e293b', padding: '8px 0', zIndex: 1200 };
+const footerStyle = { position: 'fixed', height: '46px', bottom: 0, left: 0, right: 0, background: '#1e293b', padding: '8px 0', zIndex: 1200 };
 const tickerWrapper = { overflow: 'hidden', whiteSpace: 'nowrap' };
 const tickerText = { display: 'inline-block', animation: 'marquee 25s linear infinite', color: '#8cde19a4', fontSize: '16px', margin: 0, paddingLeft: '100%' };
-const outletStyle = { background: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', minHeight: '60vh' };
+const outletStyle = { background: 'fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', minHeight: '60vh' };
 
 export default AdminDashboard;
