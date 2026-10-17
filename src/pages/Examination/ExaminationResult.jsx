@@ -175,7 +175,11 @@ const ExaminationResult = () => {
   const overall = (() => {
     let o = 0, t = 0;
     filteredMarks.forEach(m => { o += Number(m.obtained_marks); t += Number(m.total_marks); });
-    return { o, t, p: t ? ((o / t) * 100).toFixed(2) : 0 };
+    return {
+  o: Number(o.toFixed(2)),
+  t: Number(t.toFixed(2)),
+  p: t ? ((o / t) * 100).toFixed(2) : "0.00"
+};
   })();
 
   const currentExamType = filteredMarks.length > 0 ? filteredMarks[0].exam_type?.toUpperCase() : "EXAMINATION";
