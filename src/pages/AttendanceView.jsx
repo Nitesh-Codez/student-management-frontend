@@ -1,19 +1,45 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../services/api";
 import { 
   FaSearch, FaGraduationCap, FaChartPie, 
   FaCalendarCheck, FaTrophy, FaSyncAlt, 
-  FaTimes, FaCheck, FaFilter, FaEye, FaBook, FaFilePdf
+  FaTimes, FaCheck, FaFilter, FaEye, FaBook, FaFilePdf, FaLayerGroup
 } from "react-icons/fa";
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+
+// Master Ordered Class List for Custom Range Evaluation
+const CLASS_ORDER = [
+  "Nursery", "LKG", "UKG", 
+  "1st", "1", "2nd", "2", "3rd", "3", "4th", "4", "5th", "5", 
+  "6th", "6", "7th", "7", "8th", "8", "9th", "9", "10th", "10", 
+  "11th", "11", "12th", "12"
+];
+
+const getClassWeight = (className) => {
+  if (!className) return 999;
+  const str = String(className).trim().toLowerCase();
+  
+  if (str.includes("nursery")) return 0;
+  if (str.includes("lkg")) return 1;
+  if (str.includes("ukg")) return 2;
+  
+  const num = parseInt(str.replace(/\D/g, ""), 10);
+  if (!isNaN(num)) return num + 2; // Shifted by 2 for pre-primary
+  return 999;
+};
 
 const AdminAttendance = () => {
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [requests, setRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Class Filters
   const [selectedClass, setSelectedClass] = useState("All");
+  const [fromClass, setFromClass] = useState("All");
+  const [toClass, setToClass] = useState("All");
+
   const [activeFilter, setActiveFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   
@@ -30,7 +56,6 @@ const AdminAttendance = () => {
   // Month Selector for current view filtering (Default: 2026-09)
   const [currentMonth, setCurrentMonth] = useState("2026-09");
 
-  // FIXED: Corrected lowercase "long" property
   const getFormattedMonthName = (monthStr) => {
     if (!monthStr) return "";
     const [year, month] = monthStr.split("-");
@@ -38,17 +63,37 @@ const AdminAttendance = () => {
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   };
 
+  // Extract all available dynamic classes sorted chronologically
+  const sortedClassesList = useMemo(() => {
+    const classSet = new Set(students.map((s) => s.class).filter(Boolean));
+    return Array.from(classSet).sort((a, b) => getClassWeight(a) - getClassWeight(b));
+  }, [students]);
+
+  // Helper: Check if a student's class lies inside the user-selected Range
+  const isClassInRange = (studentClass) => {
+    if (fromClass === "All" && toClass === "All") return true;
+    
+    const weight = getClassWeight(studentClass);
+    const fromWeight = fromClass !== "All" ? getClassWeight(fromClass) : 0;
+    const toWeight = toClass !== "All" ? getClassWeight(toClass) : 999;
+
+    return weight >= fromWeight && weight <= toWeight;
+  };
+
   // 1. FETCH ALL DATA
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
       const [resStudents, resAttendance, resRequests] = await Promise.all([
-        api.get(`/api/students`),
+        api.get(`/api/students/students-basic-info`),
         api.get(`/api/attendance/today-percent`),
         api.get(`/api/attendance/admin/student-requests`).catch(() => ({ data: { success: true, requests: [] } }))
       ]);
 
-      const basicInfo = Array.isArray(resStudents.data) ? resStudents.data : (resStudents.data.students || []);
+      const basicInfo = (Array.isArray(resStudents.data)
+        ? resStudents.data
+        : (resStudents.data.students || [])
+      ).filter(student => student.is_banned === false);
       const attendanceInfo = resAttendance.data.students || [];
       const requestsData = resRequests.data.requests || resRequests.data.student || (Array.isArray(resRequests.data) ? resRequests.data : []);
 
@@ -97,12 +142,17 @@ const AdminAttendance = () => {
     }
   };
 
-  // 3. FILTER LOGIC FOR STUDENTS
+  // 3. FILTER LOGIC FOR UI TABLE DISPLAY
   useEffect(() => {
     let result = students;
 
+    // Filter by Specific Single Class
     if (selectedClass !== "All") {
       result = result.filter((s) => String(s.class) === String(selectedClass));
+    } 
+    // Filter by Selected Custom Class Range (From - To)
+    else if (fromClass !== "All" || toClass !== "All") {
+      result = result.filter((s) => isClassInRange(s.class));
     }
 
     if (activeFilter === "Top") result = result.filter(s => Number(s.percentage) >= 85);
@@ -115,7 +165,7 @@ const AdminAttendance = () => {
       );
     }
     setFilteredStudents(result);
-  }, [searchTerm, selectedClass, activeFilter, students]);
+  }, [searchTerm, selectedClass, fromClass, toClass, activeFilter, students]);
 
   // --- DRAW MAIN PDF DOCUMENT HEADER ---
   const drawMainDocumentHeader = (doc, title, subtitle) => {
@@ -140,7 +190,7 @@ const AdminAttendance = () => {
     doc.text(`Generated On: ${new Date().toLocaleDateString("en-IN")}`, 105, 32, { align: "center" });
   };
 
-  // 4. GENERATE SUBJECT-WISE LOW ATTENDANCE PDF REPORT (<75%) - STUDENT BOX TABLE VIEW
+  // 4. GENERATE SUBJECT-WISE LOW ATTENDANCE PDF REPORT (<75%) BASED ON SELECTED RANGE / CLASS
   const downloadLowAttendancePDF = async () => {
     try {
       const res = await api.get(`/api/attendance/admin/subject-wise?month=${currentMonth}`);
@@ -151,14 +201,16 @@ const AdminAttendance = () => {
 
       const subjectStudents = res.data.students;
 
-      const filteredByClass = selectedClass === "All" 
-        ? subjectStudents 
-        : subjectStudents.filter(s => String(s.class) === String(selectedClass));
+      let filteredForPDF = subjectStudents;
+      if (selectedClass !== "All") {
+        filteredForPDF = subjectStudents.filter(s => String(s.class) === String(selectedClass));
+      } else if (fromClass !== "All" || toClass !== "All") {
+        filteredForPDF = subjectStudents.filter(s => isClassInRange(s.class));
+      }
 
-      // Filter defaulters and exclude 0/0 total classes
       const defaultersList = [];
 
-      filteredByClass.forEach(student => {
+      filteredForPDF.forEach(student => {
         if (!student.subjects || student.subjects.length === 0) return;
 
         const validSubjects = student.subjects.filter(subj => Number(subj.total) > 0);
@@ -177,37 +229,40 @@ const AdminAttendance = () => {
       });
 
       if (defaultersList.length === 0) {
-        alert("No students found with subject attendance below 75% for the selected month (0/0 records excluded).");
+        alert("No students found with subject attendance below 75% for the selected filters.");
         return;
       }
 
       const doc = new jsPDF('p', 'mm', 'a4');
-      
       const formattedMonth = getFormattedMonthName(currentMonth) || currentMonth;
-      const classText = selectedClass === "All" ? "All Classes" : `Class ${selectedClass}`;
       
+      let filterLabel = "All Classes";
+      if (selectedClass !== "All") {
+        filterLabel = `Class ${selectedClass}`;
+      } else if (fromClass !== "All" || toClass !== "All") {
+        filterLabel = `Range (${fromClass === "All" ? "Start" : fromClass} to ${toClass === "All" ? "End" : toClass})`;
+      }
+
       drawMainDocumentHeader(
         doc, 
         "Official Subject-Wise Low Attendance List (< 75% Attendance)",
-        `Class: ${classText} | Month: ${formattedMonth}`
+        `Filter: ${filterLabel} | Month: ${formattedMonth}`
       );
 
       let currentY = 42;
 
       defaultersList.forEach((st, index) => {
-        // Page overflow check
         if (currentY > 240) {
           doc.addPage();
           drawMainDocumentHeader(
             doc, 
             "Official Subject-Wise Defaulters Ledger (< 75% Attendance)",
-            `Class: ${classText} | Month: ${formattedMonth}`
+            `Filter: ${filterLabel} | Month: ${formattedMonth}`
           );
           currentY = 42;
         }
 
-        // Student Section Header Box
-        doc.setFillColor(238, 242, 255); // Light indigo background
+        doc.setFillColor(238, 242, 255);
         doc.setDrawColor(26, 35, 126);
         doc.rect(14, currentY, 182, 8, 'FD');
 
@@ -218,7 +273,6 @@ const AdminAttendance = () => {
 
         currentY += 10;
 
-        // Subject Table for Student
         const tableColumn = ["Subject Name", "Present Classes", "Total Classes", "Attendance %"];
         const tableRows = st.subjects.map(subj => [
           subj.subjectCode || subj.subject || "Subject",
@@ -233,7 +287,7 @@ const AdminAttendance = () => {
           startY: currentY,
           theme: 'grid',
           headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontSize: 8.5, fontStyle: 'bold', halign: 'center' },
-          bodyStyles: { fontSize: 12.5, textColor: [30, 41, 59] ,minCellHeight: 10},
+          bodyStyles: { fontSize: 11, textColor: [30, 41, 59], minCellHeight: 8 },
           columnStyles: {
             0: { halign: 'left', cellWidth: 70 },
             1: { halign: 'center', cellWidth: 35 },
@@ -247,7 +301,6 @@ const AdminAttendance = () => {
         currentY = doc.lastAutoTable.finalY + 8;
       });
 
-      // Digital Signature Block
       if (currentY > 240) {
         doc.addPage();
         currentY = 30;
@@ -268,7 +321,8 @@ const AdminAttendance = () => {
       doc.setFontSize(8);
       doc.text("Authorized Signatory (Digital Stamp Verified)", 14, currentY + 31);
 
-      doc.save(`Subject_Low_Attendance_Report_${selectedClass}_${currentMonth}.pdf`);
+      const cleanFileName = filterLabel.replace(/[^a-zA-Z0-9]/g, "_");
+      doc.save(`Low_Attendance_Report_${cleanFileName}_${currentMonth}.pdf`);
     } catch (err) {
       console.error("PDF Generation Error:", err);
       alert("Failed to generate PDF report. Error: " + err.message);
@@ -297,8 +351,6 @@ const AdminAttendance = () => {
     }
   };
 
-  const uniqueClasses = ["All", ...new Set(students.map((s) => s.class))].filter(Boolean);
-
   const formatDate = (iso) => {
     if (!iso) return "N/A";
     return new Date(iso).toLocaleDateString("en-GB", {
@@ -317,19 +369,19 @@ const AdminAttendance = () => {
 
       {/* --- STATS SUMMARY CARDS --- */}
       <div style={statsGrid}>
-        <div style={{...statCard, borderBottom: activeFilter === "All" ? '2px solid #0f172a' : '1px solid #f1f5f9'}} onClick={() => { setActiveFilter("All"); setActiveTab("analytics"); }}>
+        <div style={{...statCard, borderBottom: activeFilter === "All" ? '2px solid #0f172a' : '1px solid #e2e8f0'}} onClick={() => { setActiveFilter("All"); setActiveTab("analytics"); }}>
           <div style={{...iconCircle, background: '#f8fafc', color: '#0f172a'}}><FaGraduationCap /></div>
           <div><div style={statLabel}>Total Students</div><div style={statNumber}>{students.length}</div></div>
         </div>
         <div style={statCard}>
           <div style={{...iconCircle, background: '#f8fafc', color: '#0f172a'}}><FaChartPie /></div>
-          <div><div style={statLabel}>Active Batches</div><div style={statNumber}>{uniqueClasses.length - 1}</div></div>
+          <div><div style={statLabel}>Active Batches</div><div style={statNumber}>{sortedClassesList.length}</div></div>
         </div>
-        <div style={{...statCard, borderBottom: activeFilter === "Top" ? '2px solid #166534' : '1px solid #f1f5f9'}} onClick={() => { setActiveFilter("Top"); setActiveTab("analytics"); }}>
+        <div style={{...statCard, borderBottom: activeFilter === "Top" ? '2px solid #166534' : '1px solid #e2e8f0'}} onClick={() => { setActiveFilter("Top"); setActiveTab("analytics"); }}>
           <div style={{...iconCircle, background: '#f0fdf4', color: '#166534'}}><FaTrophy /></div>
           <div><div style={statLabel}>Top 85%+ Attendance</div><div style={statNumber}>{students.filter(s => Number(s.percentage) >= 85).length}</div></div>
         </div>
-        <div style={{...statCard, borderBottom: activeFilter === "Low" ? '2px solid #991b1b' : '1px solid #f1f5f9'}} onClick={() => { setActiveFilter("Low"); setActiveTab("analytics"); }}>
+        <div style={{...statCard, borderBottom: activeFilter === "Low" ? '2px solid #991b1b' : '1px solid #e2e8f0'}} onClick={() => { setActiveFilter("Low"); setActiveTab("analytics"); }}>
           <div style={{...iconCircle, background: '#fef2f2', color: '#991b1b'}}><FaCalendarCheck /></div>
           <div><div style={statLabel}>Low Attendance (&lt;60%)</div><div style={statNumber}>{students.filter(s => Number(s.percentage) < 60).length}</div></div>
         </div>
@@ -369,41 +421,122 @@ const AdminAttendance = () => {
         </div>
       </div>
 
-      {/* --- CLASS FILTER BAR & PDF DOWNLOAD BUTTON --- */}
+      {/* --- CUSTOM CLASS RANGE SELECTORS & SPECIFIC CLASS FILTERS --- */}
       {activeTab === 'analytics' && (
-        <div style={classFilterSection}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
-            <span style={{fontSize: '13px', color: '#334155', fontWeight: 'bold'}}><FaFilter style={{marginRight: '5px'}} /> Filter by Class:</span>
-            <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
-              {uniqueClasses.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setSelectedClass(c)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    border: selectedClass === c ? '1px solid #0f172a' : '1px solid #cbd5e1',
-                    background: selectedClass === c ? '#0f172a' : '#fff',
-                    color: selectedClass === c ? '#fff' : '#334155',
-                    fontWeight: selectedClass === c ? 'bold' : 'normal'
+        <div style={filterContainer}>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '12px', width: '100%'}}>
+            
+            {/* 1. CUSTOM FROM & TO CLASS RANGE DROPDOWNS */}
+            <div style={{display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap'}}>
+              <span style={{fontSize: '13px', color: '#334155', fontWeight: 'bold', minWidth: '130px', display: 'flex', alignItems: 'center'}}>
+                <FaLayerGroup style={{marginRight: '6px'}} /> Select Custom Range:
+              </span>
+              
+              <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                <span style={{fontSize: '12px', color: '#64748b'}}>From:</span>
+                <select
+                  value={fromClass}
+                  onChange={(e) => {
+                    setFromClass(e.target.value);
+                    setSelectedClass("All"); // Reset specific single class selection
                   }}
+                  style={dropdownSelectStyle}
                 >
-                  {c === "All" ? "All Classes" : `Class ${c}`}
-                </button>
-              ))}
-            </div>
-          </div>
+                  <option value="All">Start (First Class)</option>
+                  {sortedClassesList.map(cls => (
+                    <option key={cls} value={cls}>{cls}</option>
+                  ))}
+                </select>
 
-          <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
-            <button onClick={downloadLowAttendancePDF} style={pdfBtn}>
-              <FaFilePdf size={13} /> Export Defaulters PDF
-            </button>
-            <div style={searchWrapper}>
-              <FaSearch style={sIcon} />
-              <input placeholder="Search student..." style={sInput} value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
+                <span style={{fontSize: '12px', color: '#64748b'}}>To:</span>
+                <select
+                  value={toClass}
+                  onChange={(e) => {
+                    setToClass(e.target.value);
+                    setSelectedClass("All"); // Reset specific single class selection
+                  }}
+                  style={dropdownSelectStyle}
+                >
+                  <option value="All">End (Last Class)</option>
+                  {sortedClassesList.map(cls => (
+                    <option key={cls} value={cls}>{cls}</option>
+                  ))}
+                </select>
+
+                {(fromClass !== "All" || toClass !== "All") && (
+                  <button 
+                    onClick={() => { setFromClass("All"); setToClass("All"); }}
+                    style={clearRangeBtn}
+                  >
+                    Clear Range
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* 2. SPECIFIC CLASS BUTTONS ROW */}
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', paddingTop: '10px', borderTop: '1px dashed #e2e8f0'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
+                <span style={{fontSize: '13px', color: '#334155', fontWeight: 'bold', minWidth: '130px'}}>
+                  <FaFilter style={{marginRight: '6px'}} /> Or Single Class:
+                </span>
+                <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
+                  <button
+                    onClick={() => {
+                      setSelectedClass("All");
+                      setFromClass("All");
+                      setToClass("All");
+                    }}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      border: selectedClass === "All" && fromClass === "All" && toClass === "All" ? '1px solid #0f172a' : '1px solid #cbd5e1',
+                      background: selectedClass === "All" && fromClass === "All" && toClass === "All" ? '#0f172a' : '#fff',
+                      color: selectedClass === "All" && fromClass === "All" && toClass === "All" ? '#fff' : '#334155',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    All Classes
+                  </button>
+                  {sortedClassesList.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => {
+                        setSelectedClass(c);
+                        setFromClass("All");
+                        setToClass("All");
+                      }}
+                      style={{
+                        padding: '5px 12px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        border: selectedClass === c ? '1px solid #0f172a' : '1px solid #cbd5e1',
+                        background: selectedClass === c ? '#0f172a' : '#fff',
+                        color: selectedClass === c ? '#fff' : '#334155',
+                        fontWeight: selectedClass === c ? 'bold' : 'normal'
+                      }}
+                    >
+                      {c.toLowerCase().includes("class") ? c : `Class ${c}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* EXPORT & SEARCH CONTROLS */}
+              <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
+                <button onClick={downloadLowAttendancePDF} style={pdfBtn}>
+                  <FaFilePdf size={13} /> Export Defaulters PDF
+                </button>
+                <div style={searchWrapper}>
+                  <FaSearch style={sIcon} />
+                  <input placeholder="Search student..." style={sInput} value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
@@ -440,7 +573,7 @@ const AdminAttendance = () => {
                       </div>
                     </div>
                   </td>
-                  <td style={tdC}><span style={batchBadge}>Class {s.class || "N/A"}</span></td>
+                  <td style={tdC}><span style={batchBadge}>{s.class ? (s.class.toLowerCase().includes("class") ? s.class : `Class ${s.class}`) : "N/A"}</span></td>
                   <td style={tdC}><span style={{color: '#334155'}}>{s.present || 0} / {s.total || 0}</span></td>
                   <td style={tdC}><div style={statValue}>{s.percentage}%</div></td>
                   <td style={tdC}>
@@ -457,7 +590,7 @@ const AdminAttendance = () => {
               ))}
               {filteredStudents.length === 0 && !loading && (
                 <tr>
-                  <td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#64748b', fontStyle: 'italic'}}>No students found for Class {selectedClass}.</td>
+                  <td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#64748b', fontStyle: 'italic'}}>No students found matching the selected range or class.</td>
                 </tr>
               )}
             </tbody>
@@ -625,7 +758,10 @@ const filterBox = { display: 'flex', alignItems: 'center', gap: '6px', backgroun
 const monthInputStyle = { border: 'none', background: 'transparent', fontSize: '12px', color: '#0f172a', outline: 'none', cursor: 'pointer' };
 const refreshBtn = { background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '8px 10px', borderRadius: '4px', cursor: 'pointer', color: '#475569' };
 
-const classFilterSection = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '14px 16px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' };
+const filterContainer = { background: '#fff', padding: '16px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '20px' };
+const dropdownSelectStyle = { padding: '6px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', background: '#fff', color: '#0f172a', outline: 'none', cursor: 'pointer' };
+const clearRangeBtn = { padding: '5px 10px', background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' };
+
 const searchWrapper = { position: 'relative', display: 'flex', alignItems: 'center' };
 const sIcon = { position: 'absolute', left: '10px', color: '#94a3b8', fontSize: '12px' };
 const sInput = { padding: '6px 10px 6px 30px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none', width: '200px' };
@@ -659,7 +795,7 @@ const panelHeader = { padding: '16px 20px', borderBottom: '1px solid #e2e8f0', d
 const closeIconBtn = { background: 'transparent', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#64748b' };
 const panelBody = { padding: '20px', overflowY: 'auto', flex: 1 };
 const panelProfileCard = { display: 'flex', alignItems: 'center', gap: '14px', background: '#f8fafc', padding: '14px', borderRadius: '6px', border: '1px solid #e2e8f0' };
-const panelAvatar = { width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', objectPosition: 'center', background: '#cbd5e1' };
-const subjectCard = { background: '#f8fafc', padding: '10px 14px', borderRadius: '6px', border: '1px solid #e2e8f0' };
+const panelAvatar = { width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', background: '#cbd5e1' };
+const subjectCard = { background: '#f8fafc', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' };
 
 export default AdminAttendance;
