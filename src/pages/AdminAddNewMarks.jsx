@@ -207,14 +207,14 @@ const AdminAddNewMarks = () => {
   }, [activeClasses.join(",")]);
 
   // ==================================================
-  // Fetch Students + Existing Marks
+  // Fetch Students + Existing Marks (Date-independent)
   // ==================================================
   useEffect(() => {
     if (
       activeClasses.length === 0 ||
       !subject ||
       !examType ||
-      !testDate
+      !session
     ) {
       setMarksData([]);
       return;
@@ -352,13 +352,18 @@ const AdminAddNewMarks = () => {
                 {
                   params: {
                     studentId: student.studentId,
+                    session: session,
+                    examType: examType,
                   },
                 }
               );
 
               if (attendanceRes.data.success) {
                 student.attendance =
-                  attendanceRes.data.attendanceMarks || 0;
+                  Number(attendanceRes.data.attendanceMarks) || 0;
+
+                student.attendanceLocked =
+                  attendanceRes.data.attendanceLocked === true;
               }
 
               // Existing Marks
@@ -374,20 +379,23 @@ const AdminAddNewMarks = () => {
                 marksRes.data.success &&
                 marksRes.data.data?.length
               ) {
-                const match =
-                  marksRes.data.data.find(
-                    (mark) =>
-                      mark.subject?.toUpperCase() ===
-                        subject.toUpperCase() &&
-                      mark.exam_type?.toUpperCase() ===
-                        examType.toUpperCase() &&
-                      mark.session === session &&
-                      mark.test_date
-                        ?.toString()
-                        .split("T")[0] === testDate
-                  );
+                // Exam Type, Subject, aur Session par matching (No Date checking)
+                const match = marksRes.data.data.find(
+                  (mark) =>
+                    mark.subject?.toUpperCase() ===
+                      subject.toUpperCase() &&
+                    mark.exam_type?.toUpperCase() ===
+                      examType.toUpperCase() &&
+                    mark.session === session
+                );
 
                 if (match) {
+                  if (match.attendance_locked === true) {
+                    student.attendance =
+                      Number(match.attendance_marks) || 0;
+
+                    student.attendanceLocked = true;
+                  }
                   student.recordId = match.id;
 
                   student.theory =
@@ -404,6 +412,10 @@ const AdminAddNewMarks = () => {
 
                   student.isSaved = true;
                   student.isExisting = true;
+
+                  if (match.test_date) {
+                    setTestDate(match.test_date.split("T")[0]);
+                  }
 
                   if (
                     match.total_marks != null
@@ -478,7 +490,6 @@ const AdminAddNewMarks = () => {
     fromClass,
     toClass,
     selectionMode,
-    testDate,
     subject,
     examType,
     session,
@@ -580,20 +591,12 @@ const AdminAddNewMarks = () => {
 
       let response;
 
-      // ============================================
-      // Existing Record -> UPDATE
-      // ============================================
       if (student.recordId) {
         response = await api.put(
           `/api/new-marks/update/${student.recordId}`,
           payload
         );
-      }
-
-      // ============================================
-      // New Record -> ADD
-      // ============================================
-      else {
+      } else {
         response = await api.post(
           "/api/new-marks/add",
           payload
@@ -663,13 +666,10 @@ const AdminAddNewMarks = () => {
   return (
     <div className="marks-page">
 
-      {/* ==========================================
-          Header
-      ========================================== */}
+      {/* Header */}
       <div className="page-header">
         <div>
           <h1>Examination Marks</h1>
-
           <p>
             Add new marks or update existing
             theory marks.
@@ -681,9 +681,7 @@ const AdminAddNewMarks = () => {
         </div>
       </div>
 
-      {/* ==========================================
-          Filters Card
-      ========================================== */}
+      {/* Filters Card */}
       <div className="filter-card">
 
         <div className="section-title">
@@ -907,9 +905,7 @@ const AdminAddNewMarks = () => {
         </div>
       </div>
 
-      {/* ==========================================
-          Stats
-      ========================================== */}
+      {/* Stats */}
       {marksData.length > 0 && (
         <div className="stats-grid">
 
@@ -950,18 +946,14 @@ const AdminAddNewMarks = () => {
         </div>
       )}
 
-      {/* ==========================================
-          Loading
-      ========================================== */}
+      {/* Loading */}
       {loading && (
         <div className="loading-box">
           Loading students and marks...
         </div>
       )}
 
-      {/* ==========================================
-          Marks Table
-      ========================================== */}
+      {/* Marks Table */}
       {!loading &&
         marksData.length > 0 && (
           <div className="table-card">
@@ -1043,7 +1035,7 @@ const AdminAddNewMarks = () => {
                             {student.name}
                           </td>
 
-                          {/* THEORY EDITABLE */}
+                          {/* THEORY */}
                           <td>
                             <input
                               type="number"
@@ -1164,9 +1156,7 @@ const AdminAddNewMarks = () => {
           </div>
         )}
 
-      {/* ==========================================
-          Empty State
-      ========================================== */}
+      {/* Empty State */}
       {!loading &&
         activeClasses.length > 0 &&
         !subject && (
@@ -1180,20 +1170,15 @@ const AdminAddNewMarks = () => {
           </div>
         )}
 
-      {/* ==========================================
-          Message
-      ========================================== */}
+      {/* Message */}
       {message && (
         <div className="message-box">
           {message}
         </div>
       )}
 
-      {/* ==========================================
-          Styles
-      ========================================== */}
+      {/* COMPLETE CSS STYLES */}
       <style>{`
-
         * {
           box-sizing: border-box;
         }
@@ -1202,17 +1187,11 @@ const AdminAddNewMarks = () => {
           min-height: 100vh;
           padding: 28px;
           background: #f5f7fb;
-          font-family:
-            Inter,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            sans-serif;
+          font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           color: #1f2937;
         }
 
         /* HEADER */
-
         .page-header {
           display: flex;
           justify-content: space-between;
@@ -1242,116 +1221,117 @@ const AdminAddNewMarks = () => {
           font-size: 13px;
         }
 
-        /* FILTER */
-
+        /* FILTER CARD */
         .filter-card {
-          background: white;
-          border: 1px solid #e5e7eb;
+          background: #ffffff;
+          padding: 24px;
           border-radius: 16px;
-          padding: 22px;
-          box-shadow:
-            0 4px 15px rgba(15, 23, 42, 0.04);
-          margin-bottom: 20px;
+          box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+          margin-bottom: 24px;
+          border: 1px solid #e5e7eb;
         }
 
         .section-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+          margin-bottom: 18px;
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 16px;
-          font-weight: 700;
-          margin-bottom: 18px;
         }
 
         .mode-box {
           display: flex;
-          gap: 24px;
-          background: #f8fafc;
-          border: 1px solid #e5e7eb;
-          padding: 12px 15px;
+          gap: 20px;
+          margin-bottom: 20px;
+          background: #f9fafb;
+          padding: 12px 16px;
           border-radius: 10px;
-          margin-bottom: 18px;
+          border: 1px solid #f3f4f6;
         }
 
         .radio-label {
           display: flex;
           align-items: center;
-          gap: 7px;
-          cursor: pointer;
+          gap: 8px;
           font-size: 14px;
           font-weight: 600;
+          color: #374151;
+          cursor: pointer;
         }
 
         .radio-label input {
-          width: auto;
+          cursor: pointer;
+          accent-color: #4f46e5;
         }
 
         .filters-grid {
           display: grid;
-          grid-template-columns:
-            repeat(auto-fit, minmax(170px, 1fr));
-          gap: 15px;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 16px;
+        }
+
+        .field {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
 
         .field label {
-          display: block;
           font-size: 12px;
           font-weight: 700;
           color: #4b5563;
-          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
 
-        .field input,
-        .field select {
+        .field select,
+        .field input {
           width: 100%;
-          height: 42px;
+          padding: 10px 12px;
           border: 1px solid #d1d5db;
           border-radius: 8px;
-          padding: 0 11px;
-          background: white;
           font-size: 14px;
+          color: #111827;
+          background: #ffffff;
           outline: none;
-          transition: 0.2s;
+          transition: border-color 0.2s ease;
         }
 
-        .field input:focus,
-        .field select:focus {
-          border-color: #4f46e5;
-          box-shadow:
-            0 0 0 3px
-            rgba(79, 70, 229, 0.1);
+        .field select:focus,
+        .field input:focus {
+          border-color: #6366f1;
         }
 
-        /* STATS */
-
+        /* STATS CARD */
         .stats-grid {
           display: grid;
-          grid-template-columns:
-            repeat(3, 1fr);
-          gap: 15px;
-          margin-bottom: 20px;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 16px;
+          margin-bottom: 24px;
         }
 
         .stat-card {
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 13px;
-          padding: 15px 18px;
+          background: #ffffff;
+          padding: 16px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
-          gap: 13px;
+          gap: 14px;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.03);
         }
 
         .stat-icon {
-          width: 40px;
-          height: 40px;
+          width: 42px;
+          height: 42px;
           border-radius: 10px;
+          background: #f3f4f6;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #eef2ff;
-          color: #4f46e5;
-          font-weight: 800;
+          font-size: 18px;
         }
 
         .stat-icon.success {
@@ -1360,69 +1340,65 @@ const AdminAddNewMarks = () => {
         }
 
         .stat-icon.warning {
-          background: #fff7ed;
-          color: #ea580c;
+          background: #fffbebfb;
+          color: #d97706;
         }
 
         .stat-card small {
           display: block;
-          color: #6b7280;
           font-size: 12px;
+          color: #6b7280;
+          font-weight: 600;
         }
 
         .stat-card strong {
-          display: block;
-          margin-top: 2px;
-          font-size: 21px;
+          font-size: 20px;
+          color: #111827;
         }
 
         .success-text {
-          color: #059669;
+          color: #059669 !important;
         }
 
         .warning-text {
-          color: #ea580c;
+          color: #d97706 !important;
         }
 
-        /* TABLE */
-
+        /* TABLE CARD */
         .table-card {
-          background: white;
-          border: 1px solid #e5e7eb;
+          background: #ffffff;
           border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
           overflow: hidden;
-          box-shadow:
-            0 4px 15px
-            rgba(15, 23, 42, 0.04);
         }
 
         .table-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid #f3f4f6;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 18px 20px;
-          border-bottom: 1px solid #e5e7eb;
         }
 
         .table-header h3 {
           margin: 0;
-          font-size: 17px;
+          font-size: 18px;
+          font-weight: 700;
         }
 
         .table-header span {
-          display: block;
-          margin-top: 4px;
+          font-size: 13px;
           color: #6b7280;
-          font-size: 12px;
         }
 
         .edit-info {
-          background: #eff6ff;
-          color: #2563eb;
-          border-radius: 8px;
-          padding: 8px 12px;
           font-size: 12px;
           font-weight: 700;
+          background: #fef3c7;
+          color: #b45309;
+          padding: 6px 12px;
+          border-radius: 20px;
         }
 
         .table-wrap {
@@ -1431,123 +1407,98 @@ const AdminAddNewMarks = () => {
 
         .marks-table {
           width: 100%;
-          min-width: 1100px;
           border-collapse: collapse;
+          text-align: left;
         }
 
         .marks-table th {
-          background: #111827;
-          color: white;
-          padding: 13px 10px;
-          font-size: 11px;
+          background: #f9fafb;
+          padding: 14px 16px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #4b5563;
           text-transform: uppercase;
-          letter-spacing: 0.4px;
-          white-space: nowrap;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .marks-table td {
-          padding: 10px;
-          text-align: center;
-          border-bottom: 1px solid #edf0f3;
-          font-size: 13px;
+          padding: 12px 16px;
+          border-bottom: 1px solid #f3f4f6;
+          font-size: 14px;
         }
 
-        .marks-table tbody tr:hover {
-          background: #f8fafc;
-        }
-
-        .marks-table .saved-row {
-          background: #f0fdf4;
+        .saved-row {
+          background-color: #f0fdf4;
         }
 
         .index {
-          color: #6b7280;
+          color: #9ca3af;
           font-weight: 600;
         }
 
         .class-badge {
-          display: inline-block;
-          padding: 4px 9px;
+          background: #eef2ff;
+          color: #4338ca;
+          padding: 4px 8px;
           border-radius: 6px;
-          background: #fff7ed;
-          color: #c2410c;
           font-weight: 700;
           font-size: 12px;
         }
 
         .student-name {
-          text-align: left !important;
-          font-weight: 650;
+          font-weight: 600;
           color: #111827;
-          min-width: 170px;
         }
 
         .marks-input {
-          width: 65px;
-          height: 34px;
-          border-radius: 7px;
+          width: 70px;
+          padding: 6px 8px;
+          border-radius: 6px;
+          border: 1px solid #d1d5db;
+          font-size: 14px;
           text-align: center;
-          font-weight: 650;
-          outline: none;
         }
 
         .theory-input {
-          border: 2px solid #3b82f6;
-          background: #eff6ff;
-          color: #1e3a8a;
-        }
-
-        .theory-input:focus {
-          border-color: #1d4ed8;
-          box-shadow:
-            0 0 0 3px
-            rgba(37, 99, 235, 0.12);
-        }
-
-        .readonly-input {
-          border: 1px solid #e5e7eb;
-          background: #f8fafc;
-          color: #6b7280;
-          cursor: not-allowed;
-        }
-
-        .attendance {
-          display: inline-flex;
-          min-width: 30px;
-          justify-content: center;
-          padding: 4px 7px;
-          border-radius: 6px;
-          background: #ecfdf5;
-          color: #047857;
+          border-color: #818cf8;
           font-weight: 700;
         }
 
+        .readonly-input {
+          background: #f3f4f6;
+          border-color: #e5e7eb;
+          color: #6b7280;
+        }
+
+        .attendance {
+          font-weight: 700;
+          color: #059669;
+        }
+
         .attendance.absent {
-          background: #fef2f2;
           color: #dc2626;
         }
 
         .obtained {
           font-weight: 800;
-          color: #059669;
-          font-size: 14px !important;
+          color: #111827;
         }
 
         .total-cell {
-          font-weight: 700;
-          color: #374151;
+          color: #6b7280;
+          font-weight: 600;
         }
 
         .save-btn {
-          min-width: 88px;
-          height: 34px;
-          border: none;
-          border-radius: 7px;
+          padding: 8px 16px;
           background: #4f46e5;
-          color: white;
-          font-weight: 700;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 13px;
           cursor: pointer;
-          transition: 0.2s;
+          transition: background 0.2s ease;
         }
 
         .save-btn:hover {
@@ -1555,109 +1506,49 @@ const AdminAddNewMarks = () => {
         }
 
         .save-btn.saved {
-          background: #059669;
-        }
-
-        .save-btn.saved:hover {
-          background: #047857;
+          background: #10b981;
         }
 
         .save-btn:disabled {
-          opacity: 0.55;
+          background: #9ca3af;
           cursor: not-allowed;
         }
 
-        /* LOADING */
-
-        .loading-box {
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 14px;
-          padding: 35px;
-          text-align: center;
-          color: #6b7280;
-        }
-
-        /* EMPTY */
-
+        /* EMPTY & LOADING & MESSAGE */
+        .loading-box,
         .empty-box {
-          background: white;
-          border: 1px dashed #d1d5db;
+          background: #ffffff;
           border-radius: 16px;
-          padding: 55px 20px;
+          padding: 48px;
           text-align: center;
+          border: 1px solid #e5e7eb;
+          color: #6b7280;
         }
 
         .empty-box div {
-          font-size: 38px;
+          font-size: 40px;
+          margin-bottom: 12px;
         }
 
         .empty-box h3 {
-          margin: 12px 0 5px;
-        }
-
-        .empty-box p {
-          color: #6b7280;
           margin: 0;
-          font-size: 14px;
+          color: #111827;
         }
-
-        /* MESSAGE */
 
         .message-box {
           position: fixed;
-          right: 25px;
-          bottom: 25px;
-          max-width: 400px;
+          bottom: 24px;
+          right: 24px;
           background: #111827;
-          color: white;
-          padding: 13px 17px;
+          color: #ffffff;
+          padding: 12px 20px;
           border-radius: 10px;
-          box-shadow:
-            0 8px 25px
-            rgba(0,0,0,0.18);
-          font-size: 13px;
-          font-weight: 600;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+          font-size: 14px;
           z-index: 100;
         }
-
-        /* RESPONSIVE */
-
-        @media (max-width: 768px) {
-
-          .marks-page {
-            padding: 15px;
-          }
-
-          .page-header {
-            align-items: flex-start;
-            gap: 12px;
-          }
-
-          .page-header h1 {
-            font-size: 22px;
-          }
-
-          .session-badge {
-            font-size: 11px;
-          }
-
-          .stats-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .mode-box {
-            flex-direction: column;
-            gap: 10px;
-          }
-
-          .filter-card {
-            padding: 15px;
-          }
-
-        }
-
       `}</style>
+
     </div>
   );
 };
