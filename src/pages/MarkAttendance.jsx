@@ -252,14 +252,14 @@ const initialAttendanceIds = {};
   const availableConfigurationSubjects = useMemo(() => {
     if (lectureType === "Exam") {
       return [
-        "Hindi PRE FINAL EXAM", "English PREFINAL EXAM", "Hindi FINAL EXAM", "English FINAL EXAM",
+        "Hindi PRE FINAL EXAM","Holiday", "English PREFINAL EXAM", "Hindi FINAL EXAM", "English FINAL EXAM",
         "Maths PRE FINAL EXAM", "Maths FINAL EXAM", "Science PRE FINAL EXAM", "Science FINAL EXAM",
         "Physics PRE FINAL EXAM", "Physics FINAL EXAM", "Chemistry PRE FINAL EXAM", "Chemistry FINAL EXAM",
         "Biology PRE FINAL EXAM", "Biology FINAL EXAM"
       ];
     } else {
       return [
-        "Maths", "Science", "Physics", "Chemistry", "Biology", 
+        "Maths","Holiday", "Science", "Physics", "Chemistry", "Biology", 
         "English", "Hindi", "Social Science", "Computer Science", 
         "Accountancy", "Business Studies", "Economics"
       ];

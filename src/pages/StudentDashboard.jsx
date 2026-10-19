@@ -578,7 +578,7 @@ end_time: isHoliday
 
             attendanceStatus: record.status,
             class_date: record.date,
-            reason: record.reason || null,
+            reason: record.reason || "Holiday Assigned",
             isHoliday,
             isExam: normalizedSubject.includes("exam"),
           };
@@ -1355,19 +1355,21 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
     </div>
     <div style={{ width: '80px', display: 'none' }}></div> 
   </div>
-
-  {/* DAY HEADER */}
-  <div style={{ 
-      padding: '10px 15px', 
-      backgroundColor: '#ffffff', 
-      borderTop: '1px solid #351616',
-      borderBottom: '1px solid #f1f1f1', 
-      fontWeight: 'bold', 
-      color: '#000',
-      fontSize: '15px'
-  }}>
-    {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
-  </div>
+{/* DAY HEADER */}
+<div style={{ 
+    padding: '10px 15px', 
+    backgroundColor: '#ffffff', 
+    borderTop: '1px solid #351616',
+    borderBottom: '1px solid #f1f1f1', 
+    fontWeight: 'bold', 
+    color: '#000',
+    fontSize: '15px'
+}}>
+  <span>{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}</span>
+  <span style={{ marginLeft: '12px', fontWeight: 'normal', color: '#413737', fontSize: '16px' }}>
+    ({new Date(selectedDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })})
+  </span>
+</div>
 
   {/* Classes List with 11th/12th Stream Filtering */}
   <div style={{ width: '100%' }}>
