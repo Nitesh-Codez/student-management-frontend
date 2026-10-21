@@ -203,7 +203,7 @@ const initialAttendanceIds = {};
             if (clsLower.includes("12") || clsLower.includes("11")) {
               subs = ["Maths", "Chemistry", "Hindi", "English", "Physics", "Biology"];
             } else {
-              subs = ["Maths", "Science", "English", "Hindi", "S.S.T"];
+              subs = ["Maths", "Science", "English", "Hindi", "SST"];
             }
           }
         }
@@ -253,14 +253,14 @@ const initialAttendanceIds = {};
     if (lectureType === "Exam") {
       return [
         "Hindi PRE FINAL EXAM","Holiday", "English PREFINAL EXAM", "Hindi FINAL EXAM", "English FINAL EXAM",
-        "Maths PRE FINAL EXAM", "Maths FINAL EXAM", "Science PRE FINAL EXAM", "Science FINAL EXAM","S.S.T PRE FINAL EXAM","S.S.T FINAL EXAM",
+        "Maths PRE FINAL EXAM", "Maths FINAL EXAM", "Science PRE FINAL EXAM", "Science FINAL EXAM","SST PRE FINAL EXAM","SST FINAL EXAM",
         "Physics PRE FINAL EXAM", "Physics FINAL EXAM", "Chemistry PRE FINAL EXAM", "Chemistry FINAL EXAM",
         "Biology PRE FINAL EXAM", "Biology FINAL EXAM"
       ];
     } else {
       return [
         "Maths","Holiday", "Science", "Physics", "Chemistry", "Biology", 
-        "English", "Hindi", "S.S.T", "Computer", 
+        "English", "Hindi", "SST", "Computer", 
         "Accounts", "Business Studies", "Economics"
       ];
     }
@@ -404,7 +404,7 @@ const initialAttendanceIds = {};
       if (clsLower.includes("12") || clsLower.includes("11")) {
         subs = ["Maths", "Chemistry", "Hindi", "English", "Physics", "Biology"];
       } else {
-        subs = ["Maths", "Science", "English", "Hindi", "S.S.T"];
+        subs = ["Maths", "Science", "English", "Hindi", "SST"];
       }
     }
 
