@@ -3,8 +3,7 @@ import api from "../services/api";
 import { motion } from "framer-motion";
 import { 
   FaStar, FaRegStar, FaSearch, FaMicrophone, 
-  FaChartLine, FaFilter, FaExclamationTriangle, 
-  FaLightbulb, FaAward 
+  FaChartLine, FaAward, FaUserTie, FaBook, FaCalendarAlt, FaGraduationCap
 } from "react-icons/fa";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com/api/feedback/admin/all";
@@ -12,11 +11,11 @@ const API_URL = "https://student-management-system-4-hose.onrender.com/api/feedb
 /* ================= HELPERS ================= */
 
 const monthNames = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
 ];
 
-const getMonthLabel = (m, y) => `${monthNames[m - 1]} ${y}`;
+const getMonthLabel = (m, y) => `${monthNames[Number(m) - 1]} ${y}`;
 
 const AdminFeedback = () => {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -24,15 +23,35 @@ const AdminFeedback = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isListening, setIsListening] = useState(false);
 
+  // Filter States
+  const [selectedMonthYear, setSelectedMonthYear] = useState("");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
+
   /* ================= FETCH ================= */
 
   const fetchFeedbacks = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(API_URL);
-      setFeedbacks(res.data.feedbacks || []);
+      const data = res.data.feedbacks || [];
+      setFeedbacks(data);
+
+      // Set default month-year to the most recent record available
+      if (data.length > 0) {
+        // Sort descending by year and month
+        const sorted = [...data].sort((a, b) => {
+          if (b.year !== a.year) return b.year - a.year;
+          return b.month - a.month;
+        });
+        const latest = sorted[0];
+        setSelectedMonthYear(`${latest.year}-${latest.month}`);
+      } else {
+        const now = new Date();
+        setSelectedMonthYear(`${now.getFullYear()}-${now.getMonth() + 1}`);
+      }
     } catch (err) {
-      console.error("Database Synchronization Failed");
+      console.error("Database Synchronization Failed", err);
     } finally {
       setLoading(false);
     }
@@ -57,7 +76,7 @@ const AdminFeedback = () => {
     recognition.start();
   };
 
-  /* ================= LOGIC ================= */
+  /* ================= ANALYSIS LOGIC ================= */
 
   const calcSentiment = (mcq) => {
     if (!mcq || mcq.length === 0) return { pos: 0 };
@@ -66,64 +85,88 @@ const AdminFeedback = () => {
   };
 
   const getRemarks = (pos) => {
-    if (pos >= 95) return { text: "Excellence Teaching Skills", color: "#6d28d9" };
-    if (pos >= 80) return { text: "Highly Interactive", color: "#7c3aed" };
-    if (pos >= 60) return { text: "Satisfactory Performance", color: "#8b5cf6" };
-    if (pos >= 40) return { text: "Needs Improvement", color: "#475569" };
-    return { text: "Critical Support Required", color: "#dc2626" };
+    if (pos >= 95) return { text: "Excellence Teaching Skills", color: "#6d28d9", bg: "#f3e8ff" };
+    if (pos >= 80) return { text: "Highly Interactive", color: "#7c3aed", bg: "#ede9fe" };
+    if (pos >= 60) return { text: "Satisfactory Performance", color: "#2563eb", bg: "#eff6ff" };
+    if (pos >= 40) return { text: "Needs Improvement", color: "#d97706", bg: "#fef3c7" };
+    return { text: "Critical Support Required", color: "#dc2626", bg: "#fee2e2" };
   };
 
-  /* ================= SPLIT MONTHS ================= */
+  /* UNIQUE AVAILABLE MONTHS */
+  const availableMonths = Array.from(
+    new Set(feedbacks.map((f) => `${f.year}-${f.month}`))
+  ).sort((a, b) => {
+    const [y1, m1] = a.split("-").map(Number);
+    const [y2, m2] = b.split("-").map(Number);
+    if (y2 !== y1) return y2 - y1;
+    return m2 - m1;
+  });
 
-  const today = new Date();
-  const currentMonth = today.getMonth() + 1;
-  const currentYear = today.getFullYear();
+  const classesList = [...new Set(feedbacks.map((f) => f.class || f.className).filter(Boolean))];
+  const subjectsList = [...new Set(feedbacks.map((f) => f.subject || f.subject_name).filter(Boolean))];
 
-  const currentMonthFeedbacks = feedbacks.filter(
-    (f) => f.month === currentMonth && f.year === currentYear
-  );
+  /* FILTER FEEDBACKS */
+  const filteredFeedbacks = feedbacks.filter((f) => {
+    const monthYearKey = `${f.year}-${f.month}`;
+    const matchesMonth = selectedMonthYear ? monthYearKey === selectedMonthYear : true;
+    const matchesSearch = (f.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (f.teacher_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (f.subject || f.subject_name || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchClass = selectedClass ? (f.class === selectedClass || f.className === selectedClass) : true;
+    const matchSubject = selectedSubject ? (f.subject === selectedSubject || f.subject_name === selectedSubject) : true;
 
-  const previousMonthGroups = feedbacks
-    .filter((f) => !(f.month === currentMonth && f.year === currentYear))
-    .reduce((acc, f) => {
-      const key = `${f.year}-${f.month}`;
-      if (!acc[key]) {
-        acc[key] = {
-          label: getMonthLabel(f.month, f.year),
-          items: [],
-        };
-      }
-      acc[key].items.push(f);
-      return acc;
-    }, {});
+    return matchesMonth && matchesSearch && matchClass && matchSubject;
+  });
 
-  /* ================= TABLE RENDER ================= */
+  /* GROUP BY CLASS -> SUBJECT */
+  const groupedData = filteredFeedbacks.reduce((acc, f) => {
+    const className = f.class || f.className || "General";
+    const subjectName = f.subject || f.subject_name || "General Subject";
 
-  const renderTable = (list) => (
-    <table style={enterpriseTable}>
-      <thead>
-        <tr style={tableHeaderRow}>
-          <th style={th}>Student Details</th>
-          <th style={th}>Rating</th>
-          <th style={th}>Issue</th>
-          <th style={th}>Suggestion</th>
-          <th style={th}>Satisfaction</th>
-          <th style={th}>Remarks</th>
-          <th style={th}>Class</th>
-        </tr>
-      </thead>
-      <tbody>
-        {list
-          .filter((f) =>
-            f.name.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-          .map((f, idx) => {
+    if (!acc[className]) acc[className] = {};
+    if (!acc[className][subjectName]) acc[className][subjectName] = [];
+
+    acc[className][subjectName].push(f);
+    return acc;
+  }, {});
+
+  /* OVERALL METRICS FOR SELECTED MONTH */
+  const totalSubmissions = filteredFeedbacks.length;
+  const avgRating = totalSubmissions > 0 
+    ? (filteredFeedbacks.reduce((sum, f) => sum + Number(f.rating || 0), 0) / totalSubmissions).toFixed(1) 
+    : "0.0";
+  
+  const avgSentiment = totalSubmissions > 0
+    ? Math.round(filteredFeedbacks.reduce((sum, f) => sum + calcSentiment(f.mcq_answers).pos, 0) / totalSubmissions)
+    : 0;
+
+  /* ================= RENDER TABLE ================= */
+
+  const renderFeedbackTable = (items) => (
+    <div style={{ overflowX: "auto" }}>
+      <table style={enterpriseTable}>
+        <thead>
+          <tr style={tableHeaderRow}>
+            <th style={th}>Student Details</th>
+            <th style={th}>Faculty & Teacher ID</th>
+            <th style={th}>Rating</th>
+            <th style={th}>Reported Issue</th>
+            <th style={th}>Suggestion</th>
+            <th style={th}>Teaching Skill Score</th>
+            <th style={th}>Skill Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((f, idx) => {
             const { pos } = calcSentiment(f.mcq_answers);
             const remark = getRemarks(pos);
             const isCritical = f.rating <= 2;
+            const studentName = f.name || "Student";
+            const subjectName = f.subject || f.subject_name || "N/A";
+            const teacherName = f.teacher_name || "Assigned Faculty";
 
             return (
-              <motion.tr key={idx} className="row-hover">
+              <motion.tr key={f.id || idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
                 <td style={td}>
                   <div style={identityGroup}>
                     <div
@@ -133,12 +176,23 @@ const AdminFeedback = () => {
                         color: isCritical ? "#dc2626" : "#6d28d9",
                       }}
                     >
-                      {f.name.charAt(0)}
+                      {studentName.charAt(0)}
                     </div>
                     <div>
-                      <div style={empName}>{f.name}</div>
+                      <div style={empName}>{studentName}</div>
                       <div style={empId}>UID-{f.student_id}</div>
                     </div>
+                  </div>
+                </td>
+
+                <td style={td}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <span style={{ fontWeight: "700", color: "#1e293b", fontSize: "13px" }}>
+                      <FaUserTie style={{ marginRight: "4px", color: "#6d28d9" }} /> {teacherName}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>
+                      ID: {f.teacher_id} • Subject: {subjectName}
+                    </span>
                   </div>
                 </td>
 
@@ -165,12 +219,11 @@ const AdminFeedback = () => {
                         style={{
                           ...barFill,
                           width: `${pos}%`,
-                          background:
-                            "linear-gradient(90deg,#a78bfa,#6d28d9)",
+                          background: "linear-gradient(90deg,#a78bfa,#6d28d9)",
                         }}
                       />
                     </div>
-                    <span style={sentimentLabel}>{pos}%</span>
+                    <span style={sentimentLabel}>{pos}% Effectiveness</span>
                   </div>
                 </td>
 
@@ -179,21 +232,19 @@ const AdminFeedback = () => {
                     style={{
                       ...remarkBadge,
                       color: remark.color,
+                      background: remark.bg,
                       border: `1px solid ${remark.color}`,
                     }}
                   >
                     <FaAward size={10} /> {remark.text}
                   </div>
                 </td>
-
-                <td style={td}>
-                  <span style={deptBadge}>{f.class}</span>
-                </td>
               </motion.tr>
             );
           })}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   );
 
   /* ================= JSX ================= */
@@ -207,18 +258,64 @@ const AdminFeedback = () => {
             <FaChartLine />
           </div>
           <div>
-            <h1 style={mainTitle}>Feedback Dashboard</h1>
-            <p style={subTitle}>Monthly Analytics</p>
+            <h1 style={mainTitle}>Admin Teaching Skills & Feedback Dashboard</h1>
+            <p style={subTitle}>Class-wise & Subject-wise Performance Analysis</p>
           </div>
         </div>
       </header>
 
-      {/* SEARCH */}
-      <div style={commandBar}>
+      {/* COMMAND BAR & MONTH/CLASS SELECTORS */}
+      <div style={commandBarContainer}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", flex: 2 }}>
+          {/* MONTH SELECTOR */}
+          <div style={selectWrapper}>
+            <FaCalendarAlt style={{ color: "#6d28d9" }} />
+            <select 
+              style={selectDropdown} 
+              value={selectedMonthYear} 
+              onChange={(e) => setSelectedMonthYear(e.target.value)}
+            >
+              {availableMonths.map((ym) => {
+                const [y, m] = ym.split("-");
+                return (
+                  <option key={ym} value={ym}>
+                    Cycle: {getMonthLabel(m, y)}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* CLASS FILTER */}
+          <select 
+            style={selectDropdown} 
+            value={selectedClass} 
+            onChange={(e) => setSelectedClass(e.target.value)}
+          >
+            <option value="">All Classes</option>
+            {classesList.map((cls) => (
+              <option key={cls} value={cls}>Class {cls}</option>
+            ))}
+          </select>
+
+          {/* SUBJECT FILTER */}
+          <select 
+            style={selectDropdown} 
+            value={selectedSubject} 
+            onChange={(e) => setSelectedSubject(e.target.value)}
+          >
+            <option value="">All Subjects</option>
+            {subjectsList.map((sub) => (
+              <option key={sub} value={sub}>{sub}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* VOICE / TEXT SEARCH */}
         <div style={voiceSearchWrapper}>
           <FaSearch style={searchIcon} />
           <input
-            placeholder="Search student..."
+            placeholder="Search student, teacher, subject..."
             style={searchField}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -226,31 +323,76 @@ const AdminFeedback = () => {
           <button
             style={{ ...micBtn, color: isListening ? "#ff4d4d" : "#6d28d9" }}
             onClick={handleVoiceSearch}
+            title="Voice Search"
+            type="button"
           >
             <FaMicrophone />
           </button>
         </div>
-        <button style={filterBtn}>
-          <FaFilter /> Filter
-        </button>
       </div>
 
-      {/* DATA */}
-      <main>
-        <h2 style={sectionTitle}>
-          Current Month – {getMonthLabel(currentMonth, currentYear)}
-        </h2>
-        {renderTable(currentMonthFeedbacks)}
-
-        <h2 style={sectionTitle}>Previous Month Feedback</h2>
-        {Object.values(previousMonthGroups).map((grp) => (
-          <div key={grp.label}>
-            <h3 style={monthHeader}>{grp.label}</h3>
-            {renderTable(grp.items)}
+      {/* SUMMARY METRICS CARDS */}
+      <div style={metricsGrid}>
+        <div style={metricCard}>
+          <div style={{ ...metricIcon, background: "#ede9fe", color: "#6d28d9" }}>
+            <FaChartLine />
           </div>
-        ))}
+          <div>
+            <span style={metricLabel}>Total Submissions</span>
+            <h3 style={metricValue}>{totalSubmissions}</h3>
+          </div>
+        </div>
 
-        {loading && <div style={loaderStyle}>Loading...</div>}
+        <div style={metricCard}>
+          <div style={{ ...metricIcon, background: "#fef3c7", color: "#d97706" }}>
+            <FaStar />
+          </div>
+          <div>
+            <span style={metricLabel}>Average Faculty Rating</span>
+            <h3 style={metricValue}>{avgRating} / 5.0</h3>
+          </div>
+        </div>
+
+        <div style={metricCard}>
+          <div style={{ ...metricIcon, background: "#dcfce7", color: "#16a34a" }}>
+            <FaAward />
+          </div>
+          <div>
+            <span style={metricLabel}>Teaching Skill Effectiveness</span>
+            <h3 style={metricValue}>{avgSentiment}%</h3>
+          </div>
+        </div>
+      </div>
+
+      {/* STRUCTURED CLASS & SUBJECT WISE CONTENT */}
+      <main style={{ padding: "24px 32px 60px" }}>
+        {loading ? (
+          <div style={loaderStyle}>Loading and analyzing feedback records...</div>
+        ) : Object.keys(groupedData).length === 0 ? (
+          <div style={emptyState}>No feedback records found for {selectedMonthYear ? getMonthLabel(...selectedMonthYear.split("-")) : "this period"}.</div>
+        ) : (
+          Object.entries(groupedData).map(([className, subjects]) => (
+            <div key={className} style={classSectionContainer}>
+              <div style={classHeaderBanner}>
+                <FaGraduationCap style={{ fontSize: "18px", color: "#6d28d9" }} />
+                <h2 style={classTitleText}>Class {className} Evaluation</h2>
+              </div>
+
+              {Object.entries(subjects).map(([subjectName, items]) => (
+                <div key={subjectName} style={subjectSubSection}>
+                  <div style={subjectHeaderBar}>
+                    <span style={subjectTitleText}>
+                      <FaBook style={{ marginRight: "6px", color: "#475569" }} /> Subject: {subjectName}
+                    </span>
+                    <span style={feedbackCountBadge}>{items.length} Feedback{items.length > 1 ? "s" : ""}</span>
+                  </div>
+
+                  {renderFeedbackTable(items)}
+                </div>
+              ))}
+            </div>
+          ))
+        )}
       </main>
     </div>
   );
@@ -258,43 +400,58 @@ const AdminFeedback = () => {
 
 /* ================= STYLES ================= */
 
-const appContainer = { background: "#fff", minHeight: "100vh", minWidth: "1400px"  };
-const headerSection = { padding: "25px 40px", background: "#0f172a", color: "#fff", minWidth: "1200px"  };
-const brandGroup = { display: "flex", gap: "15px", alignItems: "center" };
-const logoBox = { width: 40, height: 40, background: "#6d28d9", display: "flex", alignItems: "center", justifyContent: "center" };
-const mainTitle = { fontSize: 22, fontWeight: 800 };
-const subTitle = { fontSize: 12, opacity: 0.7 };
+const appContainer = { background: "#f8fafc", minHeight: "100vh", width: "100%", fontFamily: "'Inter', system-ui, sans-serif" };
+const headerSection = { padding: "24px 32px", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" };
+const brandGroup = { display: "flex", gap: "14px", alignItems: "center" };
+const logoBox = { width: 42, height: 42, borderRadius: "10px", background: "#6d28d9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", color: "#fff" };
+const mainTitle = { fontSize: 18, fontWeight: 800, margin: 0 };
+const subTitle = { fontSize: 12, opacity: 0.7, margin: "2px 0 0" };
 
-const commandBar = { padding: 20, display: "flex", gap: 10 };
-const voiceSearchWrapper = { position: "relative", flex: 1 };
-const searchIcon = { position: "absolute", top: 12, left: 12 };
-const searchField = { width: "100%", padding: "12px 50px" };
-const micBtn = { position: "absolute", right: 10, top: 8, background: "none", border: "none" };
-const filterBtn = { padding: "10px 15px", background: "#0f172a", color: "#fff" };
+const commandBarContainer = { padding: "16px 32px", display: "flex", gap: "12px", flexWrap: "wrap", background: "#ffffff", borderBottom: "1px solid #e2e8f0", alignItems: "center" };
+const selectWrapper = { display: "flex", alignItems: "center", gap: "8px", background: "#f1f5f9", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1" };
+const selectDropdown = { padding: "10px 6px", borderRadius: "8px", border: "none", background: "transparent", fontSize: "13px", fontWeight: "700", color: "#1e293b", cursor: "pointer", outline: "none" };
 
-const enterpriseTable = { width: "100%", borderCollapse: "collapse", minWidth: 1200 };
-const tableHeaderRow = { background: "#0f172a", color: "#fff" };
-const th = { padding: 15 };
-const td = { padding: 15, borderBottom: "1px solid #e2e8f0" };
+const voiceSearchWrapper = { position: "relative", flex: 1, minWidth: "260px" };
+const searchIcon = { position: "absolute", top: 13, left: 14, color: "#94a3b8" };
+const searchField = { width: "100%", padding: "11px 40px 11px 38px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px", boxSizing: "border-box", background: "#fff" };
+const micBtn = { position: "absolute", right: 10, top: 9, background: "none", border: "none", cursor: "pointer", fontSize: "16px" };
 
-const identityGroup = { display: "flex", gap: 10 };
-const avatarStyle = { width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 };
-const empName = { fontWeight: 800 };
-const empId = { fontSize: 11 };
+const metricsGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px", padding: "20px 32px 0" };
+const metricCard = { background: "#fff", padding: "18px 20px", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: "16px", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" };
+const metricIcon = { width: 44, height: 44, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 };
+const metricLabel = { display: "block", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" };
+const metricValue = { margin: "2px 0 0", fontSize: "20px", fontWeight: "800", color: "#0f172a" };
 
-const ratingBox = { display: "flex", gap: 4 };
-const ratingNum = { fontWeight: 800 };
+const classSectionContainer = { marginBottom: "32px", background: "#fff", borderRadius: "16px", border: "1px solid #cbd5e1", overflow: "hidden", boxShadow: "0 4px 12px rgba(15,23,42,0.03)" };
+const classHeaderBanner = { background: "#1e293b", color: "#fff", padding: "14px 20px", display: "flex", alignItems: "center", gap: "10px" };
+const classTitleText = { margin: 0, fontSize: "16px", fontWeight: "800" };
 
-const sentimentWrapper = { width: 100 };
-const barTrack = { height: 6, background: "#eee" };
-const barFill = { height: "100%" };
-const sentimentLabel = { fontSize: 11 };
+const subjectSubSection = { borderTop: "1px solid #e2e8f0" };
+const subjectHeaderBar = { padding: "12px 20px", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0" };
+const subjectTitleText = { fontSize: "14px", fontWeight: "700", color: "#334155", display: "flex", alignItems: "center" };
+const feedbackCountBadge = { fontSize: "11px", fontWeight: "700", background: "#e2e8f0", color: "#475569", padding: "3px 8px", borderRadius: "12px" };
 
-const remarkBadge = { padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 800 };
-const deptBadge = { background: "#0f172a", color: "#fff", padding: "4px 8px" };
+const enterpriseTable = { width: "100%", borderCollapse: "collapse", background: "#fff" };
+const tableHeaderRow = { background: "#f1f5f9", color: "#334155" };
+const th = { padding: "12px 18px", fontSize: "11px", fontWeight: "800", textAlign: "left", letterSpacing: "0.5px", textTransform: "uppercase" };
+const td = { padding: "14px 18px", borderBottom: "1px solid #e2e8f0", fontSize: "13px", color: "#334155", verticalAlign: "middle" };
 
-const sectionTitle = { padding: "20px 40px", fontWeight: 900 };
-const monthHeader = { padding: "10px 40px", background: "#f1f5f9", fontWeight: 800 };
-const loaderStyle = { textAlign: "center", padding: 50 };
+const identityGroup = { display: "flex", gap: "10px", alignItems: "center" };
+const avatarStyle = { width: 34, height: 34, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "13px", flexShrink: 0 };
+const empName = { fontWeight: "700", color: "#0f172a" };
+const empId = { fontSize: "11px", color: "#64748b" };
+
+const ratingBox = { display: "flex", gap: "3px", alignItems: "center" };
+const ratingNum = { fontWeight: "700", marginLeft: "6px", fontSize: "12px", color: "#1e293b" };
+
+const sentimentWrapper = { width: "130px" };
+const barTrack = { height: "6px", background: "#e2e8f0", borderRadius: "4px", overflow: "hidden", marginBottom: "4px" };
+const barFill = { height: "100%", borderRadius: "4px" };
+const sentimentLabel = { fontSize: "10px", fontWeight: "700", color: "#475569" };
+
+const remarkBadge = { padding: "5px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap" };
+
+const loaderStyle = { textAlign: "center", padding: "60px", color: "#64748b", fontWeight: "600", fontSize: "14px" };
+const emptyState = { padding: "50px", textAlign: "center", color: "#64748b", fontStyle: "italic", fontSize: "14px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" };
 
 export default AdminFeedback;
