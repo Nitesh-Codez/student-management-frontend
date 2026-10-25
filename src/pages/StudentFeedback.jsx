@@ -14,7 +14,8 @@ import {
   FaArrowLeft,
   FaGraduationCap,
   FaInfoCircle,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaChartLine
 } from "react-icons/fa";
 
 /* =========================================================
@@ -202,6 +203,14 @@ export default function StudentFeedback({ studentId: propStudentId }) {
     }
   };
 
+  /* LIVE CALCULATED PERCENTAGE PREVIEW */
+  const currentTotalScore = mcqAnswers.reduce(
+    (sum, ans) => sum + (ans !== null ? 4 - ans : 0),
+    0
+  );
+  const answeredCount = mcqAnswers.filter((ans) => ans !== null).length;
+  const livePercentage = answeredCount > 0 ? Number(((currentTotalScore / (answeredCount * 3)) * 100).toFixed(1)) : 0;
+
   /* SUBMIT FEEDBACK */
   const handleSubmit = async () => {
     const unansweredIndex = mcqAnswers.findIndex((ans) => ans === null);
@@ -216,20 +225,29 @@ export default function StudentFeedback({ studentId: propStudentId }) {
       return;
     }
 
+    const totalScore = mcqAnswers.reduce(
+      (sum, ans) => sum + (4 - ans),
+      0
+    );
+
+    const percentage = Number(
+      ((totalScore / 30) * 100).toFixed(2)
+    );
+
     try {
       setSubmitting(true);
       setErrorMessage("");
 
       await api.post("/api/feedback/student/submit", {
-        student_id: studentId,
-        teacher_id: selectedSubject.teacherId, // Actual Teacher ID submitted
-        subject: selectedSubject.subjectName,
-        month: targetDate.num,
-        year: targetDate.year,
-        mcqAnswers,
-        suggestion,
-        problem,
-        rating,
+        student_id: String(studentId),
+        teacher_id: String(selectedSubject.teacherId),
+        subject: String(selectedSubject.subjectName),
+        month: Number(targetDate.num),
+        year: Number(targetDate.year),
+        percentage: Number(percentage),
+        suggestion: suggestion || "",
+        problem: problem || "",
+        rating: Number(rating),
       });
 
       setSubjectsList((prev) =>
@@ -244,7 +262,8 @@ export default function StudentFeedback({ studentId: propStudentId }) {
       setSubmitted(true);
     } catch (error) {
       console.error("Feedback submission error:", error);
-      setErrorMessage(error.response?.data?.error || error.response?.data?.message || "Unable to submit feedback. Please try again.");
+      const serverMsg = error.response?.data?.error || error.response?.data?.message;
+      setErrorMessage(serverMsg || "Unable to submit feedback. Please check server connection.");
     } finally {
       setSubmitting(false);
     }
@@ -266,7 +285,6 @@ export default function StudentFeedback({ studentId: propStudentId }) {
     );
   }
 
-  const answeredCount = mcqAnswers.filter((ans) => ans !== null).length;
   const activeQuestions = selectedSubject ? createQuestions(selectedSubject.subjectName) : [];
   const progress = currentStep < 10 ? (answeredCount / 10) * 100 : 100;
 
@@ -280,7 +298,7 @@ export default function StudentFeedback({ studentId: propStudentId }) {
           </div>
           <div>
             <h1 style={mainTitle}>Monthly Academic Feedback</h1>
-            <p style={subTitle}>Class {studentClass} • Session {currentSession}</p>
+            <p style={subTitle}>Class {studentClass} | Session {currentSession}</p>
           </div>
         </div>
 
@@ -295,7 +313,7 @@ export default function StudentFeedback({ studentId: propStudentId }) {
       {/* ERROR BANNER */}
       {errorMessage && (
         <div style={errorBanner}>
-          <FaExclamationTriangle style={{ fontSize: "15px", color: "#DC2626" }} />
+          <FaExclamationTriangle style={{ fontSize: "15px", color: "#DC2626", flexShrink: 0 }} />
           <span>{errorMessage}</span>
         </div>
       )}
@@ -342,7 +360,6 @@ export default function StudentFeedback({ studentId: propStudentId }) {
                           <span style={subjectTag}>{item.subjectName}</span>
                           <h3 style={teacherNameText}>{item.subjectName}</h3>
                           
-                          {/* TEACHER NAME WITH TEACHER ID IN BRACKETS */}
                           <span style={facultySubText}>
                             Faculty: <strong>{item.teacherName} [ID: {item.teacherId}]</strong>
                           </span>
@@ -413,7 +430,7 @@ export default function StudentFeedback({ studentId: propStudentId }) {
                     </div>
                     <h1 style={successTitle}>Feedback Recorded</h1>
                     <p style={successText}>
-                      Thank you! Your feedback for <strong>{selectedSubject.subjectName}</strong> ({selectedSubject.teacherName} [ID: {selectedSubject.teacherId}]) has been submitted.
+                      Thank you! Your feedback for <strong>{selectedSubject.subjectName}</strong> ({selectedSubject.teacherName} [ID: {selectedSubject.teacherId}]) has been submitted successfully.
                     </p>
                     <button
                       onClick={() => setSelectedSubject(null)}
@@ -438,14 +455,21 @@ export default function StudentFeedback({ studentId: propStudentId }) {
                           {currentStep + 1} <span style={{ fontSize: "13px", color: "#94A3B8" }}>/ 10</span>
                         </strong>
                       </div>
-                      <span style={answeredText}>{answeredCount}/10 completed</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={answeredText}>{answeredCount}/10 completed</span>
+                        {answeredCount > 0 && (
+                          <span style={liveScoreBadge(livePercentage)}>
+                            <FaChartLine style={{ fontSize: "10px" }} /> {livePercentage}% Score
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div style={progressTrack}>
                       <motion.div
                         animate={{ width: `${progress}%` }}
                         transition={{ duration: 0.3 }}
-                        style={progressFill}
+                        style={progressFill(livePercentage)}
                       />
                     </div>
 
@@ -458,7 +482,7 @@ export default function StudentFeedback({ studentId: propStudentId }) {
                         {activeQuestions[currentStep]?.question}
                       </h2>
                       
-                      <p style={chooseText}>Select your response below:</p>
+                      <p style={chooseText}>Select your response below (Option A is best, Option D needs improvement):</p>
 
                       <div style={tabularOptionsGrid}>
                         {activeQuestions[currentStep]?.options.map((option, index) => {
@@ -469,13 +493,13 @@ export default function StudentFeedback({ studentId: propStudentId }) {
                               whileHover={{ y: -1 }}
                               whileTap={{ scale: 0.99 }}
                               onClick={() => handleOptionSelect(index)}
-                              style={tableRowOptionBtn(active)}
+                              style={tableRowOptionBtn(active, index)}
                             >
-                              <span style={optCircle(active)}>
+                              <span style={optCircle(active, index)}>
                                 {String.fromCharCode(65 + index)}
                               </span>
                               <span style={{ flex: 1, fontWeight: "600", fontSize: "13px" }}>{option}</span>
-                              {active && <FaCheckCircle style={{ color: "#4F46E5", fontSize: "14px" }} />}
+                              {active && <FaCheckCircle style={{ color: index === 0 ? "#059669" : index === 1 ? "#3B82F6" : index === 2 ? "#D97706" : "#DC2626", fontSize: "14px" }} />}
                             </motion.button>
                           );
                         })}
@@ -630,8 +654,22 @@ const questionTop = { display: "flex", alignItems: "flex-end", justifyContent: "
 const smallLabel = { display: "block", fontSize: "9px", color: "#94A3B8", fontWeight: "800", letterSpacing: "0.5px" };
 const questionNumber = { display: "block", marginTop: "1px", fontSize: "18px", color: "#0F172A", fontWeight: "900" };
 const answeredText = { fontSize: "11px", color: "#64748B", fontWeight: "600" };
-const progressTrack = { width: "100%", height: "5px", background: "#E2E8F0", borderRadius: "10px", overflow: "hidden", marginBottom: "18px" };
-const progressFill = { height: "100%", background: "linear-gradient(90deg, #4F46E5, #6366F1)", borderRadius: "10px" };
+
+const liveScoreBadge = (pct) => ({
+  display: "inline-flex", alignItems: "center", gap: "4px",
+  background: pct >= 75 ? "#ECFDF5" : pct >= 50 ? "#FEF3C7" : "#FEF2F2",
+  color: pct >= 75 ? "#047857" : pct >= 50 ? "#B45309" : "#DC2626",
+  padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "800",
+  border: `1px solid ${pct >= 75 ? "#A7F3D0" : pct >= 50 ? "#FDE68A" : "#FECACA"}`
+});
+
+const progressTrack = { width: "100%", height: "6px", background: "#E2E8F0", borderRadius: "10px", overflow: "hidden", marginBottom: "18px" };
+const progressFill = (pct) => ({
+  height: "100%",
+  background: pct >= 75 ? "linear-gradient(90deg, #10B981, #059669)" : pct >= 50 ? "linear-gradient(90deg, #F59E0B, #D97706)" : "linear-gradient(90deg, #EF4444, #DC2626)",
+  borderRadius: "10px",
+  transition: "width 0.3s ease, background 0.3s ease"
+});
 
 const questionCard = { background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "16px", padding: "22px", boxShadow: "0 4px 16px rgba(15,23,42,0.02)" };
 const questionIcon = { width: "36px", height: "36px", borderRadius: "10px", background: "#EEF2FF", color: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", marginBottom: "12px" };
@@ -640,13 +678,19 @@ const boldQuestionText = { margin: 0, color: "#0F172A", fontSize: "16px", lineHe
 const chooseText = { margin: "8px 0 16px", color: "#64748B", fontSize: "11px", fontWeight: "500" };
 
 const tabularOptionsGrid = { display: "flex", flexDirection: "column", border: "1px solid #CBD5E1", borderRadius: "10px", overflow: "hidden", background: "#FFFFFF" };
-const tableRowOptionBtn = (active) => ({
+const tableRowOptionBtn = (active, index) => ({
   width: "100%", padding: "12px 14px", boxSizing: "border-box", display: "flex", alignItems: "center", gap: "10px", textAlign: "left",
-  border: "none", borderBottom: "1px solid #E2E8F0", background: active ? "#EEF2FF" : "#FFFFFF", color: active ? "#312E81" : "#1E293B",
+  border: "none", borderBottom: "1px solid #E2E8F0",
+  background: active ? (index === 0 ? "#99de45" : index === 1 ? "#44ff00" : index === 2 ? "#a5934e" : "#f84646") : "#FFFFFF",
+  color: active ? (index === 0 ? "#065F46" : index === 1 ? "#192f79" : index === 2 ? "#92400E" : "#991B1B") : "#1E293B",
   cursor: "pointer", transition: "all .15s ease"
 });
 
-const optCircle = (active) => ({ width: "24px", height: "24px", minWidth: "24px", borderRadius: "6px", background: active ? "#4F46E5" : "#F1F5F9", color: active ? "#FFFFFF" : "#64748B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800" });
+const optCircle = (active, index) => ({
+  width: "24px", height: "24px", minWidth: "24px", borderRadius: "6px",
+  background: active ? (index === 0 ? "#10B981" : index === 1 ? "#3B82F6" : index === 2 ? "#F59E0B" : "#EF4444") : "#F1F5F9",
+  color: active ? "#FFFFFF" : "#64748B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800"
+});
 
 const finalBox = { background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "16px", padding: "22px" };
 const finalHeader = { display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px" };
@@ -663,20 +707,20 @@ const starsContainer = { display: "flex", justifyContent: "center", gap: "6px" }
 const starButton = { border: "none", background: "transparent", padding: "2px", cursor: "pointer", fontSize: "24px" };
 
 const compactPrimaryBtn = { width: "100%", height: "38px", borderRadius: "8px", background: "#4F46E5", color: "#FFFFFF", border: "none", fontWeight: "800", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", cursor: "pointer" };
-const successCard = { textAlign: "center", background: "#FFFFFF", borderRadius: "16px", padding: "28px", border: "1px solid #E2E8F0" };
-const successIcon = { width: "48px", height: "48px", borderRadius: "50%", background: "#ECFDF5", color: "#10B981", fontSize: "24px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" };
-const successTitle = { margin: 0, fontSize: "18px", fontWeight: "800", color: "#0F172A" };
-const successText = { margin: "6px 0 20px", color: "#64748B", fontSize: "12px", lineHeight: "1.4" };
-const bottomNav = { position: "fixed", bottom: 0, left: 0, width: "100%", boxSizing: "border-box", padding: "10px 24px", background: "rgba(255,255,255,0.96)", backdropFilter: "blur(12px)", borderTop: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", zIndex: 20 };
-const navBtn = { border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#475569", height: "34px", padding: "0 14px", borderRadius: "6px", display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", fontWeight: "700", cursor: "pointer" };
-const dotsContainer = { display: "flex", alignItems: "center", gap: "4px" };
-const dotStyle = (filled, current) => ({
-  width: current ? "16px" : "5px",
-  height: "5px",
-  borderRadius: "8px",
-  background: current ? "#4F46E5" : filled ? "#A5B4FC" : "#CBD5E1",
-  transition: "all .2s ease"
+const successCard = { textAlign: "center", background: "#FFFFFF", padding: "30px 20px", borderRadius: "16px", border: "1.5px solid #E2E8F0" };
+const successIcon = { width: "56px", height: "56px", borderRadius: "50%", background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", margin: "0 auto 16px" };
+const successTitle = { margin: "0 0 8px", fontSize: "20px", fontWeight: "800", color: "#0F172A" };
+const successText = { margin: "0 0 20px", fontSize: "13px", color: "#64748B", lineHeight: "1.5" };
+
+const bottomNav = { position: "fixed", bottom: 0, left: 0, width: "100%", background: "#FFFFFF", borderTop: "1px solid #E2E8F0", padding: "12px 24px", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 10 };
+const navBtn = { background: "#F1F5F9", color: "#475569", border: "1px solid #CBD5E1", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" };
+const dotsContainer = { display: "flex", gap: "6px" };
+const dotStyle = (answered, active) => ({
+  width: "8px", height: "8px", borderRadius: "50%",
+  background: active ? "#3b36a3" : answered ? "#10B981" : "#CBD5E1",
+  transition: "all 0.2s"
 });
-const loadingPage = { minHeight: "100vh", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center" };
-const loadingCard = { textAlign: "center", background: "#FFFFFF", padding: "28px", borderRadius: "14px", border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" };
-const loadingSpinner = { border: "2.5px solid #F3F3F3", borderTop: "2.5px solid #4F46E5", borderRadius: "50%", width: "24px", height: "24px", animation: "spin 1s linear infinite", margin: "0 auto" };
+
+const loadingPage = { minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC" };
+const loadingCard = { background: "#FFFFFF", padding: "30px 40px", borderRadius: "16px", border: "1px solid #E2E8F0", textAlign: "center", boxShadow: "0 4px 16px rgba(15,23,42,0.03)" };
+const loadingSpinner = { width: "36px", height: "36px", border: "3px solid #E2E8F0", borderTopColor: "#4F46E5", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" };

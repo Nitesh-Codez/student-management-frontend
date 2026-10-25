@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../services/api";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   FaStar, FaRegStar, FaSearch, FaMicrophone, 
-  FaChartLine, FaAward, FaUserTie, FaBook, FaCalendarAlt, FaGraduationCap
+  FaChartLine, FaAward, FaUserTie, FaBook, FaCalendarAlt, FaGraduationCap, FaChartPie
 } from "react-icons/fa";
 
 const API_URL = "https://student-management-system-4-hose.onrender.com/api/feedback/admin/all";
@@ -17,11 +17,27 @@ const monthNames = [
 
 const getMonthLabel = (m, y) => `${monthNames[Number(m) - 1]} ${y}`;
 
+const parsePercentage = (val) => {
+  const num = Number(val);
+  if (isNaN(num)) return 0;
+  return Math.min(Math.max(num, 0), 100);
+};
+
+const getRemarks = (percentage) => {
+  if (percentage >= 95) return { text: "Excellence Teaching Skills", color: "#16a34a", bg: "#dcfce7" };
+  if (percentage >= 80) return { text: "Highly Interactive", color: "#22c55e", bg: "#f0fdf4" };
+  if (percentage >= 60) return { text: "Satisfactory Performance", color: "#2563eb", bg: "#eff6ff" };
+  if (percentage >= 40) return { text: "Needs Improvement", color: "#d97706", bg: "#fef3c7" };
+  return { text: "Critical Support Required", color: "#dc2626", bg: "#fee2e2" };
+};
+
 const AdminFeedback = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialSplash, setInitialSplash] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [viewMode, setViewMode] = useState("table"); // "table" or "analytics"
 
   // Filter States
   const [selectedMonthYear, setSelectedMonthYear] = useState("");
@@ -37,9 +53,7 @@ const AdminFeedback = () => {
       const data = res.data.feedbacks || [];
       setFeedbacks(data);
 
-      // Set default month-year to the most recent record available
       if (data.length > 0) {
-        // Sort descending by year and month
         const sorted = [...data].sort((a, b) => {
           if (b.year !== a.year) return b.year - a.year;
           return b.month - a.month;
@@ -54,6 +68,8 @@ const AdminFeedback = () => {
       console.error("Database Synchronization Failed", err);
     } finally {
       setLoading(false);
+      // Brief timer for splash entrance effect
+      setTimeout(() => setInitialSplash(false), 1400);
     }
   }, []);
 
@@ -74,22 +90,6 @@ const AdminFeedback = () => {
     recognition.onresult = (e) =>
       setSearchTerm(e.results[0][0].transcript);
     recognition.start();
-  };
-
-  /* ================= ANALYSIS LOGIC ================= */
-
-  const calcSentiment = (mcq) => {
-    if (!mcq || mcq.length === 0) return { pos: 0 };
-    const posCount = mcq.filter((i) => i.answer <= 2).length;
-    return { pos: Math.round((posCount / mcq.length) * 100) };
-  };
-
-  const getRemarks = (pos) => {
-    if (pos >= 95) return { text: "Excellence Teaching Skills", color: "#6d28d9", bg: "#f3e8ff" };
-    if (pos >= 80) return { text: "Highly Interactive", color: "#7c3aed", bg: "#ede9fe" };
-    if (pos >= 60) return { text: "Satisfactory Performance", color: "#2563eb", bg: "#eff6ff" };
-    if (pos >= 40) return { text: "Needs Improvement", color: "#d97706", bg: "#fef3c7" };
-    return { text: "Critical Support Required", color: "#dc2626", bg: "#fee2e2" };
   };
 
   /* UNIQUE AVAILABLE MONTHS */
@@ -137,8 +137,11 @@ const AdminFeedback = () => {
     : "0.0";
   
   const avgSentiment = totalSubmissions > 0
-    ? Math.round(filteredFeedbacks.reduce((sum, f) => sum + calcSentiment(f.mcq_answers).pos, 0) / totalSubmissions)
+    ? Math.round(filteredFeedbacks.reduce((sum, f) => sum + parsePercentage(f.percentage), 0) / totalSubmissions)
     : 0;
+
+  // Determine dynamic overall color (Green vs Red spectrum)
+  const overallColor = avgSentiment >= 75 ? "#16a34a" : avgSentiment >= 50 ? "#2563eb" : "#dc2626";
 
   /* ================= RENDER TABLE ================= */
 
@@ -158,10 +161,10 @@ const AdminFeedback = () => {
         </thead>
         <tbody>
           {items.map((f, idx) => {
-            const { pos } = calcSentiment(f.mcq_answers);
-            const remark = getRemarks(pos);
+            const percentage = parsePercentage(f.percentage);
+            const remark = getRemarks(percentage);
             const isCritical = f.rating <= 2;
-            const studentName = f.name || "Student";
+            const studentName = f.student_name || f.name || "Student";
             const subjectName = f.subject || f.subject_name || "N/A";
             const teacherName = f.teacher_name || "Assigned Faculty";
 
@@ -191,7 +194,7 @@ const AdminFeedback = () => {
                       <FaUserTie style={{ marginRight: "4px", color: "#6d28d9" }} /> {teacherName}
                     </span>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>
-                      ID: {f.teacher_id} • Subject: {subjectName}
+                      ID: {f.teacher_id} | Subject: {subjectName}
                     </span>
                   </div>
                 </td>
@@ -218,12 +221,12 @@ const AdminFeedback = () => {
                       <div
                         style={{
                           ...barFill,
-                          width: `${pos}%`,
-                          background: "linear-gradient(90deg,#a78bfa,#6d28d9)",
+                          width: `${percentage}%`,
+                          background: percentage >= 75 ? "#16a34a" : percentage >= 50 ? "#2563eb" : "#dc2626",
                         }}
                       />
                     </div>
-                    <span style={sentimentLabel}>{pos}% Effectiveness</span>
+                    <span style={sentimentLabel}>{percentage}% Effectiveness</span>
                   </div>
                 </td>
 
@@ -251,6 +254,32 @@ const AdminFeedback = () => {
 
   return (
     <div style={appContainer}>
+      {/* INITIAL SPLASH WELCOME ANIMATION OVERLAY */}
+      <AnimatePresence>
+        {initialSplash && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            style={splashOverlay}
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.6, type: "spring" }}
+              style={splashCircle}
+            >
+              <div style={splashInnerContent}>
+                <FaChartLine size={32} color="#6d28d9" />
+                <span style={splashSmallText}>Your Overall Feedback</span>
+                <h2 style={splashBigNumber}>{avgSentiment}%</h2>
+                <p style={splashSubText}>Live Analytics Initializing...</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* HEADER */}
       <header style={headerSection}>
         <div style={brandGroup}>
@@ -262,6 +291,13 @@ const AdminFeedback = () => {
             <p style={subTitle}>Class-wise & Subject-wise Performance Analysis</p>
           </div>
         </div>
+        <button
+          onClick={() => setViewMode(viewMode === "table" ? "analytics" : "table")}
+          style={analyticsToggleButton}
+        >
+          <FaChartPie style={{ marginRight: "6px" }} />
+          {viewMode === "table" ? "Analysis of Your Feedback" : "View Detailed Table"}
+        </button>
       </header>
 
       {/* COMMAND BAR & MONTH/CLASS SELECTORS */}
@@ -331,8 +367,19 @@ const AdminFeedback = () => {
         </div>
       </div>
 
-      {/* SUMMARY METRICS CARDS */}
+      {/* SUMMARY METRICS CARDS WITH LIVE BIG CIRCLE */}
       <div style={metricsGrid}>
+        <div style={metricCard}>
+          {/* Live Big Circle Indicator */}
+          <div style={{ ...liveCircleOuter, borderColor: overallColor }}>
+            <span style={{ ...liveCircleText, color: overallColor }}>{avgSentiment}%</span>
+          </div>
+          <div>
+            <span style={metricLabel}>Overall Feedback Score</span>
+            <h3 style={metricValue}>Live Computed</h3>
+          </div>
+        </div>
+
         <div style={metricCard}>
           <div style={{ ...metricIcon, background: "#ede9fe", color: "#6d28d9" }}>
             <FaChartLine />
@@ -352,25 +399,59 @@ const AdminFeedback = () => {
             <h3 style={metricValue}>{avgRating} / 5.0</h3>
           </div>
         </div>
-
-        <div style={metricCard}>
-          <div style={{ ...metricIcon, background: "#dcfce7", color: "#16a34a" }}>
-            <FaAward />
-          </div>
-          <div>
-            <span style={metricLabel}>Teaching Skill Effectiveness</span>
-            <h3 style={metricValue}>{avgSentiment}%</h3>
-          </div>
-        </div>
       </div>
 
-      {/* STRUCTURED CLASS & SUBJECT WISE CONTENT */}
+      {/* STRUCTURED CONTENT AREA */}
       <main style={{ padding: "24px 32px 60px" }}>
         {loading ? (
           <div style={loaderStyle}>Loading and analyzing feedback records...</div>
         ) : Object.keys(groupedData).length === 0 ? (
           <div style={emptyState}>No feedback records found for {selectedMonthYear ? getMonthLabel(...selectedMonthYear.split("-")) : "this period"}.</div>
+        ) : viewMode === "analytics" ? (
+          /* ================= ANALYSIS VIEW (SUBJECT & FACULTY LIST) ================= */
+          <div style={analyticsViewContainer}>
+            <h2 style={{ fontSize: "18px", fontWeight: "800", color: "#0f172a", marginBottom: "16px" }}>
+              Assigned Subjects & Faculty Live Effectiveness Breakdown
+            </h2>
+            <div style={analyticsGridList}>
+              {Object.entries(groupedData).map(([className, subjects]) =>
+                Object.entries(subjects).map(([subjectName, items]) => {
+                  const subAvgScore = Math.round(
+                    items.reduce((acc, cur) => acc + parsePercentage(cur.percentage), 0) / items.length
+                  );
+                  const facultyName = items[0]?.teacher_name || "Assigned Faculty";
+                  const scoreColor = subAvgScore >= 75 ? "#16a34a" : subAvgScore >= 50 ? "#2563eb" : "#dc2626";
+
+                  return (
+                    <div key={`${className}-${subjectName}`} style={analyticsCardItem}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div>
+                          <span style={analyticsClassBadge}>Class {className}</span>
+                          <h4 style={analyticsSubjectTitle}>{subjectName}</h4>
+                          <p style={analyticsTeacherText}>
+                            <FaUserTie style={{ marginRight: "4px", color: "#6d28d9" }} /> {facultyName}
+                          </p>
+                        </div>
+                        <div style={{ ...analyticsScoreBadge, background: scoreColor }}>
+                          {subAvgScore}%
+                        </div>
+                      </div>
+                      <div style={{ marginTop: "14px" }}>
+                        <div style={barTrack}>
+                          <div style={{ ...barFill, width: `${subAvgScore}%`, background: scoreColor }} />
+                        </div>
+                        <span style={{ fontSize: "11px", color: "#64748b", marginTop: "4px", display: "block" }}>
+                          Based on {items.length} student submission{items.length > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         ) : (
+          /* ================= TABLE VIEW ================= */
           Object.entries(groupedData).map(([className, subjects]) => (
             <div key={className} style={classSectionContainer}>
               <div style={classHeaderBanner}>
@@ -401,11 +482,20 @@ const AdminFeedback = () => {
 /* ================= STYLES ================= */
 
 const appContainer = { background: "#f8fafc", minHeight: "100vh", width: "100%", fontFamily: "'Inter', system-ui, sans-serif" };
-const headerSection = { padding: "24px 32px", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" };
+const headerSection = { padding: "24px 32px", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" };
 const brandGroup = { display: "flex", gap: "14px", alignItems: "center" };
 const logoBox = { width: 42, height: 42, borderRadius: "10px", background: "#6d28d9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", color: "#fff" };
 const mainTitle = { fontSize: 18, fontWeight: 800, margin: 0 };
 const subTitle = { fontSize: 12, opacity: 0.7, margin: "2px 0 0" };
+
+const analyticsToggleButton = { background: "#6d28d9", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer", display: "flex", alignItems: "center", transition: "background 0.2s" };
+
+const splashOverlay = { position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(15, 23, 42, 0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(6px)" };
+const splashCircle = { width: 220, height: 220, borderRadius: "50%", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.3)" };
+const splashInnerContent = { textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" };
+const splashSmallText = { fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" };
+const splashBigNumber = { fontSize: "36px", fontWeight: "900", color: "#0f172a", margin: 0 };
+const splashSubText = { fontSize: "10px", color: "#94a3b8", fontWeight: "600" };
 
 const commandBarContainer = { padding: "16px 32px", display: "flex", gap: "12px", flexWrap: "wrap", background: "#ffffff", borderBottom: "1px solid #e2e8f0", alignItems: "center" };
 const selectWrapper = { display: "flex", alignItems: "center", gap: "8px", background: "#f1f5f9", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1" };
@@ -416,11 +506,15 @@ const searchIcon = { position: "absolute", top: 13, left: 14, color: "#94a3b8" }
 const searchField = { width: "100%", padding: "11px 40px 11px 38px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px", boxSizing: "border-box", background: "#fff" };
 const micBtn = { position: "absolute", right: 10, top: 9, background: "none", border: "none", cursor: "pointer", fontSize: "16px" };
 
-const metricsGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px", padding: "20px 32px 0" };
+const metricsGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px", padding: "20px 32px 0" };
 const metricCard = { background: "#fff", padding: "18px 20px", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: "16px", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" };
-const metricIcon = { width: 44, height: 44, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 };
+const metricIcon = { width: 50, height: 50, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 };
+
+const liveCircleOuter = { width: 50, height: 50, borderRadius: "50%", border: "4px solid", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "#f8fafc" };
+const liveCircleText = { fontSize: "12px", fontWeight: "800" };
+
 const metricLabel = { display: "block", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" };
-const metricValue = { margin: "2px 0 0", fontSize: "20px", fontWeight: "800", color: "#0f172a" };
+const metricValue = { margin: "2px 0 0", fontSize: "18px", fontWeight: "800", color: "#0f172a" };
 
 const classSectionContainer = { marginBottom: "32px", background: "#fff", borderRadius: "16px", border: "1px solid #cbd5e1", overflow: "hidden", boxShadow: "0 4px 12px rgba(15,23,42,0.03)" };
 const classHeaderBanner = { background: "#1e293b", color: "#fff", padding: "14px 20px", display: "flex", alignItems: "center", gap: "10px" };
@@ -446,10 +540,18 @@ const ratingNum = { fontWeight: "700", marginLeft: "6px", fontSize: "12px", colo
 
 const sentimentWrapper = { width: "130px" };
 const barTrack = { height: "6px", background: "#e2e8f0", borderRadius: "4px", overflow: "hidden", marginBottom: "4px" };
-const barFill = { height: "100%", borderRadius: "4px" };
+const barFill = { height: "100%", borderRadius: "4px", transition: "width 0.6s ease" };
 const sentimentLabel = { fontSize: "10px", fontWeight: "700", color: "#475569" };
 
 const remarkBadge = { padding: "5px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap" };
+
+const analyticsViewContainer = { background: "#fff", padding: "24px", borderRadius: "16px", border: "1px solid #cbd5e1" };
+const analyticsGridList = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" };
+const analyticsCardItem = { background: "#f8fafc", border: "1px solid #e2e8f0", padding: "18px", borderRadius: "12px", boxShadow: "0 2px 4px rgba(0,0,0,0.01)" };
+const analyticsClassBadge = { fontSize: "10px", fontWeight: "800", background: "#ede9fe", color: "#6d28d9", padding: "2px 8px", borderRadius: "6px", textTransform: "uppercase" };
+const analyticsSubjectTitle = { margin: "8px 0 4px", fontSize: "15px", fontWeight: "800", color: "#0f172a" };
+const analyticsTeacherText = { fontSize: "12px", color: "#64748b", margin: 0, fontWeight: "600" };
+const analyticsScoreBadge = { color: "#fff", padding: "6px 10px", borderRadius: "8px", fontWeight: "800", fontSize: "13px" };
 
 const loaderStyle = { textAlign: "center", padding: "60px", color: "#64748b", fontWeight: "600", fontSize: "14px" };
 const emptyState = { padding: "50px", textAlign: "center", color: "#64748b", fontStyle: "italic", fontSize: "14px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" };
