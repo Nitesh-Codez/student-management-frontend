@@ -368,7 +368,7 @@ export default function StudentFeedback({ studentId: propStudentId }) {
                         <div style={{ marginTop: "6px" }}>
                           {item.isCompleted ? (
                             <div style={doneBadge}>
-                              <FaCheckCircle style={{ fontSize: "12px" }} />
+                              <FaCheckCircle style={{ fontSize: "15px" }} />
                               <span>Done Feedback</span>
                             </div>
                           ) : (
@@ -643,7 +643,7 @@ const teacherNameText = { margin: 0, fontSize: "15px", fontWeight: "700", color:
 const facultySubText = { display: "block", marginTop: "2px", fontSize: "11px", color: "#64748B", fontWeight: "500" };
 
 const submitFeedbackBtn = { display: "inline-flex", alignItems: "center", gap: "6px", background: "#4F46E5", color: "#FFFFFF", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "700", cursor: "pointer" };
-const doneBadge = { display: "inline-flex", alignItems: "center", gap: "5px", background: "#ECFDF5", color: "#047857", border: "1px solid #A7F3D0", padding: "5px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "700" };
+const doneBadge = { display: "inline-flex", alignItems: "center", gap: "5px", background: "#8cf2c2", color: "#047857", border: "1px solid #A7F3D0", padding: "5px 12px", borderRadius: "6px", fontSize: "15px", fontWeight: "800" };
 
 const backToListBtn = { display: "inline-flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#4F46E5", fontSize: "12px", fontWeight: "700", cursor: "pointer", marginBottom: "14px" };
 const activeSubjectHeader = { background: "#FFFFFF", padding: "12px 16px", borderRadius: "10px", border: "1px solid #E2E8F0", marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px" };
