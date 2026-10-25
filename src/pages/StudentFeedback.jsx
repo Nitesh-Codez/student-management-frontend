@@ -88,6 +88,11 @@ export default function StudentFeedback({ studentId: propStudentId }) {
     localStorage.getItem("session") ||
     "2026-2027";
 
+  const studentStream =
+    localUser?.stream ||
+    localStorage.getItem("stream") ||
+    "";
+
   /* STATES */
   const [subjectsList, setSubjectsList] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(null);
@@ -142,7 +147,24 @@ export default function StudentFeedback({ studentId: propStudentId }) {
           ) || []
         );
 
-        const rawTeachers = listRes.data?.teachers || listRes.data || [];
+        let rawTeachers = listRes.data?.teachers || listRes.data || [];
+
+        /* STREAM FILTERING FOR 12TH CLASS (English is for everyone) */
+        const is12th = String(studentClass).toLowerCase().includes("12");
+        if (is12th && studentStream) {
+          const streamSubjects = studentStream
+            .split(",")
+            .map((s) => s.trim().toLowerCase());
+
+          rawTeachers = rawTeachers.filter((item) => {
+            const subjName = (item.subjectName || item.subject_name || item.subject || "").toLowerCase();
+            const isEnglish = subjName.includes("english");
+            const matchesStream = streamSubjects.some(
+              (s) => subjName.includes(s) || s.includes(subjName)
+            );
+            return isEnglish || matchesStream;
+          });
+        }
 
         const mappedTeachers = rawTeachers.map((item, idx) => {
           const teacherId = item.teacherId ?? item.teacher_id ?? item.id;
@@ -172,7 +194,7 @@ export default function StudentFeedback({ studentId: propStudentId }) {
     if (studentClass && studentId) {
       fetchData();
     }
-  }, [studentClass, studentId]);
+  }, [studentClass, studentId, studentStream]);
 
   /* START FORM */
   const handleStartFeedback = (subjectItem) => {
@@ -642,7 +664,7 @@ const subjectTag = { display: "inline-block", background: "#FEF3C7", color: "#B4
 const teacherNameText = { margin: 0, fontSize: "15px", fontWeight: "700", color: "#1E293B" };
 const facultySubText = { display: "block", marginTop: "2px", fontSize: "11px", color: "#64748B", fontWeight: "500" };
 
-const submitFeedbackBtn = { display: "inline-flex", alignItems: "center", gap: "6px", background: "#4F46E5", color: "#FFFFFF", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "700", cursor: "pointer" };
+const submitFeedbackBtn = { display: "inline-flex", alignItems: "center", gap: "6px", background: "#3a34a7", color: "#FFFFFF", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "15px", fontWeight: "700", cursor: "pointer" };
 const doneBadge = { display: "inline-flex", alignItems: "center", gap: "5px", background: "#8cf2c2", color: "#047857", border: "1px solid #A7F3D0", padding: "5px 12px", borderRadius: "6px", fontSize: "15px", fontWeight: "800" };
 
 const backToListBtn = { display: "inline-flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#4F46E5", fontSize: "12px", fontWeight: "700", cursor: "pointer", marginBottom: "14px" };
@@ -681,7 +703,7 @@ const tabularOptionsGrid = { display: "flex", flexDirection: "column", border: "
 const tableRowOptionBtn = (active, index) => ({
   width: "100%", padding: "12px 14px", boxSizing: "border-box", display: "flex", alignItems: "center", gap: "10px", textAlign: "left",
   border: "none", borderBottom: "1px solid #E2E8F0",
-  background: active ? (index === 0 ? "#99de45" : index === 1 ? "#44ff00" : index === 2 ? "#a5934e" : "#f84646") : "#FFFFFF",
+  background: active ? (index === 0 ? "#a3d368b5" : index === 1 ? "#44ff00" : index === 2 ? "#a5934e" : "#f84646") : "#FFFFFF",
   color: active ? (index === 0 ? "#065F46" : index === 1 ? "#192f79" : index === 2 ? "#92400E" : "#991B1B") : "#1E293B",
   cursor: "pointer", transition: "all .15s ease"
 });
@@ -699,28 +721,27 @@ const finalTitle = { margin: 0, fontSize: "18px", fontWeight: "800", color: "#0F
 const finalSubTitle = { margin: "2px 0 0", color: "#64748B", fontSize: "11px" };
 const fieldGroup = { marginBottom: "14px" };
 const labelStyle = { display: "block", marginBottom: "5px", color: "#475569", fontSize: "10px", fontWeight: "800", letterSpacing: "0.5px" };
-const inputStyle = { width: "100%", minHeight: "70px", boxSizing: "border-box", padding: "10px", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#F8FAFC", color: "#0F172A", outline: "none", resize: "vertical", fontSize: "12px", fontFamily: "inherit" };
-const ratingSection = { marginTop: "10px", marginBottom: "18px", padding: "14px", textAlign: "center", borderRadius: "10px", background: "#F8FAFC", border: "1px solid #E2E8F0" };
-const ratingTitle = { margin: 0, color: "#0F172A", fontSize: "13px", fontWeight: "800" };
-const ratingSub = { margin: "3px 0 8px", color: "#94A3B8", fontSize: "10px" };
-const starsContainer = { display: "flex", justifyContent: "center", gap: "6px" };
-const starButton = { border: "none", background: "transparent", padding: "2px", cursor: "pointer", fontSize: "24px" };
-
-const compactPrimaryBtn = { width: "100%", height: "38px", borderRadius: "8px", background: "#4F46E5", color: "#FFFFFF", border: "none", fontWeight: "800", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", cursor: "pointer" };
-const successCard = { textAlign: "center", background: "#FFFFFF", padding: "30px 20px", borderRadius: "16px", border: "1.5px solid #E2E8F0" };
-const successIcon = { width: "56px", height: "56px", borderRadius: "50%", background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", margin: "0 auto 16px" };
+const inputStyle = { width: "100%", padding: "10px 12px", boxSizing: "border-box", border: "1px solid #CBD5E1", borderRadius: "8px", fontSize: "13px", outline: "none", fontFamily: "inherit" };
+const ratingSection = { margin: "20px 0" };
+const ratingTitle = { margin: 0, fontSize: "14px", fontWeight: "700", color: "#0F172A" };
+const ratingSub = { margin: "2px 0 10px", fontSize: "11px", color: "#64748B" };
+const starsContainer = { display: "flex", gap: "8px" };
+const starButton = { background: "none", border: "none", cursor: "pointer", fontSize: "24px", padding: 0 };
+const compactPrimaryBtn = { width: "100%", padding: "12px", background: "#4F46E5", color: "#FFFFFF", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" };
+const successCard = { textAlign: "center", padding: "30px 20px", background: "#FFFFFF", borderRadius: "16px", border: "1px solid #E2E8F0" };
+const successIcon = { fontSize: "40px", color: "#10B981", marginBottom: "12px" };
 const successTitle = { margin: "0 0 8px", fontSize: "20px", fontWeight: "800", color: "#0F172A" };
 const successText = { margin: "0 0 20px", fontSize: "13px", color: "#64748B", lineHeight: "1.5" };
-
-const bottomNav = { position: "fixed", bottom: 0, left: 0, width: "100%", background: "#FFFFFF", borderTop: "1px solid #E2E8F0", padding: "12px 24px", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 10 };
-const navBtn = { background: "#F1F5F9", color: "#475569", border: "1px solid #CBD5E1", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" };
+const loadingPage = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC" };
+const loadingCard = { background: "#FFFFFF", padding: "30px", borderRadius: "16px", border: "1px solid #E2E8F0", textAlign: "center", boxShadow: "0 4px 16px rgba(15,23,42,0.02)" };
+const loadingSpinner = { width: "32px", height: "32px", border: "3px solid #E2E8F0", borderTopColor: "#4F46E5", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" };
+const bottomNav = { position: "fixed", bottom: 0, left: 0, right: 0, background: "#FFFFFF", borderTop: "1px solid #E2E8F0", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", boxSizing: "border-box", zIndex: 10 };
+const navBtn = { display: "inline-flex", alignItems: "center", gap: "6px", background: "#F1F5F9", color: "#0F172A", border: "none", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
 const dotsContainer = { display: "flex", gap: "6px" };
-const dotStyle = (answered, active) => ({
-  width: "8px", height: "8px", borderRadius: "50%",
-  background: active ? "#3b36a3" : answered ? "#10B981" : "#CBD5E1",
-  transition: "all 0.2s"
+const dotStyle = (answered, current) => ({
+  width: current ? "20px" : "8px",
+  height: "8px",
+  borderRadius: "4px",
+  background: current ? "#4F46E5" : answered ? "#10B981" : "#CBD5E1",
+  transition: "all 0.2s ease"
 });
-
-const loadingPage = { minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC" };
-const loadingCard = { background: "#FFFFFF", padding: "30px 40px", borderRadius: "16px", border: "1px solid #E2E8F0", textAlign: "center", boxShadow: "0 4px 16px rgba(15,23,42,0.03)" };
-const loadingSpinner = { width: "36px", height: "36px", border: "3px solid #E2E8F0", borderTopColor: "#4F46E5", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" };
