@@ -48,6 +48,7 @@ const MarkAttendance = () => {
   const [error, setError] = useState(""); 
   const [successMessage, setSuccessMessage] = useState(""); 
   const [isEditing, setIsEditing] = useState(false);
+  const [showEditAttendance, setShowEditAttendance] = useState(false);
   const [attendanceIds, setAttendanceIds] = useState({});
 
   const normalizeBatch = (batch) => {
@@ -241,6 +242,7 @@ const initialAttendanceIds = {};
 
   useEffect(() => { 
     setSuccessMessage(""); 
+    setShowEditAttendance(false);
     fetchData(false); 
   }, [selectedDate, fetchData]); 
 
@@ -520,7 +522,14 @@ setSubmitting(false);
     const absent = filteredStudents.filter(s => attendanceData[s.studentId] === "Absent").length; 
     const holiday = filteredStudents.filter(s => attendanceData[s.studentId] === "Holiday").length; 
     return { total, present, absent, holiday }; 
-  }, [filteredStudents, attendanceData]); 
+  }, [filteredStudents, attendanceData]);
+
+  const formattedDate = new Date(`${selectedDate}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const absentStudents = filteredStudents.filter(s => attendanceData[s.studentId] === "Absent");
+  const copyAbsentList = () => navigator.clipboard.writeText(
+    `LIST OF ABSENTEES\\nDate: ${formattedDate}\\n\\n` +
+    (absentStudents.length ? absentStudents.map((s, i) => `${i + 1}. ${s.studentName} - Class ${s.class}`).join("\\n") : "No absentees")
+  ).then(() => alert("Absentees list copied!")).catch(() => alert("Unable to copy list."));
 
   return ( 
     <div style={pageStyle}> 
@@ -699,30 +708,40 @@ setSubmitting(false);
             </button> 
           </div> 
 
-          {/* Quick Timing Quick-Bar */}
-          <div style={timingQuickBarStyle}>
-            <span style={{ fontSize: "12px", fontWeight: "700", color: "#475569" }}>🕒 Current Batch Timings:</span>
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-              {Object.entries(batchTimings).map(([bName, tObj]) => (
-                <div key={bName} style={timingBadgeStyle}>
-                  <span><strong>{bName}:</strong> {tObj.start} - {tObj.end}</span>
-                  <button 
-                    type="button" 
-                    onClick={() => handleOpenTimingModal(bName)}
-                    style={editTimeBtnStyle}
-                    title="Change timing"
-                  >
-                    ✏️
-                  </button>
-                </div>
-              ))}
+          {isEditing && !showEditAttendance && (
+            <div style={{ marginTop: "18px", textAlign: "center" }}>
+              <button type="button" onClick={() => setShowEditAttendance(true)} style={submitButtonStyle}>✏️ Edit Attendance</button>
             </div>
-          </div>
+          )}
+
+          {(!isEditing || showEditAttendance) && (
+              <div style={timingQuickBarStyle}>
+                <span style={{ fontSize: "12px", fontWeight: "700", color: "#475569" }}>🕒 Current Batch Timings:</span>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+                  {Object.entries(batchTimings).map(([bName, tObj]) => (
+                    <div key={bName} style={timingBadgeStyle}>
+                      <span><strong>{bName}:</strong> {tObj.start} - {tObj.end}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => handleOpenTimingModal(bName)}
+                        style={editTimeBtnStyle}
+                        title="Change timing"
+                      >
+                        ✏️
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+          )}
         </div> 
 
         {error && <div style={errorStyle}>{error}</div>} 
         {successMessage && <div style={successStyle}>{successMessage}</div>}
+        
 
+        {(!isEditing || showEditAttendance) && (
+          <>
         {filteredStudents.length > 0 && ( 
           <div style={metricsGridStyle}> 
             <div style={{ ...metricCardStyle, borderLeft: "4px solid #4f46e5" }}> 
@@ -885,11 +904,26 @@ setSubmitting(false);
               </button> 
             </div> 
           )} 
-        </div> 
+        </div>
+          </>
+        )}
 
-      </div> 
-    </div> 
-  ); 
+        {(!isEditing || showEditAttendance) && <div style={{ ...cardStyle, marginTop: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <h3 style={tableTitleStyle}>List of Absentees — {formattedDate}</h3>
+            <button type="button" onClick={copyAbsentList} style={submitButtonStyle}>📋 Copy List</button>
+          </div>
+          <p style={{ color: "#64748b", fontSize: "13px" }}>Date: {formattedDate} | Total Absent: {absentStudents.length}</p>
+          {absentStudents.length ? absentStudents.map((s, i) => (
+            <div key={s.studentId} style={{ padding: "8px 0", borderBottom: "1px solid #e2e8f0" }}>
+              {i + 1}. <strong>{s.studentName}</strong> — Class {s.class}
+            </div>
+          )) : <div style={emptyStyle}>No absentees for this date.</div>}
+        </div>}
+
+      </div>
+    </div>
+  );
 }; 
 
 // Isko 100% aur full-width kar do
