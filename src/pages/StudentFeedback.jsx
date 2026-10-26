@@ -123,8 +123,18 @@ export default function StudentFeedback({ studentId: propStudentId }) {
       ];
 
       const date = new Date();
-      const monthIndex = date.getMonth();
-      const year = date.getFullYear();
+      let monthIndex = date.getMonth();
+      let year = date.getFullYear();
+      const day = date.getDate();
+
+      // OPEN NEXT MONTH'S FEEDBACK 2 DAYS BEFORE (28th onwards)
+      if (day >= 28) {
+        monthIndex += 1;
+        if (monthIndex > 11) {
+          monthIndex = 0;
+          year += 1;
+        }
+      }
 
       setTargetDate({
         monthName: months[monthIndex],
@@ -148,8 +158,7 @@ export default function StudentFeedback({ studentId: propStudentId }) {
         );
 
         let rawTeachers = listRes.data?.teachers || listRes.data || [];
-
-        /* STREAM FILTERING FOR 12TH CLASS (English is for everyone) */
+/* STREAM FILTERING FOR 12TH CLASS */
         const is12th = String(studentClass).toLowerCase().includes("12");
         if (is12th && studentStream) {
           const streamSubjects = studentStream
@@ -157,12 +166,18 @@ export default function StudentFeedback({ studentId: propStudentId }) {
             .map((s) => s.trim().toLowerCase());
 
           rawTeachers = rawTeachers.filter((item) => {
-            const subjName = (item.subjectName || item.subject_name || item.subject || "").toLowerCase();
-            const isEnglish = subjName.includes("english");
-            const matchesStream = streamSubjects.some(
-              (s) => subjName.includes(s) || s.includes(subjName)
-            );
-            return isEnglish || matchesStream;
+            const subjName = (item.subjectName || item.subject_name || item.subject || "").trim().toLowerCase();
+            
+            // 1. English Communication is compulsory for ALL 12th students
+            const isEnglishComm = subjName.includes("communication") || subjName === "english communication";
+
+            // 2. Other subjects match strictly with the student's registered stream
+            const matchesStream = streamSubjects.some((s) => {
+              // Exact match or contains stream term
+              return subjName === s || (s.length > 2 && subjName.includes(s));
+            });
+
+            return isEnglishComm || matchesStream;
           });
         }
 
@@ -325,7 +340,7 @@ export default function StudentFeedback({ studentId: propStudentId }) {
         </div>
 
         <div style={monthPill}>
-          <span style={monthLabel}>Cycle</span>
+          <span style={monthLabel}>Feedback Month</span>
           <strong style={monthValue}>
             {targetDate.monthName} {targetDate.year}
           </strong>
@@ -714,34 +729,32 @@ const optCircle = (active, index) => ({
   color: active ? "#FFFFFF" : "#64748B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800"
 });
 
-const finalBox = { background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "16px", padding: "22px" };
+const finalBox = { background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "16px", padding: "22px", boxShadow: "0 4px 16px rgba(15,23,42,0.02)" };
 const finalHeader = { display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px" };
-const finalIcon = { width: "38px", height: "38px", borderRadius: "10px", background: "#EEF2FF", color: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" };
-const finalTitle = { margin: 0, fontSize: "18px", fontWeight: "800", color: "#0F172A" };
-const finalSubTitle = { margin: "2px 0 0", color: "#64748B", fontSize: "11px" };
-const fieldGroup = { marginBottom: "14px" };
-const labelStyle = { display: "block", marginBottom: "5px", color: "#475569", fontSize: "10px", fontWeight: "800", letterSpacing: "0.5px" };
-const inputStyle = { width: "100%", padding: "10px 12px", boxSizing: "border-box", border: "1px solid #CBD5E1", borderRadius: "8px", fontSize: "13px", outline: "none", fontFamily: "inherit" };
-const ratingSection = { margin: "20px 0" };
-const ratingTitle = { margin: 0, fontSize: "14px", fontWeight: "700", color: "#0F172A" };
-const ratingSub = { margin: "2px 0 10px", fontSize: "11px", color: "#64748B" };
-const starsContainer = { display: "flex", gap: "8px" };
-const starButton = { background: "none", border: "none", cursor: "pointer", fontSize: "24px", padding: 0 };
-const compactPrimaryBtn = { width: "100%", padding: "12px", background: "#4F46E5", color: "#FFFFFF", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" };
-const successCard = { textAlign: "center", padding: "30px 20px", background: "#FFFFFF", borderRadius: "16px", border: "1px solid #E2E8F0" };
-const successIcon = { fontSize: "40px", color: "#10B981", marginBottom: "12px" };
-const successTitle = { margin: "0 0 8px", fontSize: "20px", fontWeight: "800", color: "#0F172A" };
+const finalIcon = { width: "42px", height: "42px", borderRadius: "10px", background: "#EEF2FF", color: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" };
+const finalTitle = { margin: 0, fontSize: "16px", fontWeight: "800", color: "#0F172A" };
+const finalSubTitle = { margin: "2px 0 0", fontSize: "12px", color: "#64748B" };
+const fieldGroup = { marginBottom: "16px" };
+const labelStyle = { display: "block", fontSize: "10px", fontWeight: "800", color: "#64748B", marginBottom: "6px", letterSpacing: "0.5px" };
+const inputStyle = { width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box", outline: "none", fontFamily: "inherit", resize: "vertical", minHeight: "80px" };
+const ratingSection = { background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "16px", textAlign: "center", marginBottom: "20px" };
+const ratingTitle = { margin: 0, fontSize: "14px", fontWeight: "800", color: "#1E293B" };
+const ratingSub = { margin: "4px 0 12px", fontSize: "11px", color: "#64748B" };
+const starsContainer = { display: "flex", justifyContent: "center", gap: "8px" };
+const starButton = { background: "none", border: "none", fontSize: "24px", cursor: "pointer", padding: "4px" };
+const compactPrimaryBtn = { width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: "#4F46E5", color: "#FFFFFF", border: "none", padding: "12px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 12px rgba(79, 70, 229, 0.2)" };
+const successCard = { background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "16px", padding: "32px 20px", textAlign: "center", boxShadow: "0 4px 16px rgba(15,23,42,0.02)" };
+const successIcon = { width: "56px", height: "56px", borderRadius: "50%", background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", margin: "0 auto 16px" };
+const successTitle = { margin: "0 0 8px", fontSize: "18px", fontWeight: "900", color: "#0F172A" };
 const successText = { margin: "0 0 20px", fontSize: "13px", color: "#64748B", lineHeight: "1.5" };
-const loadingPage = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC" };
-const loadingCard = { background: "#FFFFFF", padding: "30px", borderRadius: "16px", border: "1px solid #E2E8F0", textAlign: "center", boxShadow: "0 4px 16px rgba(15,23,42,0.02)" };
-const loadingSpinner = { width: "32px", height: "32px", border: "3px solid #E2E8F0", borderTopColor: "#4F46E5", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" };
-const bottomNav = { position: "fixed", bottom: 0, left: 0, right: 0, background: "#FFFFFF", borderTop: "1px solid #E2E8F0", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", boxSizing: "border-box", zIndex: 10 };
-const navBtn = { display: "inline-flex", alignItems: "center", gap: "6px", background: "#F1F5F9", color: "#0F172A", border: "none", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
+const bottomNav = { position: "fixed", bottom: 0, left: 0, right: 0, background: "#FFFFFF", borderTop: "1px solid #E2E8F0", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", boxSizing: "border-box", zIndex: 10 };
+const navBtn = { display: "inline-flex", alignItems: "center", gap: "6px", background: "#F1F5F9", color: "#1E293B", border: "none", padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", cursor: "pointer" };
 const dotsContainer = { display: "flex", gap: "6px" };
-const dotStyle = (answered, current) => ({
-  width: current ? "20px" : "8px",
-  height: "8px",
-  borderRadius: "4px",
-  background: current ? "#4F46E5" : answered ? "#10B981" : "#CBD5E1",
+const dotStyle = (answered, active) => ({
+  width: active ? "18px" : "8px", height: "8px", borderRadius: "4px",
+  background: active ? "#4F46E5" : answered ? "#10B981" : "#CBD5E1",
   transition: "all 0.2s ease"
 });
+const loadingPage = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC" };
+const loadingCard = { background: "#FFFFFF", padding: "28px", borderRadius: "16px", border: "1px solid #E2E8F0", textAlign: "center", boxShadow: "0 4px 16px rgba(15,23,42,0.03)" };
+const loadingSpinner = { width: "32px", height: "32px", border: "3px solid #E2E8F0", borderTopColor: "#4F46E5", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" };
