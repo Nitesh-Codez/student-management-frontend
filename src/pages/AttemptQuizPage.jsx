@@ -22,7 +22,8 @@ const AttemptQuizPage = () => {
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // States for Pre-Exam Instructions & Proctoring
+  // Step-by-Step Onboarding & Proctoring States
+  const [examStep, setExamStep] = useState(1); // Step 1: Camera Permission, Step 2: Are you ready?
   const [showInstructions, setShowInstructions] = useState(true);
   const [violations, setViolations] = useState(
     () => parseInt(localStorage.getItem(VIOLATION_KEY) || "0")
@@ -30,27 +31,31 @@ const AttemptQuizPage = () => {
   const [warningModal, setWarningModal] = useState(false);
   const [faceWarningModal, setFaceWarningModal] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
-  const [aiMessage, setAiMessage] = useState("AI Proctor Active");
+  const [aiMessage, setAiMessage] = useState("I am watching you!!!!");
   const videoRef = useRef(null);
 
   /* =========================================================
-     CAMERA PERMISSION & PROCTORING SETUP
+     STEP 1: CAMERA PERMISSION REQUEST
   ========================================================= */
-  const startCamera = async () => {
+  const requestCameraPermission = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: { facingMode: "user" },
         audio: false,
       });
       setCameraStream(stream);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-      setShowInstructions(false); // Close instructions modal once permission granted & start
+      setExamStep(2); // Move to Step 2: Are you ready?
     } catch (error) {
       console.error("Camera access denied:", error);
-      alert("Camera permission is mandatory to attempt this proctored examination!");
+      alert("Camera permission is mandatory in mobile Chrome to attempt this exam!");
     }
+  };
+
+  const startActualQuiz = () => {
+    setShowInstructions(false);
   };
 
   useEffect(() => {
@@ -67,7 +72,7 @@ const AttemptQuizPage = () => {
     }
   }, [cameraStream]);
 
-  // Periodic AI Proctor Status & Simulated Face-Direction Check
+  // Periodic AI Proctor Status & Simulated Face Check
   useEffect(() => {
     if (showInstructions || result) return;
 
@@ -82,11 +87,10 @@ const AttemptQuizPage = () => {
       const randomMsg = messages[Math.floor(Math.random() * messages.length)];
       setAiMessage(randomMsg);
 
-      // Trigger center face warning pop-up for realism (dismissible via cross)
-      if (Math.random() < 0.22) {
+      if (Math.random() < 0.2) {
         setFaceWarningModal(true);
       }
-    }, 9000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [showInstructions, result]);
@@ -175,12 +179,12 @@ const AttemptQuizPage = () => {
   }, [handleViolation]);
 
   /* =========================================================
-     GLOBAL STYLING (CLEAN WHITE THEME)
+     GLOBAL STYLING
   ========================================================= */
   useEffect(() => {
     const style = document.createElement("style");
     style.innerHTML = `
-      * { box-sizing: border-box; }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
       html, body, #root { margin: 0; padding: 0; width: 100%; min-height: 100%; background: #f8fafc; }
       body {
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -189,12 +193,12 @@ const AttemptQuizPage = () => {
       }
       button { font-family: inherit; }
       ::selection { background: #2563eb; color: #fff; }
-      .quiz-scroll::-webkit-scrollbar { height: 6px; width: 6px; }
+      .quiz-scroll::-webkit-scrollbar { height: 4px; width: 4px; }
       .quiz-scroll::-webkit-scrollbar-track { background: transparent; }
       .quiz-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
       @keyframes pulseGlow {
-        0%, 100% { box-shadow: 0 0 15px rgba(239,68,68,0.3); }
-        50% { box-shadow: 0 0 30px rgba(239,68,68,0.6); }
+        0%, 100% { box-shadow: 0 0 12px rgba(239,68,68,0.3); }
+        50% { box-shadow: 0 0 25px rgba(239,68,68,0.6); }
       }
       .ai-alert-badge { animation: pulseGlow 2s infinite; }
     `;
@@ -286,7 +290,7 @@ const AttemptQuizPage = () => {
     return (
       <div style={styles.loadingPage}>
         <div style={styles.loadingSpinner} />
-        <span style={{ color: "#64748b", fontWeight: "600", marginTop: "15px" }}>Loading Secure Examination Environment...</span>
+        <span style={{ color: "#64748b", fontWeight: "600", marginTop: "15px" }}>Loading Exam...</span>
       </div>
     );
   }
@@ -318,7 +322,7 @@ const AttemptQuizPage = () => {
   return (
     <div style={styles.examContainer}>
       {/* =====================================================
-          1. PRE-EXAM INSTRUCTIONS & CAMERA PERMISSION MODAL
+          STEP-BY-STEP ONBOARDING MODAL
       ==================================================== */}
       <AnimatePresence>
         {showInstructions && (
@@ -329,52 +333,50 @@ const AttemptQuizPage = () => {
               exit={{ scale: 0.85, opacity: 0, y: 20 }}
               style={styles.instructionCard}
             >
-              <div style={{ fontSize: "40px", marginBottom: "10px" }}>🛡️</div>
-              <h2 style={{ color: "#0f172a", fontSize: "22px", fontWeight: "800", margin: "0 0 8px" }}>
-                AI Proctored Exam Guidelines
-              </h2>
-              <p style={{ color: "#64748b", fontSize: "14px", margin: "0 0 20px" }}>
-                Please review the secure examination instructions before granting camera access.
-              </p>
-
-              <div style={styles.instructionList}>
-                <div style={styles.instructionItem}>
-                  <span style={styles.redBadge}>Strict</span>
-                  <span><strong>No Tab Switching:</strong> Leaving this window triggers a warning. The 2nd violation automatically terminates your test.</span>
-                </div>
-                <div style={styles.instructionItem}>
-                  <span style={styles.redBadge}>Mandatory</span>
-                  <span><strong>Webcam Proctoring:</strong> Camera permission is required. Keep your face straight towards the screen at all times.</span>
-                </div>
-                <div style={styles.instructionItem}>
-                  <span style={styles.blueBadge}>AI Assistant</span>
-                  <span><strong>Live Monitoring:</strong> An AI proctor assistant will actively monitor your session and issue posture alerts if necessary.</span>
-                </div>
-              </div>
-
-              <button
-                onClick={startCamera}
-                style={styles.startExamBtn}
-              >
-                Allow Camera & Start Exam 🚀
-              </button>
+              {examStep === 1 ? (
+                <>
+                  <div style={{ fontSize: "42px", marginBottom: "10px" }}>📸</div>
+                  <h2 style={{ color: "#0f172a", fontSize: "20px", fontWeight: "800", margin: "0 0 8px" }}>
+                    Step 1: Camera Permission Required
+                  </h2>
+                  <p style={{ color: "#64748b", fontSize: "13.5px", lineHeight: "1.5", margin: "0 0 20px" }}>
+                    This is an AI proctored test. Chrome mobile will prompt you to allow camera access. Please click allow to proceed.
+                  </p>
+                  <button onClick={requestCameraPermission} style={styles.startExamBtn}>
+                    Allow Camera & Continue 📷
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: "45px", marginBottom: "10px" }}>👨‍🏫</div>
+                  <h2 style={{ color: "#0f172a", fontSize: "20px", fontWeight: "800", margin: "0 0 8px" }}>
+                    Step 2: Are You Ready?
+                  </h2>
+                  <p style={{ color: "#64748b", fontSize: "13.5px", lineHeight: "1.5", margin: "0 0 20px" }}>
+                    Camera is active. No tab switching allowed. 2 violations will auto-submit your test. Keep your face straight!
+                  </p>
+                  <button onClick={startActualQuiz} style={styles.startExamBtn}>
+                    Yes, Start Test Now 🚀
+                  </button>
+                </>
+              )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
       {/* =====================================================
-          2. FIRST TAB-SWITCH WARNING MODAL
+          1ST TAB-SWITCH WARNING MODAL (BIG ANGRY EMOJI)
       ==================================================== */}
       {warningModal && (
         <div style={styles.modalOverlay}>
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={styles.modalCard}>
-            <div style={{ fontSize: "54px", marginBottom: "12px" }}>😠</div>
-            <h2 style={{ color: "#ef4444", fontSize: "22px", fontWeight: "800", margin: "0 0 12px" }}>
-              Don't cheat next time!
+            <div style={{ fontSize: "60px", marginBottom: "10px" }}>😠</div>
+            <h2 style={{ color: "#ef4444", fontSize: "22px", fontWeight: "800", margin: "0 0 10px" }}>
+              Are you cheating?
             </h2>
-            <p style={{ color: "#334155", fontSize: "15px", lineHeight: "1.6", margin: "0 0 24px", fontWeight: "500" }}>
-              Warning! Tab switching or leaving the secure test window is strictly prohibited. The next tab switch will automatically submit and terminate your test. Keep your face straight!
+            <p style={{ color: "#334155", fontSize: "14.5px", lineHeight: "1.5", margin: "0 0 22px", fontWeight: "500" }}>
+              Don't cheat next time! Tab switching or leaving the test window is strictly prohibited. Next violation will automatically submit and terminate your test!
             </p>
             <button onClick={() => setWarningModal(false)} style={styles.modalButton}>
               I Understand, Back to Test
@@ -384,7 +386,7 @@ const AttemptQuizPage = () => {
       )}
 
       {/* =====================================================
-          3. FACE-DIRECTION WARNING MODAL (CENTERED WITH CROSS)
+          FACE DIRECTION WARNING MODAL (CENTERED WITH CROSS)
       ==================================================== */}
       <AnimatePresence>
         {faceWarningModal && (
@@ -398,37 +400,37 @@ const AttemptQuizPage = () => {
               <button
                 onClick={() => setFaceWarningModal(false)}
                 style={styles.crossButton}
-                title="Close Warning"
+                title="Close"
               >
                 ✕
               </button>
-              <div style={{ fontSize: "48px", marginBottom: "10px" }}>⚠️</div>
-              <h3 style={{ color: "#b91c1c", fontSize: "20px", fontWeight: "800", margin: "0 0 8px" }}>
+              <div style={{ fontSize: "45px", marginBottom: "8px" }}>⚠️</div>
+              <h3 style={{ color: "#b91c1c", fontSize: "18px", fontWeight: "800", margin: "0 0 6px" }}>
                 Face Not Straight!
               </h3>
-              <p style={{ color: "#475569", fontSize: "14px", lineHeight: "1.5", margin: "0" }}>
-                Our AI proctor detected that your face is turned away from the screen. Please keep your face straight and focused on the exam.
+              <p style={{ color: "#475569", fontSize: "13px", lineHeight: "1.4", margin: "0" }}>
+                AI Teacher detected your face is turned away. Please look straight at the screen.
               </p>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* TOP REALISTIC PROCTORED NAVBAR */}
+      {/* HEADER WITH AI TEACHER & CAMERA */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
-          <div style={styles.liveBadge}>● SECURE EXAM</div>
+          <div style={styles.liveBadge}>● LIVE</div>
           <div>
             <h1 style={styles.quizTitle}>{quiz.title}</h1>
-            <span style={styles.quizSub}>{quiz.subject} • {totalQuestions} Questions</span>
+            <span style={styles.quizSub}>{quiz.subject} • {totalQuestions} Qs</span>
           </div>
         </div>
 
-        {/* PROCTORING CAMERA & AI ASSISTANT PANEL */}
+        {/* AI TEACHER & CAMERA PANEL */}
         <div style={styles.proctorPanel}>
           <div style={styles.aiTextBox} className="ai-alert-badge">
-            <span style={{ fontSize: "11px", color: "#dc2626", fontWeight: "800" }}>AI PROCTOR:</span>
-            <span style={{ fontSize: "12px", color: "#0f172a", fontWeight: "700" }}>{aiMessage}</span>
+            <span style={{ fontSize: "9px", color: "#dc2626", fontWeight: "800" }}>AI TEACHER:</span>
+            <span style={{ fontSize: "11px", color: "#0f172a", fontWeight: "700" }}>{aiMessage}</span>
           </div>
           <div style={styles.cameraWrapper}>
             <video ref={videoRef} autoPlay playsInline muted style={styles.webcamFeed} />
@@ -436,7 +438,6 @@ const AttemptQuizPage = () => {
           </div>
         </div>
 
-        {/* TIMER */}
         <div style={styles.timerDisplay}>
           <span>⏱ {formatTime(timeLeft)}</span>
         </div>
@@ -447,36 +448,8 @@ const AttemptQuizPage = () => {
         <motion.div animate={{ width: `${progress}%` }} style={styles.progressBarFill} />
       </div>
 
-      {/* MAIN QUESTION INTERFACE */}
+      {/* QUESTION AREA */}
       <div style={styles.mainLayout}>
-        {/* QUESTION NAVIGATOR SIDEBAR */}
-        <div style={styles.sidebarNav} className="quiz-scroll">
-          <span style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", marginBottom: "10px", display: "block" }}>
-            QUESTION PALETTE
-          </span>
-          <div style={styles.paletteGrid}>
-            {questions.map((_, idx) => {
-              const active = currentIdx === idx;
-              const answered = answers[idx] !== null;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentIdx(idx)}
-                  style={{
-                    ...styles.paletteBtn,
-                    background: active ? "#2563eb" : answered ? "#10b981" : "#f1f5f9",
-                    color: active || answered ? "#fff" : "#334155",
-                    borderColor: active ? "#1d4ed8" : answered ? "#059669" : "#e2e8f0",
-                  }}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* QUESTION CARD */}
         <main style={styles.questionSection}>
           <div style={styles.questionCard}>
             <div style={styles.qCardHeader}>
@@ -493,7 +466,7 @@ const AttemptQuizPage = () => {
                 return (
                   <motion.button
                     key={i}
-                    whileTap={{ scale: 0.99 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => handleOptionSelect(opt)}
                     style={{
                       ...styles.optionItem,
@@ -509,16 +482,16 @@ const AttemptQuizPage = () => {
                     }}>
                       {labels[i]}
                     </div>
-                    <span style={{ color: selected ? "#1e3a8a" : "#334155", fontSize: "16px", fontWeight: "600", flex: 1, textAlign: "left" }}>
+                    <span style={{ color: selected ? "#1e3a8a" : "#334155", fontSize: "15px", fontWeight: "600", flex: 1, textAlign: "left" }}>
                       {formatMath(opt)}
                     </span>
                     <div style={{
-                      width: "20px", height: "20px", borderRadius: "50%",
+                      width: "18px", height: "18px", borderRadius: "50%",
                       border: "2px solid", borderColor: selected ? "#2563eb" : "#cbd5e1",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       background: selected ? "#2563eb" : "transparent"
                     }}>
-                      {selected && <span style={{ color: "#fff", fontSize: "11px", fontWeight: "bold" }}>✓</span>}
+                      {selected && <span style={{ color: "#fff", fontSize: "10px", fontWeight: "bold" }}>✓</span>}
                     </div>
                   </motion.button>
                 );
@@ -531,9 +504,9 @@ const AttemptQuizPage = () => {
             <button
               disabled={isFirstQuestion}
               onClick={() => setCurrentIdx((p) => p - 1)}
-              style={{ ...styles.navActionBtn, opacity: isFirstQuestion ? 0.4 : 1, cursor: isFirstQuestion ? "not-allowed" : "pointer" }}
+              style={{ ...styles.navActionBtn, opacity: isFirstQuestion ? 0.4 : 1 }}
             >
-              ← Previous
+              ← Prev
             </button>
 
             {isLastQuestion ? (
@@ -542,7 +515,7 @@ const AttemptQuizPage = () => {
                 onClick={() => handleSubmit()}
                 style={styles.finishActionBtn}
               >
-                {submitting ? "Submitting..." : "Finish Exam ✓"}
+                {submitting ? "Submitting..." : "Finish ✓"}
               </button>
             ) : (
               <button
@@ -560,52 +533,45 @@ const AttemptQuizPage = () => {
 };
 
 const styles = {
-  examContainer: { width: "100vw", minHeight: "100vh", background: "#f8fafc", color: "#0f172a", display: "flex", flexDirection: "column" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" },
-  headerLeft: { display: "flex", alignItems: "center", gap: "16px" },
-  liveBadge: { background: "#dcfce7", color: "#15803d", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "800", border: "1px solid #bbf7d0" },
-  quizTitle: { margin: 0, fontSize: "16px", fontWeight: "700", color: "#0f172a" },
-  quizSub: { fontSize: "12px", color: "#64748b" },
-  proctorPanel: { display: "flex", alignItems: "center", gap: "12px" },
-  aiTextBox: { background: "#fef2f2", border: "1px solid #fecaca", padding: "6px 14px", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "2px" },
-  cameraWrapper: { width: "110px", height: "75px", background: "#000", borderRadius: "8px", border: "2px solid #ef4444", overflow: "hidden", position: "relative" },
+  examContainer: { width: "100%", minHeight: "100vh", background: "#f8fafc", color: "#0f172a", display: "flex", flexDirection: "column" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0, zIndex: 100 },
+  headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
+  liveBadge: { background: "#dcfce7", color: "#15803d", padding: "3px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: "800" },
+  quizTitle: { margin: 0, fontSize: "14px", fontWeight: "700", color: "#0f172a", maxWidth: "120px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  quizSub: { fontSize: "11px", color: "#64748b" },
+  proctorPanel: { display: "flex", alignItems: "center", gap: "8px" },
+  aiTextBox: { background: "#fef2f2", border: "1px solid #fecaca", padding: "4px 10px", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "1px", maxWidth: "130px" },
+  cameraWrapper: { width: "70px", height: "50px", background: "#000", borderRadius: "6px", border: "2px solid #ef4444", overflow: "hidden", position: "relative", flexShrink: 0 },
   webcamFeed: { width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" },
-  recDot: { position: "absolute", top: "3px", right: "3px", background: "#ef4444", color: "#fff", fontSize: "8px", fontWeight: "bold", padding: "1px 4px", borderRadius: "3px" },
-  timerDisplay: { background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "10px", fontSize: "16px", fontWeight: "bold", color: "#2563eb" },
+  recDot: { position: "absolute", top: "2px", right: "2px", background: "#ef4444", color: "#fff", fontSize: "7px", fontWeight: "bold", padding: "1px 3px", borderRadius: "2px" },
+  timerDisplay: { background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "6px 10px", borderRadius: "8px", fontSize: "14px", fontWeight: "bold", color: "#2563eb", flexShrink: 0 },
   progressBarBg: { width: "100%", height: "4px", background: "#e2e8f0" },
   progressBarFill: { height: "100%", background: "linear-gradient(90deg, #2563eb, #3b82f6)" },
-  mainLayout: { display: "flex", flex: 1, maxWidth: "1300px", width: "100%", margin: "0 auto", padding: "24px", gap: "24px" },
-  sidebarNav: { width: "240px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "20px", height: "fit-content", maxHeight: "calc(100vh - 140px)", overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" },
-  paletteGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" },
-  paletteBtn: { height: "38px", borderRadius: "8px", border: "1px solid", fontSize: "13px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
-  questionSection: { flex: 1, display: "flex", flexDirection: "column", gap: "20px" },
-  questionCard: { background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "20px", padding: "30px", boxShadow: "0 10px 30px rgba(0,0,0,0.04)" },
-  qCardHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" },
-  qNumberTag: { background: "#eff6ff", color: "#2563eb", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "700" },
-  attemptStatus: { fontSize: "13px", color: "#64748b", fontWeight: "500" },
-  questionText: { fontSize: "20px", fontWeight: "700", color: "#0f172a", lineHeight: "1.5", margin: "0 0 24px" },
-  optionsList: { display: "flex", flexDirection: "column", gap: "12px" },
-  optionItem: { display: "flex", alignItems: "center", gap: "16px", padding: "16px 20px", borderRadius: "14px", border: "1px solid", cursor: "pointer", width: "100%", transition: "all 0.2s ease" },
-  optionLetterBox: { width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "bold" },
-  footerNav: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 10px" },
-  navActionBtn: { background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", padding: "12px 24px", borderRadius: "12px", fontSize: "14px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.02)" },
-  finishActionBtn: { background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", border: "none", padding: "12px 28px", borderRadius: "12px", fontSize: "14px", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 15px rgba(16,185,129,0.25)" },
-  modalOverlay: { position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(6px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" },
-  instructionCard: { background: "#ffffff", border: "1px solid #e2e8f0", maxWidth: "520px", width: "100%", padding: "35px", borderRadius: "24px", textAlign: "center", boxShadow: "0 25px 60px rgba(0,0,0,0.15)" },
-  instructionList: { display: "flex", flexDirection: "column", gap: "12px", textAlign: "left", marginBottom: "25px" },
-  instructionItem: { display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "13.5px", color: "#334155", lineHeight: "1.5" },
-  redBadge: { background: "#ffeeec", color: "#dc2626", fontSize: "10px", fontWeight: "800", padding: "2px 8px", borderRadius: "4px", flexShrink: 0, marginTop: "2px" },
-  blueBadge: { background: "#eff6ff", color: "#2563eb", fontSize: "10px", fontWeight: "800", padding: "2px 8px", borderRadius: "4px", flexShrink: 0, marginTop: "2px" },
-  startExamBtn: { background: "#2563eb", color: "#fff", border: "none", padding: "14px 24px", borderRadius: "12px", fontSize: "15px", fontWeight: "700", cursor: "pointer", width: "100%", boxShadow: "0 4px 15px rgba(37,99,235,0.3)" },
-  modalCard: { background: "#ffffff", border: "1px solid #e2e8f0", maxWidth: "440px", width: "100%", padding: "35px", borderRadius: "24px", textAlign: "center", boxShadow: "0 25px 60px rgba(0,0,0,0.15)" },
-  faceModalCard: { background: "#ffffff", border: "1px solid #fecaca", maxWidth: "400px", width: "100%", padding: "30px", borderRadius: "20px", textAlign: "center", boxShadow: "0 20px 40px rgba(239,68,68,0.15)", position: "relative" },
-  crossButton: { position: "absolute", top: "12px", right: "12px", background: "#f1f5f9", border: "none", width: "28px", height: "28px", borderRadius: "50%", fontSize: "14px", fontWeight: "bold", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
-  modalButton: { background: "#0f172a", color: "#fff", border: "none", padding: "14px 24px", borderRadius: "12px", fontSize: "14px", fontWeight: "700", cursor: "pointer", width: "100%" },
+  mainLayout: { display: "flex", flex: 1, width: "100%", maxWidth: "800px", margin: "0 auto", padding: "16px" },
+  questionSection: { flex: 1, display: "flex", flexDirection: "column", gap: "16px" },
+  questionCard: { background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "18px", padding: "20px", boxShadow: "0 8px 25px rgba(0,0,0,0.04)" },
+  qCardHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" },
+  qNumberTag: { background: "#eff6ff", color: "#2563eb", padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700" },
+  attemptStatus: { fontSize: "12px", color: "#64748b", fontWeight: "500" },
+  questionText: { fontSize: "18px", fontWeight: "700", color: "#0f172a", lineHeight: "1.4", margin: "0 0 20px" },
+  optionsList: { display: "flex", flexDirection: "column", gap: "10px" },
+  optionItem: { display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderRadius: "12px", border: "1px solid", cursor: "pointer", width: "100%" },
+  optionLetterBox: { width: "28px", height: "28px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "bold", flexShrink: 0 },
+  footerNav: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px" },
+  navActionBtn: { background: "#ffffff", color: "#0f172a", border: "1px solid #cbd5e1", padding: "10px 20px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" },
+  finishActionBtn: { background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", border: "none", padding: "10px 24px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", cursor: "pointer" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.65)", backdropFilter: "blur(6px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" },
+  instructionCard: { background: "#ffffff", border: "1px solid #e2e8f0", maxWidth: "400px", width: "100%", padding: "30px", borderRadius: "22px", textAlign: "center", boxShadow: "0 20px 50px rgba(0,0,0,0.15)" },
+  startExamBtn: { background: "#2563eb", color: "#fff", border: "none", padding: "12px 20px", borderRadius: "12px", fontSize: "14px", fontWeight: "700", cursor: "pointer", width: "100%", boxShadow: "0 4px 12px rgba(37,99,235,0.3)" },
+  modalCard: { background: "#ffffff", border: "1px solid #e2e8f0", maxWidth: "380px", width: "100%", padding: "30px", borderRadius: "22px", textAlign: "center", boxShadow: "0 20px 50px rgba(0,0,0,0.15)" },
+  faceModalCard: { background: "#ffffff", border: "1px solid #fecaca", maxWidth: "340px", width: "100%", padding: "24px", borderRadius: "18px", textAlign: "center", boxShadow: "0 15px 35px rgba(239,68,68,0.15)", position: "relative" },
+  crossButton: { position: "absolute", top: "10px", right: "10px", background: "#f1f5f9", border: "none", width: "26px", height: "26px", borderRadius: "50%", fontSize: "13px", fontWeight: "bold", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  modalButton: { background: "#0f172a", color: "#fff", border: "none", padding: "12px 20px", borderRadius: "12px", fontSize: "13.5px", fontWeight: "700", cursor: "pointer", width: "100%" },
   loadingPage: { width: "100vw", height: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" },
-  loadingSpinner: { width: "45px", height: "45px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 1s linear infinite" },
+  loadingSpinner: { width: "40px", height: "40px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 1s linear infinite" },
   resultPage: { width: "100vw", height: "100vh", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" },
-  resultCard: { background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "24px", padding: "40px", maxWidth: "450px", width: "100%", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.05)" },
-  dashboardButton: { background: "#2563eb", color: "#fff", border: "none", padding: "12px 24px", borderRadius: "12px", fontSize: "14px", fontWeight: "600", cursor: "pointer", width: "100%" }
+  resultCard: { background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "22px", padding: "35px", maxWidth: "400px", width: "100%", textAlign: "center", boxShadow: "0 10px 25px rgba(0,0,0,0.05)" },
+  dashboardButton: { background: "#2563eb", color: "#fff", border: "none", padding: "12px 20px", borderRadius: "12px", fontSize: "14px", fontWeight: "600", cursor: "pointer", width: "100%" }
 };
 
 export default AttemptQuizPage;
