@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   FaClipboardCheck, FaMoneyBillWave, FaChartLine,
@@ -215,7 +215,9 @@ const DashboardHome = ({ navigate, isFeeUnpaid, pendingTasks, isFeedbackPending,
   const [imgIndex, setImgIndex] = useState(0);
   const [showTaskAlert, setShowTaskAlert] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const scheduleRequestRef = useRef(0);
   const [headTeacher, setHeadTeacher] = useState(null);
+
   
   useEffect(() => {
   api
@@ -432,6 +434,9 @@ useEffect(() => {
   // 2. // Schedule Fetch karne ka main function
 const fetchTodaySchedule = useCallback(async () => {
   if (!user?.class || !user?.id) return;
+
+  const requestId = ++scheduleRequestRef.current;
+  setTodayClasses([]);
 
   const formatDate = (date) => {
     const d = new Date(date);
@@ -1492,7 +1497,11 @@ textShadow: "0 1px 2px rgba(0, 0, 0, 0.25)"
         ))
       ) : ( 
         <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}> 
-          <p style={{ fontSize: '16px' }}>No classes scheduled for this day.</p> 
+         <p style={{ fontSize: '16px' }}>
+  {selectedDate.getDay() === 0
+    ? "No class for this day"
+    : "Loading...."}
+</p> 
         </div> 
       );
         })()}
