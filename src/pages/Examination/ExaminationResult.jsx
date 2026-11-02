@@ -261,7 +261,7 @@ const targetDateStr = "2026-11-02T14:02:00+05:30";
               <div style={{ fontSize: "2.4rem", marginBottom: "4px" }}>🔒</div>
               <h3 style={{ color: "#c0392b", margin: "0 0 4px 0", fontWeight: "900", fontSize: "1.1rem" }}>Portal Currently Locked</h3>
               <p style={{ color: "#475569", fontSize: "0.8rem", lineHeight: "1.4", margin: "0 0 12px 0" }}>
-                Official examination results for session <b>{session}</b> will be declared on <b>05 November 2026 at 02:00 PM IST</b>.
+                Official examination results for session <b>{session}</b> will be declared on <b>02 November 2026 at 02:00 PM IST</b>.
               </p>
               <button onClick={() => setShowLockedPopup(false)} style={popupOkBtn}>Got It</button>
             </div>
