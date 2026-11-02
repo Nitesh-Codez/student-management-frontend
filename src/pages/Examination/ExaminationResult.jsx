@@ -34,7 +34,7 @@ const ExaminationResult = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const userRef = useRef(user);
 
-const targetDateStr = "2026-11-02T14:00:00+05:30";
+const targetDateStr = "2026-11-02T14:02:00+05:30";
 
   useEffect(() => {
     const targetDate = new Date(targetDateStr); 
