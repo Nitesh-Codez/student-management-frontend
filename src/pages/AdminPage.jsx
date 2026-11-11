@@ -31,7 +31,6 @@ export default function AdminPage() {
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
 
   useEffect(() => {
-    // Fetch classes
     api.get(`/api/new-marks/classes`)
       .then(res => {
         if (res.data.success) {
@@ -42,13 +41,11 @@ export default function AdminPage() {
         }
       }).catch(err => console.error(err));
 
-    // Fetch students
     api.get(`/api/students`)
       .then(res => { if (res.data.success) setStudents(res.data.students); })
       .catch(err => console.error(err));
   }, []);
 
-  // Fetch all tasks and their submissions whenever viewClass changes
   useEffect(() => {
     if (!viewClass) { 
       setTaskSubmissions({}); 
@@ -56,7 +53,6 @@ export default function AdminPage() {
       return; 
     }
     
-    // Clear previous data immediately
     setTaskSubmissions({});
     
     const fetchAll = async () => {
@@ -204,10 +200,16 @@ export default function AdminPage() {
     return d.toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
   };
 
-  // ================= EXPORT FILTERED PDF REPORT =================
+  // Helper to clean emojis/special characters so PDF doesn't break into weird symbols
+  const sanitizeText = (text) => {
+    if (!text) return "";
+    return text.replace(/[^\x00-x7F]/g, "").replace(/[^\w\s.,()-]/gi, "").trim();
+  };
+
+  // ================= EXPORT PDF REPORT =================
   const exportAllPDF = () => {
     const doc = new jsPDF();
-    const primaryColor = [67, 56, 202]; // #4338CA (Dark Violet)
+   const primaryColor = [42, 33, 136]; // #2a2188 (Dark Violet)
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
@@ -217,17 +219,16 @@ export default function AdminPage() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(100, 116, 139);
-    doc.text(`Filter Criteria: ${filterDate ? `Tasks deadline / submissions from ${new Date(filterDate).toLocaleString('en-IN')} onwards` : 'All Assigned Tasks'}`, 14, 27);
+    doc.text(`Filter Criteria: ${filterDate ? `From ${new Date(filterDate).toLocaleString('en-IN')} onwards` : 'All Assigned Tasks'}`, 14, 27);
     doc.text(`Generated On: ${new Date().toLocaleString('en-IN')}`, 14, 33);
 
     let startY = 42;
 
-    // Filter tasks based on filterDate (Checking if task deadline or any submission is >= filterDate)
+    // Filter tasks based on filterDate if provided
     const filteredEntries = Object.entries(taskSubmissions).filter(([task, subs]) => {
       if (!filterDate) return true;
       const filterTime = new Date(filterDate).getTime();
       
-      // Check if any submission matches or if there are no subs, check deadline logic if available
       const hasMatchingSub = subs.some(s => new Date(s.uploaded_at).getTime() >= filterTime);
       const hasMatchingDeadline = subs.some(s => s.deadline && new Date(s.deadline).getTime() >= filterTime);
 
@@ -240,17 +241,19 @@ export default function AdminPage() {
     }
 
     filteredEntries.forEach(([task, subs], index) => {
-      // If date filter is active, filter individual submissions inside the task as well
       const validSubs = subs.filter(s => {
         if (!filterDate) return true;
         const filterTime = new Date(filterDate).getTime();
         return new Date(s.uploaded_at).getTime() >= filterTime || (s.deadline && new Date(s.deadline).getTime() >= filterTime);
       });
 
+      // Clean task title to remove emojis/unsupported symbols
+      const cleanTaskTitle = sanitizeText(task) || task;
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.setTextColor(30, 41, 59);
-      doc.text(`Assignment: ${task}`, 14, startY);
+      doc.text(`Assignment: ${cleanTaskTitle}`, 14, startY);
 
       const tableColumn = ["Student Name", "Submission Timestamp", "Deadline", "Status", "Evaluation Rating"];
       const tableRows = [];
@@ -264,7 +267,7 @@ export default function AdminPage() {
           const rating = s.rating ? `${s.rating} / 5 Stars` : "Pending Evaluation";
           
           tableRows.push([
-            s.student_name,
+            sanitizeText(s.student_name) || s.student_name,
             formatDate(s.uploaded_at),
             formatDate(s.deadline),
             status,
@@ -283,7 +286,7 @@ export default function AdminPage() {
           fontStyle: 'bold',
           textColor: [255, 255, 255] 
         },
-        alternateRowStyles: { fillColor: [243, 244, 246] }, // Clean neutral dark-tinted grey instead of light blue
+        alternateRowStyles: { fillColor: [243, 244, 246] },
         styles: { fontSize: 9, cellPadding: 5, textColor: [30, 41, 59] },
       });
 
@@ -548,7 +551,7 @@ const ui = {
   headerInner: { maxWidth: 1400, margin: "0 auto", display: 'flex', alignItems:'center', justifyContent:'space-between' },
   title: { color: "#0F172A", fontSize: "24px", margin: 0, fontWeight: '800', letterSpacing: '-0.5px' },
   subtitle: { color: "#64748B", fontSize: "13px", margin: "3px 0 0 0" },
-  badge: { background: "#EEF2FF", color: "#4338CA", padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: '600', border: '1px solid #C7D2FE' },
+  badge: { background: "#EEF2FF", color: "#2e2592", padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: '600', border: '1px solid #C7D2FE' },
   
   mainGrid: { display: "grid", gridTemplateColumns: "400px 1fr", gap: 24, padding: 28, maxWidth: 1440, margin: "0 auto" },
   leftColumn: { display: "flex", flexDirection: "column", gap: 24 },
@@ -563,8 +566,8 @@ const ui = {
   input: { width: '100%', boxSizing: 'border-box', padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", outline: "none", fontSize: 14, background:'#F8FAFC', color: '#1E293B', transition: 'border-color 0.2s' },
   fileInput: { width: '100%', boxSizing: 'border-box', padding: "8px", borderRadius: 8, border: "1px dashed #CBD5E1", background: "#F8FAFC", fontSize: 13, cursor:'pointer' },
   
-  btnPrimary: { background: "#261d8a", color: "#FFF", border: "none", padding: "11px", borderRadius: 8, fontWeight: "600", cursor: "pointer", fontSize: 14, boxShadow: "0 1px 2px 0 rgba(67, 56, 202, 0.25)" },
-  btnSecondary: { background: "#2d27a0", color: "#FFF", border: "none", padding: "11px", borderRadius: 8, fontWeight: "600", cursor: "pointer", fontSize: 14 },
+  btnPrimary: { background: "#3226b6", color: "#FFF", border: "none", padding: "11px", borderRadius: 8, fontWeight: "600", cursor: "pointer", fontSize: 14, boxShadow: "0 1px 2px 0 rgba(67, 56, 202, 0.25)" },
+  btnSecondary: { background: "#241ea4", color: "#FFF", border: "none", padding: "11px", borderRadius: 8, fontWeight: "600", cursor: "pointer", fontSize: 14 },
   btnExportReport: { background: "#059669", color: "#FFF", border: "none", padding: "8px 14px", borderRadius: 8, fontWeight: "600", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 1px 2px 0 rgba(5, 150, 105, 0.2)", whiteSpace: 'nowrap' },
   btnClearFilter: { background: '#F1F5F9', border: '1px solid #CBD5E1', color: '#475569', fontSize: 11, padding: '4px 8px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 },
   btnActionSub: { padding: '5px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #CBD5E1', background: '#FFFFFF', color: '#334155', fontWeight: '600', cursor: 'pointer' },
@@ -590,6 +593,6 @@ const ui = {
   tagOnTime: { background: '#F0FDF4', color:'#16A34A', padding: '3px 7px', borderRadius: 5, fontSize: 11, fontWeight: '600', border: '1px solid #BBF7D0' },
   
   miniSelect: { padding: '8px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 13, background: '#FFFFFF', fontWeight: '600', color: '#1E293B', outline: 'none' },
-  viewLink: { color:'#4338CA', textDecoration:'none', fontSize: 13, fontWeight: '600' },
+  viewLink: { color:'#292090', textDecoration:'none', fontSize: 13, fontWeight: '600' },
   noData: { color:'#94A3B8', fontStyle:'italic', fontSize: 13, margin: '8px 0' }
 };
