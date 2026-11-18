@@ -269,7 +269,7 @@ const ExaminationResult = () => {
 
         <div style={edgeToEdgeCard}>
           <div style={topHeaderSection}>
-            <div style={emblemBadge}> EVALUATION BOARD</div>
+            <div style={emblemBadge}>CENTRAL EVALUATION BOARD</div>
             <h1 style={mainHeading}>SMART STUDENTS CLASSES</h1>
             <p style={subHeadingDesc}>Annual Academic Evaluation & Verified Result Gateway • Session {session}</p>
           </div>
@@ -286,7 +286,7 @@ const ExaminationResult = () => {
                 <div style={countdownCard}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                     <span style={liveBadge}>🔴 LIVE COUNTDOWN</span>
-                    <span style={{ fontSize: "0.7rem", fontWeight: "700", color: "#64748b" }}>Release: 02 Nov 2026, 02:00 PM</span>
+                    <span style={{ fontSize: "0.7rem", fontWeight: "700", color: "#64748b" }}>Release: 05 Nov 2026, 02:00 PM</span>
                   </div>
                   <div style={circlesGrid}>
                     {renderCircleTimer(timeLeft.days, 30, "Days")}
@@ -328,7 +328,7 @@ const ExaminationResult = () => {
                   onClick={handleCheckResult} 
                   style={{ ...submitBtn, background: (isLocked && !isAdmin) ? "#475569" : "#16a34a" }}
                 >
-                  {isLocked && !isAdmin ? "View Results ➔" : "Proceed & Processing Your Request ➔"}
+                  {isLocked && !isAdmin ? "View Results➔" : "Proceed & Processing Your Request ➔"}
                 </button>
                 {message && <p style={{ color: "#ef4444", marginTop: "6px", fontSize: "0.8rem", textAlign: "center", fontWeight: "700" }}>{message}</p>}
               </div>
@@ -380,7 +380,7 @@ const ExaminationResult = () => {
               <div style={{ width: "110px" }}><img src="/logo.png" alt="Logo" style={{ width: "100px" }} onError={(e) => e.target.style.display='none'}/></div>
               <div style={{ flex: 1, textAlign: "center" }}>
                 <h1 style={academyName}>SMART STUDENTS CLASSES</h1>
-                <p style={subHeader}>EXCELLENCE IN EDUCATION • PERFORMANCE STATEMENT</p>
+                <p style={subHeader}>CENTRAL BOARD OF EDUCATION • PERFORMANCE STATEMENT</p>
                 <div style={examBadge}>{currentExamType} EXAMINATION RESULT ({session})</div>
               </div>
               <div style={{ width: "125px", textAlign: "right" }}>
@@ -411,15 +411,16 @@ const ExaminationResult = () => {
               <table style={marksTable}>
                 <thead>
                   <tr style={tableHeaderRow}>
-                    <th style={{ ...th, width: "45px" }}>SR. NO</th>
+                    <th style={{ ...th, width: "40px" }}>SR</th>
                     <th style={{ ...th, textAlign: "left", width: "180px" }}>SUBJECT NAME</th>
-                    <th style={{ ...th, width: "65px" }}>MAX MARKS</th>
-                    <th style={{ ...th, width: "70px" }}>THEORY</th>
-                    <th style={{ ...th, width: "70px" }}>VIVA</th>
-                    <th style={{ ...th, width: "75px" }}>ATTENDANCE</th>
-                    <th style={{ ...th, width: "55px" }}>TASK</th>
+                    <th style={{ ...th, width: "70px" }}>MAX MARKS</th>
+                    <th style={{ ...th, width: "75px" }}>THEORY</th>
+                    <th style={{ ...th, width: "75px" }}>VIVA</th>
+                    <th style={{ ...th, width: "85px" }}>BEHAVIOUR</th>
+                    <th style={{ ...th, width: "80px" }}>ATTENDANCE</th>
+                    <th style={{ ...th, width: "70px" }}>TASK</th>
                     <th style={{ ...th, width: "80px" }}>OBTAINED</th>
-                    <th style={{ ...th, width: "85px" }}>REMARK</th>
+                    <th style={{ ...th, width: "80px" }}>REMARK</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -432,6 +433,7 @@ const ExaminationResult = () => {
                         <td style={td}>{m.total_marks}</td>
                         <td style={td}>{m.theory_marks}</td>
                         <td style={td}>{m.viva_marks || "0"}</td>
+                        <td style={td}>{m.behaviour || "0"}</td>
                         <td style={td}>{m.attendance_marks || "0"}</td>
                         <td style={td}>{m.task || "0"}</td>
                         <td style={{ ...td, fontWeight: "900", color: "#1a237e" }}>{m.obtained_marks}</td>
@@ -446,7 +448,7 @@ const ExaminationResult = () => {
                   <tr style={{ background: "#f1f3f9", fontWeight: "900" }}>
                     <td colSpan="2" style={td}>GRAND TOTAL</td>
                     <td style={td}>{overall.t}</td>
-                    <td colSpan="4" style={td}>PERCENTAGE: {overall.p}%</td>
+                    <td colSpan="5" style={td}>PERCENTAGE: {overall.p}%</td>
                     <td style={{ ...td, color: "#1a237e", fontWeight: "900" }}>{overall.o}</td>
                     <td style={td}>
                       <span style={{ padding: "4px 10px", background: overall.p >= 33 ? "#16a34a" : "#c0392b", color: "#fff", borderRadius: "4px", fontSize: "0.8rem" }}>
@@ -479,7 +481,7 @@ const ExaminationResult = () => {
             <div style={signatureArea}>
               <div style={sigBox}>
                 <div style={sigImageContainer}>
-                  {teacherSign ? <img src={teacherSign} alt="Sign" style={{ height: "45px" }} /> : <span style={cursiveName}></span>}
+                  {teacherSign ? <img src={teacherSign} alt="Sign" style={{ height: "50px" }} /> : <span style={cursiveName}>Vandana Kushwah</span>}
                 </div>
                 <div style={sigLine}></div>
                 <p style={{ fontWeight: "bold", color: "#000", margin: '2px 0', fontSize: '0.8rem' }}>VANDANA KUSHWAH</p>
@@ -501,7 +503,7 @@ const ExaminationResult = () => {
 
               <div style={sigBox}>
                 <div style={sigImageContainer}>
-                  {principalSign ? <img src={principalSign} alt="Sign" style={{ height: "45px" }} /> : <span style={cursiveName}></span>}
+                  {principalSign ? <img src={principalSign} alt="Sign" style={{ height: "50px" }} /> : <span style={cursiveName}>Nitesh Kushwah</span>}
                 </div>
                 <div style={sigLine}></div>
                 <p style={{ fontWeight: "bold", color: "#000", margin: '2px 0', fontSize: '0.8rem' }}>NITESH KUSHWAH</p>
@@ -509,7 +511,7 @@ const ExaminationResult = () => {
                 {isAdmin && <button onClick={() => setActiveSignType('principal')} className="no-print" style={drawBtn}>Draw Sign</button>}
               </div>
             </div>
-            <div style={{textAlign: 'center', marginTop: '10px', fontSize: '0.65rem', color: '#777', fontStyle: 'italic'}}>Note: This is an electronically generated report card verified by Smart Students Classes Portal.</div>
+            <div style={{textAlign: 'center', marginTop: '20px', fontSize: '0.65rem', color: '#777', fontStyle: 'italic'}}>Note: This is an electronically generated report card verified by Smart Students Classes Central Portal.</div>
           </div>
         </div>
       </div>
@@ -523,7 +525,7 @@ const ExaminationResult = () => {
   );
 };
 
-/* ============= STYLES (A4 RATIO & SEPARATED COLUMNS) ============= */
+/* ============= STYLES ============= */
 const whitePortalWrapper = { minHeight: "100vh", width: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#f8fafc", padding: "10px", boxSizing: "border-box", overflowY: "auto" };
 const edgeToEdgeCard = { background: "#ffffff", width: "100%", maxWidth: "560px", minHeight: "560px", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "20px 30px", borderRadius: "12px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0", boxSizing: "border-box", margin: "auto" };
 
@@ -533,7 +535,7 @@ const mainHeading = { color: "#0f172a", fontSize: "1.7rem", fontWeight: "900", m
 const subHeadingDesc = { color: "#64748b", fontSize: "0.78rem", fontWeight: "500", margin: 0 };
 
 const countdownCard = { background: "#f8fafc", borderRadius: "10px", padding: "10px 15px", border: "1px solid #e2e8f0" };
-const liveBadge = { background: "#278727", color: "#fff", padding: "6px 6px", marginRight: "20px", borderRadius: "8px", fontSize: "0.65rem", fontWeight: "650", letterSpacing: "0.5px" };
+const liveBadge = { background: "#278727", color: "#fff", padding: "6px 6px",marginRight: "20px", borderRadius: "8px", fontSize: "0.65rem", fontWeight: "650", letterSpacing: "0.5px" };
 const circlesGrid = { display: "flex", justifyContent: "space-around", alignItems: "center" };
 const circleContainerStyle = { position: "relative", width: "65px", height: "65px", display: "flex", justifyContent: "center", alignItems: "center" };
 const circleInnerTextStyle = { position: "absolute", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" };
@@ -546,8 +548,8 @@ const formLabel = { fontSize: "0.7rem", fontWeight: "800", color: "#334155", dis
 const captchaWrapper = { display: "flex", alignItems: "center", background: "#f8fafc", borderRadius: "6px", padding: "4px 10px", border: "1px solid #cbd5e1" };
 const captchaText = { fontSize: "1.5rem", fontWeight: "900", letterSpacing: "6px", color: "#16a34a", fontStyle: "italic", flex: 1 };
 const refreshBtn = { background: "none", border: "none", fontSize: "1rem", cursor: "pointer", padding: "2px" };
-const inputStyle = { width: "100%", padding: "9px", border: "2px solid #cbd5e1", borderRadius: "6px", fontSize: "0.9rem", fontWeight: "700", textAlign: "center", outline: "none", boxSizing: "border-box" };
-const submitBtn = { width: "100%", padding: "10px", color: "#fff", border: "none", borderRadius: "6px", fontSize: "0.95rem", fontWeight: "600", letterSpacing: "0.5px", cursor: "pointer", boxShadow: "0 4px 10px rgba(22, 163, 74, 0.25)" };
+const inputStyle = { width: "120%", padding: "9px", border: "2px solid #cbd5e1", borderRadius: "6px", fontSize: "0.9rem", fontWeight: "700", textAlign: "center", outline: "none", boxSizing: "border-box" };
+const submitBtn = { width: "60%", padding: "6px", color: "#fff", border: "none", borderRadius: "6px", fontSize: "0.95rem", fontWeight: "400", letterSpacing: "0.5px", cursor: "pointer", boxShadow: "0 4px 10px rgba(22, 163, 74, 0.25)" };
 
 const footerNote = { textAlign: "center", color: "#94a3b8", fontSize: "0.7rem", fontWeight: "500", borderTop: "1px solid #f1f5f9", paddingTop: "6px" };
 
@@ -563,56 +565,41 @@ const modalContent = { background: '#fff', padding: '30px', borderRadius: '15px'
 const canvasStyle = { border: '2px dashed #1a237e', background: '#f9f9f9', cursor: 'crosshair', borderRadius: "8px" };
 const miniBtn = { padding: '10px 18px', color: '#fff', border: 'none', borderRadius: '6px', margin: '0 5px', cursor: 'pointer', fontWeight: 'bold' };
 const drawBtn = { fontSize: '0.65rem', marginTop: '4px', cursor: 'pointer', background: '#34495e', color: '#fff', border: "none", padding: '4px 10px', borderRadius: "4px" };
+const marksheetPageWrapper = { background: "#1e272e", minHeight: "100vh", padding: "20px 0", fontFamily: "'Segoe UI', Roboto, sans-serif" };
 
-const marksheetPageWrapper = { background: "#1e272e", minHeight: "100vh", padding: "20px 0", fontFamily: "'Segoe UI', Roboto, sans-serif", display: "flex", flexDirection: "column", alignItems: "center" };
-const horizontalScrollContainer = { width: "100%", display: "flex", justifyContent: "center", overflowX: "auto" };
-
-/* A4 Proportions: Width ~ 794px (approx 210mm), Height ~ 1123px (approx 297mm) */
-const marksheetFrame = { width: "794px", minHeight: "1123px", background: "#ffffff", padding: "35px 45px", boxSizing: "border-box", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", justifyContent: "space-between" };
-const outerBorder = { border: "3px double #1a237e", padding: "18px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" };
-
-const headerSection = { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #1a237e", paddingBottom: "12px" };
-const academyName = { fontSize: "1.5rem", fontWeight: "900", color: "#1a237e", margin: "0" };
-const subHeader = { fontSize: "0.75rem", fontWeight: "700", color: "#555", margin: "3px 0" };
-const examBadge = { background: "#1a237e", color: "#fff", padding: "3px 12px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: "bold", display: "inline-block", marginTop: "4px" };
-
-const studentPhoto = { width: "75px", height: "90px", objectFit: "cover", border: "1px solid #1a237e", borderRadius: "4px" };
-const photoPlaceholder = { width: "75px", height: "90px", border: "1px dashed #777", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", color: "#777", textAlign: "center", background: "#fafafa" };
-
-const detailsGrid = { margin: "12px 0", background: "#f8f9fa", padding: "10px", borderRadius: "6px", border: "1px solid #e2e8f0" };
-const infoTable = { width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" };
-const infoTd = {
-  padding: "4px 6px",
-  color: "#0f172a",
-  fontSize: "14px",
-  fontWeight: "450"
-};
-
-const marksTable = { width: "100%", borderCollapse: "collapse", margin: "10px 0", textAlign: "center", fontSize: "0.75rem" };
-const tableHeaderRow = { background: "#1a237e", color: "#ffffff",border: "1px solid #cbd5e1" };
-const th = {  padding: "8px 4px", fontWeight: "700", fontSize: "0.7rem", lineHeight: "1.2" };
-const td = {  padding: "7px 4px", color: "#0f172a" };
-const tableRowStyle = { background: "#ffffff" };
-
-const bottomGrid = { display: "flex", justifyContent: "space-between", margin: "10px 0", gap: "15px" };
-const gradingChart = { border: "1px solid #8ea4bf", padding: "8px", borderRadius: "4px", flex: 1, background: "#f8fafc" };
-const resultSummaryBoard = { border: "1px solid #627791", padding: "8px", borderRadius: "4px", flex: 1, background: "#f8fafc", display: "flex", flexDirection: "column", justifyContent: "center", fontSize: "0.8rem" };
-const summaryRow = { display: "flex", justifyContent: "space-between", margin: "2px 0" };
-
-const signatureArea = { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "15px", paddingTop: "10px", borderTop: "1px solid #cbd5e1" };
-const sigBox = { textAlign: "center", width: "30%" };
-const sigImageContainer = { height: "50px", display: "flex", alignItems: "center", justifyContent: "center" };
+const horizontalScrollContainer = { width: "100%", overflowX: "auto", display: "flex", justifyContent: "center" };
+const marksheetFrame = { width: "210mm", minHeight: "297mm", background: "#fff", padding: "12mm", boxSizing: "border-box", boxShadow: "0 0 20px rgba(0,0,0,0.5)", margin: "0 auto" };
+const outerBorder = { border: "4px double #1a237e", padding: "12mm", height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between" };
+const headerSection = { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #1a237e", paddingBottom: "10px" };
+const academyName = { fontSize: "1.4rem", fontWeight: "900", color: "#1a237e", margin: 0 };
+const subHeader = { fontSize: "0.7rem", fontWeight: "bold", color: "#555", margin: "2px 0" };
+const examBadge = { background: "#1a237e", color: "#fff", padding: "2px 10px", borderRadius: "4px", display: "inline-block", fontSize: "0.75rem", fontWeight: "bold", marginTop: "4px" };
+const studentPhoto = { width: "90px", height: "110px", objectFit: "cover", border: "1px solid #1a237e", borderRadius: "4px" };
+const photoPlaceholder = { width: "90px", height: "110px", border: "1px dashed #777", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "#777", background: "#f9f9f9" };
+const detailsGrid = { margin: "15px 0" };
+const infoTable = { width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" };
+const infoTd = { padding: "4px 6px", border: "1px solid #ddd" };
+const marksTable = { width: "100%", borderCollapse: "collapse", fontSize: "0.75rem", marginBottom: "15px" };
+const tableHeaderRow = { background: "#1a237e", color: "#fff" };
+const th = { padding: "6px 4px", border: "1px solid #1a237e", textAlign: "center", fontSize: "0.7rem" };
+const td = { padding: "6px 4px", border: "1px solid #ddd", textAlign: "center" };
+const tableRowStyle = { background: "#fff" };
+const bottomGrid = { display: "flex", justifyContent: "space-between", marginBottom: "20px" };
+const gradingChart = { border: "1px solid #ddd", padding: "8px", borderRadius: "4px", width: "45%" };
+const resultSummaryBoard = { border: "1px solid #1a237e", padding: "8px", borderRadius: "4px", width: "45%", background: "#f8fafc" };
+const summaryRow = { display: "flex", justifyContent: "space-between", fontSize: "0.8rem", margin: "4px 0" };
+const signatureArea = { display: "flex", justifyContent: "space-between", marginTop: "20px" };
+const sigBox = { width: "30%", textAlign: "center" };
+const sigImageContainer = { height: "55px", display: "flex", alignItems: "flex-end", justifyContent: "center" };
 const cursiveName = { fontFamily: "'Brush Script MT', cursive", fontSize: "1.2rem", color: "#1a237e" };
-const sigLine = { borderTop: "1px solid #000", width: "100%", margin: "4px 0 2px 0" };
-const sigLabel = { fontSize: "0.65rem", color: "#555", fontWeight: "600", textTransform: "uppercase" };
-
-const curvedSealContainer = { width: "70px", height: "70px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", border: "2px dotted #1a237e", borderRadius: "50%", background: "#f0f4f8" };
-const svgSeal = { width: "65px", height: "65px" };
+const sigLine = { borderTop: "1px solid #000", margin: "5px 0 2px 0" };
+const sigLabel = { fontSize: "0.65rem", color: "#555", margin: 0 };
+const curvedSealContainer = { width: "65px", height: "65px", margin: "0 auto", border: "1px dashed #1a237e", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" };
+const svgSeal = { width: "60px", height: "60px" };
 const sealTextStyle = { fontSize: "7.5px", fill: "#1a237e", fontWeight: "bold" };
-
-const actionButtons = { display: "flex", gap: "10px", marginTop: "15px" };
-const printBtn = { background: "#34495e", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" };
-const downloadBtn = { background: "#16a34a", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" };
-const backBtn = { background: "#e74c3c", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" };
+const actionButtons = { display: "flex", justifyContent: "center", gap: "15px", marginTop: "20px" };
+const printBtn = { padding: "10px 20px", background: "#16a34a", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" };
+const downloadBtn = { padding: "10px 20px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" };
+const backBtn = { padding: "10px 20px", background: "#475569", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" };
 
 export default ExaminationResult;
