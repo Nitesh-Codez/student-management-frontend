@@ -269,7 +269,7 @@ const ExaminationResult = () => {
 
         <div style={edgeToEdgeCard}>
           <div style={topHeaderSection}>
-            <div style={emblemBadge}>CENTRAL EVALUATION BOARD</div>
+            <div style={emblemBadge}>EXAM EVALUATION BOARD</div>
             <h1 style={mainHeading}>SMART STUDENTS CLASSES</h1>
             <p style={subHeadingDesc}>Annual Academic Evaluation & Verified Result Gateway • Session {session}</p>
           </div>
@@ -380,7 +380,7 @@ const ExaminationResult = () => {
               <div style={{ width: "110px" }}><img src="/logo.png" alt="Logo" style={{ width: "100px" }} onError={(e) => e.target.style.display='none'}/></div>
               <div style={{ flex: 1, textAlign: "center" }}>
                 <h1 style={academyName}>SMART STUDENTS CLASSES</h1>
-                <p style={subHeader}>CENTRAL BOARD OF EDUCATION • PERFORMANCE STATEMENT</p>
+                <p style={subHeader}>EXCELLENCE IN  EDUCATION • PERFORMANCE STATEMENT</p>
                 <div style={examBadge}>{currentExamType} EXAMINATION RESULT ({session})</div>
               </div>
               <div style={{ width: "125px", textAlign: "right" }}>
@@ -481,7 +481,7 @@ const ExaminationResult = () => {
             <div style={signatureArea}>
               <div style={sigBox}>
                 <div style={sigImageContainer}>
-                  {teacherSign ? <img src={teacherSign} alt="Sign" style={{ height: "50px" }} /> : <span style={cursiveName}>Vandana Kushwah</span>}
+                  {teacherSign ? <img src={teacherSign} alt="Sign" style={{ height: "50px" }} /> : <span style={cursiveName}></span>}
                 </div>
                 <div style={sigLine}></div>
                 <p style={{ fontWeight: "bold", color: "#000", margin: '2px 0', fontSize: '0.8rem' }}>VANDANA KUSHWAH</p>
@@ -503,7 +503,7 @@ const ExaminationResult = () => {
 
               <div style={sigBox}>
                 <div style={sigImageContainer}>
-                  {principalSign ? <img src={principalSign} alt="Sign" style={{ height: "50px" }} /> : <span style={cursiveName}>Nitesh Kushwah</span>}
+                  {principalSign ? <img src={principalSign} alt="Sign" style={{ height: "50px" }} /> : <span style={cursiveName}></span>}
                 </div>
                 <div style={sigLine}></div>
                 <p style={{ fontWeight: "bold", color: "#000", margin: '2px 0', fontSize: '0.8rem' }}>NITESH KUSHWAH</p>
@@ -511,7 +511,7 @@ const ExaminationResult = () => {
                 {isAdmin && <button onClick={() => setActiveSignType('principal')} className="no-print" style={drawBtn}>Draw Sign</button>}
               </div>
             </div>
-            <div style={{textAlign: 'center', marginTop: '20px', fontSize: '0.65rem', color: '#777', fontStyle: 'italic'}}>Note: This is an electronically generated report card verified by Smart Students Classes Central Portal.</div>
+            <div style={{textAlign: 'center', marginTop: '20px', fontSize: '0.65rem', color: '#777', fontStyle: 'italic'}}>Note: This is an electronically generated report card verified by Smart Students Classes Portal.</div>
           </div>
         </div>
       </div>
@@ -568,8 +568,8 @@ const drawBtn = { fontSize: '0.65rem', marginTop: '4px', cursor: 'pointer', back
 const marksheetPageWrapper = { background: "#1e272e", minHeight: "100vh", padding: "20px 0", fontFamily: "'Segoe UI', Roboto, sans-serif" };
 
 const horizontalScrollContainer = { width: "100%", overflowX: "auto", display: "flex", justifyContent: "center" };
-const marksheetFrame = { width: "210mm", minHeight: "297mm", background: "#fff", padding: "12mm", boxSizing: "border-box", boxShadow: "0 0 20px rgba(0,0,0,0.5)", margin: "0 auto" };
-const outerBorder = { border: "4px double #1a237e", padding: "12mm", height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between" };
+const marksheetFrame = { width: "210mm", minHeight: "277mm", background: "#fff", padding: "12mm", boxSizing: "border-box", boxShadow: "0 0 20px rgba(0,0,0,0.5)", margin: "0 auto" };
+const outerBorder = { border: "4px double #1a237e", padding: "8mm", height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between" };
 const headerSection = { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #1a237e", paddingBottom: "10px" };
 const academyName = { fontSize: "1.4rem", fontWeight: "900", color: "#1a237e", margin: 0 };
 const subHeader = { fontSize: "0.7rem", fontWeight: "bold", color: "#555", margin: "2px 0" };
