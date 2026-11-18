@@ -298,8 +298,8 @@ const ExaminationResult = () => {
           body * { visibility: hidden !important; }
           #printable-marksheet, #printable-marksheet * { visibility: visible !important; }
           #printable-marksheet {
-            position: absolute !important; left: 0 !important; top: 0 !important; width: 210mm !important; height: 297mm !important;
-            margin: 0 !important; padding: 10mm !important; box-shadow: none !important; border: none !important; box-sizing: border-box !important;
+            position: absolute !important; left: 0 !important; top: 0 !important; width: 210mm !important; height: auto !important;
+            margin: 0 !important; padding: 8mm !important; box-shadow: none !important; border: none !important; box-sizing: border-box !important;
           }
           .no-print { display: none !important; }
         }
@@ -309,13 +309,13 @@ const ExaminationResult = () => {
         <div ref={marksheetRef} id="printable-marksheet" className="marksheet-frame" style={marksheetFrame}>
           <div style={outerBorder} className="outer-border">
             <div style={headerSection}>
-              <div style={{ width: "110px" }}><img src="/logo.png" alt="Logo" style={{ width: "100px" }} onError={(e) => e.target.style.display='none'}/></div>
+              <div style={{ width: "95px" }}><img src="/logo.png" alt="Logo" style={{ width: "85px" }} onError={(e) => e.target.style.display='none'}/></div>
               <div style={{ flex: 1, textAlign: "center" }}>
                 <h1 style={academyName}>SMART STUDENTS CLASSES</h1>
                 <p style={subHeader}>CENTRAL BOARD OF EDUCATION • PERFORMANCE STATEMENT</p>
                 <div style={examBadge}>{currentExamType} EXAMINATION RESULT ({session})</div>
               </div>
-              <div style={{ width: "125px", textAlign: "right" }}>
+              <div style={{ width: "105px", textAlign: "right" }}>
                 {studentInfo?.profile_photo ? <img src={studentInfo.profile_photo} alt="Student" style={studentPhoto} /> : <div style={photoPlaceholder}>AFFIX PHOTO</div>}
               </div>
             </div>
@@ -381,7 +381,7 @@ const ExaminationResult = () => {
                     <td colSpan="4" style={td}>PERCENTAGE: {overall.p}%</td>
                     <td style={{ ...td, color: "#1a237e", fontWeight: "900" }}>{overall.o}</td>
                     <td style={td}>
-                      <span style={{ padding: "4px 10px", background: overall.p >= 33 ? "#16a34a" : "#c0392b", color: "#fff", borderRadius: "4px", fontSize: "0.8rem" }}>
+                      <span style={{ padding: "3px 8px", background: overall.p >= 33 ? "#16a34a" : "#c0392b", color: "#fff", borderRadius: "4px", fontSize: "0.75rem" }}>
                         {getGrade(overall.p)}
                       </span>
                     </td>
@@ -389,15 +389,15 @@ const ExaminationResult = () => {
                 </tbody>
               </table>
             ) : (
-              <div style={{ textAlign: "center", padding: "40px", fontSize: "1.2rem", fontWeight: "bold", color: "#c0392b", border: "1px dashed #c0392b", borderRadius: "6px" }}>
+              <div style={{ textAlign: "center", padding: "20px", fontSize: "1rem", fontWeight: "bold", color: "#c0392b", border: "1px dashed #c0392b", borderRadius: "6px" }}>
                 No active exam records found for Session {session}.
               </div>
             )}
 
             <div style={bottomGrid}>
               <div style={gradingChart}>
-                <p style={{ margin: "0 0 5px 0", fontSize: "0.75rem", fontWeight: "bold", borderBottom: "1px solid #ddd", color: "#1a237e" }}>GRADE SCHEME</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 10px", fontSize: "0.65rem" }}>
+                <p style={{ margin: "0 0 3px 0", fontSize: "0.7rem", fontWeight: "bold", borderBottom: "1px solid #ddd", color: "#1a237e" }}>GRADE SCHEME</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 10px", fontSize: "0.6rem" }}>
                   <span>A+ : 85% - 100%</span><span>A : 75% - 84%</span>
                   <span>B : 60% - 74%</span><span>C : 33% - 59%</span>
                 </div>
@@ -408,12 +408,11 @@ const ExaminationResult = () => {
               </div>
             </div>
 
-            {/* Clean Signature Area with Dedicated Blank Space for Manual Pen Signatures */}
             <div style={signatureArea}>
               <div style={sigBox}>
                 <div style={sigImageContainer}></div>
                 <div style={sigLine}></div>
-                <p style={{ fontWeight: "bold", color: "#000", margin: '2px 0', fontSize: '0.8rem' }}>VANDANA KUSHWAH</p>
+                <p style={{ fontWeight: "bold", color: "#000", margin: '1px 0', fontSize: '0.75rem' }}>VANDANA KUSHWAH</p>
                 <p style={sigLabel}>Class Teacher</p>
               </div>
               
@@ -432,12 +431,12 @@ const ExaminationResult = () => {
               <div style={sigBox}>
                 <div style={sigImageContainer}></div>
                 <div style={sigLine}></div>
-                <p style={{ fontWeight: "bold", color: "#000", margin: '2px 0', fontSize: '0.8rem' }}>NITESH KUSHWAH</p>
+                <p style={{ fontWeight: "bold", color: "#000", margin: '1px 0', fontSize: '0.75rem' }}>NITESH KUSHWAH</p>
                 <p style={sigLabel}>Principal</p>
               </div>
             </div>
 
-            <div style={{textAlign: 'center', marginTop: '10px', fontSize: '0.65rem', color: '#777', fontStyle: 'italic'}}>Note: This is an electronically generated report card verified by Smart Students Classes Central Portal.</div>
+            <div style={{textAlign: 'center', marginTop: '6px', fontSize: '0.6rem', color: '#777', fontStyle: 'italic'}}>Note: This is an electronically generated report card verified by Smart Students Classes Central Portal.</div>
           </div>
         </div>
       </div>
@@ -451,14 +450,14 @@ const ExaminationResult = () => {
   );
 };
 
-/* ============= STYLES ============= */
+/* ============= COMPACT STYLES ============= */
 const whitePortalWrapper = { minHeight: "100vh", width: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#f8fafc", padding: "10px", boxSizing: "border-box", overflowY: "auto" };
 const edgeToEdgeCard = { background: "#ffffff", width: "100%", maxWidth: "560px", minHeight: "560px", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "20px 30px", borderRadius: "12px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0", boxSizing: "border-box", margin: "auto" };
 
-const topHeaderSection = { textAlign: "center", borderBottom: "2px solid #f1f5f9", paddingBottom: "10px" };
-const emblemBadge = { background: "#f0fdf4", color: "#15803d", padding: "3px 12px", borderRadius: "20px", display: "inline-block", fontSize: "0.7rem", fontWeight: "800", letterSpacing: "1px", border: "1px solid #dcfce7", marginBottom: "4px" };
-const mainHeading = { color: "#0f172a", fontSize: "1.7rem", fontWeight: "900", margin: "2px 0", letterSpacing: "0.5px" };
-const subHeadingDesc = { color: "#64748b", fontSize: "0.78rem", fontWeight: "500", margin: 0 };
+const topHeaderSection = { textAlign: "center", borderBottom: "2px solid #f1f5f9", paddingBottom: "8px" };
+const emblemBadge = { background: "#f0fdf4", color: "#15803d", padding: "2px 10px", borderRadius: "20px", display: "inline-block", fontSize: "0.65rem", fontWeight: "800", letterSpacing: "1px", border: "1px solid #dcfce7", marginBottom: "3px" };
+const mainHeading = { color: "#0f172a", fontSize: "1.5rem", fontWeight: "900", margin: "2px 0", letterSpacing: "0.5px" };
+const subHeadingDesc = { color: "#64748b", fontSize: "0.75rem", fontWeight: "500", margin: 0 };
 
 const countdownCard = { background: "#f8fafc", borderRadius: "10px", padding: "10px 15px", border: "1px solid #e2e8f0" };
 const liveBadge = { background: "#278727", color: "#fff", padding: "6px 6px", marginRight: "20px", borderRadius: "8px", fontSize: "0.65rem", fontWeight: "650", letterSpacing: "0.5px" };
@@ -466,69 +465,70 @@ const circlesGrid = { display: "flex", justifyContent: "space-around", alignItem
 const circleContainerStyle = { position: "relative", width: "65px", height: "65px", display: "flex", justifyContent: "center", alignItems: "center" };
 const circleInnerTextStyle = { position: "absolute", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" };
 
-const adminNoticeBar = { background: "#d1fae5", color: "#065f46", padding: "10px", borderRadius: "8px", fontWeight: "bold", textAlign: "center", fontSize: "0.85rem", border: "1px solid #a7f3d0" };
+const adminNoticeBar = { background: "#d1fae5", color: "#065f46", padding: "8px", borderRadius: "8px", fontWeight: "bold", textAlign: "center", fontSize: "0.8rem", border: "1px solid #a7f3d0" };
 
 const formSection = { background: "#ffffff", padding: "2px 0" };
-const formRow = { display: "flex", gap: "12px", marginBottom: "10px", textAlign: "left" };
-const formLabel = { fontSize: "0.7rem", fontWeight: "800", color: "#334155", display: "block", marginBottom: "4px", letterSpacing: "0.5px" };
+const formRow = { display: "flex", gap: "12px", marginBottom: "8px", textAlign: "left" };
+const formLabel = { fontSize: "0.7rem", fontWeight: "800", color: "#334155", display: "block", marginBottom: "3px", letterSpacing: "0.5px" };
 const captchaWrapper = { display: "flex", alignItems: "center", background: "#f8fafc", borderRadius: "6px", padding: "4px 10px", border: "1px solid #cbd5e1" };
-const captchaText = { fontSize: "1.5rem", fontWeight: "900", letterSpacing: "6px", color: "#16a34a", fontStyle: "italic", flex: 1 };
+const captchaText = { fontSize: "1.4rem", fontWeight: "900", letterSpacing: "6px", color: "#16a34a", fontStyle: "italic", flex: 1 };
 const refreshBtn = { background: "none", border: "none", fontSize: "1rem", cursor: "pointer", padding: "2px" };
-const inputStyle = { width: "100%", padding: "9px", border: "2px solid #cbd5e1", borderRadius: "6px", fontSize: "0.9rem", fontWeight: "700", textAlign: "center", outline: "none", boxSizing: "border-box" };
-const submitBtn = { width: "100%", padding: "10px", color: "#fff", border: "none", borderRadius: "6px", fontSize: "0.95rem", fontWeight: "600", letterSpacing: "0.5px", cursor: "pointer", boxShadow: "0 4px 10px rgba(22, 163, 74, 0.25)" };
+const inputStyle = { width: "100%", padding: "8px", border: "2px solid #cbd5e1", borderRadius: "6px", fontSize: "0.85rem", fontWeight: "700", textAlign: "center", outline: "none", boxSizing: "border-box" };
+const submitBtn = { width: "100%", padding: "9px", color: "#fff", border: "none", borderRadius: "6px", fontSize: "0.9rem", fontWeight: "600", letterSpacing: "0.5px", cursor: "pointer", boxShadow: "0 4px 10px rgba(22, 163, 74, 0.25)" };
 
-const footerNote = { textAlign: "center", color: "#94a3b8", fontSize: "0.7rem", fontWeight: "500", borderTop: "1px solid #f1f5f9", paddingTop: "6px" };
+const footerNote = { textAlign: "center", color: "#94a3b8", fontSize: "0.68rem", fontWeight: "500", borderTop: "1px solid #f1f5f9", paddingTop: "5px" };
 
-const verifyingBox = { padding: "25px 15px", textAlign: "center" };
-const spinnerStyle = { width: "38px", height: "38px", border: "3px solid #e2e8f0", borderTop: "3px solid #16a34a", borderRadius: "50%", margin: "0 auto" };
+const verifyingBox = { padding: "20px 15px", textAlign: "center" };
+const spinnerStyle = { width: "35px", height: "35px", border: "3px solid #e2e8f0", borderTop: "3px solid #16a34a", borderRadius: "50%", margin: "0 auto" };
 
 const modalOverlay = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' };
 const modalContentBox = { background: '#fff', padding: '20px 18px', borderRadius: '12px', textAlign: 'center', boxShadow: "0 15px 30px rgba(0,0,0,0.3)", width: '90%', maxWidth: '340px', position: 'relative' };
 const closeModalBtn = { position: 'absolute', top: '8px', right: '10px', background: 'none', border: 'none', fontSize: '1.1rem', cursor: 'pointer', color: '#64748b', fontWeight: 'bold' };
 const popupOkBtn = { padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', width: '100%' };
 
-const marksheetPageWrapper = { background: "#1e272e", minHeight: "100vh", padding: "20px 0", fontFamily: "'Segoe UI', Roboto, sans-serif", display: "flex", flexDirection: "column", alignItems: "center" };
+const marksheetPageWrapper = { background: "#1e272e", minHeight: "100vh", padding: "15px 0", fontFamily: "'Segoe UI', Roboto, sans-serif", display: "flex", flexDirection: "column", alignItems: "center" };
 const horizontalScrollContainer = { width: "100%", display: "flex", justifyContent: "center", overflowX: "auto" };
 
-const marksheetFrame = { width: "794px", minHeight: "1123px", background: "#ffffff", padding: "35px 45px", boxSizing: "border-box", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", justifyContent: "space-between" };
-const outerBorder = { border: "3px double #1a237e", padding: "18px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" };
+/* Reduced height from 1123px to 980px and tightened padding for compact look */
+const marksheetFrame = { width: "794px", minHeight: "980px", background: "#ffffff", padding: "25px 35px", boxSizing: "border-box", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", justifyContent: "space-between" };
+const outerBorder = { border: "3px double #1a237e", padding: "12px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" };
 
-const headerSection = { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #1a237e", paddingBottom: "12px" };
-const academyName = { fontSize: "1.5rem", fontWeight: "900", color: "#1a237e", margin: "0" };
-const subHeader = { fontSize: "0.75rem", fontWeight: "700", color: "#555", margin: "3px 0" };
-const examBadge = { background: "#1a237e", color: "#fff", padding: "3px 12px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: "bold", display: "inline-block", marginTop: "4px" };
+const headerSection = { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #1a237e", paddingBottom: "8px" };
+const academyName = { fontSize: "1.35rem", fontWeight: "900", color: "#1a237e", margin: "0" };
+const subHeader = { fontSize: "0.7rem", fontWeight: "700", color: "#555", margin: "2px 0" };
+const examBadge = { background: "#1a237e", color: "#fff", padding: "2px 10px", borderRadius: "10px", fontSize: "0.65rem", fontWeight: "bold", display: "inline-block", marginTop: "3px" };
 
-const studentPhoto = { width: "75px", height: "90px", objectFit: "cover", border: "1px solid #1a237e", borderRadius: "4px" };
-const photoPlaceholder = { width: "75px", height: "90px", border: "1px dashed #777", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", color: "#777", textAlign: "center", background: "#fafafa" };
+const studentPhoto = { width: "85px", height: "110px", objectFit: "cover", border: "1px solid #1a237e", borderRadius: "4px" };
+const photoPlaceholder = { width: "65px", height: "80px", border: "1px dashed #777", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: "#777", textAlign: "center", background: "#fafafa" };
 
-const detailsGrid = { margin: "12px 0", background: "#f8f9fa", padding: "10px", borderRadius: "6px", border: "1px solid #e2e8f0" };
-const infoTable = { width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" };
-const infoTd = { padding: "4px 6px", color: "#334155" };
+const detailsGrid = { margin: "8px 0", background: "#f8f9fa", padding: "8px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" };
+const infoTable = { width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" };
+const infoTd = { padding: "3px 5px", color: "#334155" };
 
-const marksTable = { width: "100%", borderCollapse: "collapse", margin: "10px 0", textAlign: "center", fontSize: "0.75rem" };
+const marksTable = { width: "100%", borderCollapse: "collapse", margin: "8px 0", textAlign: "center", fontSize: "0.73rem" };
 const tableHeaderRow = { background: "#1a237e", color: "#ffffff" };
-const th = { border: "1px solid #cbd5e1", padding: "8px 4px", fontWeight: "700", fontSize: "0.7rem", lineHeight: "1.2" };
-const td = { border: "1px solid #cbd5e1", padding: "7px 4px", color: "#0f172a" };
+const th = { border: "1px solid #cbd5e1", padding: "6px 4px", fontWeight: "700", fontSize: "0.68rem", lineHeight: "1.1" };
+const td = { border: "1px solid #cbd5e1", padding: "5px 4px", color: "#0f172a" };
 const tableRowStyle = { background: "#ffffff" };
 
-const bottomGrid = { display: "flex", justifyContent: "space-between", margin: "10px 0", gap: "15px" };
-const gradingChart = { border: "1px solid #cbd5e1", padding: "8px", borderRadius: "4px", flex: 1, background: "#f8fafc" };
-const resultSummaryBoard = { border: "1px solid #cbd5e1", padding: "8px", borderRadius: "4px", flex: 1, background: "#f8fafc", display: "flex", flexDirection: "column", justifyContent: "center", fontSize: "0.8rem" };
-const summaryRow = { display: "flex", justifyContent: "space-between", margin: "2px 0" };
+const bottomGrid = { display: "flex", justifyContent: "space-between", margin: "8px 0", gap: "12px" };
+const gradingChart = { border: "1px solid #cbd5e1", padding: "6px 8px", borderRadius: "4px", flex: 1, background: "#f8fafc" };
+const resultSummaryBoard = { border: "1px solid #cbd5e1", padding: "6px 8px", borderRadius: "4px", flex: 1, background: "#f8fafc", display: "flex", flexDirection: "column", justifyContent: "center", fontSize: "0.75rem" };
+const summaryRow = { display: "flex", justifyContent: "space-between", margin: "1px 0" };
 
-const signatureArea = { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "15px", paddingTop: "10px", borderTop: "1px solid #cbd5e1" };
+const signatureArea = { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "10px", paddingTop: "8px", borderTop: "1px solid #cbd5e1" };
 const sigBox = { textAlign: "center", width: "30%" };
-const sigImageContainer = { height: "50px" }; // Blank space maintained for physical pen signature
-const sigLine = { borderTop: "1px solid #000", width: "100%", margin: "4px 0 2px 0" };
-const sigLabel = { fontSize: "0.65rem", color: "#555", fontWeight: "600", textTransform: "uppercase" };
+const sigImageContainer = { height: "40px" }; // Compact manual signature space
+const sigLine = { borderTop: "1px solid #000", width: "100%", margin: "3px 0 2px 0" };
+const sigLabel = { fontSize: "0.6rem", color: "#555", fontWeight: "600", textTransform: "uppercase" };
 
-const curvedSealContainer = { width: "70px", height: "70px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", border: "2px dotted #1a237e", borderRadius: "50%", background: "#f0f4f8" };
-const svgSeal = { width: "65px", height: "65px" };
-const sealTextStyle = { fontSize: "7.5px", fill: "#1a237e", fontWeight: "bold" };
+const curvedSealContainer = { width: "60px", height: "60px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", border: "2px dotted #1a237e", borderRadius: "50%", background: "#f0f4f8" };
+const svgSeal = { width: "55px", height: "55px" };
+const sealTextStyle = { fontSize: "7px", fill: "#1a237e", fontWeight: "bold" };
 
-const actionButtons = { display: "flex", gap: "10px", marginTop: "15px" };
-const printBtn = { background: "#34495e", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" };
-const downloadBtn = { background: "#16a34a", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" };
-const backBtn = { background: "#e74c3c", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" };
+const actionButtons = { display: "flex", gap: "10px", marginTop: "12px" };
+const printBtn = { background: "#34495e", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" };
+const downloadBtn = { background: "#16a34a", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" };
+const backBtn = { background: "#e74c3c", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" };
 
 export default ExaminationResult;
