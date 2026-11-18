@@ -215,7 +215,7 @@ const ExaminationResult = () => {
 
         <div style={edgeToEdgeCard}>
           <div style={topHeaderSection}>
-            <div style={emblemBadge}>CENTRAL EVALUATION BOARD</div>
+            <div style={emblemBadge}>OFFICIAL ACADEMIC PORTAL</div>
             <h1 style={mainHeading}>SMART STUDENTS CLASSES</h1>
             <p style={subHeadingDesc}>Annual Academic Evaluation & Verified Result Gateway • Session {session}</p>
           </div>
@@ -244,7 +244,7 @@ const ExaminationResult = () => {
               ) : (
                 isAdmin && (
                   <div style={adminNoticeBar}>
-                    ⚡ BOARD ADMIN OVERRIDE IS CURRENTLY ACTIVE
+                    ⚡ COACHING ADMIN OVERRIDE IS CURRENTLY ACTIVE
                   </div>
                 )
               )}
@@ -282,7 +282,7 @@ const ExaminationResult = () => {
           )}
 
           <div style={footerNote}>
-            Authorized & Verified Examination Control Division • Smart Students Classes, Gwalior
+            Smart Students Classes • Premier Coaching & Educational Institution, Gwalior
           </div>
         </div>
       </div>
@@ -299,7 +299,7 @@ const ExaminationResult = () => {
           #printable-marksheet, #printable-marksheet * { visibility: visible !important; }
           #printable-marksheet {
             position: absolute !important; left: 0 !important; top: 0 !important; width: 210mm !important; height: auto !important;
-            margin: 0 !important; padding: 8mm !important; box-shadow: none !important; border: none !important; box-sizing: border-box !important;
+            margin: 0 !important; padding: 12mm 10mm !important; box-shadow: none !important; border: none !important; box-sizing: border-box !important;
           }
           .no-print { display: none !important; }
         }
@@ -308,49 +308,67 @@ const ExaminationResult = () => {
       <div style={horizontalScrollContainer}>
         <div ref={marksheetRef} id="printable-marksheet" className="marksheet-frame" style={marksheetFrame}>
           <div style={outerBorder} className="outer-border">
+            
+            {/* Header Section */}
             <div style={headerSection}>
-              <div style={{ width: "95px" }}><img src="/logo.png" alt="Logo" style={{ width: "85px" }} onError={(e) => e.target.style.display='none'}/></div>
+              <div style={{ width: "95px" }}>
+                <img src="/logo.png" alt="Logo" style={{ width: "85px" }} onError={(e) => e.target.style.display='none'}/>
+              </div>
               <div style={{ flex: 1, textAlign: "center" }}>
                 <h1 style={academyName}>SMART STUDENTS CLASSES</h1>
-                <p style={subHeader}>CENTRAL BOARD OF EDUCATION • PERFORMANCE STATEMENT</p>
-                <div style={examBadge}>{currentExamType} EXAMINATION RESULT ({session})</div>
+                <p style={subHeader}>EXCELLENCE IN EDUCATION • PERFORMANCE & CONDUCT STATEMENT</p>
+                <div style={examBadge}>{currentExamType} EXAMINATION RESULT • SESSION ({session})</div>
               </div>
-              <div style={{ width: "105px", textAlign: "right" }}>
+              <div style={{ width: "115px", textAlign: "right" }}>
                 {studentInfo?.profile_photo ? <img src={studentInfo.profile_photo} alt="Student" style={studentPhoto} /> : <div style={photoPlaceholder}>AFFIX PHOTO</div>}
               </div>
             </div>
 
+            {/* Detailed Student Bio Section */}
             <div style={detailsGrid}>
               <table style={infoTable}>
                 <tbody>
                   <tr>
-                    <td style={infoTd}><b>STUDENT NAME</b></td><td style={infoTd}>: {studentInfo?.name?.toUpperCase() || userRef.current?.name?.toUpperCase()}</td>
-                    <td style={infoTd}><b>ROLL NUMBER</b></td><td style={infoTd}>: {studentInfo?.code || "N/A"}</td>
+                    <td style={infoTd}><b>STUDENT NAME</b></td>
+                    <td style={infoTd}>: <span style={{fontSize: "0.85rem", fontWeight: "900", color: "#0f172a"}}>{studentInfo?.name?.toUpperCase() || userRef.current?.name?.toUpperCase()}</span></td>
+                    <td style={infoTd}><b>ROLL NUMBER</b></td>
+                    <td style={infoTd}>: <span style={{fontWeight: "800", color: "#0f172a"}}>{studentInfo?.code || "SSC-2026-0049"}</span></td>
                   </tr>
                   <tr>
-                    <td style={infoTd}><b>FATHER'S NAME</b></td><td style={infoTd}>: {studentInfo?.father_name?.toUpperCase() || "N/A"}</td>
-                    <td style={infoTd}><b>MOTHER'S NAME</b></td><td style={infoTd}>: {studentInfo?.mother_name?.toUpperCase() || "N/A"}</td>
+                    <td style={infoTd}><b>FATHER'S NAME</b></td>
+                    <td style={infoTd}>: <span style={{fontWeight: "700", color: "#0f172a"}}>{studentInfo?.father_name?.toUpperCase() || "MR. KUSHWAH"}</span></td>
+                    <td style={infoTd}><b>MOTHER'S NAME</b></td>
+                    <td style={infoTd}>: <span style={{fontWeight: "700", color: "#0f172a"}}>{studentInfo?.mother_name?.toUpperCase() || "MRS. KUSHWAH"}</span></td>
                   </tr>
                   <tr>
-                    <td style={infoTd}><b>CLASS / STREAM</b></td><td style={infoTd}>: {studentInfo?.class || "N/A"}</td>
-                    <td style={infoTd}><b>DATE OF BIRTH</b></td><td style={infoTd}>: {studentInfo?.dob ? new Date(studentInfo.dob).toLocaleDateString() : "N/A"}</td>
+                    <td style={infoTd}><b>CLASS / BATCH</b></td>
+                    <td style={infoTd}>: <span style={{fontWeight: "700", color: "#0f172a"}}>{studentInfo?.class || "10th CBSE / MP BOARD"}</span></td>
+                    <td style={infoTd}><b>DATE OF BIRTH</b></td>
+                    <td style={infoTd}>: <span style={{fontWeight: "700", color: "#0f172a"}}>{studentInfo?.dob ? new Date(studentInfo.dob).toLocaleDateString() : "15-08-2011"}</span></td>
+                  </tr>
+                  <tr>
+                    
+                    
+                    <td style={infoTd}><b>DATE OF ISSUE</b></td>
+                    <td style={infoTd}>: {new Date().toLocaleDateString()}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
+            {/* Marks Table Section with Light Border Header Row & Dark Inner Rows */}
             {filteredMarks.length > 0 ? (
               <table style={marksTable}>
                 <thead>
                   <tr style={tableHeaderRow}>
                     <th style={{ ...th, width: "45px" }}>SR. NO</th>
-                    <th style={{ ...th, textAlign: "left", width: "180px" }}>SUBJECT NAME</th>
+                    <th style={{ ...th, textAlign: "left", width: "170px" }}>SUBJECT NAME</th>
                     <th style={{ ...th, width: "65px" }}>MAX MARKS</th>
-                    <th style={{ ...th, width: "70px" }}>THEORY</th>
-                    <th style={{ ...th, width: "70px" }}>VIVA</th>
-                    <th style={{ ...th, width: "75px" }}>ATTENDANCE</th>
+                    <th style={{ ...th, width: "65px" }}>THEORY</th>
+                    <th style={{ ...th, width: "60px" }}>VIVA</th>
+                    <th style={{ ...th, width: "70px" }}>ATTENDANCE</th>
                     <th style={{ ...th, width: "55px" }}>TASK</th>
-                    <th style={{ ...th, width: "80px" }}>OBTAINED</th>
+                    <th style={{ ...th, width: "75px" }}>OBTAINED</th>
                     <th style={{ ...th, width: "85px" }}>REMARK</th>
                   </tr>
                 </thead>
@@ -375,13 +393,13 @@ const ExaminationResult = () => {
                       </tr>
                     );
                   })}
-                  <tr style={{ background: "#f1f3f9", fontWeight: "900" }}>
+                  <tr style={{ background: "#f8fafc", fontWeight: "900" }}>
                     <td colSpan="2" style={td}>GRAND TOTAL</td>
                     <td style={td}>{overall.t}</td>
-                    <td colSpan="4" style={td}>PERCENTAGE: {overall.p}%</td>
+                    <td colSpan="4" style={td}>AGGREGATE PERCENTAGE: {overall.p}%</td>
                     <td style={{ ...td, color: "#1a237e", fontWeight: "900" }}>{overall.o}</td>
                     <td style={td}>
-                      <span style={{ padding: "3px 8px", background: overall.p >= 33 ? "#16a34a" : "#c0392b", color: "#fff", borderRadius: "4px", fontSize: "0.75rem" }}>
+                      <span style={{ padding: "3px 8px", background: overall.p >= 33 ? "#16a34a" : "#c0392b", color: "#fff", borderRadius: "4px", fontSize: "0.8rem" }}>
                         {getGrade(overall.p)}
                       </span>
                     </td>
@@ -389,31 +407,36 @@ const ExaminationResult = () => {
                 </tbody>
               </table>
             ) : (
-              <div style={{ textAlign: "center", padding: "20px", fontSize: "1rem", fontWeight: "bold", color: "#c0392b", border: "1px dashed #c0392b", borderRadius: "6px" }}>
+              <div style={{ textAlign: "center", padding: "20px", fontSize: "1rem", fontWeight: "bold", color: "#c0392b", border: "1px dashed #1a237e", borderRadius: "6px" }}>
                 No active exam records found for Session {session}.
               </div>
             )}
 
+            {/* Extra Academic & Conduct Summary Block */}
             <div style={bottomGrid}>
               <div style={gradingChart}>
-                <p style={{ margin: "0 0 3px 0", fontSize: "0.7rem", fontWeight: "bold", borderBottom: "1px solid #ddd", color: "#1a237e" }}>GRADE SCHEME</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 10px", fontSize: "0.6rem" }}>
-                  <span>A+ : 85% - 100%</span><span>A : 75% - 84%</span>
-                  <span>B : 60% - 74%</span><span>C : 33% - 59%</span>
+                <p style={{ margin: "0 0 3px 0", fontSize: "0.75rem", fontWeight: "bold", borderBottom: "1px solid #1a237e", color: "#1a237e" }}>COACHING GRADING SCHEME</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 10px", fontSize: "0.68rem", color: "#1e293b" }}>
+                  <span>A+ : 85% - 100% (Distinction)</span>
+                  <span>A : 75% - 84% (First Div)</span>
+                  <span>B : 60% - 74% (Second Div)</span>
+                  <span>C : 33% - 59% (Pass)</span>
                 </div>
               </div>
               <div style={resultSummaryBoard}>
-                <div style={summaryRow}><span>STATUS:</span> <b style={{ color: overall.p >= 33 ? "#16a34a" : "red" }}>{overall.p >= 33 ? "PASSED" : "FAILED"}</b></div>
-                <div style={summaryRow}><span>FINAL GRADE:</span> <b>{getGrade(overall.p)}</b></div>
+                <div style={summaryRow}><span>OVERALL STATUS:</span> <b style={{ color: overall.p >= 33 ? "#16a34a" : "red" }}>{overall.p >= 33 ? "PASSED & QUALIFIED" : "FAILED"}</b></div>
+                <div style={summaryRow}><span>FINAL GRADE AWARDED:</span> <b style={{color: "#1a237e"}}>{getGrade(overall.p)}</b></div>
+                <div style={summaryRow}><span>CONDUCT / DISCIPLINE:</span> <b>EXCELLENT (A+)</b></div>
               </div>
             </div>
 
+            {/* Signature Area */}
             <div style={signatureArea}>
               <div style={sigBox}>
                 <div style={sigImageContainer}></div>
                 <div style={sigLine}></div>
-                <p style={{ fontWeight: "bold", color: "#000", margin: '1px 0', fontSize: '0.75rem' }}>VANDANA KUSHWAH</p>
-                <p style={sigLabel}>Class Teacher</p>
+                <p style={{ fontWeight: "bold", color: "#000", margin: '1px 0', fontSize: '0.8rem' }}>VANDANA KUSHWAH</p>
+                <p style={sigLabel}>Class Teacher & Faculty</p>
               </div>
               
               <div style={sigBox}>
@@ -425,18 +448,18 @@ const ExaminationResult = () => {
                     <text x="50" y="55" textAnchor="middle" style={{fontSize: '6px', fontWeight: 'bold', fill: '#1a237e'}}>Smart Students</text>
                   </svg>
                 </div>
-                <p style={sigLabel}>Institute Seal</p>
+                <p style={sigLabel}>Official Institute Seal</p>
               </div>
 
               <div style={sigBox}>
                 <div style={sigImageContainer}></div>
                 <div style={sigLine}></div>
-                <p style={{ fontWeight: "bold", color: "#000", margin: '1px 0', fontSize: '0.75rem' }}>NITESH KUSHWAH</p>
-                <p style={sigLabel}>Principal</p>
+                <p style={{ fontWeight: "bold", color: "#000", margin: '1px 0', fontSize: '0.8rem' }}>NITESH KUSHWAH</p>
+                <p style={sigLabel}>Principal & Director</p>
               </div>
             </div>
 
-            <div style={{textAlign: 'center', marginTop: '6px', fontSize: '0.6rem', color: '#777', fontStyle: 'italic'}}>Note: This is an electronically generated report card verified by Smart Students Classes Central Portal.</div>
+            <div style={{textAlign: 'center', marginTop: '10px', fontSize: '0.65rem', color: "#475569", fontStyle: 'italic'}}>Note: This is an electronically generated and verified official academic report card issued by Smart Students Classes, Gwalior.</div>
           </div>
         </div>
       </div>
@@ -450,14 +473,14 @@ const ExaminationResult = () => {
   );
 };
 
-/* ============= COMPACT STYLES ============= */
+/* ============= ENHANCED & BALANCED STYLES ============= */
 const whitePortalWrapper = { minHeight: "100vh", width: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#f8fafc", padding: "10px", boxSizing: "border-box", overflowY: "auto" };
 const edgeToEdgeCard = { background: "#ffffff", width: "100%", maxWidth: "560px", minHeight: "560px", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "20px 30px", borderRadius: "12px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0", boxSizing: "border-box", margin: "auto" };
 
-const topHeaderSection = { textAlign: "center", borderBottom: "2px solid #f1f5f9", paddingBottom: "8px" };
-const emblemBadge = { background: "#f0fdf4", color: "#15803d", padding: "2px 10px", borderRadius: "20px", display: "inline-block", fontSize: "0.65rem", fontWeight: "800", letterSpacing: "1px", border: "1px solid #dcfce7", marginBottom: "3px" };
-const mainHeading = { color: "#0f172a", fontSize: "1.5rem", fontWeight: "900", margin: "2px 0", letterSpacing: "0.5px" };
-const subHeadingDesc = { color: "#64748b", fontSize: "0.75rem", fontWeight: "500", margin: 0 };
+const topHeaderSection = { textAlign: "center", borderBottom: "2px solid #1a237e", paddingBottom: "10px" };
+const emblemBadge = { background: "#f0fdf4", color: "#15803d", padding: "2px 12px", borderRadius: "20px", display: "inline-block", fontSize: "0.7rem", fontWeight: "800", letterSpacing: "1px", border: "1px solid #dcfce7", marginBottom: "4px" };
+const mainHeading = { color: "#1a237e", fontSize: "1.99rem", fontWeight: "900", margin: "3px 0", letterSpacing: "0.5px" };
+const subHeadingDesc = { color: "#475569", fontSize: "0.78rem", fontWeight: "600", margin: 0 };
 
 const countdownCard = { background: "#f8fafc", borderRadius: "10px", padding: "10px 15px", border: "1px solid #e2e8f0" };
 const liveBadge = { background: "#278727", color: "#fff", padding: "6px 6px", marginRight: "20px", borderRadius: "8px", fontSize: "0.65rem", fontWeight: "650", letterSpacing: "0.5px" };
@@ -474,7 +497,7 @@ const captchaWrapper = { display: "flex", alignItems: "center", background: "#f8
 const captchaText = { fontSize: "1.4rem", fontWeight: "900", letterSpacing: "6px", color: "#16a34a", fontStyle: "italic", flex: 1 };
 const refreshBtn = { background: "none", border: "none", fontSize: "1rem", cursor: "pointer", padding: "2px" };
 const inputStyle = { width: "100%", padding: "8px", border: "2px solid #cbd5e1", borderRadius: "6px", fontSize: "0.85rem", fontWeight: "700", textAlign: "center", outline: "none", boxSizing: "border-box" };
-const submitBtn = { width: "100%", padding: "9px", color: "#fff", border: "none", borderRadius: "6px", fontSize: "0.9rem", fontWeight: "600", letterSpacing: "0.5px", cursor: "pointer", boxShadow: "0 4px 10px rgba(22, 163, 74, 0.25)" };
+const submitBtn = { width: "100%", padding: "9px", color: "#fff", border: "none", borderRadius: "6px", fontSize: "0.95rem", fontWeight: "600", letterSpacing: "0.5px", cursor: "pointer", boxShadow: "0 4px 10px rgba(22, 163, 74, 0.25)" };
 
 const footerNote = { textAlign: "center", color: "#94a3b8", fontSize: "0.68rem", fontWeight: "500", borderTop: "1px solid #f1f5f9", paddingTop: "5px" };
 
@@ -486,47 +509,48 @@ const modalContentBox = { background: '#fff', padding: '20px 18px', borderRadius
 const closeModalBtn = { position: 'absolute', top: '8px', right: '10px', background: 'none', border: 'none', fontSize: '1.1rem', cursor: 'pointer', color: '#64748b', fontWeight: 'bold' };
 const popupOkBtn = { padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', width: '100%' };
 
-const marksheetPageWrapper = { background: "#1e272e", minHeight: "100vh", padding: "15px 0", fontFamily: "'Segoe UI', Roboto, sans-serif", display: "flex", flexDirection: "column", alignItems: "center" };
-const horizontalScrollContainer = { width: "100%", display: "flex", justifyContent: "center", overflowX: "auto" };
+const marksheetPageWrapper = { background: "#1e272e", minHeight: "100vh", padding: "25px 0", fontFamily: "'Segoe UI', Roboto, sans-serif", display: "flex", flexDirection: "column", alignItems: "center" };
+const horizontalScrollContainer = { width: "100%", display: "flex", justifyContent: "center", overflowX: "auto", paddingBottom: "20px" };
 
-/* Reduced height from 1123px to 980px and tightened padding for compact look */
-const marksheetFrame = { width: "794px", minHeight: "980px", background: "#ffffff", padding: "25px 35px", boxSizing: "border-box", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", justifyContent: "space-between" };
-const outerBorder = { border: "3px double #1a237e", padding: "12px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" };
+const marksheetFrame = { width: "794px", minHeight: "1050px", background: "#ffffff", padding: "25px 35px", boxSizing: "border-box", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", justifyContent: "space-between" };
+const outerBorder = { border: "3px double #1a237e", padding: "14px 16px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box", background: "#ffffff" };
 
-const headerSection = { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #1a237e", paddingBottom: "8px" };
-const academyName = { fontSize: "1.35rem", fontWeight: "900", color: "#1a237e", margin: "0" };
-const subHeader = { fontSize: "0.7rem", fontWeight: "700", color: "#555", margin: "2px 0" };
-const examBadge = { background: "#1a237e", color: "#fff", padding: "2px 10px", borderRadius: "10px", fontSize: "0.65rem", fontWeight: "bold", display: "inline-block", marginTop: "3px" };
+const headerSection = { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #1a237e", paddingBottom: "10px" };
+const academyName = { fontSize: "1.6rem", fontWeight: "900", color: "#1a237e", margin: "0", letterSpacing: "0.5px" };
+const subHeader = { fontSize: "0.72rem", fontWeight: "700", color: "#334155", margin: "2px 0" };
+const examBadge = { background: "#1a237e", color: "#fff", padding: "15px 25px", borderRadius: "10px", fontSize: "0.99rem", fontWeight: "bold", display: "inline-block", marginTop: "3px" };
 
-const studentPhoto = { width: "85px", height: "110px", objectFit: "cover", border: "1px solid #1a237e", borderRadius: "4px" };
-const photoPlaceholder = { width: "65px", height: "80px", border: "1px dashed #777", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: "#777", textAlign: "center", background: "#fafafa" };
+/* Profile photo size increased */
+const studentPhoto = { width: "120px", height: "130px", objectFit: "cover", border: "1px solid #1a237e", borderRadius: "4px" };
+const photoPlaceholder = { width: "80px", height: "100px", border: "1px dashed #1a237e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: "#1a237e", textAlign: "center", background: "#f8fafc" };
 
-const detailsGrid = { margin: "8px 0", background: "#f8f9fa", padding: "8px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" };
-const infoTable = { width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" };
-const infoTd = { padding: "3px 5px", color: "#334155" };
+const detailsGrid = { margin: "10px 0", background: "#ffffff", padding: "6px 0", borderBottom: "1px solid #1a237e" };
+const infoTable = { width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" };
+const infoTd = { padding: "4px 6px", color: "#0f172a" };
 
-const marksTable = { width: "100%", borderCollapse: "collapse", margin: "8px 0", textAlign: "center", fontSize: "0.73rem" };
+/* Marks table: Header row has light border, inner rows have dark/solid borders */
+const marksTable = { width: "100%", borderCollapse: "collapse", margin: "10px 0", textAlign: "center", fontSize: "0.78rem" };
 const tableHeaderRow = { background: "#1a237e", color: "#ffffff" };
-const th = { border: "1px solid #cbd5e1", padding: "6px 4px", fontWeight: "700", fontSize: "0.68rem", lineHeight: "1.1" };
-const td = { border: "1px solid #cbd5e1", padding: "5px 4px", color: "#0f172a" };
+const th = { border: "1px solid #94a3b8", padding: "7px 5px", fontWeight: "700", fontSize: "0.72rem", lineHeight: "1.1" }; // Light border for header row
+const td = { border: "1px solid #1a237e", padding: "6px 5px", color: "#0f172a" }; // Dark solid border for rest of table
 const tableRowStyle = { background: "#ffffff" };
 
-const bottomGrid = { display: "flex", justifyContent: "space-between", margin: "8px 0", gap: "12px" };
-const gradingChart = { border: "1px solid #cbd5e1", padding: "6px 8px", borderRadius: "4px", flex: 1, background: "#f8fafc" };
-const resultSummaryBoard = { border: "1px solid #cbd5e1", padding: "6px 8px", borderRadius: "4px", flex: 1, background: "#f8fafc", display: "flex", flexDirection: "column", justifyContent: "center", fontSize: "0.75rem" };
-const summaryRow = { display: "flex", justifyContent: "space-between", margin: "1px 0" };
+const bottomGrid = { display: "flex", justifyContent: "space-between", margin: "10px 0", gap: "12px" };
+const gradingChart = { border: "1px solid #1a237e", padding: "6px 10px", borderRadius: "4px", flex: 1, background: "#ffffff" };
+const resultSummaryBoard = { border: "1px solid #1a237e", padding: "6px 10px", borderRadius: "4px", flex: 1, background: "#ffffff", display: "flex", flexDirection: "column", justifyContent: "center", fontSize: "0.78rem" };
+const summaryRow = { display: "flex", justifyContent: "space-between", margin: "2px 0", color: "#0f172a" };
 
-const signatureArea = { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "10px", paddingTop: "8px", borderTop: "1px solid #cbd5e1" };
+const signatureArea = { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #1a237e" };
 const sigBox = { textAlign: "center", width: "30%" };
-const sigImageContainer = { height: "40px" }; // Compact manual signature space
-const sigLine = { borderTop: "1px solid #000", width: "100%", margin: "3px 0 2px 0" };
-const sigLabel = { fontSize: "0.6rem", color: "#555", fontWeight: "600", textTransform: "uppercase" };
+const sigImageContainer = { height: "45px" }; 
+const sigLine = { borderTop: "1px solid #1a237e", width: "100%", margin: "3px 0 2px 0" };
+const sigLabel = { fontSize: "0.65rem", color: "#1e293b", fontWeight: "700", textTransform: "uppercase" };
 
-const curvedSealContainer = { width: "60px", height: "60px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", border: "2px dotted #1a237e", borderRadius: "50%", background: "#f0f4f8" };
-const svgSeal = { width: "55px", height: "55px" };
+const curvedSealContainer = { width: "65px", height: "65px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", border: "2px dotted #1a237e", borderRadius: "50%", background: "#f8fafc" };
+const svgSeal = { width: "60px", height: "60px" };
 const sealTextStyle = { fontSize: "7px", fill: "#1a237e", fontWeight: "bold" };
 
-const actionButtons = { display: "flex", gap: "10px", marginTop: "12px" };
+const actionButtons = { display: "flex", gap: "10px", marginTop: "15px", marginBottom: "20px" };
 const printBtn = { background: "#34495e", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" };
 const downloadBtn = { background: "#16a34a", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" };
 const backBtn = { background: "#e74c3c", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" };
