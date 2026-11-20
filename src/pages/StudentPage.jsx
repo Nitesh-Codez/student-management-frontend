@@ -275,7 +275,7 @@ export default function StudentPage() {
                     onClick={() => handleSubmit(task)}
                     className="hover-btn-scale"
                   >
-                    {uploadingId === task.id ? "🚀 Uploading Securely..." : isOverdue ? "🔥 Submit Late Assignment" : "✨ Turn In Assignment Now"}
+                    {uploadingId === task.id ? "🚀 Uploading Securely..." : isOverdue ? "🔥 Submit Late Assignment" : "✨ Submit Assignment"}
                   </button>
                 </>
               )}
