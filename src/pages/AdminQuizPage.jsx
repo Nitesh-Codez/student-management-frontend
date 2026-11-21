@@ -43,11 +43,11 @@ const AdminQuizPage = () => {
   const [selectedSession, setSelectedSession] = useState("2026-27");
   const [selectedStream, setSelectedStream] = useState("");
 
-  // Question inline editing state
+  // Question inline edit state
   const [editingQuizId, setEditingQuizId] = useState(null);
   const [tempQuizData, setTempQuizData] = useState([]);
 
-  // Schedule editing state (start_at, end_at, created_at, timer_minutes)
+  // Schedule & timer edit modal state
   const [scheduleModalQuiz, setScheduleModalQuiz] = useState(null);
   const [scheduleForm, setScheduleForm] = useState({
     created_at: "",
@@ -79,7 +79,7 @@ const AdminQuizPage = () => {
     }
   };
 
-  // Convert DB timestamp to datetime-local input value (YYYY-MM-DDTHH:mm)
+  // Convert DB timestamp to datetime-local input format (YYYY-MM-DDTHH:mm)
   const toDateTimeLocal = (value) => {
     if (!value) return "";
     const d = new Date(value);
@@ -88,11 +88,11 @@ const AdminQuizPage = () => {
     return new Date(d.getTime() - offsetMs).toISOString().slice(0, 16);
   };
 
-  // Format timestamp cleanly for display
+  // Format date & time cleanly for display
   const formatDateTime = (value) => {
     if (!value) return "Not set";
     const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "Invalid date";
+    if (Number.isNaN(d.getTime())) return String(value);
     return d.toLocaleString("en-IN", {
       day: "2-digit",
       month: "short",
@@ -102,7 +102,7 @@ const AdminQuizPage = () => {
     });
   };
 
-  // Get live schedule status badge
+  // Determine quiz schedule badge
   const getScheduleBadge = (q) => {
     const now = new Date();
     const start = q.start_at ? new Date(q.start_at) : null;
@@ -120,7 +120,7 @@ const AdminQuizPage = () => {
     return { label: "Always Open", bg: "#e0f2fe", color: "#075985", border: "#7dd3fc" };
   };
 
-  // 1. Fetch Quizzes (Manage Tab)
+  // 1. Fetch Quizzes for Manage Tab
   const fetchQuizzesForAdmin = async (className, session, stream) => {
     if (!className || !session) return alert("Select Class and Session!");
     setLoading(true);
@@ -136,7 +136,7 @@ const AdminQuizPage = () => {
     }
   };
 
-  // 2. Handle Delete
+  // 2. Delete Quiz
   const handleDeleteQuiz = async (quizId) => {
     if (!window.confirm("Are you sure? All results will be deleted!")) return;
     try {
@@ -151,7 +151,7 @@ const AdminQuizPage = () => {
     }
   };
 
-  // 3. Question Inline Edit Logic
+  // 3. Inline Question Edit
   const startEditing = (q) => {
     setEditingQuizId(q.id);
     setTempQuizData(safeParse(q.questions));
@@ -183,7 +183,7 @@ const AdminQuizPage = () => {
     }
   };
 
-  // 3b. Schedule Modal Open & Save -> PUT /api/quiz/admin/edit-quiz/:quizId
+  // 3b. Edit Schedule & Timer -> PUT /api/quiz/admin/edit-quiz/:quizId
   const openScheduleModal = (q) => {
     setScheduleModalQuiz(q);
     setScheduleForm({
@@ -226,7 +226,7 @@ const AdminQuizPage = () => {
     }
   };
 
-  // 4. Submit New Quiz (with start_at & end_at)
+  // 4. Create Quiz
   const handleSubmitQuiz = async () => {
     if (!quiz.class_name || !quiz.subject || !quiz.title || !quiz.session || quiz.questions.length === 0) {
       return alert("Please fill all details and add at least one question!");
@@ -249,7 +249,7 @@ const AdminQuizPage = () => {
       };
 
       await api.post(`/api/quiz/create`, payload);
-      alert("Quiz Created with Schedule!");
+      alert("Quiz Created!");
       setQuiz({
         class_name: "",
         subject: "",
@@ -269,7 +269,7 @@ const AdminQuizPage = () => {
     }
   };
 
-  // 5. Fetch Reports & Quizzes (so quizId fallback works if needed)
+  // 5. Fetch Results & Map quiz_id if needed
   const fetchResults = async (className, session, stream) => {
     if (!className || !session) return alert("Select filters first!");
     setLoading(true);
@@ -316,10 +316,10 @@ const AdminQuizPage = () => {
   // 6. Renew Student Quiz Attempt -> DELETE /api/quiz/admin/renew-quiz/:quizId/:studentId
   const handleRenewStudentAttempt = async (quizId, studentId, studentName, quizTitle) => {
     if (!quizId || !studentId) {
-      return alert("quiz_id or student_id missing in result row. Check /api/quiz/admin/results response.");
+      return alert("student_id or quiz_id missing. Add qr.student_id and qr.quiz_id in getAdminResults SELECT.");
     }
     const confirmed = window.confirm(
-      `Renew "${quizTitle}" for ${studentName || `Student #${studentId}`}? Their previous score and answers will be permanently deleted.`
+      `Renew "${quizTitle}" for ${studentName || `Student #${studentId}`}? Previous attempt will be deleted.`
     );
     if (!confirmed) return;
 
@@ -350,13 +350,11 @@ const AdminQuizPage = () => {
       <div style={styles.shell}>
         {/* Header */}
         <div style={styles.headerCard}>
-          <div>
-            <span style={styles.badgePill}>Assessment & Scheduling Suite</span>
-            <h1 style={styles.title}>Quiz Administration Portal</h1>
-            <p style={styles.subtitle}>
-              Create scheduled tests, edit start/end timestamps & timer, edit questions, and renew student attempts.
-            </p>
-          </div>
+          <span style={styles.badgePill}>Admin Quiz Console</span>
+          <h1 style={styles.title}>Quiz Administration Portal</h1>
+          <p style={styles.subtitle}>
+            Schedule quiz windows (`start_at` / `end_at`), edit questions & timers, and renew student attempts.
+          </p>
         </div>
 
         {/* Navigation Tabs */}
@@ -379,7 +377,7 @@ const AdminQuizPage = () => {
               ...(activeTab === "edit" ? styles.activeTabManage : {})
             }}
           >
-            <FaCalendarAlt /> Manage & Edit Quiz
+            <FaCalendarAlt /> Manage & Schedule
           </button>
           <button
             type="button"
@@ -397,13 +395,13 @@ const AdminQuizPage = () => {
         {activeTab === "create" && (
           <div style={styles.panel}>
             <div style={styles.sectionHeader}>
-              <h3 style={styles.sectionTitle}>Create Scheduled Quiz</h3>
-              <span style={styles.helperText}>Leave Start / End empty if the quiz should stay open immediately.</span>
+              <h3 style={styles.sectionTitle}>Create New Quiz</h3>
+              <span style={styles.helperText}>Optional start & end timestamps control quiz availability.</span>
             </div>
 
             <div style={styles.formGrid}>
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>Academic Session</label>
+                <label style={styles.label}>Session</label>
                 <select
                   style={styles.input}
                   value={quiz.session}
@@ -462,11 +460,11 @@ const AdminQuizPage = () => {
                 </select>
               </div>
 
-              <div style={{ ...styles.fieldGroup, gridColumn: "span 2" }}>
+              <div style={styles.fieldGroup}>
                 <label style={styles.label}>Quiz Title</label>
                 <input
                   style={styles.input}
-                  placeholder="e.g., Chapter 4 Quadratic Equations Test"
+                  placeholder="Enter quiz title"
                   value={quiz.title}
                   onChange={(e) => setQuiz({ ...quiz, title: e.target.value })}
                 />
@@ -484,7 +482,7 @@ const AdminQuizPage = () => {
               </div>
 
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>Start At (Optional)</label>
+                <label style={styles.label}>Start At</label>
                 <input
                   style={styles.input}
                   type="datetime-local"
@@ -494,7 +492,7 @@ const AdminQuizPage = () => {
               </div>
 
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>End At (Optional)</label>
+                <label style={styles.label}>End At</label>
                 <input
                   style={styles.input}
                   type="datetime-local"
@@ -600,12 +598,12 @@ const AdminQuizPage = () => {
           </div>
         )}
 
-        {/* MANAGE & EDIT QUIZ TAB */}
+        {/* MANAGE & SCHEDULE TAB */}
         {activeTab === "edit" && (
           <div style={styles.panel}>
             <div style={styles.sectionHeader}>
-              <h3 style={styles.sectionTitle}>Filter, Edit Schedule & Manage Quizzes</h3>
-              <span style={styles.helperText}>Click Edit Schedule to update start_at, end_at, created_at, or timer.</span>
+              <h3 style={styles.sectionTitle}>Manage Quizzes & Schedule</h3>
+              <span style={styles.helperText}>Update start/end timestamps, timer, questions, or delete quizzes.</span>
             </div>
 
             <div style={styles.filterBar}>
@@ -655,7 +653,7 @@ const AdminQuizPage = () => {
 
             {quizzes.length === 0 && (
               <div style={styles.emptyState}>
-                No quizzes loaded yet. Select Session and Class, then click Search.
+                Select Session and Class, then click Search to view quizzes.
               </div>
             )}
 
@@ -735,7 +733,6 @@ const AdminQuizPage = () => {
                     </div>
                   </div>
 
-                  {/* Inline Question Editing */}
                   {editingQuizId === q.id && (
                     <div style={styles.inlineEditor}>
                       {tempQuizData.map((tq, tIdx) => (
@@ -790,7 +787,7 @@ const AdminQuizPage = () => {
           <div style={styles.panel}>
             <div style={styles.sectionHeader}>
               <h3 style={styles.sectionTitle}>Quiz Reports & Attempt Renewal</h3>
-              <span style={styles.helperText}>Click Renew to reset a student&apos;s quiz attempt so they can retake it.</span>
+              <span style={styles.helperText}>Includes IST attempt timestamps and one-click attempt renewal.</span>
             </div>
 
             <div style={styles.filterBar}>
@@ -840,75 +837,92 @@ const AdminQuizPage = () => {
 
             {Object.keys(results).length === 0 && (
               <div style={styles.emptyState}>
-                No results loaded yet. Filter by Session and Class, then click Get Reports.
+                Select Session and Class, then click Get Reports to view student results.
               </div>
             )}
 
-            {Object.keys(results).map((quizTitle) => (
-              <div key={quizTitle} style={styles.resultGroup}>
-                <div style={styles.resultHeader}>
-                  <span>Quiz: {quizTitle}</span>
-                  <span style={styles.countChip}>{results[quizTitle].length} Attempts</span>
-                </div>
+            {Object.keys(results).map((quizTitle) => {
+              const rows = results[quizTitle];
+              const sample = rows[0] || {};
 
-                <div style={{ overflowX: "auto" }}>
-                  <table style={styles.table}>
-                    <thead>
-                      <tr style={styles.tableHeadRow}>
-                        <th style={styles.th}>Student Name</th>
-                        <th style={styles.th}>Score</th>
-                        <th style={styles.th}>Grade</th>
-                        <th style={styles.th}>Date</th>
-                        <th style={styles.th}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results[quizTitle].map((r, i) => (
-                        <tr key={i} style={styles.tableRow}>
-                          <td style={styles.td}>{r.student_name}</td>
-                          <td style={styles.td}>
-                            {r.score}/{r.total_marks}
-                          </td>
-                          <td
-                            style={{
-                              ...styles.td,
-                              color: r.percentage < 40 ? "#dc2626" : "#15803d",
-                              fontWeight: 700
-                            }}
-                          >
-                            {r.grade} ({r.percentage}%)
-                          </td>
-                          <td style={styles.td}>
-                            {r.formatted_date ? new Date(r.formatted_date).toLocaleDateString() : "—"}
-                          </td>
-                          <td style={styles.td}>
-                            <button
-                              type="button"
-                              style={styles.renewBtn}
-                              onClick={() =>
-                                handleRenewStudentAttempt(
-                                  r.resolved_quiz_id,
-                                  r.resolved_student_id,
-                                  r.student_name,
-                                  quizTitle
-                                )
-                              }
-                            >
-                              <FaRedo /> Renew
-                            </button>
-                          </td>
+              return (
+                <div key={quizTitle} style={styles.resultGroup}>
+                  <div style={styles.resultHeader}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: "#0f172a" }}>Quiz: {quizTitle}</div>
+                      {(sample.start_at || sample.end_at || sample.subject) && (
+                        <div style={styles.resultSubMeta}>
+                          {sample.subject && <span><strong>Subject:</strong> {sample.subject}</span>}
+                          {sample.start_at && <span><strong>Start:</strong> {formatDateTime(sample.start_at)}</span>}
+                          {sample.end_at && <span><strong>End:</strong> {formatDateTime(sample.end_at)}</span>}
+                        </div>
+                      )}
+                    </div>
+                    <span style={styles.countChip}>{rows.length} Attempts</span>
+                  </div>
+
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={styles.table}>
+                      <thead>
+                        <tr style={styles.tableHeadRow}>
+                          <th style={styles.th}>Student Name</th>
+                          <th style={styles.th}>Score</th>
+                          <th style={styles.th}>Grade</th>
+                          <th style={styles.th}>Attempted At</th>
+                          <th style={styles.th}>Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, i) => {
+                          const attemptValue = r.attempted_at || r.formatted_date;
+                          return (
+                            <tr key={r.result_id ?? i} style={styles.tableRow}>
+                              <td style={styles.td}>{r.student_name}</td>
+                              <td style={styles.td}>
+                                {r.score}/{r.total_marks}
+                              </td>
+                              <td
+                                style={{
+                                  ...styles.td,
+                                  color: Number(r.percentage) < 40 ? "#dc2626" : "#15803d",
+                                  fontWeight: 700
+                                }}
+                              >
+                                {r.grade} ({r.percentage}%)
+                              </td>
+                              <td style={styles.td}>
+                                {attemptValue ? formatDateTime(attemptValue) : "—"}
+                              </td>
+                              <td style={styles.td}>
+                                <button
+                                  type="button"
+                                  style={styles.renewBtn}
+                                  onClick={() =>
+                                    handleRenewStudentAttempt(
+                                      r.resolved_quiz_id,
+                                      r.resolved_student_id,
+                                      r.student_name,
+                                      quizTitle
+                                    )
+                                  }
+                                >
+                                  <FaRedo /> Renew
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* SCHEDULE EDIT MODAL (start_at, end_at, created_at, timer_minutes) */}
+      {/* SCHEDULE & TIMER EDIT MODAL */}
       {scheduleModalQuiz && (
         <div style={styles.modalBackdrop} onClick={() => setScheduleModalQuiz(null)}>
           <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
@@ -929,7 +943,7 @@ const AdminQuizPage = () => {
 
             <form onSubmit={handleSaveSchedule} style={{ marginTop: "16px" }}>
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>Start At (`start_at`)</label>
+                <label style={styles.label}>Start At</label>
                 <input
                   type="datetime-local"
                   style={styles.input}
@@ -939,7 +953,7 @@ const AdminQuizPage = () => {
               </div>
 
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>End At (`end_at`)</label>
+                <label style={styles.label}>End At</label>
                 <input
                   type="datetime-local"
                   style={styles.input}
@@ -960,16 +974,13 @@ const AdminQuizPage = () => {
               </div>
 
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>Created At (`created_at`)</label>
+                <label style={styles.label}>Created At</label>
                 <input
                   type="datetime-local"
                   style={styles.input}
                   value={scheduleForm.created_at}
                   onChange={(e) => setScheduleForm({ ...scheduleForm, created_at: e.target.value })}
                 />
-                <small style={styles.hintText}>
-                  Note: Updating `created_at` overwrites the original creation timestamp.
-                </small>
               </div>
 
               <div style={styles.modalActions}>
@@ -1012,8 +1023,8 @@ const styles = {
     backgroundColor: "#ffffff",
     border: "1px solid #e2e8f0",
     borderRadius: "14px",
-    padding: "24px 28px",
-    marginBottom: "20px",
+    padding: "22px 26px",
+    marginBottom: "18px",
     boxShadow: "0 1px 3px rgba(15, 23, 42, 0.05)"
   },
   badgePill: {
@@ -1029,7 +1040,7 @@ const styles = {
   },
   title: {
     margin: "0 0 6px 0",
-    fontSize: "26px",
+    fontSize: "25px",
     fontWeight: 700,
     color: "#0f172a"
   },
@@ -1042,13 +1053,13 @@ const styles = {
     display: "flex",
     flexWrap: "wrap",
     gap: "10px",
-    marginBottom: "20px"
+    marginBottom: "18px"
   },
   tabBtn: {
     display: "inline-flex",
     alignItems: "center",
     gap: "8px",
-    padding: "11px 18px",
+    padding: "10px 16px",
     borderRadius: "10px",
     border: "1px solid #cbd5e1",
     backgroundColor: "#ffffff",
@@ -1103,14 +1114,14 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "16px",
-    marginBottom: "24px"
+    marginBottom: "22px"
   },
   filterBar: {
     display: "flex",
     flexWrap: "wrap",
     gap: "12px",
     alignItems: "center",
-    marginBottom: "22px",
+    marginBottom: "20px",
     padding: "14px",
     backgroundColor: "#f8fafc",
     borderRadius: "10px",
@@ -1129,7 +1140,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: "6px",
-    marginBottom: "12px"
+    marginBottom: "10px"
   },
   label: {
     fontSize: "13px",
@@ -1367,7 +1378,7 @@ const styles = {
   },
   emptyState: {
     textAlign: "center",
-    padding: "32px 16px",
+    padding: "30px 16px",
     color: "#64748b",
     backgroundColor: "#f8fafc",
     borderRadius: "10px",
@@ -1385,11 +1396,19 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: "10px",
     padding: "12px 16px",
     backgroundColor: "#f1f5f9",
-    borderBottom: "1px solid #e2e8f0",
-    fontWeight: 700,
-    color: "#0f172a"
+    borderBottom: "1px solid #e2e8f0"
+  },
+  resultSubMeta: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "14px",
+    fontSize: "12px",
+    color: "#475569",
+    marginTop: "4px"
   },
   countChip: {
     fontSize: "12px",
@@ -1411,7 +1430,7 @@ const styles = {
   th: {
     padding: "12px 16px",
     textAlign: "left",
-    fontSize: "12.5px",
+    fontSize: "12px",
     fontWeight: 700,
     color: "#475569",
     textTransform: "uppercase",
@@ -1437,7 +1456,7 @@ const styles = {
   },
   modalCard: {
     width: "100%",
-    maxWidth: "480px",
+    maxWidth: "460px",
     backgroundColor: "#ffffff",
     borderRadius: "14px",
     padding: "22px",
@@ -1458,10 +1477,6 @@ const styles = {
     fontSize: "16px",
     cursor: "pointer",
     padding: "4px"
-  },
-  hintText: {
-    color: "#64748b",
-    fontSize: "12px"
   },
   modalActions: {
     display: "flex",

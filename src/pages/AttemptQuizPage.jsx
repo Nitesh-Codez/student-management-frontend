@@ -1,4 +1,3 @@
-
 import React, {
   useEffect,
   useState,
@@ -39,6 +38,9 @@ const AttemptQuizPage = () => {
 
   const [examStep, setExamStep] = useState(1);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [waitingForStart, setWaitingForStart] = useState(false);
+  const [startCountdownText, setStartCountdownText] = useState("");
+  const [windowExpired, setWindowExpired] = useState(false);
 
   const [violations, setViolations] = useState(
     () => Number(localStorage.getItem(VIOLATION_KEY) || 0)
@@ -71,6 +73,18 @@ const AttemptQuizPage = () => {
   const lookingAwaySinceRef = useRef(null);
   const violationActiveRef = useRef(false);
   const lastVideoTimeRef = useRef(-1);
+  const autoStartedAtRef = useRef(null);
+
+  const formatCountdown = (ms) => {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m ${secs}s`;
+    }
+    return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+  };
 
   // Voice warning
   const speak = useCallback((message) => {
@@ -107,7 +121,6 @@ const AttemptQuizPage = () => {
       streamRef.current = stream;
       setCameraStream(stream);
       setExamStep(2);
-
     } catch (error) {
       console.error(error);
       setCameraError(
@@ -151,6 +164,27 @@ const AttemptQuizPage = () => {
     };
   }, []);
 
+  // Helper to compute effective expiry considering timer_minutes and end_at
+  const computeEffectiveExpiry = useCallback((quizData, existingExpiry = null) => {
+    const durationMs = Math.max(1, Number(quizData.timer_minutes) || 10) * 60 * 1000;
+    const startMs = quizData.start_at ? new Date(quizData.start_at).getTime() : null;
+    const endMs = quizData.end_at ? new Date(quizData.end_at).getTime() : null;
+
+    const baseStart = startMs && !Number.isNaN(startMs)
+      ? Math.max(Date.now(), startMs)
+      : Date.now();
+
+    let targetExpiry = existingExpiry && !Number.isNaN(existingExpiry)
+      ? existingExpiry
+      : baseStart + durationMs;
+
+    if (endMs && !Number.isNaN(endMs)) {
+      targetExpiry = Math.min(targetExpiry, endMs);
+    }
+
+    return targetExpiry;
+  }, []);
+
   // Fetch quiz
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -168,34 +202,92 @@ const AttemptQuizPage = () => {
         setQuestions(q || []);
 
         const savedAnswers = localStorage.getItem(ANSWERS_KEY);
-
         setAnswers(
           savedAnswers
             ? JSON.parse(savedAnswers)
             : new Array((q || []).length).fill(null)
         );
 
-        const savedExpiry = localStorage.getItem(TIMER_KEY);
+        const nowMs = Date.now();
+        const startMs = quizData.start_at ? new Date(quizData.start_at).getTime() : null;
+        const endMs = quizData.end_at ? new Date(quizData.end_at).getTime() : null;
 
-        const expiryTime = savedExpiry
-          ? Number(savedExpiry)
-          : Date.now() + Number(quizData.timer_minutes) * 60 * 1000;
-
-        if (!savedExpiry) {
-          localStorage.setItem(TIMER_KEY, expiryTime.toString());
+        if (endMs && !Number.isNaN(endMs) && nowMs > endMs) {
+          setWindowExpired(true);
+          setTimeLeft(0);
+          return;
         }
 
-        setTimeLeft(
-          Math.max(0, Math.floor((expiryTime - Date.now()) / 1000))
+        if (startMs && !Number.isNaN(startMs) && nowMs < startMs) {
+          setWaitingForStart(true);
+          setStartCountdownText(formatCountdown(startMs - nowMs));
+        }
+
+        const savedExpiry = localStorage.getItem(TIMER_KEY);
+        const expiryTime = computeEffectiveExpiry(
+          quizData,
+          savedExpiry ? Number(savedExpiry) : null
         );
 
+        localStorage.setItem(TIMER_KEY, String(expiryTime));
+        setTimeLeft(Math.max(0, Math.floor((expiryTime - nowMs) / 1000)));
       } catch (error) {
         console.error("Quiz loading error:", error);
       }
     };
 
     fetchQuiz();
-  }, [id, TIMER_KEY, ANSWERS_KEY]);
+  }, [id, TIMER_KEY, ANSWERS_KEY, computeEffectiveExpiry]);
+
+  // Auto-start monitor based on start_at and end_at
+  useEffect(() => {
+    if (!quiz || result || submittingRef.current) return;
+
+    const startMs = quiz.start_at ? new Date(quiz.start_at).getTime() : null;
+    const endMs = quiz.end_at ? new Date(quiz.end_at).getTime() : null;
+
+    const checkSchedule = () => {
+      const nowMs = Date.now();
+
+      if (endMs && !Number.isNaN(endMs) && nowMs > endMs) {
+        setWindowExpired(true);
+        setWaitingForStart(false);
+        return;
+      }
+
+      if (startMs && !Number.isNaN(startMs) && nowMs < startMs) {
+        setWaitingForStart(true);
+        setStartCountdownText(formatCountdown(startMs - nowMs));
+        return;
+      }
+
+      // Reached or passed start_at -> auto start
+      setWaitingForStart(false);
+
+      if (
+        startMs &&
+        !Number.isNaN(startMs) &&
+        autoStartedAtRef.current !== startMs
+      ) {
+        autoStartedAtRef.current = startMs;
+
+        const expiryTime = computeEffectiveExpiry(quiz, null);
+        localStorage.setItem(TIMER_KEY, String(expiryTime));
+        setTimeLeft(Math.max(0, Math.floor((expiryTime - nowMs) / 1000)));
+
+        if (streamRef.current?.active) {
+          setShowInstructions(false);
+        } else {
+          setShowInstructions(true);
+          setExamStep(1);
+        }
+      }
+    };
+
+    checkSchedule();
+    const interval = setInterval(checkSchedule, 1000);
+    return () => clearInterval(interval);
+  }, [quiz, result, TIMER_KEY, computeEffectiveExpiry]);
 
   // Submit quiz
   const handleSubmit = useCallback(
@@ -225,7 +317,6 @@ const AttemptQuizPage = () => {
 
         stopCamera();
         setResult(res.data.data || res.data);
-
       } catch (error) {
         console.error("Quiz submission error:", error);
 
@@ -251,19 +342,15 @@ const AttemptQuizPage = () => {
   const registerViolation = useCallback(
     (reason) => {
       if (submittingRef.current || result) return;
-
-      // Avoid repeatedly counting the same continuous issue
       if (violationActiveRef.current) return;
 
       const now = Date.now();
-
       if (now - lastViolationRef.current < 1500) return;
 
       lastViolationRef.current = now;
       violationActiveRef.current = true;
 
       const next = violationRef.current + 1;
-
       violationRef.current = next;
       setViolations(next);
 
@@ -284,7 +371,6 @@ const AttemptQuizPage = () => {
             ? "Face not found. Please come back in front of the camera."
             : "Don't cheat. Keep your face straight. This is your first warning."
         );
-
       } else {
         setAiMessage("Second violation detected. Quiz submitting.");
         setWarningModal(false);
@@ -300,7 +386,7 @@ const AttemptQuizPage = () => {
 
   // Real MediaPipe face detection
   useEffect(() => {
-    if (showInstructions || !cameraStream || result) return;
+    if (showInstructions || !cameraStream || result || waitingForStart || windowExpired) return;
 
     let active = true;
 
@@ -347,7 +433,6 @@ const AttemptQuizPage = () => {
 
             if (faces.length === 0) {
               setFaceStatus("Face not found");
-
               lookingAwaySinceRef.current = null;
 
               if (missingSinceRef.current === null) {
@@ -357,13 +442,10 @@ const AttemptQuizPage = () => {
               if (now - missingSinceRef.current >= 2000) {
                 registerViolation("face_missing");
               }
-
             } else {
               missingSinceRef.current = null;
 
               const face = faces[0];
-
-              // Approximate head direction using nose and eye landmarks
               const nose = face[1];
               const leftEye = face[33];
               const rightEye = face[263];
@@ -388,12 +470,9 @@ const AttemptQuizPage = () => {
                 if (now - lookingAwaySinceRef.current >= 2500) {
                   registerViolation("looking_away");
                 }
-
               } else {
                 setFaceStatus("Face detected");
                 lookingAwaySinceRef.current = null;
-
-                // A new violation can only be counted after the face returns
                 violationActiveRef.current = false;
               }
             }
@@ -403,7 +482,6 @@ const AttemptQuizPage = () => {
         };
 
         detect();
-
       } catch (error) {
         console.error("Face detector initialization error:", error);
         setFaceStatus("Face detector unavailable");
@@ -423,7 +501,7 @@ const AttemptQuizPage = () => {
       landmarkerRef.current?.close();
       landmarkerRef.current = null;
     };
-  }, [showInstructions, cameraStream, result, registerViolation]);
+  }, [showInstructions, cameraStream, result, waitingForStart, windowExpired, registerViolation]);
 
   // Camera track monitor
   useEffect(() => {
@@ -443,16 +521,14 @@ const AttemptQuizPage = () => {
 
   // Tab switching
   const handleTabViolation = useCallback(() => {
-    if (result || submittingRef.current || showInstructions) return;
+    if (result || submittingRef.current || showInstructions || waitingForStart || windowExpired) return;
 
     const now = Date.now();
-
     if (now - lastViolationRef.current < 1500) return;
 
     lastViolationRef.current = now;
 
     const next = violationRef.current + 1;
-
     violationRef.current = next;
     setViolations(next);
 
@@ -461,7 +537,6 @@ const AttemptQuizPage = () => {
     if (next === 1) {
       setWarningModal(true);
       setAiMessage("Don't cheat! Tab switching is not allowed.");
-
       speak("Warning. Do not switch tabs during your assessment.");
     } else {
       handleSubmit(answers, "tab_switch_violation");
@@ -469,6 +544,8 @@ const AttemptQuizPage = () => {
   }, [
     result,
     showInstructions,
+    waitingForStart,
+    windowExpired,
     VIOLATION_KEY,
     handleSubmit,
     answers,
@@ -476,7 +553,7 @@ const AttemptQuizPage = () => {
   ]);
 
   useEffect(() => {
-    if (showInstructions || result) return;
+    if (showInstructions || result || waitingForStart || windowExpired) return;
 
     const visibilityHandler = () => {
       if (document.hidden) handleTabViolation();
@@ -487,11 +564,11 @@ const AttemptQuizPage = () => {
     return () => {
       document.removeEventListener("visibilitychange", visibilityHandler);
     };
-  }, [handleTabViolation, showInstructions, result]);
+  }, [handleTabViolation, showInstructions, result, waitingForStart, windowExpired]);
 
   // Timer
   useEffect(() => {
-    if (timeLeft === null || result || showInstructions) return;
+    if (timeLeft === null || result || showInstructions || waitingForStart || windowExpired) return;
 
     if (timeLeft <= 0) {
       handleSubmit(answers, "time_expired");
@@ -503,10 +580,20 @@ const AttemptQuizPage = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, result, showInstructions, handleSubmit, answers]);
+  }, [timeLeft, result, showInstructions, waitingForStart, windowExpired, handleSubmit, answers]);
 
   // Start quiz
   const startActualQuiz = () => {
+    if (windowExpired) {
+      alert("Quiz schedule window has expired.");
+      return;
+    }
+
+    if (quiz?.start_at && Date.now() < new Date(quiz.start_at).getTime()) {
+      alert("Quiz has not started yet. It will auto-start at the scheduled time.");
+      return;
+    }
+
     if (!cameraStream?.active) {
       alert("Please enable your camera first.");
       setExamStep(1);
@@ -522,7 +609,6 @@ const AttemptQuizPage = () => {
     newAnswers[currentIdx] = option;
 
     setAnswers(newAnswers);
-
     localStorage.setItem(ANSWERS_KEY, JSON.stringify(newAnswers));
   };
 
@@ -564,6 +650,26 @@ const AttemptQuizPage = () => {
     );
   }
 
+  if (windowExpired && !result) {
+    return (
+      <div style={styles.resultPage}>
+        <div style={styles.resultCard}>
+          <div style={{ fontSize: "48px" }}>⏳</div>
+          <h2>Quiz Window Closed</h2>
+          <p style={{ color: "#64748b" }}>
+            Scheduled end time has passed for this quiz.
+          </p>
+          <button
+            onClick={() => navigate("/student/quiz-dashboard")}
+            style={styles.dashboardButton}
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (result) {
     const percentage = Math.round(Number(result.percentage || 0));
 
@@ -597,9 +703,7 @@ const AttemptQuizPage = () => {
   }
 
   const totalQuestions = questions.length;
-
   const attemptedCount = answers.filter((a) => a !== null).length;
-
   const progress =
     totalQuestions > 0
       ? (attemptedCount / totalQuestions) * 100
@@ -609,9 +713,45 @@ const AttemptQuizPage = () => {
 
   return (
     <div style={styles.examContainer}>
+      {/* AUTO-START WAITING OVERLAY */}
+      <AnimatePresence>
+        {waitingForStart && (
+          <div style={styles.modalOverlay}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              style={styles.instructionCard}
+            >
+              <div style={{ fontSize: "42px" }}>🗓️</div>
+              <h2>Scheduled to Auto-Start</h2>
+              <p style={{ color: "#475569", fontSize: "14px" }}>
+                <strong>{quiz.title}</strong>
+              </p>
+              <p style={{ color: "#64748b", fontSize: "13px" }}>
+                Starts at:{" "}
+                <strong>
+                  {quiz.start_at
+                    ? new Date(quiz.start_at).toLocaleString("en-IN")
+                    : "Scheduled Time"}
+                </strong>
+              </p>
+              <div style={styles.countdownBox}>
+                Auto-starting in: <strong>{startCountdownText}</strong>
+              </div>
+              <button
+                onClick={() => navigate("/student/quiz-dashboard")}
+                style={{ ...styles.navActionBtn, width: "100%", marginTop: "12px" }}
+              >
+                ← Back to Dashboard
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* INSTRUCTIONS */}
       <AnimatePresence>
-        {showInstructions && (
+        {!waitingForStart && showInstructions && (
           <div style={styles.modalOverlay}>
             <motion.div
               initial={{ scale: 0.85, opacity: 0 }}
@@ -635,7 +775,7 @@ const AttemptQuizPage = () => {
                     onClick={requestCameraPermission}
                     style={styles.startExamBtn}
                   >
-                    Allow Camera & Continue 📷
+                    Allow Camera &amp; Continue 📷
                   </button>
                 </>
               ) : (
@@ -684,7 +824,7 @@ const AttemptQuizPage = () => {
               </h2>
 
               <p>
-                Don't cheat! Keep your face straight and stay on the quiz page.
+                Don&apos;t cheat! Keep your face straight and stay on the quiz page.
                 A second violation will submit your test.
               </p>
 
@@ -896,8 +1036,6 @@ const AttemptQuizPage = () => {
     </div>
   );
 };
-
-/* ALL CSS IS INSIDE THIS JSX FILE */
 
 const styles = {
   examContainer: {
@@ -1161,6 +1299,15 @@ const styles = {
     boxSizing: "border-box"
   },
 
+  countdownBox: {
+    marginTop: "12px",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    fontSize: "14px"
+  },
+
   previewVideo: {
     width: "150px",
     height: "110px",
@@ -1293,14 +1440,14 @@ const styles = {
   submittingOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(15,23,42,0.75)",
+    background: "rgba(15, 23, 42, 0.55)",
     color: "#fff",
-    zIndex: 2000,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "20px",
-    fontWeight: "bold"
+    fontSize: "16px",
+    fontWeight: "700",
+    zIndex: 1200
   }
 };
 

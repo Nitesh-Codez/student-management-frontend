@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FaTimes,
@@ -12,13 +12,11 @@ import {
   FaMinusCircle,
   FaTrophy,
   FaArrowUp,
+  FaFilter,
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../services/api";
 
-// ======================================================
-// NORMALIZE
-// ======================================================
 const normalize = (val) => {
   if (val === null || val === undefined) return "";
   return String(val)
@@ -27,40 +25,45 @@ const normalize = (val) => {
     .trim();
 };
 
-// ======================================================
-// QUIZ REVIEW
-// ======================================================
+const getCorrectAnswer = (q) =>
+  q?.answer ?? q?.correctAnswer ?? q?.correct_answer ?? "";
+
 const QuizReview = () => {
   const { quizId, studentId } = useParams();
   const navigate = useNavigate();
 
   const [reviewData, setReviewData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [activeQuestion, setActiveQuestion] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("all"); // all | correct | wrong | skipped
   const [showTop, setShowTop] = useState(false);
 
   const questionRefs = useRef([]);
   const bubbleRefs = useRef([]);
   const isScrollingTo = useRef(false);
 
-  // ======================================================
-  // FETCH
-  // ======================================================
   useEffect(() => {
     window.scrollTo(0, 0);
 
     const fetchReviewData = async () => {
       try {
         setLoading(true);
+        setError("");
         const response = await api.get(
           `/api/quiz/review/${quizId}/${studentId}`
         );
 
-        if (response.data?.success) {
+        if (response.data?.success && response.data?.data) {
           setReviewData(response.data.data);
+        } else if (response.data?.questions) {
+          setReviewData(response.data);
+        } else {
+          setError("Review report is unavailable for this attempt.");
         }
       } catch (err) {
         console.error("Error fetching review:", err);
+        setError("Failed to load performance review.");
       } finally {
         setLoading(false);
       }
@@ -69,11 +72,79 @@ const QuizReview = () => {
     fetchReviewData();
   }, [quizId, studentId]);
 
-  // ======================================================
-  // SCROLL TRACKING
-  // ======================================================
+  const {
+    quiz_info = {},
+    questions = [],
+    student_answers = [],
+    student_result = {},
+  } = reviewData || {};
+
+  const parsedQuestions = useMemo(() => {
+    if (Array.isArray(questions)) return questions;
+    if (typeof questions === "string") {
+      try {
+        return JSON.parse(questions);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }, [questions]);
+
+  const parsedAnswers = useMemo(() => {
+    if (Array.isArray(student_answers)) return student_answers;
+    if (typeof student_answers === "string") {
+      try {
+        return JSON.parse(student_answers);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }, [student_answers]);
+
+  const metrics = useMemo(() => {
+    const total = parsedQuestions.length;
+    let correct = 0;
+    let wrong = 0;
+    let skipped = 0;
+
+    parsedQuestions.forEach((q, idx) => {
+      const choice = parsedAnswers[idx];
+      const isSkip =
+        choice === null || choice === undefined || String(choice).trim() === "";
+      if (isSkip) {
+        skipped += 1;
+      } else if (normalize(choice) === normalize(getCorrectAnswer(q))) {
+        correct += 1;
+      } else {
+        wrong += 1;
+      }
+    });
+
+    const finalCorrect =
+      typeof student_result?.score === "number" ? student_result.score : correct;
+
+    const percent =
+      student_result?.percentage !== undefined &&
+      student_result?.percentage !== null
+        ? Math.round(Number(student_result.percentage))
+        : total > 0
+        ? Math.round((finalCorrect / total) * 100)
+        : 0;
+
+    return {
+      total,
+      correct: finalCorrect,
+      wrong,
+      skipped,
+      percent,
+      qualified: percent >= 40,
+    };
+  }, [parsedQuestions, parsedAnswers, student_result]);
+
   useEffect(() => {
-    if (!reviewData) return;
+    if (!reviewData || parsedQuestions.length === 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -105,11 +176,8 @@ const QuizReview = () => {
     });
 
     return () => observer.disconnect();
-  }, [reviewData]);
+  }, [reviewData, parsedQuestions.length, statusFilter]);
 
-  // ======================================================
-  // SHOW BACK TO TOP
-  // ======================================================
   useEffect(() => {
     const handleScroll = () => {
       setShowTop(window.scrollY > 500);
@@ -119,9 +187,6 @@ const QuizReview = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ======================================================
-  // JUMP
-  // ======================================================
   const scrollToQuestion = (index) => {
     const element = questionRefs.current[index];
     if (!element) return;
@@ -138,9 +203,7 @@ const QuizReview = () => {
     }
 
     const y =
-      element.getBoundingClientRect().top +
-      window.pageYOffset -
-      125;
+      element.getBoundingClientRect().top + window.pageYOffset - 125;
 
     window.scrollTo({
       top: y,
@@ -152,9 +215,6 @@ const QuizReview = () => {
     }, 600);
   };
 
-  // ======================================================
-  // LOADING
-  // ======================================================
   if (loading) {
     return (
       <div style={styles.loadingPage}>
@@ -177,26 +237,27 @@ const QuizReview = () => {
     );
   }
 
-  const {
-    quiz_info = {},
-    questions = [],
-    student_answers = [],
-    student_result = {},
-  } = reviewData || {};
-
-  const totalQuestions = questions.length;
-  const correctAnswers = student_result.score || 0;
-  const wrongAnswers = Math.max(
-    0,
-    totalQuestions -
-      correctAnswers -
-      questions.filter((_, i) => !student_answers[i]).length
-  );
-  const skippedAnswers = questions.filter((_, i) => !student_answers[i]).length;
-  const scorePercent = Math.round(
-    ((student_result.score || 0) / (totalQuestions || 1)) * 100
-  );
-  const qualified = scorePercent >= 40;
+  if (error || !reviewData) {
+    return (
+      <div style={styles.emptyStatePage}>
+        <div style={styles.emptyCard}>
+          <h2 style={{ margin: "0 0 8px 0", color: "#0f172a" }}>
+            Review Unavailable
+          </h2>
+          <p style={{ margin: "0 0 18px 0", color: "#64748b", fontSize: 14 }}>
+            {error || "No review records found."}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={styles.backBtn}
+          >
+            ← Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const stars = [
     { top: "8%", left: "10%", size: 13, delay: 0 },
@@ -205,6 +266,22 @@ const QuizReview = () => {
     { top: "2%", right: "28%", size: 12, delay: 1.5 },
     { bottom: "18%", right: "8%", size: 17, delay: 2 },
   ];
+
+  const visibleIndices = parsedQuestions
+    .map((q, idx) => {
+      const choice = parsedAnswers[idx];
+      const isSkipped =
+        choice === null || choice === undefined || String(choice).trim() === "";
+      const isCorrect =
+        !isSkipped && normalize(choice) === normalize(getCorrectAnswer(q));
+
+      if (statusFilter === "correct") return isCorrect ? idx : null;
+      if (statusFilter === "wrong")
+        return !isSkipped && !isCorrect ? idx : null;
+      if (statusFilter === "skipped") return isSkipped ? idx : null;
+      return idx;
+    })
+    .filter((idx) => idx !== null);
 
   return (
     <>
@@ -263,7 +340,12 @@ const QuizReview = () => {
         {/* HERO SECTION */}
         <header style={styles.hero}>
           <div style={styles.navBar}>
-            <button onClick={() => navigate(-1)} style={styles.navButton}>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              style={styles.navButton}
+              aria-label="Back"
+            >
               <FaChevronLeft />
             </button>
             <div style={styles.navCenter}>
@@ -272,7 +354,12 @@ const QuizReview = () => {
               </div>
               <div style={styles.heroSubtitle}>PERFORMANCE ANALYTICS</div>
             </div>
-            <button onClick={() => navigate(-1)} style={styles.navButton}>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              style={styles.navButton}
+              aria-label="Close"
+            >
               <FaTimes />
             </button>
           </div>
@@ -319,7 +406,7 @@ const QuizReview = () => {
               transition={{ duration: 0.7, delay: 0.2 }}
               style={styles.score}
             >
-              {scorePercent}%
+              {metrics.percent}%
             </motion.div>
 
             <motion.div
@@ -328,16 +415,22 @@ const QuizReview = () => {
               transition={{ delay: 0.5 }}
               style={{
                 ...styles.qualifiedBadge,
-                background: qualified ? "#10b981" : "#ef4444",
+                background: metrics.qualified ? "#10b981" : "#ef4444",
               }}
             >
-              {qualified ? "✓ QUALIFIED" : "✕ NOT QUALIFIED"}
+              {metrics.qualified ? "✓ QUALIFIED" : "✕ NOT QUALIFIED"}
             </motion.div>
 
             <div style={styles.heroMeta}>
               {quiz_info.subject && <span>{quiz_info.subject}</span>}
-              <span>•</span>
-              <span>{totalQuestions} Questions</span>
+              {quiz_info.subject && <span>•</span>}
+              <span>{metrics.total} Questions</span>
+              {student_result?.grade && (
+                <>
+                  <span>•</span>
+                  <span>Grade: {student_result.grade}</span>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -345,31 +438,80 @@ const QuizReview = () => {
         {/* STATS SECTION */}
         <section style={styles.statsWrapper}>
           <div style={styles.statsCard}>
-            <Stat icon={<FaChartLine />} number={totalQuestions} label="TOTAL" color="#334155" />
-            <Stat icon={<FaCheckCircle />} number={correctAnswers} label="CORRECT" color="#059669" />
-            <Stat icon={<FaTimesCircle />} number={wrongAnswers} label="WRONG" color="#dc2626" />
-            <Stat icon={<FaMinusCircle />} number={skippedAnswers} label="SKIPPED" color="#64748b" last />
+            <Stat
+              icon={<FaChartLine />}
+              number={metrics.total}
+              label="TOTAL"
+              color="#334155"
+            />
+            <Stat
+              icon={<FaCheckCircle />}
+              number={metrics.correct}
+              label="CORRECT"
+              color="#059669"
+            />
+            <Stat
+              icon={<FaTimesCircle />}
+              number={metrics.wrong}
+              label="WRONG"
+              color="#dc2626"
+            />
+            <Stat
+              icon={<FaMinusCircle />}
+              number={metrics.skipped}
+              label="SKIPPED"
+              color="#64748b"
+              last
+            />
           </div>
         </section>
 
-        {/* QUESTION ROADMAP */}
+        {/* QUESTION ROADMAP & FILTER */}
         <div style={styles.roadmap}>
           <div style={styles.roadmapTop}>
             <div style={styles.roadmapTitle}>
               <FaBolt color="#f59e0b" />
               <span>Question Roadmap</span>
             </div>
+
+            <div style={styles.filterPills}>
+              <FaFilter size={11} color="#64748b" />
+              {[
+                { key: "all", label: "All" },
+                { key: "correct", label: "Correct" },
+                { key: "wrong", label: "Wrong" },
+                { key: "skipped", label: "Skipped" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setStatusFilter(item.key)}
+                  style={{
+                    ...styles.filterPill,
+                    ...(statusFilter === item.key ? styles.filterPillActive : {}),
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
             <div style={styles.progressInfo}>
-              Q{activeQuestion + 1} / {totalQuestions}
+              Q{metrics.total > 0 ? activeQuestion + 1 : 0} / {metrics.total}
             </div>
           </div>
 
           <div style={styles.roadmapScroll} className="no-scrollbar">
-            {questions.map((q, index) => {
+            {parsedQuestions.map((q, index) => {
               const isActive = activeQuestion === index;
-              const studentChoice = student_answers[index];
-              const isSkipped = !studentChoice;
-              const isCorrect = normalize(studentChoice) === normalize(q.answer);
+              const studentChoice = parsedAnswers[index];
+              const isSkipped =
+                studentChoice === null ||
+                studentChoice === undefined ||
+                String(studentChoice).trim() === "";
+              const isCorrect =
+                !isSkipped &&
+                normalize(studentChoice) === normalize(getCorrectAnswer(q));
 
               let bg = "#f8fafc";
               let color = "#64748b";
@@ -394,8 +536,12 @@ const QuizReview = () => {
               return (
                 <motion.button
                   key={index}
+                  type="button"
                   ref={(el) => (bubbleRefs.current[index] = el)}
-                  onClick={() => scrollToQuestion(index)}
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setTimeout(() => scrollToQuestion(index), 30);
+                  }}
                   whileTap={{ scale: 0.92 }}
                   className="roadmap-item"
                   style={{
@@ -420,148 +566,166 @@ const QuizReview = () => {
 
         {/* QUESTIONS LIST */}
         <main style={styles.questionsArea}>
-          {questions.map((q, index) => {
-            const studentChoice = student_answers[index];
-            const correctAns = q.answer;
-            const isSkipped = !studentChoice;
-            const isCorrect = normalize(studentChoice) === normalize(correctAns);
+          {visibleIndices.length === 0 ? (
+            <div style={styles.noMatchBox}>
+              No questions match the &quot;{statusFilter}&quot; filter.
+            </div>
+          ) : (
+            visibleIndices.map((index) => {
+              const q = parsedQuestions[index];
+              const studentChoice = parsedAnswers[index];
+              const correctAns = getCorrectAnswer(q);
+              const isSkipped =
+                studentChoice === null ||
+                studentChoice === undefined ||
+                String(studentChoice).trim() === "";
+              const isCorrect =
+                !isSkipped && normalize(studentChoice) === normalize(correctAns);
 
-            return (
-              <motion.section
-                key={index}
-                ref={(el) => (questionRefs.current[index] = el)}
-                data-index={index}
-                initial={{ opacity: 0, y: 25 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.1 }}
-                transition={{ duration: 0.45 }}
-                className="question-card"
-                style={{
-                  ...styles.questionCard,
-                  borderLeft:
-                    activeQuestion === index
-                      ? "5px solid #047857"
-                      : "5px solid transparent",
-                }}
-              >
-                <div style={styles.questionInner}>
-                  <div style={styles.questionHeader}>
-                    <div style={styles.questionNumber}>
-                      QUESTION {index + 1}
-                    </div>
-                    <div
-                      style={{
-                        ...styles.status,
-                        color: isSkipped
-                          ? "#64748b"
-                          : isCorrect
-                          ? "#059669"
-                          : "#dc2626",
-                        background: isSkipped
-                          ? "#f1f5f9"
-                          : isCorrect
-                          ? "#ecfdf5"
-                          : "#fef2f2",
-                      }}
-                    >
-                      {isSkipped
-                        ? "SKIPPED"
-                        : isCorrect
-                        ? "CORRECT"
-                        : "INCORRECT"}
-                    </div>
-                  </div>
-
-                  <h2 className="question-title" style={styles.questionTitle}>
-                    {q.question_text || q.question || "Question"}
-                  </h2>
-
-                  <div style={styles.options}>
-                    {q.options?.map((opt, optionIndex) => {
-                      const isCorrectOption =
-                        normalize(opt) === normalize(correctAns);
-                      const isUserOption =
-                        normalize(opt) === normalize(studentChoice);
-
-                      let optionBackground = "#ffffff";
-                      let optionBorder = "#e2e8f0";
-                      let prefixBackground = "#f1f5f9";
-                      let prefixColor = "#64748b";
-
-                      if (isCorrectOption) {
-                        optionBackground = "#ecfdf5";
-                        optionBorder = "#10b981";
-                        prefixBackground = "#10b981";
-                        prefixColor = "#ffffff";
-                      }
-
-                      if (isUserOption && !isCorrectOption) {
-                        optionBackground = "#fef2f2";
-                        optionBorder = "#ef4444";
-                        prefixBackground = "#ef4444";
-                        prefixColor = "#ffffff";
-                      }
-
-                      return (
-                        <motion.div
-                          key={optionIndex}
-                          whileHover={{ x: 5 }}
-                          className="quiz-option"
-                          style={{
-                            ...styles.option,
-                            background: optionBackground,
-                            borderColor: optionBorder,
-                          }}
-                        >
-                          <div
-                            style={{
-                              ...styles.optionPrefix,
-                              background: prefixBackground,
-                              color: prefixColor,
-                            }}
-                          >
-                            {String.fromCharCode(65 + optionIndex)}
-                          </div>
-                          <div className="option-text" style={styles.optionText}>
-                            {opt}
-                          </div>
-                          {isCorrectOption && (
-                            <FaCheckCircle color="#10b981" size={18} />
-                          )}
-                          {isUserOption && !isCorrectOption && (
-                            <FaTimesCircle color="#ef4444" size={18} />
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-
-                  <div style={styles.answerSummary}>
-                    <div>
-                      <span style={styles.summaryLabel}>YOUR ANSWER</span>
-                      <strong
+              return (
+                <motion.section
+                  key={index}
+                  ref={(el) => (questionRefs.current[index] = el)}
+                  data-index={index}
+                  initial={{ opacity: 0, y: 25 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.1 }}
+                  transition={{ duration: 0.45 }}
+                  className="question-card"
+                  style={{
+                    ...styles.questionCard,
+                    borderLeft:
+                      activeQuestion === index
+                        ? "5px solid #047857"
+                        : "5px solid transparent",
+                  }}
+                >
+                  <div style={styles.questionInner}>
+                    <div style={styles.questionHeader}>
+                      <div style={styles.questionNumber}>
+                        QUESTION {index + 1}
+                      </div>
+                      <div
                         style={{
+                          ...styles.status,
                           color: isSkipped
                             ? "#64748b"
                             : isCorrect
                             ? "#059669"
                             : "#dc2626",
+                          background: isSkipped
+                            ? "#f1f5f9"
+                            : isCorrect
+                            ? "#ecfdf5"
+                            : "#fef2f2",
                         }}
                       >
-                        {studentChoice || "Not Attempted"}
-                      </strong>
+                        {isSkipped
+                          ? "SKIPPED"
+                          : isCorrect
+                          ? "CORRECT"
+                          : "INCORRECT"}
+                      </div>
                     </div>
-                    <div>
-                      <span style={styles.summaryLabel}>CORRECT ANSWER</span>
-                      <strong style={{ color: "#059669" }}>
-                        {correctAns}
-                      </strong>
+
+                    <h2
+                      className="question-title"
+                      style={styles.questionTitle}
+                    >
+                      {q.question_text || q.question || "Question"}
+                    </h2>
+
+                    <div style={styles.options}>
+                      {q.options?.map((opt, optionIndex) => {
+                        const isCorrectOption =
+                          normalize(opt) === normalize(correctAns);
+                        const isUserOption =
+                          !isSkipped &&
+                          normalize(opt) === normalize(studentChoice);
+
+                        let optionBackground = "#ffffff";
+                        let optionBorder = "#e2e8f0";
+                        let prefixBackground = "#f1f5f9";
+                        let prefixColor = "#64748b";
+
+                        if (isCorrectOption) {
+                          optionBackground = "#ecfdf5";
+                          optionBorder = "#10b981";
+                          prefixBackground = "#10b981";
+                          prefixColor = "#ffffff";
+                        }
+
+                        if (isUserOption && !isCorrectOption) {
+                          optionBackground = "#fef2f2";
+                          optionBorder = "#ef4444";
+                          prefixBackground = "#ef4444";
+                          prefixColor = "#ffffff";
+                        }
+
+                        return (
+                          <motion.div
+                            key={optionIndex}
+                            whileHover={{ x: 5 }}
+                            className="quiz-option"
+                            style={{
+                              ...styles.option,
+                              background: optionBackground,
+                              borderColor: optionBorder,
+                            }}
+                          >
+                            <div
+                              style={{
+                                ...styles.optionPrefix,
+                                background: prefixBackground,
+                                color: prefixColor,
+                              }}
+                            >
+                              {String.fromCharCode(65 + optionIndex)}
+                            </div>
+                            <div
+                              className="option-text"
+                              style={styles.optionText}
+                            >
+                              {opt}
+                            </div>
+                            {isCorrectOption && (
+                              <FaCheckCircle color="#10b981" size={18} />
+                            )}
+                            {isUserOption && !isCorrectOption && (
+                              <FaTimesCircle color="#ef4444" size={18} />
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={styles.answerSummary}>
+                      <div>
+                        <span style={styles.summaryLabel}>YOUR ANSWER</span>
+                        <strong
+                          style={{
+                            color: isSkipped
+                              ? "#64748b"
+                              : isCorrect
+                              ? "#059669"
+                              : "#dc2626",
+                          }}
+                        >
+                          {isSkipped ? "Not Attempted" : studentChoice}
+                        </strong>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <span style={styles.summaryLabel}>CORRECT ANSWER</span>
+                        <strong style={{ color: "#059669" }}>
+                          {correctAns || "—"}
+                        </strong>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.section>
-            );
-          })}
+                </motion.section>
+              );
+            })
+          )}
         </main>
 
         {/* FOOTER */}
@@ -577,11 +741,13 @@ const QuizReview = () => {
         <AnimatePresence>
           {showTop && (
             <motion.button
+              type="button"
               initial={{ opacity: 0, scale: 0.7 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.7 }}
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
               style={styles.topButton}
+              aria-label="Scroll to top"
             >
               <FaArrowUp />
             </motion.button>
@@ -655,6 +821,34 @@ const styles = {
   },
   loadingTitle: { marginTop: 20, fontSize: 18, fontWeight: 800 },
   loadingSub: { marginTop: 6, fontSize: 12, color: "#a7f3d0" },
+  emptyStatePage: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    background: "#f8fafc",
+  },
+  emptyCard: {
+    maxWidth: 400,
+    width: "100%",
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 16,
+    padding: 28,
+    textAlign: "center",
+    boxShadow: "0 10px 25px rgba(15,23,42,.06)",
+  },
+  backBtn: {
+    background: "#047857",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    padding: "10px 18px",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+  },
   hero: {
     width: "100%",
     minHeight: 430,
@@ -703,7 +897,12 @@ const styles = {
     letterSpacing: 2,
     color: "#a7f3d0",
   },
-  scoreArea: { maxWidth: 500, margin: "45px auto 0", textAlign: "center", position: "relative" },
+  scoreArea: {
+    maxWidth: 500,
+    margin: "45px auto 0",
+    textAlign: "center",
+    position: "relative",
+  },
   trophy: {
     width: 78,
     height: 78,
@@ -712,17 +911,46 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "linear-gradient(145deg,rgba(255,255,255,.18),rgba(255,255,255,.04))",
+    background:
+      "linear-gradient(145deg,rgba(255,255,255,.18),rgba(255,255,255,.04))",
     border: "1px solid rgba(255,255,255,.15)",
     color: "#facc15",
     fontSize: 34,
     boxShadow: "0 15px 40px rgba(0,0,0,.25)",
   },
-  score: { fontSize: 72, lineHeight: 1, fontWeight: 950, letterSpacing: -4, textShadow: "0 10px 40px rgba(0,0,0,.3)" },
-  qualifiedBadge: { display: "inline-flex", padding: "7px 18px", borderRadius: 30, marginTop: 14, fontSize: 10, fontWeight: 900, letterSpacing: 1 },
-  heroMeta: { display: "flex", justifyContent: "center", gap: 10, marginTop: 18, fontSize: 12, color: "#a7f3d0", fontWeight: 600 },
+  score: {
+    fontSize: 72,
+    lineHeight: 1,
+    fontWeight: 950,
+    letterSpacing: -4,
+    textShadow: "0 10px 40px rgba(0,0,0,.3)",
+  },
+  qualifiedBadge: {
+    display: "inline-flex",
+    padding: "7px 18px",
+    borderRadius: 30,
+    marginTop: 14,
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: 1,
+  },
+  heroMeta: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 18,
+    fontSize: 12,
+    color: "#a7f3d0",
+    fontWeight: 600,
+  },
   floatingStar: { position: "absolute", color: "#facc15", zIndex: 2 },
-  statsWrapper: { width: "100%", padding: "0 16px", marginTop: -38, position: "relative", zIndex: 10 },
+  statsWrapper: {
+    width: "100%",
+    padding: "0 16px",
+    marginTop: -38,
+    position: "relative",
+    zIndex: 10,
+  },
   statsCard: {
     width: "100%",
     maxWidth: 1000,
@@ -734,10 +962,30 @@ const styles = {
     gridTemplateColumns: "repeat(4,minmax(0,1fr))",
     padding: "18px 0",
   },
-  stat: { minHeight: 75, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 4 },
-  statIcon: { width: 27, height: 27, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 },
+  stat: {
+    minHeight: 75,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+  },
+  statIcon: {
+    width: 27,
+    height: 27,
+    borderRadius: 8,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+  },
   statNumber: { fontSize: 23, fontWeight: 950, lineHeight: 1 },
-  statLabel: { fontSize: 8, fontWeight: 900, color: "#94a3b8", letterSpacing: 1 },
+  statLabel: {
+    fontSize: 8,
+    fontWeight: 900,
+    color: "#94a3b8",
+    letterSpacing: 1,
+  },
   roadmap: {
     width: "100%",
     position: "sticky",
@@ -749,28 +997,220 @@ const styles = {
     boxShadow: "0 5px 20px rgba(15,23,42,.05)",
     padding: "13px 0 10px",
   },
-  roadmapTop: { width: "100%", maxWidth: 1000, margin: "0 auto 9px", padding: "0 16px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  roadmapTitle: { display: "flex", alignItems: "center", gap: 7, color: "#0f172a", fontSize: 12, fontWeight: 900 },
-  progressInfo: { fontSize: 10, fontWeight: 900, color: "#047857", background: "#ecfdf5", padding: "5px 10px", borderRadius: 20 },
-  roadmapScroll: { width: "100%", maxWidth: 1000, margin: "0 auto", display: "flex", gap: 8, overflowX: "auto", padding: "3px 16px 8px" },
-  roadmapBubble: { width: 40, minWidth: 40, height: 40, borderRadius: 11, border: "1.5px solid", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, cursor: "pointer", transition: "all .2s ease" },
-  legend: { maxWidth: 1000, margin: "1px auto 0", padding: "0 16px", display: "flex", gap: 15 },
-  legendItem: { display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#64748b", fontWeight: 700 },
+  roadmapTop: {
+    width: "100%",
+    maxWidth: 1000,
+    margin: "0 auto 9px",
+    padding: "0 16px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  roadmapTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 7,
+    color: "#0f172a",
+    fontSize: 12,
+    fontWeight: 900,
+  },
+  filterPills: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  filterPill: {
+    border: "1px solid #e2e8f0",
+    background: "#f8fafc",
+    color: "#475569",
+    borderRadius: 999,
+    padding: "4px 10px",
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  filterPillActive: {
+    background: "#064e3b",
+    borderColor: "#064e3b",
+    color: "#ffffff",
+  },
+  progressInfo: {
+    fontSize: 10,
+    fontWeight: 900,
+    color: "#047857",
+    background: "#ecfdf5",
+    padding: "5px 10px",
+    borderRadius: 20,
+  },
+  roadmapScroll: {
+    width: "100%",
+    maxWidth: 1000,
+    margin: "0 auto",
+    display: "flex",
+    gap: 8,
+    overflowX: "auto",
+    padding: "3px 16px 8px",
+  },
+  roadmapBubble: {
+    width: 40,
+    minWidth: 40,
+    height: 40,
+    borderRadius: 11,
+    border: "1.5px solid",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: "pointer",
+    transition: "all .2s ease",
+  },
+  legend: {
+    maxWidth: 1000,
+    margin: "1px auto 0",
+    padding: "0 16px",
+    display: "flex",
+    gap: 15,
+  },
+  legendItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 9,
+    color: "#64748b",
+    fontWeight: 700,
+  },
   questionsArea: { width: "100%", background: "#f8fafc" },
-  questionCard: { width: "100%", background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "38px 20px", transition: "all .3s ease" },
+  noMatchBox: {
+    maxWidth: 1000,
+    margin: "24px auto",
+    padding: 32,
+    textAlign: "center",
+    background: "#fff",
+    borderRadius: 14,
+    border: "1px dashed #cbd5e1",
+    color: "#64748b",
+    fontSize: 14,
+    fontWeight: 600,
+  },
+  questionCard: {
+    width: "100%",
+    background: "#fff",
+    borderBottom: "1px solid #e2e8f0",
+    padding: "38px 20px",
+    transition: "all .3s ease",
+  },
   questionInner: { width: "100%", maxWidth: 1000, margin: "0 auto" },
-  questionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
-  questionNumber: { background: "#ecfdf5", color: "#047857", padding: "7px 12px", borderRadius: 8, fontSize: 10, fontWeight: 950, letterSpacing: ".5px" },
-  status: { padding: "6px 10px", borderRadius: 20, fontSize: 9, fontWeight: 950, letterSpacing: ".5px" },
-  questionTitle: { margin: 0, color: "#0f172a", fontSize: 21, fontWeight: 850, lineHeight: 1.55, letterSpacing: "-.2px" },
+  questionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  questionNumber: {
+    background: "#ecfdf5",
+    color: "#047857",
+    padding: "7px 12px",
+    borderRadius: 8,
+    fontSize: 10,
+    fontWeight: 950,
+    letterSpacing: ".5px",
+  },
+  status: {
+    padding: "6px 10px",
+    borderRadius: 20,
+    fontSize: 9,
+    fontWeight: 950,
+    letterSpacing: ".5px",
+  },
+  questionTitle: {
+    margin: 0,
+    color: "#0f172a",
+    fontSize: 21,
+    fontWeight: 850,
+    lineHeight: 1.55,
+    letterSpacing: "-.2px",
+  },
   options: { display: "flex", flexDirection: "column", gap: 11, marginTop: 28 },
-  option: { minHeight: 58, padding: "11px 14px", borderRadius: 14, border: "1.5px solid", display: "flex", alignItems: "center", gap: 13, transition: "transform .2s ease, box-shadow .2s ease", cursor: "pointer" },
-  optionPrefix: { width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 950 },
-  optionText: { flex: 1, fontSize: 15, color: "#334155", fontWeight: 600, lineHeight: 1.4 },
-  answerSummary: { marginTop: 24, padding: "14px 18px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 },
-  summaryLabel: { display: "block", fontSize: 9, fontWeight: 900, color: "#94a3b8", marginBottom: 3, letterSpacing: ".5px" },
-  bottomFooter: { maxWidth: 1000, margin: "40px auto", padding: "20px", background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 15, boxShadow: "0 10px 30px rgba(15,23,42,.04)" },
-  topButton: { position: "fixed", bottom: 25, right: 25, width: 45, height: 45, borderRadius: "50%", background: "#047857", color: "#fff", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 10px 25px rgba(4,120,87,.3)", zIndex: 999 },
+  option: {
+    minHeight: 58,
+    padding: "11px 14px",
+    borderRadius: 14,
+    border: "1.5px solid",
+    display: "flex",
+    alignItems: "center",
+    gap: 13,
+    transition: "transform .2s ease, box-shadow .2s ease",
+    cursor: "pointer",
+  },
+  optionPrefix: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+    fontWeight: 950,
+  },
+  optionText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#334155",
+    fontWeight: 600,
+    lineHeight: 1.4,
+  },
+  answerSummary: {
+    marginTop: 24,
+    padding: "14px 18px",
+    background: "#f8fafc",
+    borderRadius: 12,
+    border: "1px solid #e2e8f0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontSize: 13,
+  },
+  summaryLabel: {
+    display: "block",
+    fontSize: 9,
+    fontWeight: 900,
+    color: "#94a3b8",
+    marginBottom: 3,
+    letterSpacing: ".5px",
+  },
+  bottomFooter: {
+    maxWidth: 1000,
+    margin: "40px auto",
+    padding: "20px",
+    background: "#fff",
+    borderRadius: 16,
+    border: "1px solid #e2e8f0",
+    display: "flex",
+    alignItems: "center",
+    gap: 15,
+    boxShadow: "0 10px 30px rgba(15,23,42,.04)",
+  },
+  topButton: {
+    position: "fixed",
+    bottom: 25,
+    right: 25,
+    width: 45,
+    height: 45,
+    borderRadius: "50%",
+    background: "#047857",
+    color: "#fff",
+    border: "none",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    boxShadow: "0 10px 25px rgba(4,120,87,.3)",
+    zIndex: 999,
+  },
 };
 
 export default QuizReview;
