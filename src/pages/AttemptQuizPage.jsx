@@ -16,12 +16,15 @@ const WASM_URL =
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
+const VOICE_THRESHOLD = 0.045;
+const VOICE_HOLD_MS = 1200;
+
 const AttemptQuizPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const studentId = user?.id || user?._id;
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const studentId = currentUser?.id || currentUser?._id;
 
   const TIMER_KEY = `quiz_expiry_${id}_${studentId}`;
   const ANSWERS_KEY = `quiz_answers_${id}_${studentId}`;
@@ -50,20 +53,28 @@ const AttemptQuizPage = () => {
   const [faceWarningModal, setFaceWarningModal] = useState(false);
 
   const [aiMessage, setAiMessage] = useState(
-    "I am watching you. Keep your focus on the screen."
+    "AI Proctoring Active: Stay focused and keep quiet."
   );
 
   const [cameraStream, setCameraStream] = useState(null);
+  const [micStream, setMicStream] = useState(null);
   const [cameraError, setCameraError] = useState("");
   const [faceStatus, setFaceStatus] = useState("Waiting for face...");
+  const [voiceStatus, setVoiceStatus] = useState("Silent");
 
   const videoRef = useRef(null);
   const previewVideoRef = useRef(null);
-  const streamRef = useRef(null);
+  const cameraStreamRef = useRef(null);
+  const micStreamRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const voiceFrameRef = useRef(null);
+  const voiceAboveSinceRef = useRef(null);
+
   const landmarkerRef = useRef(null);
   const animationRef = useRef(null);
 
   const submittingRef = useRef(false);
+  const answersRef = useRef([]);
   const violationRef = useRef(
     Number(localStorage.getItem(VIOLATION_KEY) || 0)
   );
@@ -74,6 +85,10 @@ const AttemptQuizPage = () => {
   const violationActiveRef = useRef(false);
   const lastVideoTimeRef = useRef(-1);
   const autoStartedAtRef = useRef(null);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
 
   const formatCountdown = (ms) => {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -86,30 +101,57 @@ const AttemptQuizPage = () => {
     return `${mins}m ${secs.toString().padStart(2, "0")}s`;
   };
 
-  // Voice warning
   const speak = useCallback((message) => {
     if (!("speechSynthesis" in window)) return;
-
     window.speechSynthesis.cancel();
-
     const speech = new SpeechSynthesisUtterance(message);
-    speech.rate = 0.9;
-    speech.pitch = 0.8;
+    speech.rate = 0.95;
+    speech.pitch = 0.9;
     speech.volume = 1;
-
     window.speechSynthesis.speak(speech);
   }, []);
 
-  // Camera permission
-  const requestCameraPermission = async () => {
+  const cleanupMedia = useCallback(() => {
+    if (voiceFrameRef.current) {
+      cancelAnimationFrame(voiceFrameRef.current);
+      voiceFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+    }
+    setCameraStream(null);
+    setMicStream(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cleanupMedia();
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      landmarkerRef.current?.close();
+      window.speechSynthesis?.cancel();
+    };
+  }, [cleanupMedia]);
+
+  const requestMediaPermissions = async () => {
     try {
       setCameraError("");
 
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera requires HTTPS or localhost.");
+        throw new Error("Camera and microphone require HTTPS or localhost.");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const vStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "user",
           width: { ideal: 640 },
@@ -118,18 +160,32 @@ const AttemptQuizPage = () => {
         audio: false
       });
 
-      streamRef.current = stream;
-      setCameraStream(stream);
+      let aStream = null;
+      try {
+        aStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true
+          },
+          video: false
+        });
+      } catch {
+        aStream = null;
+      }
+
+      cameraStreamRef.current = vStream;
+      micStreamRef.current = aStream;
+      setCameraStream(vStream);
+      setMicStream(aStream);
       setExamStep(2);
     } catch (error) {
       console.error(error);
       setCameraError(
-        error.message || "Please allow camera permission."
+        error.message || "Please allow camera permission to continue."
       );
     }
   };
 
-  // Attach camera to both preview and exam video elements
   useEffect(() => {
     if (!cameraStream) return;
 
@@ -141,42 +197,23 @@ const AttemptQuizPage = () => {
     });
   }, [cameraStream, examStep, showInstructions]);
 
-  // Stop camera
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    setCameraStream(null);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-
-      landmarkerRef.current?.close();
-      window.speechSynthesis?.cancel();
-    };
-  }, []);
-
-  // Helper to compute effective expiry considering timer_minutes and end_at
   const computeEffectiveExpiry = useCallback((quizData, existingExpiry = null) => {
-    const durationMs = Math.max(1, Number(quizData.timer_minutes) || 10) * 60 * 1000;
-    const startMs = quizData.start_at ? new Date(quizData.start_at).getTime() : null;
+    const durationMs =
+      Math.max(1, Number(quizData.timer_minutes) || 10) * 60 * 1000;
+    const startMs = quizData.start_at
+      ? new Date(quizData.start_at).getTime()
+      : null;
     const endMs = quizData.end_at ? new Date(quizData.end_at).getTime() : null;
 
-    const baseStart = startMs && !Number.isNaN(startMs)
-      ? Math.max(Date.now(), startMs)
-      : Date.now();
+    const baseStart =
+      startMs && !Number.isNaN(startMs)
+        ? Math.max(Date.now(), startMs)
+        : Date.now();
 
-    let targetExpiry = existingExpiry && !Number.isNaN(existingExpiry)
-      ? existingExpiry
-      : baseStart + durationMs;
+    let targetExpiry =
+      existingExpiry && !Number.isNaN(existingExpiry)
+        ? existingExpiry
+        : baseStart + durationMs;
 
     if (endMs && !Number.isNaN(endMs)) {
       targetExpiry = Math.min(targetExpiry, endMs);
@@ -185,13 +222,11 @@ const AttemptQuizPage = () => {
     return targetExpiry;
   }, []);
 
-  // Fetch quiz
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
         const res = await api.get(`/api/quiz/${id}`);
         const quizData = res.data;
-
         setQuiz(quizData);
 
         const q =
@@ -199,18 +234,24 @@ const AttemptQuizPage = () => {
             ? JSON.parse(quizData.questions)
             : quizData.questions;
 
-        setQuestions(q || []);
+        const safeQuestions = q || [];
+        setQuestions(safeQuestions);
 
         const savedAnswers = localStorage.getItem(ANSWERS_KEY);
-        setAnswers(
-          savedAnswers
-            ? JSON.parse(savedAnswers)
-            : new Array((q || []).length).fill(null)
-        );
+        const initialAnswers = savedAnswers
+          ? JSON.parse(savedAnswers)
+          : new Array(safeQuestions.length).fill(null);
+
+        setAnswers(initialAnswers);
+        answersRef.current = initialAnswers;
 
         const nowMs = Date.now();
-        const startMs = quizData.start_at ? new Date(quizData.start_at).getTime() : null;
-        const endMs = quizData.end_at ? new Date(quizData.end_at).getTime() : null;
+        const startMs = quizData.start_at
+          ? new Date(quizData.start_at).getTime()
+          : null;
+        const endMs = quizData.end_at
+          ? new Date(quizData.end_at).getTime()
+          : null;
 
         if (endMs && !Number.isNaN(endMs) && nowMs > endMs) {
           setWindowExpired(true);
@@ -239,19 +280,73 @@ const AttemptQuizPage = () => {
     fetchQuiz();
   }, [id, TIMER_KEY, ANSWERS_KEY, computeEffectiveExpiry]);
 
-  // Auto-start monitor based on start_at and end_at
+  const handleSubmit = useCallback(
+    async (finalAnswers = answersRef.current, reason = "manual") => {
+      if (submittingRef.current || result) return;
+
+      submittingRef.current = true;
+      setSubmitting(true);
+
+      const evaluatedPayloadAnswers = Array.isArray(finalAnswers)
+        ? finalAnswers
+        : [];
+
+      try {
+        const latestUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+        const res = await api.post("/api/quiz/submit", {
+          student_id: studentId,
+          quiz_id: id,
+          answers: evaluatedPayloadAnswers,
+          stream: latestUser?.stream || "",
+          session: latestUser?.session || "",
+          submission_reason: reason,
+          evaluate_attempted_only: true
+        });
+
+        localStorage.removeItem(TIMER_KEY);
+        localStorage.removeItem(ANSWERS_KEY);
+        localStorage.removeItem(VIOLATION_KEY);
+
+        cleanupMedia();
+        setResult(res.data.data || res.data);
+      } catch (error) {
+        console.error("Quiz submission error:", error);
+        alert("Quiz submission failed. Please contact your teacher.");
+        submittingRef.current = false;
+        setSubmitting(false);
+      }
+    },
+    [
+      studentId,
+      id,
+      result,
+      TIMER_KEY,
+      ANSWERS_KEY,
+      VIOLATION_KEY,
+      cleanupMedia
+    ]
+  );
+
+  // Auto-start and auto-submit monitor based on start_at and end_at
   useEffect(() => {
     if (!quiz || result || submittingRef.current) return;
 
-    const startMs = quiz.start_at ? new Date(quiz.start_at).getTime() : null;
+    const startMs = quiz.start_at
+      ? new Date(quiz.start_at).getTime()
+      : null;
     const endMs = quiz.end_at ? new Date(quiz.end_at).getTime() : null;
 
     const checkSchedule = () => {
       const nowMs = Date.now();
 
-      if (endMs && !Number.isNaN(endMs) && nowMs > endMs) {
-        setWindowExpired(true);
+      if (endMs && !Number.isNaN(endMs) && nowMs >= endMs) {
         setWaitingForStart(false);
+        if (!showInstructions) {
+          handleSubmit(answersRef.current, "time_expired");
+        } else {
+          setWindowExpired(true);
+        }
         return;
       }
 
@@ -261,7 +356,6 @@ const AttemptQuizPage = () => {
         return;
       }
 
-      // Reached or passed start_at -> auto start
       setWaitingForStart(false);
 
       if (
@@ -275,7 +369,7 @@ const AttemptQuizPage = () => {
         localStorage.setItem(TIMER_KEY, String(expiryTime));
         setTimeLeft(Math.max(0, Math.floor((expiryTime - nowMs) / 1000)));
 
-        if (streamRef.current?.active) {
+        if (cameraStreamRef.current?.active) {
           setShowInstructions(false);
         } else {
           setShowInstructions(true);
@@ -287,68 +381,20 @@ const AttemptQuizPage = () => {
     checkSchedule();
     const interval = setInterval(checkSchedule, 1000);
     return () => clearInterval(interval);
-  }, [quiz, result, TIMER_KEY, computeEffectiveExpiry]);
+  }, [quiz, result, showInstructions, TIMER_KEY, computeEffectiveExpiry, handleSubmit]);
 
-  // Submit quiz
-  const handleSubmit = useCallback(
-    async (finalAnswers = answers, reason = "manual") => {
-      if (submittingRef.current || result) return;
-
-      submittingRef.current = true;
-      setSubmitting(true);
-
-      try {
-        const currentUser = JSON.parse(
-          localStorage.getItem("user") || "{}"
-        );
-
-        const res = await api.post("/api/quiz/submit", {
-          student_id: studentId,
-          quiz_id: id,
-          answers: finalAnswers,
-          stream: currentUser?.stream || "",
-          session: currentUser?.session || "",
-          submission_reason: reason
-        });
-
-        localStorage.removeItem(TIMER_KEY);
-        localStorage.removeItem(ANSWERS_KEY);
-        localStorage.removeItem(VIOLATION_KEY);
-
-        stopCamera();
-        setResult(res.data.data || res.data);
-      } catch (error) {
-        console.error("Quiz submission error:", error);
-
-        alert("Quiz submission failed. Please contact your teacher.");
-
-        submittingRef.current = false;
-        setSubmitting(false);
-      }
-    },
-    [
-      answers,
-      studentId,
-      id,
-      result,
-      TIMER_KEY,
-      ANSWERS_KEY,
-      VIOLATION_KEY,
-      stopCamera
-    ]
-  );
-
-  // Register violations
   const registerViolation = useCallback(
     (reason) => {
       if (submittingRef.current || result) return;
-      if (violationActiveRef.current) return;
+      if (reason !== "voice_detected" && violationActiveRef.current) return;
 
       const now = Date.now();
-      if (now - lastViolationRef.current < 1500) return;
+      if (now - lastViolationRef.current < 1800) return;
 
       lastViolationRef.current = now;
-      violationActiveRef.current = true;
+      if (reason !== "voice_detected") {
+        violationActiveRef.current = true;
+      }
 
       const next = violationRef.current + 1;
       violationRef.current = next;
@@ -357,36 +403,115 @@ const AttemptQuizPage = () => {
       localStorage.setItem(VIOLATION_KEY, String(next));
 
       if (next === 1) {
-        const message =
-          reason === "face_missing"
-            ? "Face not found. Please come back in front of the camera."
-            : "Don't cheat! Keep your face straight and look at the screen.";
+        let message =
+          "Don't cheat! Keep your face straight and look at the screen.";
+        if (reason === "face_missing") {
+          message = "Face not found. Please stay in front of the camera.";
+        } else if (reason === "voice_detected") {
+          message = "Voice detected! Keep the exam room silent.";
+        }
 
         setAiMessage(message);
         setFaceWarningModal(false);
         setWarningModal(true);
-
-        speak(
-          reason === "face_missing"
-            ? "Face not found. Please come back in front of the camera."
-            : "Don't cheat. Keep your face straight. This is your first warning."
-        );
+        speak(message);
       } else {
-        setAiMessage("Second violation detected. Quiz submitting.");
+        setAiMessage("Second violation detected. Submitting quiz...");
         setWarningModal(false);
         setFaceWarningModal(false);
-
         speak("Second warning. Your quiz is being submitted.");
-
-        handleSubmit(answers, "proctoring_violation");
+        handleSubmit(answersRef.current, "proctoring_violation");
       }
     },
-    [answers, handleSubmit, result, VIOLATION_KEY, speak]
+    [handleSubmit, result, VIOLATION_KEY, speak]
   );
+
+  // Voice detection monitor using Web Audio API
+  useEffect(() => {
+    if (
+      showInstructions ||
+      !micStream ||
+      result ||
+      waitingForStart ||
+      windowExpired
+    ) {
+      return;
+    }
+
+    const AudioCtx =
+      window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+
+    let active = true;
+
+    try {
+      const audioCtx = new AudioCtx();
+      audioContextRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(micStream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const monitorVoice = () => {
+        if (!active || submittingRef.current) return;
+
+        analyser.getByteTimeDomainData(dataArray);
+        let sumSquares = 0;
+        for (let i = 0; i < dataArray.length; i += 1) {
+          const normalized = (dataArray[i] - 128) / 128;
+          sumSquares += normalized * normalized;
+        }
+        const rms = Math.sqrt(sumSquares / dataArray.length);
+        const now = performance.now();
+
+        if (rms > VOICE_THRESHOLD) {
+          setVoiceStatus("Voice detected");
+          if (voiceAboveSinceRef.current === null) {
+            voiceAboveSinceRef.current = now;
+          }
+          if (now - voiceAboveSinceRef.current >= VOICE_HOLD_MS) {
+            voiceAboveSinceRef.current = null;
+            registerViolation("voice_detected");
+          }
+        } else {
+          setVoiceStatus("Silent");
+          voiceAboveSinceRef.current = null;
+        }
+
+        voiceFrameRef.current = requestAnimationFrame(monitorVoice);
+      };
+
+      monitorVoice();
+    } catch (err) {
+      console.error("Voice detection error:", err);
+    }
+
+    return () => {
+      active = false;
+      if (voiceFrameRef.current) {
+        cancelAnimationFrame(voiceFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+    };
+  }, [showInstructions, micStream, result, waitingForStart, windowExpired, registerViolation]);
 
   // Real MediaPipe face detection
   useEffect(() => {
-    if (showInstructions || !cameraStream || result || waitingForStart || windowExpired) return;
+    if (
+      showInstructions ||
+      !cameraStream ||
+      result ||
+      waitingForStart ||
+      windowExpired
+    ) {
+      return;
+    }
 
     let active = true;
 
@@ -394,17 +519,14 @@ const AttemptQuizPage = () => {
       try {
         const vision = await FilesetResolver.forVisionTasks(WASM_URL);
 
-        const detector = await FaceLandmarker.createFromOptions(
-          vision,
-          {
-            baseOptions: {
-              modelAssetPath: MODEL_URL,
-              delegate: "GPU"
-            },
-            runningMode: "VIDEO",
-            numFaces: 1
-          }
-        );
+        const detector = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: MODEL_URL,
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numFaces: 1
+        });
 
         if (!active) {
           detector.close();
@@ -458,7 +580,7 @@ const AttemptQuizPage = () => {
                   ? Math.abs(nose.x - eyeCenter) / eyeDistance
                   : 0;
 
-              const lookingAway = offset > 0.20;
+              const lookingAway = offset > 0.2;
 
               if (lookingAway) {
                 setFaceStatus("Looking away");
@@ -485,7 +607,9 @@ const AttemptQuizPage = () => {
       } catch (error) {
         console.error("Face detector initialization error:", error);
         setFaceStatus("Face detector unavailable");
-        setCameraError("AI face detector could not be loaded. Check your internet connection.");
+        setCameraError(
+          "AI face detector could not be loaded. Check your internet connection."
+        );
       }
     };
 
@@ -493,17 +617,21 @@ const AttemptQuizPage = () => {
 
     return () => {
       active = false;
-
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-
       landmarkerRef.current?.close();
       landmarkerRef.current = null;
     };
-  }, [showInstructions, cameraStream, result, waitingForStart, windowExpired, registerViolation]);
+  }, [
+    showInstructions,
+    cameraStream,
+    result,
+    waitingForStart,
+    windowExpired,
+    registerViolation
+  ]);
 
-  // Camera track monitor
   useEffect(() => {
     if (!cameraStream) return;
 
@@ -515,13 +643,19 @@ const AttemptQuizPage = () => {
     };
 
     track.addEventListener("ended", handleEnded);
-
     return () => track.removeEventListener("ended", handleEnded);
   }, [cameraStream]);
 
-  // Tab switching
   const handleTabViolation = useCallback(() => {
-    if (result || submittingRef.current || showInstructions || waitingForStart || windowExpired) return;
+    if (
+      result ||
+      submittingRef.current ||
+      showInstructions ||
+      waitingForStart ||
+      windowExpired
+    ) {
+      return;
+    }
 
     const now = Date.now();
     if (now - lastViolationRef.current < 1500) return;
@@ -539,7 +673,7 @@ const AttemptQuizPage = () => {
       setAiMessage("Don't cheat! Tab switching is not allowed.");
       speak("Warning. Do not switch tabs during your assessment.");
     } else {
-      handleSubmit(answers, "tab_switch_violation");
+      handleSubmit(answersRef.current, "tab_switch_violation");
     }
   }, [
     result,
@@ -548,7 +682,6 @@ const AttemptQuizPage = () => {
     windowExpired,
     VIOLATION_KEY,
     handleSubmit,
-    answers,
     speak
   ]);
 
@@ -560,18 +693,25 @@ const AttemptQuizPage = () => {
     };
 
     document.addEventListener("visibilitychange", visibilityHandler);
-
     return () => {
       document.removeEventListener("visibilitychange", visibilityHandler);
     };
   }, [handleTabViolation, showInstructions, result, waitingForStart, windowExpired]);
 
-  // Timer
+  // Countdown timer: auto-submits attempted answers when time expires
   useEffect(() => {
-    if (timeLeft === null || result || showInstructions || waitingForStart || windowExpired) return;
+    if (
+      timeLeft === null ||
+      result ||
+      showInstructions ||
+      waitingForStart ||
+      windowExpired
+    ) {
+      return;
+    }
 
     if (timeLeft <= 0) {
-      handleSubmit(answers, "time_expired");
+      handleSubmit(answersRef.current, "time_expired");
       return;
     }
 
@@ -580,9 +720,8 @@ const AttemptQuizPage = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, result, showInstructions, waitingForStart, windowExpired, handleSubmit, answers]);
+  }, [timeLeft, result, showInstructions, waitingForStart, windowExpired, handleSubmit]);
 
-  // Start quiz
   const startActualQuiz = () => {
     if (windowExpired) {
       alert("Quiz schedule window has expired.");
@@ -590,7 +729,9 @@ const AttemptQuizPage = () => {
     }
 
     if (quiz?.start_at && Date.now() < new Date(quiz.start_at).getTime()) {
-      alert("Quiz has not started yet. It will auto-start at the scheduled time.");
+      alert(
+        "Quiz has not started yet. It will auto-start at the scheduled time."
+      );
       return;
     }
 
@@ -603,20 +744,18 @@ const AttemptQuizPage = () => {
     setShowInstructions(false);
   };
 
-  // Select answer
   const handleOptionSelect = (option) => {
     const newAnswers = [...answers];
     newAnswers[currentIdx] = option;
 
     setAnswers(newAnswers);
+    answersRef.current = newAnswers;
     localStorage.setItem(ANSWERS_KEY, JSON.stringify(newAnswers));
   };
 
   const formatMath = (text) => {
     if (!text) return "";
-
     let str = text.toString();
-
     const fractions = {
       "1/2": "½",
       "1/4": "¼",
@@ -624,20 +763,16 @@ const AttemptQuizPage = () => {
       "1/3": "⅓",
       "2/3": "⅔"
     };
-
     Object.keys(fractions).forEach((f) => {
       str = str.replace(new RegExp(f, "g"), fractions[f]);
     });
-
     return str;
   };
 
   const formatTime = (seconds) => {
     if (seconds === null) return "--:--";
-
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -645,7 +780,7 @@ const AttemptQuizPage = () => {
     return (
       <div style={styles.loadingPage}>
         <div style={styles.loadingSpinner} />
-        <span>Loading Exam...</span>
+        <span style={{ marginTop: 12, fontWeight: 600 }}>Loading Exam...</span>
       </div>
     );
   }
@@ -655,11 +790,12 @@ const AttemptQuizPage = () => {
       <div style={styles.resultPage}>
         <div style={styles.resultCard}>
           <div style={{ fontSize: "48px" }}>⏳</div>
-          <h2>Quiz Window Closed</h2>
-          <p style={{ color: "#64748b" }}>
+          <h2 style={{ margin: "10px 0 6px" }}>Quiz Window Closed</h2>
+          <p style={{ color: "#64748b", margin: "0 0 20px" }}>
             Scheduled end time has passed for this quiz.
           </p>
           <button
+            type="button"
             onClick={() => navigate("/student/quiz-dashboard")}
             style={styles.dashboardButton}
           >
@@ -676,22 +812,24 @@ const AttemptQuizPage = () => {
     return (
       <div style={styles.resultPage}>
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
           style={styles.resultCard}
         >
-          <div style={{ fontSize: "50px" }}>
-            {percentage >= 50 ? "🏆" : "📋"}
+          <div style={{ fontSize: "52px" }}>
+            {percentage >= 40 ? "🏆" : "📋"}
           </div>
-
-          <h2>Assessment Submitted</h2>
-          <p style={{ color: "#64748b" }}>
-            Your assessment session has concluded.
+          <h2 style={{ margin: "10px 0 6px", color: "#0f172a" }}>
+            Assessment Submitted
+          </h2>
+          <p style={{ color: "#64748b", margin: 0, fontSize: 14 }}>
+            Evaluated based on your attempted answers.
           </p>
 
           <div style={styles.score}>Score: {percentage}%</div>
 
           <button
+            type="button"
             onClick={() => navigate("/student/quiz-dashboard")}
             style={styles.dashboardButton}
           >
@@ -703,11 +841,11 @@ const AttemptQuizPage = () => {
   }
 
   const totalQuestions = questions.length;
-  const attemptedCount = answers.filter((a) => a !== null).length;
+  const attemptedCount = answers.filter(
+    (a) => a !== null && a !== undefined && String(a).trim() !== ""
+  ).length;
   const progress =
-    totalQuestions > 0
-      ? (attemptedCount / totalQuestions) * 100
-      : 0;
+    totalQuestions > 0 ? (attemptedCount / totalQuestions) * 100 : 0;
 
   const currentQuestion = questions[currentIdx];
 
@@ -723,11 +861,11 @@ const AttemptQuizPage = () => {
               style={styles.instructionCard}
             >
               <div style={{ fontSize: "42px" }}>🗓️</div>
-              <h2>Scheduled to Auto-Start</h2>
-              <p style={{ color: "#475569", fontSize: "14px" }}>
+              <h2 style={{ margin: "10px 0 6px" }}>Scheduled to Auto-Start</h2>
+              <p style={{ color: "#334155", fontSize: "15px", margin: "4px 0" }}>
                 <strong>{quiz.title}</strong>
               </p>
-              <p style={{ color: "#64748b", fontSize: "13px" }}>
+              <p style={{ color: "#64748b", fontSize: "13px", margin: "4px 0" }}>
                 Starts at:{" "}
                 <strong>
                   {quiz.start_at
@@ -739,8 +877,13 @@ const AttemptQuizPage = () => {
                 Auto-starting in: <strong>{startCountdownText}</strong>
               </div>
               <button
+                type="button"
                 onClick={() => navigate("/student/quiz-dashboard")}
-                style={{ ...styles.navActionBtn, width: "100%", marginTop: "12px" }}
+                style={{
+                  ...styles.navActionBtn,
+                  width: "100%",
+                  marginTop: "14px"
+                }}
               >
                 ← Back to Dashboard
               </button>
@@ -749,22 +892,24 @@ const AttemptQuizPage = () => {
         )}
       </AnimatePresence>
 
-      {/* INSTRUCTIONS */}
+      {/* INSTRUCTIONS & PERMISSIONS */}
       <AnimatePresence>
         {!waitingForStart && showInstructions && (
           <div style={styles.modalOverlay}>
             <motion.div
-              initial={{ scale: 0.85, opacity: 0 }}
+              initial={{ scale: 0.88, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               style={styles.instructionCard}
             >
               {examStep === 1 ? (
                 <>
                   <div style={{ fontSize: "42px" }}>📸</div>
-                  <h2>Step 1: Camera Permission</h2>
-                  <p>
-                    Camera access is required for AI proctoring.
-                    Your live camera preview will remain visible during the test.
+                  <h2 style={{ margin: "10px 0 8px" }}>
+                    Step 1: Camera &amp; Mic Check
+                  </h2>
+                  <p style={{ color: "#475569", fontSize: "14px", lineHeight: 1.5 }}>
+                    Camera and microphone are used for AI proctoring (face
+                    focus, voice monitoring, and tab tracking).
                   </p>
 
                   {cameraError && (
@@ -772,19 +917,20 @@ const AttemptQuizPage = () => {
                   )}
 
                   <button
-                    onClick={requestCameraPermission}
+                    type="button"
+                    onClick={requestMediaPermissions}
                     style={styles.startExamBtn}
                   >
-                    Allow Camera &amp; Continue 📷
+                    Allow Camera &amp; Mic →
                   </button>
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: "42px" }}>👨‍🏫</div>
-                  <h2>Step 2: Are You Ready?</h2>
-                  <p>
-                    Keep your face visible and look towards the screen.
-                    Two confirmed proctoring violations will submit your test.
+                  <div style={{ fontSize: "42px" }}>🎓</div>
+                  <h2 style={{ margin: "10px 0 8px" }}>Step 2: Ready to Begin</h2>
+                  <p style={{ color: "#475569", fontSize: "14px", lineHeight: 1.5 }}>
+                    Keep your face visible, stay silent, and avoid switching tabs.
+                    When time ends, attempted answers are auto-evaluated.
                   </p>
 
                   <video
@@ -796,6 +942,7 @@ const AttemptQuizPage = () => {
                   />
 
                   <button
+                    type="button"
                     onClick={startActualQuiz}
                     style={styles.startExamBtn}
                   >
@@ -808,27 +955,25 @@ const AttemptQuizPage = () => {
         )}
       </AnimatePresence>
 
-      {/* TAB WARNING */}
+      {/* VIOLATION WARNING MODAL */}
       <AnimatePresence>
         {warningModal && (
           <div style={styles.modalOverlay}>
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
+              initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               style={styles.modalCard}
             >
-              <div style={{ fontSize: "60px" }}>😠</div>
-
-              <h2 style={{ color: "#dc2626" }}>
-                First Warning!
+              <div style={{ fontSize: "52px" }}>⚠️</div>
+              <h2 style={{ color: "#dc2626", margin: "8px 0" }}>
+                Proctoring Warning!
               </h2>
-
-              <p>
-                Don&apos;t cheat! Keep your face straight and stay on the quiz page.
-                A second violation will submit your test.
+              <p style={{ color: "#475569", fontSize: "14px", lineHeight: 1.5 }}>
+                {aiMessage} A second violation will automatically submit your
+                test.
               </p>
-
               <button
+                type="button"
                 onClick={() => setWarningModal(false)}
                 style={styles.modalButton}
               >
@@ -839,58 +984,53 @@ const AttemptQuizPage = () => {
         )}
       </AnimatePresence>
 
-      {/* FACE WARNING */}
+      {/* FACE WARNING MODAL */}
       <AnimatePresence>
         {faceWarningModal && (
           <div style={styles.modalOverlay}>
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
+              initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
+              exit={{ scale: 0.85, opacity: 0 }}
               style={styles.faceModalCard}
             >
               <button
+                type="button"
                 onClick={() => setFaceWarningModal(false)}
                 style={styles.crossButton}
               >
                 ✕
               </button>
-
-              <div style={{ fontSize: "45px" }}>⚠️</div>
-
+              <div style={{ fontSize: "42px" }}>⚠️</div>
               <h3 style={{ color: "#b91c1c" }}>
                 {faceStatus === "Face not found"
                   ? "Face Not Found!"
                   : "Keep Your Face Straight!"}
               </h3>
-
-              <p style={{ color: "#475569", fontSize: "13px" }}>
-                {aiMessage}
-              </p>
+              <p style={{ color: "#475569", fontSize: "13px" }}>{aiMessage}</p>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* HEADER */}
+      {/* PROFESSIONAL LIGHT HEADER */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
           <div style={styles.liveBadge}>● LIVE</div>
-
           <div>
             <h1 style={styles.quizTitle}>{quiz.title}</h1>
             <span style={styles.quizSub}>
-              {quiz.subject} • {totalQuestions} Qs
+              {quiz.subject} • {totalQuestions} Questions
             </span>
           </div>
         </div>
 
         <div style={styles.proctorPanel}>
           <div style={styles.aiTextBox}>
-            <span style={{ color: "#dc2626", fontWeight: "800" }}>
-              AI TEACHER
+            <span style={{ color: "#1d4ed8", fontWeight: "800" }}>
+              AI MONITOR
             </span>
-            <span style={{ color: "#0f172a", fontWeight: "700" }}>
+            <span style={{ color: "#0f172a", fontWeight: "600" }}>
               {aiMessage}
             </span>
           </div>
@@ -903,31 +1043,40 @@ const AttemptQuizPage = () => {
               muted
               style={styles.webcamFeed}
             />
-
-            <div style={styles.recDot}>LIVE</div>
+            <div style={styles.recDot}>CAM</div>
           </div>
         </div>
 
-        <div style={styles.timerDisplay}>
+        <div
+          style={{
+            ...styles.timerDisplay,
+            ...(timeLeft !== null && timeLeft <= 60 ? styles.timerUrgent : {})
+          }}
+        >
           ⏱ {formatTime(timeLeft)}
         </div>
       </header>
 
-      <div style={styles.faceStatus}>
+      {/* STATUS BAR */}
+      <div style={styles.statusBar}>
         <span
           style={{
-            color:
-              faceStatus === "Face detected" ? "#15803d" : "#dc2626"
+            color: faceStatus === "Face detected" ? "#15803d" : "#dc2626"
           }}
         >
           ● {faceStatus}
         </span>
+        <span
+          style={{
+            color: voiceStatus === "Silent" ? "#334155" : "#dc2626"
+          }}
+        >
+          🎙 {voiceStatus}
+        </span>
         <span>Warnings: {violations}/2</span>
       </div>
 
-      {cameraError && (
-        <div style={styles.errorBanner}>{cameraError}</div>
-      )}
+      {cameraError && <div style={styles.errorBanner}>{cameraError}</div>}
 
       <div style={styles.progressBarBg}>
         <motion.div
@@ -936,17 +1085,53 @@ const AttemptQuizPage = () => {
         />
       </div>
 
-      {/* QUESTIONS */}
+      {/* QUESTION PALETTE + QUESTION CARD */}
       <div style={styles.mainLayout}>
+        <div style={styles.paletteBar}>
+          {questions.map((_, idx) => {
+            const isAnswered =
+              answers[idx] !== null &&
+              answers[idx] !== undefined &&
+              String(answers[idx]).trim() !== "";
+            const isCurrent = idx === currentIdx;
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setCurrentIdx(idx)}
+                style={{
+                  ...styles.paletteBtn,
+                  background: isCurrent
+                    ? "#2563eb"
+                    : isAnswered
+                    ? "#ecfdf5"
+                    : "#ffffff",
+                  color: isCurrent
+                    ? "#ffffff"
+                    : isAnswered
+                    ? "#047857"
+                    : "#475569",
+                  borderColor: isCurrent
+                    ? "#2563eb"
+                    : isAnswered
+                    ? "#86efac"
+                    : "#cbd5e1"
+                }}
+              >
+                {idx + 1}
+              </button>
+            );
+          })}
+        </div>
+
         <main style={styles.questionSection}>
           <div style={styles.questionCard}>
             <div style={styles.qCardHeader}>
               <span style={styles.qNumberTag}>
                 Question {currentIdx + 1} of {totalQuestions}
               </span>
-
               <span style={styles.attemptStatus}>
-                {attemptedCount} Answered
+                {attemptedCount} of {totalQuestions} Attempted
               </span>
             </div>
 
@@ -962,11 +1147,12 @@ const AttemptQuizPage = () => {
                 return (
                   <motion.button
                     key={i}
-                    whileTap={{ scale: 0.98 }}
+                    type="button"
+                    whileTap={{ scale: 0.99 }}
                     onClick={() => handleOptionSelect(opt)}
                     style={{
                       ...styles.optionItem,
-                      background: selected ? "#eff6ff" : "#fff",
+                      background: selected ? "#eff6ff" : "#ffffff",
                       borderColor: selected ? "#2563eb" : "#e2e8f0"
                     }}
                   >
@@ -974,7 +1160,7 @@ const AttemptQuizPage = () => {
                       style={{
                         ...styles.optionLetterBox,
                         background: selected ? "#2563eb" : "#f1f5f9",
-                        color: selected ? "#fff" : "#334155"
+                        color: selected ? "#ffffff" : "#334155"
                       }}
                     >
                       {labels[i]}
@@ -982,7 +1168,7 @@ const AttemptQuizPage = () => {
 
                     <span
                       style={{
-                        color: selected ? "#1e3a8a" : "#334155",
+                        color: selected ? "#1e3a8a" : "#1e293b",
                         fontSize: "15px",
                         fontWeight: "600",
                         flex: 1,
@@ -992,7 +1178,7 @@ const AttemptQuizPage = () => {
                       {formatMath(opt)}
                     </span>
 
-                    <span>{selected ? "✓" : "○"}</span>
+                    <span style={{ fontWeight: 700 }}>{selected ? "✓" : "○"}</span>
                   </motion.button>
                 );
               })}
@@ -1001,15 +1187,29 @@ const AttemptQuizPage = () => {
 
           <div style={styles.footerNav}>
             <button
+              type="button"
               disabled={currentIdx === 0}
               onClick={() => setCurrentIdx((p) => p - 1)}
-              style={styles.navActionBtn}
+              style={{
+                ...styles.navActionBtn,
+                opacity: currentIdx === 0 ? 0.5 : 1
+              }}
             >
               ← Prev
             </button>
 
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => handleSubmit(answers, "manual")}
+              style={styles.submitEarlyBtn}
+            >
+              Submit Test
+            </button>
+
             {currentIdx === totalQuestions - 1 ? (
               <button
+                type="button"
                 disabled={submitting}
                 onClick={() => handleSubmit(answers, "manual")}
                 style={styles.finishActionBtn}
@@ -1018,6 +1218,7 @@ const AttemptQuizPage = () => {
               </button>
             ) : (
               <button
+                type="button"
                 onClick={() => setCurrentIdx((p) => p + 1)}
                 style={styles.navActionBtn}
               >
@@ -1030,7 +1231,7 @@ const AttemptQuizPage = () => {
 
       {submitting && (
         <div style={styles.submittingOverlay}>
-          Submitting your quiz...
+          Submitting and evaluating your attempted answers...
         </div>
       )}
     </div>
@@ -1052,9 +1253,9 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: "10px",
-    padding: "10px 14px",
-    background: "#fff",
+    gap: "12px",
+    padding: "12px 18px",
+    background: "#ffffff",
     borderBottom: "1px solid #e2e8f0",
     position: "sticky",
     top: 0,
@@ -1070,50 +1271,52 @@ const styles = {
   liveBadge: {
     background: "#dcfce7",
     color: "#15803d",
-    padding: "3px 8px",
+    padding: "4px 8px",
     borderRadius: "6px",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: "800"
   },
 
   quizTitle: {
     margin: 0,
-    fontSize: "14px",
+    fontSize: "15px",
     fontWeight: "700",
-    maxWidth: "150px",
+    color: "#0f172a",
+    maxWidth: "200px",
     overflow: "hidden",
-    textOverflow: "ellipsis"
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap"
   },
 
   quizSub: {
-    fontSize: "11px",
+    fontSize: "12px",
     color: "#64748b"
   },
 
   proctorPanel: {
     display: "flex",
     alignItems: "center",
-    gap: "8px"
+    gap: "10px"
   },
 
   aiTextBox: {
-    background: "#fef2f2",
-    border: "1px solid #fecaca",
-    padding: "6px 8px",
-    borderRadius: "6px",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    padding: "6px 10px",
+    borderRadius: "8px",
     display: "flex",
     flexDirection: "column",
-    gap: "3px",
-    maxWidth: "150px",
-    fontSize: "10px"
+    gap: "2px",
+    maxWidth: "210px",
+    fontSize: "11px"
   },
 
   cameraWrapper: {
-    width: "85px",
-    height: "58px",
-    background: "#000",
-    borderRadius: "6px",
-    border: "2px solid #16a34a",
+    width: "88px",
+    height: "60px",
+    background: "#0f172a",
+    borderRadius: "8px",
+    border: "2px solid #2563eb",
     overflow: "hidden",
     position: "relative"
   },
@@ -1127,43 +1330,57 @@ const styles = {
 
   recDot: {
     position: "absolute",
-    bottom: "2px",
-    right: "2px",
-    background: "#16a34a",
-    color: "#fff",
+    bottom: "3px",
+    right: "3px",
+    background: "#2563eb",
+    color: "#ffffff",
     fontSize: "8px",
-    padding: "2px 4px"
+    fontWeight: 700,
+    padding: "1px 4px",
+    borderRadius: "3px"
   },
 
   timerDisplay: {
-    background: "#f1f5f9",
-    padding: "7px",
-    borderRadius: "8px",
-    fontSize: "13px",
-    fontWeight: "bold",
-    color: "#2563eb"
+    background: "#eff6ff",
+    border: "1px solid #bfdbfe",
+    padding: "8px 12px",
+    borderRadius: "10px",
+    fontSize: "14px",
+    fontWeight: "700",
+    color: "#1d4ed8"
   },
 
-  faceStatus: {
+  timerUrgent: {
+    background: "#fef2f2",
+    borderColor: "#fecaca",
+    color: "#dc2626"
+  },
+
+  statusBar: {
     display: "flex",
     justifyContent: "space-between",
-    padding: "9px 16px",
-    background: "#fff",
+    flexWrap: "wrap",
+    gap: "10px",
+    padding: "9px 18px",
+    background: "#ffffff",
+    borderBottom: "1px solid #f1f5f9",
     fontSize: "12px",
     fontWeight: "700"
   },
 
   errorBanner: {
-    padding: "10px",
-    background: "#fee2e2",
-    color: "#991b1b",
+    padding: "10px 16px",
+    background: "#fef2f2",
+    color: "#b91c1c",
+    borderBottom: "1px solid #fecaca",
     textAlign: "center",
-    fontSize: "13px"
+    fontSize: "13px",
+    fontWeight: 600
   },
 
   progressBarBg: {
     width: "100%",
-    height: "4px",
+    height: "5px",
     background: "#e2e8f0"
   },
 
@@ -1174,53 +1391,79 @@ const styles = {
 
   mainLayout: {
     display: "flex",
+    flexDirection: "column",
     flex: 1,
     width: "100%",
-    maxWidth: "800px",
+    maxWidth: "860px",
     margin: "0 auto",
-    padding: "16px",
+    padding: "18px 16px 32px",
+    gap: "14px",
     boxSizing: "border-box"
+  },
+
+  paletteBar: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    padding: "12px",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px"
+  },
+
+  paletteBtn: {
+    width: "34px",
+    height: "34px",
+    borderRadius: "8px",
+    border: "1px solid",
+    fontSize: "12px",
+    fontWeight: "700",
+    cursor: "pointer"
   },
 
   questionSection: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
-    gap: "16px"
+    gap: "14px"
   },
 
   questionCard: {
-    background: "#fff",
+    background: "#ffffff",
     border: "1px solid #e2e8f0",
     borderRadius: "18px",
-    padding: "20px"
+    padding: "24px",
+    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.04)"
   },
 
   qCardHeader: {
     display: "flex",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: "14px"
   },
 
   qNumberTag: {
     background: "#eff6ff",
     color: "#2563eb",
-    padding: "5px 10px",
-    borderRadius: "20px",
-    fontSize: "11px",
+    padding: "5px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
     fontWeight: "700"
   },
 
   attemptStatus: {
     fontSize: "12px",
-    color: "#64748b"
+    color: "#64748b",
+    fontWeight: 600
   },
 
   questionText: {
     fontSize: "18px",
     fontWeight: "700",
-    lineHeight: "1.5",
-    marginBottom: "20px"
+    color: "#0f172a",
+    lineHeight: "1.55",
+    margin: "0 0 20px 0"
   },
 
   optionsList: {
@@ -1242,46 +1485,59 @@ const styles = {
   },
 
   optionLetterBox: {
-    width: "28px",
-    height: "28px",
+    width: "30px",
+    height: "30px",
     borderRadius: "8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "12px",
-    fontWeight: "bold",
+    fontWeight: "700",
     flexShrink: 0
   },
 
   footerNav: {
     display: "flex",
     justifyContent: "space-between",
-    padding: "0 4px"
+    alignItems: "center",
+    gap: "10px"
   },
 
   navActionBtn: {
-    background: "#fff",
+    background: "#ffffff",
     color: "#0f172a",
     border: "1px solid #cbd5e1",
-    padding: "10px 20px",
+    padding: "10px 18px",
     borderRadius: "10px",
+    fontWeight: 600,
+    cursor: "pointer"
+  },
+
+  submitEarlyBtn: {
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    border: "1px solid #bfdbfe",
+    padding: "10px 16px",
+    borderRadius: "10px",
+    fontWeight: 700,
     cursor: "pointer"
   },
 
   finishActionBtn: {
     background: "#059669",
-    color: "#fff",
+    color: "#ffffff",
     border: "none",
-    padding: "10px 24px",
+    padding: "10px 22px",
     borderRadius: "10px",
+    fontWeight: 700,
     cursor: "pointer"
   },
 
   modalOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(15,23,42,0.65)",
-    backdropFilter: "blur(6px)",
+    background: "rgba(15, 23, 42, 0.55)",
+    backdropFilter: "blur(5px)",
     zIndex: 1000,
     display: "flex",
     alignItems: "center",
@@ -1290,13 +1546,15 @@ const styles = {
   },
 
   instructionCard: {
-    background: "#fff",
-    maxWidth: "400px",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    maxWidth: "420px",
     width: "100%",
-    padding: "30px",
-    borderRadius: "22px",
+    padding: "28px",
+    borderRadius: "20px",
     textAlign: "center",
-    boxSizing: "border-box"
+    boxSizing: "border-box",
+    boxShadow: "0 20px 45px rgba(15, 23, 42, 0.14)"
   },
 
   countdownBox: {
@@ -1309,45 +1567,48 @@ const styles = {
   },
 
   previewVideo: {
-    width: "150px",
-    height: "110px",
+    width: "160px",
+    height: "115px",
     objectFit: "cover",
     borderRadius: "10px",
-    marginBottom: "15px",
-    background: "#000",
+    margin: "12px auto 16px",
+    display: "block",
+    background: "#0f172a",
     transform: "scaleX(-1)"
   },
 
   startExamBtn: {
     background: "#2563eb",
-    color: "#fff",
+    color: "#ffffff",
     border: "none",
     padding: "12px 20px",
     borderRadius: "12px",
     fontWeight: "700",
     cursor: "pointer",
-    width: "100%"
+    width: "100%",
+    marginTop: "8px"
   },
 
   modalCard: {
-    background: "#fff",
-    maxWidth: "380px",
+    background: "#ffffff",
+    border: "1px solid #fecaca",
+    maxWidth: "390px",
     width: "100%",
-    padding: "30px",
-    borderRadius: "22px",
+    padding: "28px",
+    borderRadius: "20px",
     textAlign: "center",
     boxSizing: "border-box"
   },
 
   faceModalCard: {
-    background: "#fff",
+    background: "#ffffff",
     border: "1px solid #fecaca",
-    maxWidth: "340px",
+    maxWidth: "350px",
     width: "100%",
     padding: "24px",
     borderRadius: "18px",
     textAlign: "center",
-    boxShadow: "0 15px 35px rgba(239,68,68,0.15)",
+    boxShadow: "0 15px 35px rgba(239, 68, 68, 0.15)",
     position: "relative",
     boxSizing: "border-box"
   },
@@ -1369,22 +1630,26 @@ const styles = {
 
   modalButton: {
     background: "#0f172a",
-    color: "#fff",
+    color: "#ffffff",
     border: "none",
     padding: "12px 20px",
     borderRadius: "12px",
+    fontWeight: 600,
     width: "100%",
     cursor: "pointer"
   },
 
   errorText: {
     color: "#dc2626",
-    fontSize: "13px"
+    fontSize: "13px",
+    fontWeight: 600
   },
 
   loadingPage: {
     width: "100vw",
     height: "100vh",
+    background: "#f8fafc",
+    color: "#0f172a",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -1412,27 +1677,30 @@ const styles = {
   },
 
   resultCard: {
-    background: "#fff",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
     padding: "35px",
     borderRadius: "22px",
-    maxWidth: "400px",
+    maxWidth: "420px",
     width: "100%",
-    textAlign: "center"
+    textAlign: "center",
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.06)"
   },
 
   score: {
     fontSize: "28px",
-    fontWeight: "bold",
+    fontWeight: "800",
     color: "#2563eb",
-    margin: "20px"
+    margin: "20px 0"
   },
 
   dashboardButton: {
     background: "#2563eb",
-    color: "#fff",
+    color: "#ffffff",
     border: "none",
     padding: "12px 20px",
     borderRadius: "12px",
+    fontWeight: 700,
     width: "100%",
     cursor: "pointer"
   },
@@ -1441,11 +1709,11 @@ const styles = {
     position: "fixed",
     inset: 0,
     background: "rgba(15, 23, 42, 0.55)",
-    color: "#fff",
+    color: "#ffffff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "16px",
+    fontSize: "15px",
     fontWeight: "700",
     zIndex: 1200
   }
