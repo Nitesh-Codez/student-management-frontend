@@ -2,31 +2,42 @@ import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   FaUserGraduate, FaMoneyBillWave, FaClipboardCheck, FaUpload,
-  FaBookOpen, FaStar, FaChartBar, FaArrowRight, FaThLarge, 
-  FaSearch, FaBell, FaBars, FaTimes, FaQuestionCircle, FaCheck, 
-  FaChalkboardTeacher, FaPlus, FaMinus
+  FaBookOpen, FaStar, FaChartBar, FaArrowRight, FaThLarge,
+  FaSearch, FaBell, FaBars, FaTimes, FaQuestionCircle, FaCheck,
+  FaChalkboardTeacher
 } from "react-icons/fa";
 
 import api from "../services/api";
+
+const formatShortDate = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+};
 
 const AdminDashboard = () => {
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [stats, setStats] = useState({ students: 45, batches: 2, avgMarks: 82 });
+  const [stats] = useState({ students: 45, batches: 2, avgMarks: 82 });
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
-  
+
   // Zoom Level State (Default 1 = 100%)
   const [zoomLevel, setZoomLevel] = useState(1);
 
   const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 0.1, 1.3)); // Max 130% tak zoom
+    setZoomLevel((prev) => Math.min(prev + 0.1, 1.3));
   };
 
   const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 0.1, 0.2)); // Min 20% tak zoom out
+    setZoomLevel((prev) => Math.max(prev - 0.1, 0.2));
   };
 
   const bgImages = [
@@ -42,11 +53,23 @@ const AdminDashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // 1. CHANGE HERE: Fetch pending edit + holiday/drop (including approved) requests together
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const res = await api.get(`/api/students/pending-edit-requests`);
-        setNotifications(res.data.requests || []);
+        const res = await api.get(`/api/students/pending-edit-requests`, {
+          params: { status: "all" }
+        });
+        const allReqs = res.data.requests || [];
+        const visibleReqs = allReqs.filter((item) => {
+          const st = String(item.status || "").toLowerCase();
+          const isDropOrHoliday =
+            String(item.request_type || item.field_name || "").toUpperCase() === "DROP" ||
+            item.category === "holiday_or_drop" ||
+            Boolean(item.start_date);
+          return st === "pending" || (isDropOrHoliday && st === "approved");
+        });
+        setNotifications(visibleReqs);
       } catch (err) {
         console.error("Error fetching notifications:", err);
       }
@@ -59,10 +82,10 @@ const AdminDashboard = () => {
       await api.post(`/api/students/handle-edit`, {
         request_id: id,
         status,
-        admin_id: 1 
+        admin_id: 1
       });
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      alert(`Request ${status} ✅`);
+      alert(`Request ${status}`);
     } catch (err) {
       console.error(err);
       alert("Action failed!");
@@ -89,7 +112,7 @@ const AdminDashboard = () => {
     { title: "Students Reports", path: "student-summary", icon: <FaUserGraduate />, color: "#cb8728", category: "Exams" },
   ];
 
-  const filteredLinks = links.filter(link =>
+  const filteredLinks = links.filter((link) =>
     link.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -99,27 +122,25 @@ const AdminDashboard = () => {
     <div style={desktopWrapper}>
       {/* Floating Zoom Controller Controls (+ / -) */}
       <div style={zoomControlsStyle}>
-        <button onClick={handleZoomIn} style={zoomBtn} title="Zoom In">+</button>
+        <button type="button" onClick={handleZoomIn} style={zoomBtn} title="Zoom In">+</button>
         <span style={zoomText}>{Math.round(zoomLevel * 100)}%</span>
-        <button onClick={handleZoomOut} style={zoomBtn} title="Zoom Out">-</button>
+        <button type="button" onClick={handleZoomOut} style={zoomBtn} title="Zoom Out">-</button>
       </div>
 
-      <div style={{ ...layout, transform: `scale(${zoomLevel})`, transformOrigin: 'top left', width: `${100 / zoomLevel}%` }}>
-        {/* Overlay when sidebar is open */}
+      <div style={{ ...layout, transform: `scale(${zoomLevel})`, transformOrigin: "top left", width: `${100 / zoomLevel}%` }}>
         {isSidebarOpen && (
           <div style={sidebarOverlay} onClick={() => setIsSidebarOpen(false)} />
         )}
 
-        {/* Sidebar */}
-        <aside style={{ ...sidebar, transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)' }}>
+        <aside style={{ ...sidebar, transform: isSidebarOpen ? "translateX(0)" : "translateX(-100%)" }}>
           <div style={sidebarHeader}>
-            <Link to="/admin" style={{ textDecoration: 'none' }} onClick={() => setIsSidebarOpen(false)}>
+            <Link to="/admin" style={{ textDecoration: "none" }} onClick={() => setIsSidebarOpen(false)}>
               <div style={logoSection}>
                 <div style={logoIcon}><FaThLarge /></div>
                 <span style={logoText}>SmartZone</span>
               </div>
             </Link>
-            <button onClick={() => setIsSidebarOpen(false)} style={closeSidebarBtn}>
+            <button type="button" onClick={() => setIsSidebarOpen(false)} style={closeSidebarBtn}>
               <FaTimes size={16} />
             </button>
           </div>
@@ -127,18 +148,18 @@ const AdminDashboard = () => {
           <nav style={navLinks}>
             <div style={navLabel}>Management</div>
             {links.map((link) => (
-              <Link 
-                key={link.path} 
-                to={link.path} 
+              <Link
+                key={link.path}
+                to={link.path}
                 onClick={() => setIsSidebarOpen(false)}
                 className="side-nav-link"
-                style={{ 
-                  ...sideNavLink, 
-                  background: location.pathname.includes(link.path) ? '#fdf2f0' : 'transparent',
-                  color: location.pathname.includes(link.path) ? '#f97316' : '#64748b'
-                }} 
+                style={{
+                  ...sideNavLink,
+                  background: location.pathname.includes(link.path) ? "#fdf2f0" : "transparent",
+                  color: location.pathname.includes(link.path) ? "#f97316" : "#64748b"
+                }}
               >
-                <span style={{ fontSize: '20px' }}>{link.icon}</span>
+                <span style={{ fontSize: "20px" }}>{link.icon}</span>
                 <span>{link.title}</span>
               </Link>
             ))}
@@ -159,19 +180,18 @@ const AdminDashboard = () => {
             `}
           </style>
 
-          {/* Header */}
           <header style={orangeHeader}>
             <div style={headerLeft}>
-              <button onClick={() => setIsSidebarOpen(true)} style={menuBurgerBtn} aria-label="Open Sidebar">
+              <button type="button" onClick={() => setIsSidebarOpen(true)} style={menuBurgerBtn} aria-label="Open Sidebar">
                 <FaBars size={20} color="#fff" />
               </button>
 
-              <Link to="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link to="/admin" style={{ textDecoration: "none", color: "inherit" }}>
                 <span style={headerTag}>SMART STUDENTS</span>
               </Link>
-              
+
               <div style={vDivider}></div>
-              
+
               <div style={headerNav}>
                 <Link to="admin-feedback" style={headerLink} className="top-nav-item">Feedback</Link>
                 <Link to="student-submission" style={headerLink} className="top-nav-item">Submissions</Link>
@@ -179,45 +199,74 @@ const AdminDashboard = () => {
                 <Link to="add-exam-marks" style={headerLink} className="top-nav-item">Exam Marks</Link>
               </div>
             </div>
-            
+
             <div style={headerRight}>
               <div style={searchBox}>
                 <FaSearch size={14} color="#f97316" />
-                <input 
-                  type="text" 
-                  placeholder="Quick search..." 
-                  style={topSearchInput} 
+                <input
+                  type="text"
+                  placeholder="Quick search..."
+                  style={topSearchInput}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
 
-              <div style={{ position: 'relative' }}>
-                  <div style={headerIconBtn} onClick={() => setShowNotif(!showNotif)}>
-                    <FaBell size={18} />
-                    {notifications.length > 0 && <span style={headerBadge}>{notifications.length}</span>}
-                  </div>
-                  
-                  {showNotif && (
-                    <div style={notifDropdown}>
-                        <div style={notifTitle}>Pending Edit Requests</div>
-                        <div style={notifScroll}>
-                        {notifications.length === 0 ? (
-                            <div style={emptyNotif}>No pending requests ✅</div>
-                        ) : (
-                            notifications.map(n => (
+              <div style={{ position: "relative" }}>
+                <div style={headerIconBtn} onClick={() => setShowNotif(!showNotif)}>
+                  <FaBell size={18} />
+                  {notifications.length > 0 && <span style={headerBadge}>{notifications.length}</span>}
+                </div>
+
+                {/* 2. CHANGE HERE: Render both Edit and Approved Holiday/Drop requests */}
+                {showNotif && (
+                  <div style={notifDropdown}>
+                    <div style={notifTitle}>Edit &amp; Holiday Requests</div>
+                    <div style={notifScroll}>
+                      {notifications.length === 0 ? (
+                        <div style={emptyNotif}>No pending or approved holiday requests</div>
+                      ) : (
+                        notifications.map((n) => {
+                          const isHolidayOrDrop =
+                            String(n.request_type || n.field_name || "").toUpperCase() === "DROP" ||
+                            n.category === "holiday_or_drop" ||
+                            Boolean(n.start_date);
+                          const dateRange =
+                            n.start_date || n.end_date
+                              ? `${formatShortDate(n.start_date)} - ${formatShortDate(n.end_date)}`
+                              : null;
+
+                          return (
                             <div key={n.id} style={notifCard}>
-                                <p style={notifDesc}><b>{n.student_name}</b> wants to change <b>{n.field_name}</b></p>
-                                <p style={notifValues}>New: {n.requested_value}</p>
+                              <p style={notifDesc}>
+                                <b>{n.student_name}</b> •{" "}
+                                <b>{isHolidayOrDrop ? n.request_type || "DROP / HOLIDAY" : n.field_name}</b>{" "}
+                                ({n.status})
+                              </p>
+                              {isHolidayOrDrop ? (
+                                <>
+                                  {dateRange && <p style={notifValues}>Dates: {dateRange}</p>}
+                                  {n.reason && <p style={notifValues}>Reason: {n.reason}</p>}
+                                </>
+                              ) : (
+                                <p style={notifValues}>New: {n.requested_value || "—"}</p>
+                              )}
+                              {String(n.status || "").toLowerCase() === "pending" && (
                                 <div style={notifActions}>
-                                <button onClick={() => handleApproveReject(n.id, "approved")} style={approveBtn}><FaCheck size={10} /> Approve</button>
-                                <button onClick={() => handleApproveReject(n.id, "rejected")} style={rejectBtn}><FaTimes size={10} /> Reject</button>
+                                  <button type="button" onClick={() => handleApproveReject(n.id, "approved")} style={approveBtn}>
+                                    <FaCheck size={10} /> Approve
+                                  </button>
+                                  <button type="button" onClick={() => handleApproveReject(n.id, "rejected")} style={rejectBtn}>
+                                    <FaTimes size={10} /> Reject
+                                  </button>
                                 </div>
+                              )}
                             </div>
-                            ))
-                        )}
-                        </div>
+                          );
+                        })
+                      )}
                     </div>
-                  )}
+                  </div>
+                )}
               </div>
 
               <div style={headerUser}>
@@ -227,13 +276,12 @@ const AdminDashboard = () => {
             </div>
           </header>
 
-          {/* Content Area */}
           <div style={pagePadding}>
             {isBaseAdmin ? (
               <>
-                <section style={{...hero, backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url(${bgImages[currentImg]})`}}>
+                <section style={{ ...hero, backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url(${bgImages[currentImg]})` }}>
                   <div style={heroContent}>
-                    <h1 style={heroTitle}>Welcome Back, Nitesh! 👋</h1>
+                    <h1 style={heroTitle}>Welcome Back, Nitesh!</h1>
                     <p style={heroSub}>Everything looks good today. You have {stats.students} students across {stats.batches} active batches.</p>
                     <div style={heroStats}>
                       <div style={hStatCard}>
@@ -250,12 +298,12 @@ const AdminDashboard = () => {
 
                 <div style={grid}>
                   {filteredLinks.map((link, index) => (
-                    <Link 
-                      to={link.path} 
-                      key={link.title} 
-                      className="glass-card" 
+                    <Link
+                      to={link.path}
+                      key={link.title}
+                      className="glass-card"
                       style={{
-                        ...cardStyle, 
+                        ...cardStyle,
                         animation: `slideIn 0.3s ease forwards ${index * 0.05}s`
                       }}
                     >
@@ -276,7 +324,7 @@ const AdminDashboard = () => {
 
           <footer style={footerStyle}>
             <div style={tickerWrapper}>
-               <p style={tickerText}>Start Building for Smart Education | © 2026 EduFlow</p>
+              <p style={tickerText}>Start Building for Smart Education | © 2026 EduFlow</p>
             </div>
           </footer>
         </main>
@@ -286,99 +334,98 @@ const AdminDashboard = () => {
 };
 
 // --- STYLES & LAYOUTS ---
-const desktopWrapper = { width: '100vw', overflowX: 'auto', background: '#f8fafc', position: 'relative' };
-const layout = { display: 'flex', minHeight: '100vh', minWidth: '1200px', background: '#f8fafc', position: 'relative', transition: 'transform 0.2s ease' };
+const desktopWrapper = { width: "100vw", overflowX: "auto", background: "#f8fafc", position: "relative" };
+const layout = { display: "flex", minHeight: "100vh", minWidth: "1200px", background: "#f8fafc", position: "relative", transition: "transform 0.2s ease" };
 
-// Floating Zoom Control Styles
 const zoomControlsStyle = {
-  position: 'fixed', bottom: '60px', right: '20px', zIndex: 9999,
-  background: '#1e293b', borderRadius: '30px', display: 'flex', alignItems: 'center',
-  padding: '6px 10px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', gap: '8px'
+  position: "fixed", bottom: "60px", right: "20px", zIndex: 9999,
+  background: "#1e293b", borderRadius: "30px", display: "flex", alignItems: "center",
+  padding: "6px 10px", boxShadow: "0 4px 15px rgba(0,0,0,0.3)", gap: "8px"
 };
 const zoomBtn = {
-  background: '#f97316', color: '#fff', border: 'none', width: '28px', height: '28px',
-  borderRadius: '50%', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer',
-  display: 'flex', alignItems: 'center', justifyContent: 'center'
+  background: "#f97316", color: "#fff", border: "none", width: "28px", height: "28px",
+  borderRadius: "50%", fontSize: "16px", fontWeight: "bold", cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center"
 };
-const zoomText = { color: '#fff', fontSize: '12px', fontWeight: 'bold', minWidth: '36px', textAlign: 'center' };
+const zoomText = { color: "#fff", fontSize: "12px", fontWeight: "bold", minWidth: "36px", textAlign: "center" };
 
 const sidebarOverlay = {
-  position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-  background: 'rgba(0,0,0,0.5)', zIndex: 1400, transition: '0.3s'
+  position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+  background: "rgba(0,0,0,0.5)", zIndex: 1400, transition: "0.3s"
 };
 
-const sidebar = { 
-  background: '#fff', borderRight: '1px solid #e2e8f0', padding: '20px 15px', 
-  position: 'fixed', top: 0, left: 0, height: '100vh', width: '280px', 
-  transition: 'transform 0.3s ease-in-out', zIndex: 1500, overflowY: 'auto',
-  boxShadow: '5px 0 25px rgba(0,0,0,0.1)'
+const sidebar = {
+  background: "#fff", borderRight: "1px solid #e2e8f0", padding: "20px 15px",
+  position: "fixed", top: 0, left: 0, height: "100vh", width: "280px",
+  transition: "transform 0.3s ease-in-out", zIndex: 1500, overflowY: "auto",
+  boxShadow: "5px 0 25px rgba(0,0,0,0.1)"
 };
 
-const sidebarHeader = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px' };
-const logoSection = { display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' };
-const logoIcon = { background: 'linear-gradient(135deg, #f97316, #fb923c)', color: '#fff', width: '35px', height: '35px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const logoText = { fontSize: '18px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.5px' };
-const closeSidebarBtn = { background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' };
+const sidebarHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "30px" };
+const logoSection = { display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" };
+const logoIcon = { background: "linear-gradient(135deg, #f97316, #fb923c)", color: "#fff", width: "35px", height: "35px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" };
+const logoText = { fontSize: "18px", fontWeight: "800", color: "#1e293b", letterSpacing: "-0.5px" };
+const closeSidebarBtn = { background: "#f1f5f9", border: "none", borderRadius: "50%", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#64748b" };
 
-const menuBurgerBtn = { background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', borderRadius: '8px' };
+const menuBurgerBtn = { background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "6px", borderRadius: "8px" };
 
-const navLinks = { display: 'flex', flexDirection: 'column', gap: '6px' };
-const navLabel = { fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', margin: '15px 0 10px 10px' };
-const sideNavLink = { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 15px', textDecoration: 'none', fontWeight: '600', borderRadius: '10px', transition: '0.2s', fontSize: '14px' };
-const mainContent = { flex: 1, display: 'flex', flexDirection: 'column', width: '100%' };
+const navLinks = { display: "flex", flexDirection: "column", gap: "6px" };
+const navLabel = { fontSize: "10px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", margin: "15px 0 10px 10px" };
+const sideNavLink = { display: "flex", alignItems: "center", gap: "12px", padding: "12px 15px", textDecoration: "none", fontWeight: "600", borderRadius: "10px", transition: "0.2s", fontSize: "14px" };
+const mainContent = { flex: 1, display: "flex", flexDirection: "column", width: "100%" };
 
 const orangeHeader = {
-  height: '75px', background: 'linear-gradient(90deg, #f97316 0%, #cc4700 100%)',
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '0 20px', color: '#fff', position: 'sticky', top: 0, zIndex: 1100,
-  boxShadow: '0 4px 12px rgba(234, 88, 12, 0.15)'
+  height: "75px", background: "linear-gradient(90deg, #f97316 0%, #cc4700 100%)",
+  display: "flex", alignItems: "center", justifyContent: "space-between",
+  padding: "0 20px", color: "#fff", position: "sticky", top: 0, zIndex: 1100,
+  boxShadow: "0 4px 12px rgba(234, 88, 12, 0.15)"
 };
-const headerLeft = { display: 'flex', alignItems: 'center', gap: '15px' };
-const headerTag = { fontSize: '24px', fontWeight: '800', opacity: 0.9, letterSpacing: '0.5px' };
-const vDivider = { width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)' };
-const headerNav = { display: 'flex', gap: '20px' };
-const headerLink = { color: '#fff', textDecoration: 'none', fontSize: '15px', fontWeight: '700' };
-const headerRight = { display: 'flex', alignItems: 'center', gap: '15px' };
-const searchBox = { background: '#fff', borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', width: '200px' };
-const topSearchInput = { border: 'none', background: 'transparent', color: '#333', outline: 'none', fontSize: '13px', width: '100%' };
-const headerIconBtn = { cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', padding: '5px' };
-const headerBadge = { position: 'absolute', top: '0px', right: '0px', background: '#fff', color: '#f97316', fontSize: '10px', fontWeight: '800', padding: '2px 5px', borderRadius: '10px' };
-const headerUser = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '600', paddingLeft: '15px', borderLeft: '1px solid rgba(255,255,255,0.3)' };
-const avatarSmall = { width: '30px', height: '30px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' };
+const headerLeft = { display: "flex", alignItems: "center", gap: "15px" };
+const headerTag = { fontSize: "24px", fontWeight: "800", opacity: 0.9, letterSpacing: "0.5px" };
+const vDivider = { width: "1px", height: "20px", background: "rgba(255,255,255,0.3)" };
+const headerNav = { display: "flex", gap: "20px" };
+const headerLink = { color: "#fff", textDecoration: "none", fontSize: "15px", fontWeight: "700" };
+const headerRight = { display: "flex", alignItems: "center", gap: "15px" };
+const searchBox = { background: "#fff", borderRadius: "8px", padding: "6px 12px", display: "flex", alignItems: "center", gap: "8px", width: "200px" };
+const topSearchInput = { border: "none", background: "transparent", color: "#333", outline: "none", fontSize: "13px", width: "100%" };
+const headerIconBtn = { cursor: "pointer", position: "relative", display: "flex", alignItems: "center", padding: "5px" };
+const headerBadge = { position: "absolute", top: "0px", right: "0px", background: "#fff", color: "#f97316", fontSize: "10px", fontWeight: "800", padding: "2px 5px", borderRadius: "10px" };
+const headerUser = { display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: "600", paddingLeft: "15px", borderLeft: "1px solid rgba(255,255,255,0.3)" };
+const avatarSmall = { width: "30px", height: "30px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.5)" };
 
 const notifDropdown = {
-  position: 'absolute', top: '45px', right: '0', width: '280px', background: '#fff',
-  borderRadius: '12px', boxShadow: '0 15px 35px rgba(0,0,0,0.2)', zIndex: 2000, overflow: 'hidden', color: '#333'
+  position: "absolute", top: "45px", right: "0", width: "310px", background: "#fff",
+  borderRadius: "12px", boxShadow: "0 15px 35px rgba(0,0,0,0.2)", zIndex: 2000, overflow: "hidden", color: "#333"
 };
-const notifTitle = { padding: '12px', background: '#f8fafc', color: '#475569', fontSize: '12px', fontWeight: '700', borderBottom: '1px solid #f1f5f9' };
-const notifScroll = { maxHeight: '350px', overflowY: 'auto' };
-const notifCard = { padding: '12px', borderBottom: '1px solid #f1f5f9' };
-const notifDesc = { margin: 0, fontSize: '13px', color: '#1e293b', lineHeight: '1.4' };
-const notifValues = { margin: '4px 0', fontSize: '11px', color: '#64748b' };
-const notifActions = { display: 'flex', gap: '8px', marginTop: '10px' };
-const approveBtn = { background: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' };
-const rejectBtn = { background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' };
-const emptyNotif = { padding: '30px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' };
+const notifTitle = { padding: "12px", background: "#f8fafc", color: "#475569", fontSize: "12px", fontWeight: "700", borderBottom: "1px solid #f1f5f9" };
+const notifScroll = { maxHeight: "350px", overflowY: "auto" };
+const notifCard = { padding: "12px", borderBottom: "1px solid #f1f5f9" };
+const notifDesc = { margin: 0, fontSize: "13px", color: "#1e293b", lineHeight: "1.4" };
+const notifValues = { margin: "4px 0", fontSize: "11px", color: "#64748b" };
+const notifActions = { display: "flex", gap: "8px", marginTop: "10px" };
+const approveBtn = { background: "#10b981", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" };
+const rejectBtn = { background: "#ef4444", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" };
+const emptyNotif = { padding: "30px", textAlign: "center", color: "#94a3b8", fontSize: "13px" };
 
-const pagePadding = { padding: '25px 15px 80px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box' };
-const hero = { height: '220px', borderRadius: '20px', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', padding: '0 25px', color: '#fff', marginBottom: '25px' };
-const heroContent = { maxWidth: '600px' };
-const heroTitle = { fontSize: '26px', margin: 0, fontWeight: '800' };
-const heroSub = { fontSize: '14px', opacity: 0.9, margin: '8px 0 20px', lineHeight: '1.5' };
-const heroStats = { display: 'flex', gap: '20px' };
-const hStatCard = { background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', padding: '8px 15px', borderRadius: '10px', display: 'flex', flexDirection: 'column' };
-const hStatVal = { fontSize: '16px', fontWeight: '800' };
-const hStatLab = { fontSize: '10px', opacity: 0.8, textTransform: 'uppercase' };
+const pagePadding = { padding: "25px 15px 80px", maxWidth: "1400px", margin: "0 auto", width: "100%", boxSizing: "border-box" };
+const hero = { height: "220px", borderRadius: "20px", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", padding: "0 25px", color: "#fff", marginBottom: "25px" };
+const heroContent = { maxWidth: "600px" };
+const heroTitle = { fontSize: "26px", margin: 0, fontWeight: "800" };
+const heroSub = { fontSize: "14px", opacity: 0.9, margin: "8px 0 20px", lineHeight: "1.5" };
+const heroStats = { display: "flex", gap: "20px" };
+const hStatCard = { background: "rgba(255,255,255,0.15)", backdropFilter: "blur(10px)", padding: "8px 15px", borderRadius: "10px", display: "flex", flexDirection: "column" };
+const hStatVal = { fontSize: "16px", fontWeight: "800" };
+const hStatLab = { fontSize: "10px", opacity: 0.8, textTransform: "uppercase" };
 
-const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '15px' };
-const cardStyle = { padding: '20px', borderRadius: '16px', textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' };
-const iconBox = { width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '18px' };
-const cardCategory = { fontSize: '10px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' };
-const cardTitle = { margin: 0, fontSize: '15px', color: '#1e293b', fontWeight: '700' };
-const cardArrow = { position: 'absolute', bottom: '20px', right: '20px', color: '#cbd5e1' };
-const footerStyle = { position: 'fixed', height: '46px', bottom: 0, left: 0, right: 0, background: '#1e293b', padding: '8px 0', zIndex: 1200 };
-const tickerWrapper = { overflow: 'hidden', whiteSpace: 'nowrap' };
-const tickerText = { display: 'inline-block', animation: 'marquee 25s linear infinite', color: '#8cde19a4', fontSize: '16px', margin: 0, paddingLeft: '100%' };
-const outletStyle = { background: 'fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', minHeight: '60vh' };
+const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "15px" };
+const cardStyle = { padding: "20px", borderRadius: "16px", textDecoration: "none", display: "flex", flexDirection: "column", gap: "12px", position: "relative" };
+const iconBox = { width: "40px", height: "40px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "18px" };
+const cardCategory = { fontSize: "10px", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.5px" };
+const cardTitle = { margin: 0, fontSize: "15px", color: "#1e293b", fontWeight: "700" };
+const cardArrow = { position: "absolute", bottom: "20px", right: "20px", color: "#cbd5e1" };
+const footerStyle = { position: "fixed", height: "46px", bottom: 0, left: 0, right: 0, background: "#1e293b", padding: "8px 0", zIndex: 1200 };
+const tickerWrapper = { overflow: "hidden", whiteSpace: "nowrap" };
+const tickerText = { display: "inline-block", animation: "marquee 25s linear infinite", color: "#8cde19a4", fontSize: "16px", margin: 0, paddingLeft: "100%" };
+const outletStyle = { background: "#fff", padding: "20px", borderRadius: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", minHeight: "60vh" };
 
 export default AdminDashboard;

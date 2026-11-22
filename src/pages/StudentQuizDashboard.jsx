@@ -1,14 +1,62 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../services/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import jsPDF from "jspdf";
+
+const format12HourClock = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (typeof value === "number" || /^\d{1,2}(:\d{2}(:\d{2})?)?$/.test(String(value).trim())) {
+    const parts = String(value).trim().split(":");
+    let hour = Number(parts[0]);
+    const minute = Number(parts[1] || 0);
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return String(value);
+    const period = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12 || 12;
+    return `${hour}:${String(minute).padStart(2, "0")} ${period}`;
+  }
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+
+  return d.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+};
+
+const formatAttemptedDateTime = (ts) => {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return format12HourClock(ts);
+
+  const datePart = d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short"
+  });
+  const timePart = d.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+  return `${datePart}, ${timePart}`;
+};
 
 const StudentQuizDashboard = () => {
   const navigate = useNavigate();
+  const params = useParams();
+  const [searchParams] = useSearchParams();
 
-  // User session details
+  // User session details (supports param/query override as well)
   const user = JSON.parse(localStorage.getItem("user") || "null");
-  const studentId = user?.id || user?._id;
+  const studentId =
+    params.studentId ||
+    searchParams.get("student_id") ||
+    user?.id ||
+    user?._id;
+  const routeQuizId =
+    params.quizId || params.id || searchParams.get("quiz_id") || null;
   const userClass = user?.class;
   const userSession = user?.session;
   const userStream = user?.stream;
@@ -21,7 +69,6 @@ const StudentQuizDashboard = () => {
   const [error, setError] = useState(null);
   const [now, setNow] = useState(() => new Date());
 
-  // Refresh current clock every 30s so scheduled start/end windows update automatically
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(new Date());
@@ -32,13 +79,17 @@ const StudentQuizDashboard = () => {
   const formatScheduleTime = (ts) => {
     if (!ts) return null;
     const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleString("en-IN", {
+    if (Number.isNaN(d.getTime())) return format12HourClock(ts);
+    const datePart = d.toLocaleDateString("en-IN", {
       day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit"
+      month: "short"
     });
+    const timePart = d.toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+    return `${datePart}, ${timePart}`;
   };
 
   const getWindowState = useCallback(
@@ -153,23 +204,46 @@ const StudentQuizDashboard = () => {
       try {
         setLoading(true);
         const res = await api.get(`/api/quiz/class/${userClass}`, {
-          params: { session: userSession, stream: userStream }
+          params: {
+            session: userSession,
+            stream: userStream,
+            student_id: studentId,
+            ...(routeQuizId ? { quiz_id: routeQuizId } : {})
+          }
         });
 
-        const quizList = res.data || [];
-        const statusRequests = quizList.map((q) =>
-          api.get(`/api/quiz/status/${q.id}/${studentId}`)
-        );
+        const quizList = Array.isArray(res.data) ? res.data : res.data?.quizzes || [];
+        const statusRequests = quizList.map((q) => {
+          const qId = q.quiz_id || q.id;
+          return api.get(`/api/quiz/status/${qId}/${studentId}`, {
+            params: { student_id: studentId, quiz_id: qId }
+          });
+        });
 
         const statusResults = await Promise.all(statusRequests);
 
         const updatedQuizzes = quizList.map((q, index) => {
+          const qId = q.quiz_id || q.id;
           const st = statusResults[index]?.data || {};
           const attempted = Boolean(st.attempted);
+          const resultObj = attempted ? st.result || null : null;
+          const rawAttemptedAt =
+            resultObj?.attempted_at ||
+            resultObj?.attemptedAt ||
+            st.attempted_at ||
+            st.attemptedAt ||
+            resultObj?.submitted_at ||
+            resultObj?.created_at ||
+            q.attempted_at ||
+            null;
+
           return {
             ...q,
+            quiz_id: qId,
+            student_id: studentId,
             attempted,
-            result: attempted ? st.result || null : null
+            result: resultObj,
+            attempted_at: rawAttemptedAt
           };
         });
 
@@ -193,7 +267,7 @@ const StudentQuizDashboard = () => {
         document.head.removeChild(styleSheet);
       }
     };
-  }, [userClass, studentId, userSession, userStream]);
+  }, [userClass, studentId, userSession, userStream, routeQuizId]);
 
   const handleSubjectFilter = (sub) => {
     setActiveSubject(sub);
@@ -324,7 +398,7 @@ const StudentQuizDashboard = () => {
     );
 
   return (
-    <div style={styles.appContainer}>
+    <div style={styles.appContainer} data-student-id={studentId}>
       <header style={styles.header}>
         <div style={styles.headerContentWrapper}>
           <div style={styles.headerLeft}>
@@ -335,6 +409,7 @@ const StudentQuizDashboard = () => {
             </p>
             <div style={styles.metaRow}>
               <span style={styles.metaBadge}>Class {userClass}</span>
+              <span style={styles.metaBadge}>ID: {studentId}</span>
               {userSession && <span style={styles.metaBadge}>Session {userSession}</span>}
               {userStream && <span style={styles.metaBadge}>{userStream}</span>}
             </div>
@@ -393,6 +468,8 @@ const StudentQuizDashboard = () => {
         <div style={styles.quizList}>
           {filteredQuizzes.length > 0 ? (
             filteredQuizzes.map((quiz, idx) => {
+              const qId = quiz.quiz_id || quiz.id;
+              const sId = quiz.student_id || studentId;
               const isDone = quiz.attempted;
               const scorePercent =
                 isDone && quiz.total_marks
@@ -403,9 +480,16 @@ const StudentQuizDashboard = () => {
               const windowState = getWindowState(quiz);
               const startText = formatScheduleTime(quiz.start_at);
               const endText = formatScheduleTime(quiz.end_at);
+              const attemptedAtText = formatAttemptedDateTime(quiz.attempted_at);
 
               return (
-                <div key={quiz.id || idx} style={styles.card} className="quiz-card">
+                <div
+                  key={qId || idx}
+                  data-quiz-id={qId}
+                  data-student-id={sId}
+                  style={styles.card}
+                  className="quiz-card"
+                >
                   <div style={styles.cardLeft}>
                     <div style={isDone ? styles.statusIconDone : styles.statusIconPending}>
                       {isDone ? "🏆" : "🔥"}
@@ -413,6 +497,7 @@ const StudentQuizDashboard = () => {
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
                         <span style={styles.tagSubject}>{quiz.subject}</span>
+                        <span style={styles.idChip}>Quiz ID: {qId}</span>
                         {!isDone && (
                           <span
                             style={{
@@ -432,6 +517,12 @@ const StudentQuizDashboard = () => {
                         <span>⏱️ {quiz.timer_minutes} mins</span>
                         <span>•</span>
                         <span>📋 {quiz.total_marks || 0} Marks</span>
+                        {isDone && attemptedAtText && (
+                          <>
+                            <span>•</span>
+                            <span>🕒 Attempted: <strong>{attemptedAtText}</strong></span>
+                          </>
+                        )}
                       </div>
 
                       {(startText || endText) && (
@@ -456,8 +547,14 @@ const StudentQuizDashboard = () => {
                     ) : (
                       <button
                         type="button"
+                        data-quiz-id={qId}
+                        data-student-id={sId}
                         disabled={!windowState.canStart}
-                        onClick={() => navigate(`/student/attempt/${quiz.id}`)}
+                        onClick={() =>
+                          navigate(`/student/attempt/${qId}`, {
+                            state: { quiz_id: qId, student_id: sId }
+                          })
+                        }
                         style={{
                           ...styles.startButton,
                           ...(!windowState.canStart ? styles.disabledStartButton : {})
@@ -474,6 +571,7 @@ const StudentQuizDashboard = () => {
                         {scorePercent >= 85
                           ? "🌟 Target Achieved! Certificate Unlocked!"
                           : `🌟 Completed! (Score ${scorePercent}% - Need 85% for Certificate)`}
+                        {attemptedAtText ? ` • Attempted at ${attemptedAtText}` : ""}
                       </span>
 
                       <div style={styles.footerActionGroup}>
@@ -489,7 +587,11 @@ const StudentQuizDashboard = () => {
                         )}
                         <button
                           type="button"
-                          onClick={() => navigate(`/student/review/${quiz.id}/${studentId}`)}
+                          onClick={() =>
+                            navigate(`/student/review/${qId}/${sId}`, {
+                              state: { quiz_id: qId, student_id: sId }
+                            })
+                          }
                           style={styles.reviewButton}
                           className="hover-text-transition"
                         >
@@ -707,6 +809,14 @@ const styles = {
     textTransform: "uppercase",
     letterSpacing: "0.8px"
   },
+  idChip: {
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#475569",
+    backgroundColor: "#F1F5F9",
+    padding: "2px 8px",
+    borderRadius: "6px"
+  },
   windowBadge: {
     fontSize: "11px",
     fontWeight: "700",
@@ -721,6 +831,7 @@ const styles = {
   },
   quizMetaInfo: {
     display: "flex",
+    flexWrap: "wrap",
     gap: "10px",
     fontSize: "12px",
     color: "#64748B",
