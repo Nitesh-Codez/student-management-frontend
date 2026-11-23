@@ -481,49 +481,48 @@ if (matchedQuizId !== undefined && matchedQuizId !== null) {
       align: "center"
     });
 
-    // Presented to
-    doc.setFont("times", "italic");
-    doc.setFontSize(13);
-    doc.setTextColor(100, 116, 139);
-    doc.text("This certificate is proudly presented to", 148.5, 63, {
-      align: "center"
-    });
+   // Certification heading
+doc.setFont("times", "italic");
+doc.setFontSize(13);
+doc.setTextColor(100, 116, 139);
+doc.text("This is to certify that", 148.5, 63, {
+  align: "center"
+});
 
-    // Student name
-    doc.setFont("times", "bold");
-    doc.setFontSize(26);
-    doc.setTextColor(15, 23, 42);
-    doc.text(studentName, 148.5, 76, {
-      align: "center"
-    });
+// Student name
+doc.setFont("times", "bold");
+doc.setFontSize(26);
+doc.setTextColor(15, 23, 42);
+doc.text(studentName, 148.5, 76, {
+  align: "center"
+});
 
-    // Achievement description
-    doc.setFont("times", "normal");
-    doc.setFontSize(12.5);
-    doc.setTextColor(71, 85, 105);
-    doc.text(
-      "In recognition of successfully completing the quiz assessment:",
-      148.5,
-      87,
-      { align: "center" }
-    );
+// Achievement description
+doc.setFont("times", "normal");
+doc.setFontSize(12.5);
+doc.setTextColor(71, 85, 105);
+doc.text(
+  "has successfully completed the following quiz assessment",
+  148.5,
+  87,
+  { align: "center" }
+);
 
-    // Clearly highlighted Quiz Title box
-    const titleLines = doc.splitTextToSize(`QUIZ TITLE: ${cleanTitle}`, 206);
-    const boxHeight = titleLines.length > 1 ? 20 : 15;
+// Quiz Title Box
+const titleLines = doc.splitTextToSize(cleanTitle, 206);
+const boxHeight = titleLines.length > 1 ? 20 : 15;
 
-    doc.setLineWidth(0.7);
-    doc.setDrawColor(30, 58, 138);
-    doc.setFillColor(239, 246, 255);
-    doc.roundedRect(40, 92, 217, boxHeight, 3, 3, "FD");
+doc.setLineWidth(0.7);
+doc.setDrawColor(30, 58, 138);
+doc.setFillColor(239, 246, 255);
+doc.roundedRect(40, 92, 217, boxHeight, 3, 3, "FD");
 
-    doc.setFont("times", "bold");
-    doc.setFontSize(16.5);
-    doc.setTextColor(30, 58, 138);
-    doc.text(titleLines.slice(0, 2), 148.5, 102, {
-      align: "center"
-    });
-
+doc.setFont("times", "bold");
+doc.setFontSize(16.5);
+doc.setTextColor(30, 58, 138);
+doc.text(titleLines.slice(0, 2), 148.5, 102, {
+  align: "center"
+});
     // Appreciation message
     const messageY = 92 + boxHeight + 9;
 
