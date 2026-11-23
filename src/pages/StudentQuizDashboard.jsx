@@ -52,19 +52,21 @@ const normalizeText = (val) =>
     .toLowerCase()
     .replace(/\s+/g, " ");
 
+// Preserves Hindi / Devanagari & Unicode characters while cleaning control chars
 const sanitizeQuizTitle = (rawTitle) => {
   const cleaned = String(rawTitle ?? "")
-    .normalize("NFKC")
-    .replace(/[^\x20-\x7E]/g, "")
+    .normalize("NFC")
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
     .replace(/\(\s*-\s*\)/g, "")
     .replace(/\s+/g, " ")
     .trim();
-if (
-  !cleaned ||
-  cleaned === "-" ||
-  cleaned.toLowerCase() === "practice quiz" ||
-  cleaned.toLowerCase() === "assessment"
-) {
+
+  if (
+    !cleaned ||
+    cleaned === "-" ||
+    cleaned.toLowerCase() === "practice quiz" ||
+    cleaned.toLowerCase() === "assessment"
+  ) {
     return "";
   }
   return cleaned;
@@ -113,6 +115,36 @@ export const isQuizVisibleToStudent = (quiz, { userClass, userSession, userStrea
   }
 
   return isStreamMatch(userStream, quiz.stream);
+};
+
+// Helper to wrap Hindi + English text cleanly on Canvas for PDF generation
+const wrapCanvasText = (ctx, text, maxWidth) => {
+  const str = String(text || "").trim();
+  if (!str) return [""];
+
+  const paragraphs = str.split(/\n+/);
+  const lines = [];
+
+  for (const para of paragraphs) {
+    const tokens = para.split(/(\s+)/);
+    let currentLine = "";
+
+    for (const token of tokens) {
+      if (!token) continue;
+      const testLine = currentLine + token;
+      if (ctx.measureText(testLine).width <= maxWidth || !currentLine.trim()) {
+        currentLine = testLine;
+      } else {
+        lines.push(currentLine.trim());
+        currentLine = token.trimStart();
+      }
+    }
+    if (currentLine.trim()) {
+      lines.push(currentLine.trim());
+    }
+  }
+
+  return lines.length > 0 ? lines : [str];
 };
 
 const StudentQuizDashboard = () => {
@@ -220,8 +252,13 @@ const StudentQuizDashboard = () => {
   useEffect(() => {
     const styleSheet = document.createElement("style");
     styleSheet.innerText = `
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-      body { margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background-color: #F8FAFC; color: #1E293B; }
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+      body {
+        margin: 0;
+        font-family: 'Noto Sans Devanagari', 'Plus Jakarta Sans', sans-serif;
+        background-color: #F8FAFC;
+        color: #1E293B;
+      }
       .no-scrollbar::-webkit-scrollbar { display: none; }
 
       @keyframes fadeIn {
@@ -322,18 +359,18 @@ const StudentQuizDashboard = () => {
           const attempted = Boolean(st.attempted);
           const resultObj = attempted ? st.result || null : null;
 
-        const matchedQuizId = qId;
+          const matchedQuizId = qId;
 
-const authoritativeTitle =
-  sanitizeQuizTitle(resultObj?.quiz_title) ||
-  sanitizeQuizTitle(st?.quiz_title) ||
-  sanitizeQuizTitle(q.title) ||
-  sanitizeQuizTitle(q.quiz_title) ||
-  "Assessment";
+          const authoritativeTitle =
+            sanitizeQuizTitle(resultObj?.quiz_title) ||
+            sanitizeQuizTitle(st?.quiz_title) ||
+            sanitizeQuizTitle(q.title) ||
+            sanitizeQuizTitle(q.quiz_title) ||
+            "Assessment";
 
-if (matchedQuizId !== undefined && matchedQuizId !== null) {
-  titleMapFromQuizApi[String(matchedQuizId)] = authoritativeTitle;
-}
+          if (matchedQuizId !== undefined && matchedQuizId !== null) {
+            titleMapFromQuizApi[String(matchedQuizId)] = authoritativeTitle;
+          }
 
           const rawAttemptedAt =
             resultObj?.attempted_at ||
@@ -406,259 +443,260 @@ if (matchedQuizId !== undefined && matchedQuizId !== null) {
     setFilteredQuizzes(sub === "All" ? quizzes : quizzes.filter((q) => q.subject === sub));
   };
 
-  // Quiz title clearly PDF certificate mein daalta hai aur GRADE box ke andar fit rakhta hai
-  const generateCertificate = (
-    ansQuizId,
-    directQuizTitle,
-    scorePercent,
-    grade
-  ) => {
-    const doc = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4"
-    });
+// Generates A4 Landscape PDF supporting Hindi (Devanagari) + English text
+const generateCertificate = async (
+  ansQuizId,
+  directQuizTitle,
+  scorePercent,
+  grade
+) => {
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
 
-    const studentName =
-      String(user?.name || "Valued Student")
-        .normalize("NFKC")
-        .replace(/[^\x20-\x7E]/g, "")
-        .trim() || "Valued Student";
+  const studentName =
+    String(user?.name || "Valued Student")
+      .normalize("NFC")
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+      .trim() || "Valued Student";
 
-    const matchedQuiz = quizzes.find(
-      (q) =>
-        String(q.matched_quiz_id) === String(ansQuizId) ||
-        String(q.quiz_id) === String(ansQuizId) ||
-        String(q.id) === String(ansQuizId)
-    );
+  const matchedQuiz = quizzes.find(
+    (q) =>
+      String(q.matched_quiz_id) === String(ansQuizId) ||
+      String(q.quiz_id) === String(ansQuizId) ||
+      String(q.id) === String(ansQuizId)
+  );
 
-    const rawTitle =
-      sanitizeQuizTitle(directQuizTitle) ||
-      sanitizeQuizTitle(matchedQuiz?.result?.quiz_title) ||
-      sanitizeQuizTitle(matchedQuiz?.quiz_title) ||
-      (ansQuizId !== undefined && ansQuizId !== null
-        ? sanitizeQuizTitle(quizTitleMap[String(ansQuizId)])
-        : "") ||
-      sanitizeQuizTitle(matchedQuiz?.title) ||
-      "Assessment";
+  const rawTitle =
+    sanitizeQuizTitle(directQuizTitle) ||
+    sanitizeQuizTitle(matchedQuiz?.result?.quiz_title) ||
+    sanitizeQuizTitle(matchedQuiz?.quiz_title) ||
+    (ansQuizId !== undefined && ansQuizId !== null
+      ? sanitizeQuizTitle(quizTitleMap[String(ansQuizId)])
+      : "") ||
+    sanitizeQuizTitle(matchedQuiz?.title) ||
+    "Assessment";
 
-    const cleanTitle = rawTitle || "Assessment";
-    const cleanGrade = String(grade || "A").trim() || "A";
+  const cleanTitle = rawTitle || "Assessment";
+  const cleanGrade = String(grade || "A").trim() || "A";
+  const fontFamily = "'Noto Sans Devanagari', 'Plus Jakarta Sans', sans-serif";
 
-    // Outer border
-    doc.setLineWidth(1.6);
-    doc.setDrawColor(15, 23, 42);
-    doc.rect(10, 10, 277, 190);
+  // High-DPI canvas for A4 landscape (297mm x 210mm)
+  const scale = 2;
+  const width = 1122;
+  const height = 794;
 
-    // Inner border
-    doc.setLineWidth(0.7);
-    doc.setDrawColor(5, 150, 105);
-    doc.rect(13, 13, 271, 184);
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
 
-    // Institution name
-    doc.setFont("times", "bold");
-    doc.setFontSize(23);
-    doc.setTextColor(15, 23, 42);
-    doc.text("SMART STUDENT CLASSES", 148.5, 28, {
-      align: "center"
-    });
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
 
-    doc.setFont("times", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(4, 120, 87);
-    doc.text(
-      "EXCELLENCE IN ACADEMIC ASSESSMENT & ACHIEVEMENT",
-      148.5,
-      36,
-      { align: "center" }
-    );
+  // Background & Borders
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, width, height);
 
-    // Certificate heading
-    doc.setFont("times", "bold");
-    doc.setFontSize(28);
-    doc.setTextColor(30, 58, 138);
-    doc.text("CERTIFICATE OF ACHIEVEMENT", 148.5, 52, {
-      align: "center"
-    });
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "#1E3A8A";
+  ctx.strokeRect(28, 28, width - 56, height - 56);
 
-   // Certification heading
-doc.setFont("times", "italic");
-doc.setFontSize(13);
-doc.setTextColor(100, 116, 139);
-doc.text("This is to certify that", 148.5, 63, {
-  align: "center"
-});
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#059669";
+  ctx.strokeRect(40, 40, width - 80, height - 80);
 
-// Student name
-doc.setFont("times", "bold");
-doc.setFontSize(26);
-doc.setTextColor(15, 23, 42);
-doc.text(studentName, 148.5, 76, {
-  align: "center"
-});
+  const centerX = width / 2;
 
-// Achievement description
-doc.setFont("times", "normal");
-doc.setFontSize(12.5);
-doc.setTextColor(71, 85, 105);
-doc.text(
-  "has successfully completed the following quiz assessment",
-  148.5,
-  87,
-  { align: "center" }
-);
+  // Institution Header
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#0F172A";
+  ctx.font = `800 32px ${fontFamily}`;
+  ctx.fillText("SMART STUDENT CLASSES", centerX, 92);
 
-// Quiz Title Box
-const titleLines = doc.splitTextToSize(cleanTitle, 206);
-const boxHeight = titleLines.length > 1 ? 20 : 15;
+  ctx.fillStyle = "#047857";
+  ctx.font = `600 16px ${fontFamily}`;
+  ctx.fillText(
+    "EXCELLENCE IN ACADEMIC ASSESSMENT & ACHIEVEMENT",
+    centerX,
+    122
+  );
 
-doc.setLineWidth(0.7);
-doc.setDrawColor(30, 58, 138);
-doc.setFillColor(239, 246, 255);
-doc.roundedRect(40, 92, 217, boxHeight, 3, 3, "FD");
+  // Main Certificate Title
+  ctx.fillStyle = "#1E3A8A";
+  ctx.font = `800 38px ${fontFamily}`;
+  ctx.fillText("CERTIFICATE OF ACHIEVEMENT", centerX, 178);
 
-doc.setFont("times", "bold");
-doc.setFontSize(16.5);
-doc.setTextColor(30, 58, 138);
-doc.text(titleLines.slice(0, 2), 148.5, 102, {
-  align: "center"
-});
-    // Appreciation message
-    const messageY = 92 + boxHeight + 9;
+  // Certification Statement
+  ctx.fillStyle = "#64748B";
+  ctx.font = `500 18px ${fontFamily}`;
+  ctx.fillText("This is to certify that", centerX, 222);
 
-    doc.setFont("times", "normal");
-    doc.setFontSize(12);
-    doc.setTextColor(71, 85, 105);
-    doc.text(
-      "has demonstrated dedication and commitment to academic learning",
-      148.5,
-      messageY,
-      { align: "center" }
-    );
+  // Student Name
+  ctx.fillStyle = "#0F172A";
+  ctx.font = `800 36px ${fontFamily}`;
+  ctx.fillText(studentName, centerX, 272);
 
-    // Score details box (wider so GRADE fits cleanly inside)
-    const scoreBoxY = messageY + 7;
-    doc.setLineWidth(0.5);
-    doc.setDrawColor(5, 150, 105);
-    doc.setFillColor(236, 253, 245);
-    doc.roundedRect(42, scoreBoxY, 213, 20, 3, 3, "FD");
+  // Achievement Description
+  ctx.fillStyle = "#475569";
+  ctx.font = `500 17px ${fontFamily}`;
+  ctx.fillText(
+    "has successfully completed the quiz assessment",
+    centerX,
+    314
+  );
 
-    doc.setFont("times", "bold");
-    doc.setFontSize(11.5);
+  // Quiz Title - Normal Text (No Box)
+  ctx.fillStyle = "#1E3A8A";
+  ctx.font = `700 24px ${fontFamily}`;
 
-    doc.setTextColor(15, 23, 42);
-    doc.text(`CLASS: ${userClass || "N/A"}`, 78, scoreBoxY + 12.5, {
-      align: "center"
-    });
+  const titleLines = wrapCanvasText(ctx, cleanTitle, 850).slice(0, 2);
 
-    doc.setTextColor(4, 120, 87);
-    doc.text(`FINAL SCORE: ${scorePercent}%`, 148.5, scoreBoxY + 12.5, {
-      align: "center"
-    });
+  if (titleLines.length === 1) {
+    ctx.fillText(titleLines[0], centerX, 365);
+  } else {
+    ctx.fillText(titleLines[0], centerX, 355);
+    ctx.fillText(titleLines[1], centerX, 387);
+  }
 
-    doc.setTextColor(30, 58, 138);
-    doc.text(`GRADE: ${cleanGrade}`, 216, scoreBoxY + 12.5, {
-      align: "center"
-    });
+  // Appreciation Line
+  const afterTitleY = titleLines.length > 1 ? 420 : 398;
 
-    // Final appreciation
-    doc.setFont("times", "italic");
-    doc.setFontSize(12);
-    doc.setTextColor(71, 85, 105);
-    doc.text(
-      "We appreciate your efforts and wish you continued success.",
-      148.5,
-      158,
-      { align: "center" }
-    );
+  ctx.fillStyle = "#475569";
+  ctx.font = `500 16.5px ${fontFamily}`;
+  ctx.fillText(
+    "Demonstrated dedication and commitment to academic learning",
+    centerX,
+    afterTitleY
+  );
 
-    // Date and signature
-    doc.setFont("times", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(100, 116, 139);
+  // Score / Class / Grade Box
+  const scoreBoxY = afterTitleY + 22;
 
-    doc.text(
-      "Date of Issue: " + new Date().toLocaleDateString(),
-      55,
-      174,
-      { align: "center" }
-    );
+  ctx.fillStyle = "#ECFDF5";
+  ctx.strokeStyle = "#059669";
+  ctx.lineWidth = 2;
 
-    doc.line(30, 168, 80, 168);
+  ctx.beginPath();
+  ctx.roundRect(150, scoreBoxY, width - 300, 66, 12);
+  ctx.fill();
+  ctx.stroke();
 
-    doc.setFont("times", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42);
-    doc.text("Student Record", 55, 181, {
-      align: "center"
-    });
+  ctx.font = `700 20px ${fontFamily}`;
 
-    doc.setFont("times", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(100, 116, 139);
-    doc.text("Authorized Signature", 242, 174, {
-      align: "center"
-    });
+  ctx.fillStyle = "#0F172A";
+  ctx.fillText(
+    `CLASS ${userClass || "N/A"}`,
+    285,
+    scoreBoxY + 40
+  );
 
-    doc.setDrawColor(4, 120, 87);
-    doc.line(215, 168, 267, 168);
+  ctx.fillStyle = "#047857";
+  ctx.fillText(
+    `SCORE ${scorePercent}%`,
+    centerX,
+    scoreBoxY + 40
+  );
 
-    doc.setFont("times", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(4, 120, 87);
-    doc.text("Smart Student Classes Authority", 242, 181, {
-      align: "center"
-    });
+  ctx.fillStyle = "#1E3A8A";
+  ctx.fillText(
+    `GRADE ${cleanGrade}`,
+    835,
+    scoreBoxY + 40
+  );
 
-    // Download certificate
-    const safeName = studentName.replace(/[^a-zA-Z0-9_-]/g, "_");
-    const safeQuiz = cleanTitle.replace(/[^a-zA-Z0-9_-]/g, "_");
+  // Closing Remark
+  ctx.fillStyle = "#475569";
+  ctx.font = `600 16.5px ${fontFamily}`;
+  ctx.fillText(
+    "We appreciate your efforts and wish you continued success.",
+    centerX,
+    scoreBoxY + 108
+  );
 
-    doc.save(`Certificate_${safeName}_${safeQuiz}.pdf`);
-  };
+  // Footer Date & Authority
+  const sigLineY = 668;
+  const issueDateStr = new Date().toLocaleDateString("hi-IN");
+
+  // Date Signature Line
+  ctx.strokeStyle = "#64748B";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(110, sigLineY);
+  ctx.lineTo(340, sigLineY);
+  ctx.stroke();
+
+  ctx.fillStyle = "#64748B";
+  ctx.font = `500 15px ${fontFamily}`;
+  ctx.fillText(
+    `Date / दिनांक: ${issueDateStr}`,
+    225,
+    sigLineY + 24
+  );
+
+  // Authority Signature Line
+  ctx.strokeStyle = "#059669";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(780, sigLineY);
+  ctx.lineTo(1010, sigLineY);
+  ctx.stroke();
+
+  ctx.fillStyle = "#64748B";
+  ctx.font = `500 15px ${fontFamily}`;
+  ctx.fillText(
+    "Authority Signature",
+    895,
+    sigLineY + 24
+  );
+
+  ctx.fillStyle = "#047857";
+  ctx.font = `700 15px ${fontFamily}`;
+  ctx.fillText(
+    "Head of Smart Student Classes",
+    895,
+    sigLineY + 48
+  );
+
+  // Generate PDF
+  const imgData = canvas.toDataURL("image/png", 1.0);
+
+  const pdf = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4"
+  });
+
+  pdf.addImage(imgData, "PNG", 0, 0, 297, 210);
+
+  // Safe filename (Hindi + English supported)
+  const safeName = studentName.replace(/[^\p{L}\p{N}_-]+/gu, "_");
+  const safeQuiz = cleanTitle.replace(/[^\p{L}\p{N}_-]+/gu, "_");
+
+  pdf.save(`Certificate_${safeName}_${safeQuiz}.pdf`);
+};
 
   const totalQuizzes = quizzes.length;
   const completedQuizzes = quizzes.filter((q) => q.attempted).length;
   const pendingQuizzes = totalQuizzes - completedQuizzes;
 
-  if (loading)
+  if (error) {
     return (
       <div
         style={{
-          ...styles.center,
-          position: "fixed",
-          inset: 0,
-          zIndex: 9999,
-          backgroundImage: `url(${DASHBOARD_BG_IMAGE})`,
+          ...styles.appContainer,
+          backgroundImage: `linear-gradient(rgba(248, 250, 252, 0.86), rgba(248, 250, 252, 0.9)), url(${DASHBOARD_BG_IMAGE})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
+          backgroundAttachment: "fixed",
           backgroundRepeat: "no-repeat"
         }}
       >
-        <div
-          style={{
-            backgroundColor: "rgba(15, 23, 42, 0.35)",
-            padding: "18px 26px",
-            borderRadius: "16px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center"
-          }}
-        >
-          <div className="spinner" style={styles.spinnerIcon}></div>
-          <p style={{ fontWeight: "700", color: "#FFFFFF", marginTop: "12px", fontSize: "14px" }}>
-            Loading your learning hub...
-          </p>
+        <div style={styles.center}>
+          <p style={{ fontWeight: "700", color: "#EF4444", fontSize: "15px" }}>{error}</p>
         </div>
       </div>
     );
-
-  if (error)
-    return (
-      <div style={styles.center}>
-        <p style={{ fontWeight: "700", color: "#EF4444", fontSize: "15px" }}>{error}</p>
-      </div>
-    );
+  }
 
   return (
     <div
@@ -738,171 +776,181 @@ doc.text(titleLines.slice(0, 2), 148.5, 102, {
           </div>
         </div>
 
-        <div style={styles.quizList}>
-          {filteredQuizzes.length > 0 ? (
-            filteredQuizzes.map((quiz, idx) => {
-              const qId = quiz.quiz_id ?? quiz.id;
-              const ansQuizId = quiz.quiz_id ?? quiz.id;
-              const quizTitleForCert =
-  sanitizeQuizTitle(quiz.result?.quiz_title) ||
-  sanitizeQuizTitle(quiz.quiz_title) ||
-  sanitizeQuizTitle(quizTitleMap[String(ansQuizId)]) ||
-  sanitizeQuizTitle(quiz.title);
-              const sId = quiz.student_id || studentId;
-              const isDone = quiz.attempted;
-              const computedPercent =
-                isDone && quiz.total_marks
-                  ? Math.round(((quiz.result?.score || 0) / quiz.total_marks) * 100)
-                  : 0;
-              const scorePercent =
-                isDone && quiz.result?.percentage !== undefined && quiz.result?.percentage !== null
-                  ? Math.round(Number(quiz.result.percentage))
-                  : computedPercent;
-              const quizPrize = quiz.prize || "Exciting Certificate";
-              const canGetCertificate = isDone && scorePercent >= 85;
-              const windowState = getWindowState(quiz);
-              const startText = formatScheduleTime(quiz.start_at);
-              const endText = formatScheduleTime(quiz.end_at);
-              const attemptedAtText = formatAttemptedDateTime(quiz.attempted_at);
+        {loading ? (
+          <div style={styles.loadingCard}>
+            <div className="spinner" style={styles.spinnerIcon}></div>
+            <p style={{ fontWeight: "700", color: "#0F172A", marginTop: "12px", fontSize: "14px" }}>
+              Please wait Loading your Quizzes.....
+            </p>
+          </div>
+        ) : (
+          <div style={styles.quizList}>
+            {filteredQuizzes.length > 0 ? (
+              filteredQuizzes.map((quiz, idx) => {
+                const qId = quiz.quiz_id ?? quiz.id;
+                const ansQuizId = quiz.quiz_id ?? quiz.id;
+                const quizTitleForCert =
+                  sanitizeQuizTitle(quiz.result?.quiz_title) ||
+                  sanitizeQuizTitle(quiz.quiz_title) ||
+                  sanitizeQuizTitle(quizTitleMap[String(ansQuizId)]) ||
+                  sanitizeQuizTitle(quiz.title) ||
+                  "Assessment";
+                const sId = quiz.student_id || studentId;
+                const isDone = quiz.attempted;
+                const computedPercent =
+                  isDone && quiz.total_marks
+                    ? Math.round(((quiz.result?.score || 0) / quiz.total_marks) * 100)
+                    : 0;
+                const scorePercent =
+                  isDone && quiz.result?.percentage !== undefined && quiz.result?.percentage !== null
+                    ? Math.round(Number(quiz.result.percentage))
+                    : computedPercent;
+                const quizPrize = quiz.prize || "Exciting Certificate";
+                const canGetCertificate = isDone && scorePercent >= 85;
+                const windowState = getWindowState(quiz);
+                const startText = formatScheduleTime(quiz.start_at);
+                const endText = formatScheduleTime(quiz.end_at);
+                const attemptedAtText = formatAttemptedDateTime(quiz.attempted_at);
 
-              return (
-                <div
-                  key={qId || idx}
-                  data-quiz-id={qId}
-                  data-student-id={sId}
-                  style={styles.card}
-                  className="quiz-card"
-                >
-                  <div style={styles.cardLeft}>
-                    <div style={isDone ? styles.statusIconDone : styles.statusIconPending}>
-                      {isDone ? "🏆" : "🔥"}
-                    </div>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-                        <span style={styles.tagSubject}>{quiz.subject}</span>
-                        <span style={styles.idChip}>Quiz ID: {qId}</span>
-                        {!isDone && (
-                          <span
-                            style={{
-                              ...styles.windowBadge,
-                              backgroundColor: windowState.badgeBg,
-                              color: windowState.badgeColor
-                            }}
-                          >
-                            {windowState.label}
-                          </span>
-                        )}
+                return (
+                  <div
+                    key={qId || idx}
+                    data-quiz-id={qId}
+                    data-student-id={sId}
+                    style={styles.card}
+                    className="quiz-card"
+                  >
+                    <div style={styles.cardLeft}>
+                      <div style={isDone ? styles.statusIconDone : styles.statusIconPending}>
+                        {isDone ? "🏆" : "🔥"}
                       </div>
-
-                      <h3 style={styles.quizTitle}>{quizTitleForCert}</h3>
-
-                      <div style={styles.quizMetaInfo}>
-                        <span>⏱️ {quiz.timer_minutes} mins</span>
-                        <span>•</span>
-                        <span>📋 {quiz.total_marks || 0} Marks</span>
-                        {isDone && attemptedAtText && (
-                          <>
-                            <span>•</span>
-                            <span>🕒 Attempted: <strong>{attemptedAtText}</strong></span>
-                          </>
-                        )}
-                      </div>
-
-                      {(startText || endText) && (
-                        <div style={styles.scheduleLine}>
-                          {startText && <span>🗓️ Starts: <strong>{startText}</strong></span>}
-                          {endText && <span>⏳ Ends: <strong>{endText}</strong></span>}
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                          <span style={styles.tagSubject}>{quiz.subject}</span>
+                          <span style={styles.idChip}>Quiz ID: {qId}</span>
+                          {!isDone && (
+                            <span
+                              style={{
+                                ...styles.windowBadge,
+                                backgroundColor: windowState.badgeBg,
+                                color: windowState.badgeColor
+                              }}
+                            >
+                              {windowState.label}
+                            </span>
+                          )}
                         </div>
-                      )}
 
-                      <div style={styles.prizeBadge}>
-                        📜 <strong>Win Certificate:</strong> {quizPrize}
+                        <h3 style={styles.quizTitle}>{quizTitleForCert}</h3>
+
+                        <div style={styles.quizMetaInfo}>
+                          <span>⏱️ {quiz.timer_minutes} mins</span>
+                          <span>•</span>
+                          <span>📋 {quiz.total_marks || 0} Marks</span>
+                          {isDone && attemptedAtText && (
+                            <>
+                              <span>•</span>
+                              <span>🕒 Attempted: <strong>{attemptedAtText}</strong></span>
+                            </>
+                          )}
+                        </div>
+
+                        {(startText || endText) && (
+                          <div style={styles.scheduleLine}>
+                            {startText && <span>🗓️ Starts: <strong>{startText}</strong></span>}
+                            {endText && <span>⏳ Ends: <strong>{endText}</strong></span>}
+                          </div>
+                        )}
+
+                        <div style={styles.prizeBadge}>
+                          📜 <strong>Win Certificate:</strong> {quizPrize}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div style={styles.cardRight}>
-                    {isDone ? (
-                      <div style={styles.scoreBlock}>
-                        <div style={styles.scoreValue}>{scorePercent}%</div>
-                        <div style={styles.gradeBadge}>Grade: {quiz.result?.grade || "N/A"}</div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        data-quiz-id={qId}
-                        data-student-id={sId}
-                        disabled={!windowState.canStart}
-                        onClick={() =>
-                          navigate(`/student/attempt/${qId}`, {
-                            state: { quiz_id: qId, student_id: sId }
-                          })
-                        }
-                        style={{
-                          ...styles.startButton,
-                          ...(!windowState.canStart ? styles.disabledStartButton : {})
-                        }}
-                      >
-                        {windowState.buttonText}
-                      </button>
-                    )}
-                  </div>
-
-                  {isDone && (
-                    <div style={styles.cardFooter}>
-                      <span style={styles.feedbackText}>
-                        {scorePercent >= 85
-                          ? "🌟 Target Achieved! Certificate Unlocked!"
-                          : `🌟 Completed! (Score ${scorePercent}% - Need 85% for Certificate)`}
-                        {attemptedAtText ? ` • Attempted at ${attemptedAtText}` : ""}
-                      </span>
-
-                      <div style={styles.footerActionGroup}>
-                        {canGetCertificate && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              generateCertificate(
-                                ansQuizId,
-                                quizTitleForCert,
-                                scorePercent,
-                                quiz.result?.grade || "A"
-                              )
-                            }
-                            style={styles.certificateButton}
-                            className="certificate-btn"
-                          >
-                            🎓 Download Certificate (PDF)
-                          </button>
-                        )}
+                    <div style={styles.cardRight}>
+                      {isDone ? (
+                        <div style={styles.scoreBlock}>
+                          <div style={styles.scoreValue}>{scorePercent}%</div>
+                          <div style={styles.gradeBadge}>Grade: {quiz.result?.grade || "N/A"}</div>
+                        </div>
+                      ) : (
                         <button
                           type="button"
+                          data-quiz-id={qId}
+                          data-student-id={sId}
+                          disabled={!windowState.canStart}
                           onClick={() =>
-                            navigate(`/student/review/${qId}/${sId}`, {
+                            navigate(`/student/attempt/${qId}`, {
                               state: { quiz_id: qId, student_id: sId }
                             })
                           }
-                          style={styles.reviewButton}
-                          className="hover-text-transition"
+                          style={{
+                            ...styles.startButton,
+                            ...(!windowState.canStart ? styles.disabledStartButton : {})
+                          }}
                         >
-                          View Analytics &rarr;
+                          {windowState.buttonText}
                         </button>
-                      </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            <div style={styles.emptyState}>
-              <div style={{ fontSize: "40px", marginBottom: "10px" }}>🎯</div>
-              <p style={{ margin: 0, fontWeight: "700", color: "#1E293B", fontSize: "16px" }}>All caught up!</p>
-              <p style={{ margin: "5px 0 0 0", color: "#64748B", fontSize: "13px" }}>
-                No pending tasks under this category. Great job!
-              </p>
-            </div>
-          )}
-        </div>
+
+                    {isDone && (
+                      <div style={styles.cardFooter}>
+                        <span style={styles.feedbackText}>
+                          {scorePercent >= 85
+                            ? "🌟 Target Achieved! Certificate Unlocked!"
+                            : `🌟 Completed! (Score ${scorePercent}% - Need 85% for Certificate)`}
+                          {attemptedAtText ? ` • Attempted at ${attemptedAtText}` : ""}
+                        </span>
+
+                        <div style={styles.footerActionGroup}>
+                          {canGetCertificate && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                generateCertificate(
+                                  ansQuizId,
+                                  quizTitleForCert,
+                                  scorePercent,
+                                  quiz.result?.grade || "A"
+                                )
+                              }
+                              style={styles.certificateButton}
+                              className="certificate-btn"
+                            >
+                              🎓 Download Certificate (PDF)
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(`/student/review/${qId}/${sId}`, {
+                                state: { quiz_id: qId, student_id: sId }
+                              })
+                            }
+                            style={styles.reviewButton}
+                            className="hover-text-transition"
+                          >
+                            View Analytics &rarr;
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div style={styles.emptyState}>
+                <div style={{ fontSize: "40px", marginBottom: "10px" }}>🎯</div>
+                <p style={{ margin: 0, fontWeight: "700", color: "#1E293B", fontSize: "16px" }}>All caught up!</p>
+                <p style={{ margin: "5px 0 0 0", color: "#64748B", fontSize: "13px" }}>
+                  No pending tasks under this category. Great job!
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
@@ -917,6 +965,8 @@ const styles = {
     boxSizing: "border-box"
   },
   header: {
+    position: "relative",
+    zIndex: 2,
     backgroundColor: "rgba(255, 255, 255, 0.94)",
     borderBottom: "1px solid #E2E8F0",
     padding: "36px 40px",
@@ -935,14 +985,13 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: "6px",
-    maxWidth: "600px"
+    maxWidth: "640px"
   },
   welcomeText: {
-    fontSize: "20px",
-    fontWeight: "900",
+    fontSize: "18px",
+    fontWeight: "800",
     color: "#5e0347",
-    textTransform: "uppercase",
-    letterSpacing: "0.8px"
+    letterSpacing: "0.4px"
   },
   userName: {
     fontSize: "30px",
@@ -970,12 +1019,13 @@ const styles = {
     padding: "4px 12px",
     borderRadius: "20px",
     fontSize: "13.5px",
-    fontWeight: "500",
+    fontWeight: "600",
     border: "1px solid #E2E8F0"
   },
   statsContainer: {
     display: "flex",
-    gap: "14px"
+    gap: "14px",
+    flexWrap: "wrap"
   },
   statBox: {
     backgroundColor: "#FFFFFF",
@@ -983,7 +1033,7 @@ const styles = {
     borderRadius: "14px",
     padding: "16px 20px",
     textAlign: "center",
-    minWidth: "85px",
+    minWidth: "90px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
   },
   statNumber: {
@@ -991,7 +1041,10 @@ const styles = {
     fontSize: "22px",
     fontWeight: "800",
     backgroundColor: "#ffbc58",
-    color: "#0F172A"
+    color: "#0F172A",
+    borderRadius: "8px",
+    padding: "2px 8px",
+    marginBottom: "4px"
   },
   statLabel: {
     fontSize: "12px",
@@ -1001,6 +1054,8 @@ const styles = {
     letterSpacing: "0.5px"
   },
   mainContent: {
+    position: "relative",
+    zIndex: 1,
     maxWidth: "1150px",
     width: "100%",
     margin: "0 auto",
@@ -1011,193 +1066,190 @@ const styles = {
   controlBar: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: "28px",
+    alignItems: "center",
     flexWrap: "wrap",
-    gap: "16px"
+    gap: "16px",
+    marginBottom: "24px",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    padding: "18px 22px",
+    borderRadius: "16px",
+    border: "1px solid #E2E8F0"
   },
   sectionTitle: {
-    fontSize: "22px",
+    margin: 0,
+    fontSize: "20px",
     fontWeight: "800",
-    color: "#0F172A",
-    margin: "0 0 4px 0"
+    color: "#0F172A"
   },
   sectionSubtitle: {
+    margin: "4px 0 0 0",
     fontSize: "13px",
-    color: "#64748B",
-    margin: 0,
-    fontWeight: "500"
+    color: "#475569"
   },
   tabSection: {
     display: "flex",
-    gap: "10px",
+    gap: "8px",
     overflowX: "auto",
-    maxWidth: "100%",
-    paddingBottom: "4px"
+    maxWidth: "100%"
   },
   tab: {
-    padding: "10px 20px",
-    borderRadius: "12px",
+    padding: "8px 16px",
+    borderRadius: "999px",
     fontSize: "13px",
     fontWeight: "700",
     cursor: "pointer",
-    whiteSpace: "nowrap",
-    transition: "all 0.25s ease"
+    whiteSpace: "nowrap"
   },
   quizList: {
     display: "flex",
     flexDirection: "column",
-    gap: "18px"
+    gap: "16px"
   },
   card: {
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
-    borderRadius: "18px",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
     border: "1px solid #E2E8F0",
-    padding: "22px 26px",
+    borderRadius: "18px",
+    padding: "20px 24px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
     gap: "16px",
-    boxShadow: "0 4px 20px -4px rgba(0, 0, 0, 0.05)"
+    boxShadow: "0 4px 16px -4px rgba(15, 23, 42, 0.06)"
   },
   cardLeft: {
     display: "flex",
     alignItems: "flex-start",
-    gap: "18px",
-    flex: 1,
-    minWidth: "280px"
-  },
-  statusIconPending: {
-    width: "48px",
-    height: "48px",
-    backgroundColor: "#FEF3C7",
-    color: "#D97706",
-    borderRadius: "14px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "20px",
-    flexShrink: 0
+    gap: "16px",
+    flex: "1 1 520px"
   },
   statusIconDone: {
-    width: "48px",
-    height: "48px",
-    backgroundColor: "#D1FAE5",
-    color: "#059669",
-    borderRadius: "14px",
+    width: "44px",
+    height: "44px",
+    borderRadius: "12px",
+    backgroundColor: "#DCFCE7",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "20px",
+    fontSize: "22px",
+    flexShrink: 0
+  },
+  statusIconPending: {
+    width: "44px",
+    height: "44px",
+    borderRadius: "12px",
+    backgroundColor: "#FEF3C7",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "22px",
     flexShrink: 0
   },
   tagSubject: {
-    fontSize: "11px",
-    fontWeight: "800",
-    color: "#4F46E5",
-    textTransform: "uppercase",
-    letterSpacing: "0.8px"
+    backgroundColor: "#DBEAFE",
+    color: "#1E40AF",
+    padding: "3px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "700"
   },
   idChip: {
-    fontSize: "11px",
-    fontWeight: "700",
-    color: "#475569",
     backgroundColor: "#F1F5F9",
-    padding: "2px 8px",
-    borderRadius: "6px"
+    color: "#475569",
+    padding: "3px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "600"
   },
   windowBadge: {
-    fontSize: "11px",
-    fontWeight: "700",
-    padding: "2px 8px",
-    borderRadius: "999px"
+    padding: "3px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "700"
   },
   quizTitle: {
-    fontSize: "17px",
+    margin: "4px 0 6px 0",
+    fontSize: "18px",
     fontWeight: "800",
-    color: "#0F172A",
-    margin: "0 0 6px 0"
+    color: "#0F172A"
   },
   quizMetaInfo: {
     display: "flex",
+    gap: "8px",
     flexWrap: "wrap",
-    gap: "10px",
-    fontSize: "12px",
-    color: "#64748B",
-    fontWeight: "600",
+    fontSize: "13px",
+    color: "#475569",
     marginBottom: "6px"
   },
   scheduleLine: {
     display: "flex",
+    gap: "14px",
     flexWrap: "wrap",
-    gap: "12px",
-    fontSize: "12px",
+    fontSize: "12.5px",
     color: "#334155",
     marginBottom: "8px"
   },
   prizeBadge: {
-    fontSize: "12px",
-    color: "#0D9488",
-    backgroundColor: "#F0FDFA",
-    border: "1px solid #CCFBF1",
+    display: "inline-block",
+    backgroundColor: "#FFFBEB",
+    border: "1px solid #FDE68A",
+    color: "#92400E",
     padding: "4px 10px",
     borderRadius: "8px",
-    display: "inline-block",
-    fontWeight: "500"
+    fontSize: "12.5px"
   },
   cardRight: {
     display: "flex",
     alignItems: "center",
-    gap: "16px"
-  },
-  startButton: {
-    backgroundColor: "#0F172A",
-    color: "#FFFFFF",
-    border: "none",
-    padding: "12px 24px",
-    borderRadius: "12px",
-    fontSize: "13px",
-    fontWeight: "700",
-    cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
-    transition: "background 0.2s ease, transform 0.2s ease"
-  },
-  disabledStartButton: {
-    backgroundColor: "#E2E8F0",
-    color: "#64748B",
-    boxShadow: "none",
-    cursor: "not-allowed"
+    gap: "12px"
   },
   scoreBlock: {
     textAlign: "right"
   },
   scoreValue: {
-    fontSize: "20px",
+    fontSize: "24px",
     fontWeight: "800",
-    color: "#059669"
+    color: "#047857"
   },
   gradeBadge: {
-    fontSize: "11px",
+    fontSize: "12.5px",
     fontWeight: "700",
-    color: "#64748B",
-    textTransform: "uppercase"
+    color: "#1E3A8A",
+    backgroundColor: "#EFF6FF",
+    padding: "2px 10px",
+    borderRadius: "999px",
+    marginTop: "2px"
+  },
+  startButton: {
+    backgroundColor: "#1E3A8A",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: "12px",
+    padding: "11px 20px",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+  disabledStartButton: {
+    backgroundColor: "#CBD5E1",
+    color: "#475569",
+    cursor: "not-allowed"
   },
   cardFooter: {
     width: "100%",
-    borderTop: "1px solid #F1F5F9",
-    marginTop: "14px",
-    paddingTop: "14px",
+    borderTop: "1px solid #E2E8F0",
+    paddingTop: "12px",
+    marginTop: "4px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: "10px"
+    gap: "12px"
   },
   feedbackText: {
-    fontSize: "12px",
-    color: "#059669",
-    fontWeight: "700"
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#334155"
   },
   footerActionGroup: {
     display: "flex",
@@ -1209,43 +1261,51 @@ const styles = {
     backgroundColor: "#059669",
     color: "#FFFFFF",
     border: "none",
-    padding: "7px 14px",
-    borderRadius: "8px",
-    fontSize: "12px",
+    borderRadius: "10px",
+    padding: "8px 14px",
+    fontSize: "13px",
     fontWeight: "700",
     cursor: "pointer"
   },
   reviewButton: {
-    background: "none",
+    backgroundColor: "transparent",
+    color: "#1E3A8A",
     border: "none",
-    color: "#4F46E5",
-    fontSize: "13px",
+    fontSize: "13.5px",
     fontWeight: "700",
     cursor: "pointer",
-    padding: 0
+    padding: "6px 8px"
   },
   emptyState: {
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    borderRadius: "16px",
+    padding: "40px 20px",
     textAlign: "center",
-    padding: "70px 20px",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: "18px",
-    border: "1px solid #E2E8F0",
-    boxShadow: "0 4px 20px -4px rgba(0, 0, 0, 0.04)"
+    border: "1px solid #E2E8F0"
   },
-  center: {
-    width: "100vw",
-    height: "100vh",
+  loadingCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    borderRadius: "16px",
+    padding: "40px 20px",
+    textAlign: "center",
+    border: "1px solid #E2E8F0",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
+    alignItems: "center"
+  },
+  center: {
+    minHeight: "60vh",
+    display: "flex",
     alignItems: "center",
-    backgroundColor: "#F8FAFC"
+    justifyContent: "center",
+    padding: "24px",
+    textAlign: "center"
   },
   spinnerIcon: {
-    width: "40px",
-    height: "40px",
+    width: "34px",
+    height: "34px",
     border: "4px solid #E2E8F0",
-    borderTop: "4px solid #4F46E5",
+    borderTop: "4px solid #1E3A8A",
     borderRadius: "50%"
   }
 };
