@@ -32,7 +32,7 @@ const AdminQuizPage = () => {
   };
 
   const sessions = ["2025-26", "2026-27", "2027-28"];
-  const streams = ["None", "PCM", "PCB", "Arts", "Commerce", "Chemistry,Maths", "Hindi English"];
+  const streams = ["None", "PCM", "PCB", "Arts", "Commerce", "Chemistry,Maths", "Hindi,English"];
 
   const [activeTab, setActiveTab] = useState("create");
   const [loading, setLoading] = useState(false);
