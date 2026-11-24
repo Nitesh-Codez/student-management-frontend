@@ -50,6 +50,7 @@ import ViewResults from "./pages/Results_details/ViewResults";
 import StudentDropApply from "./pages/StudentDropApply";
 import StudentsMeetings from "./pages/Meetings/StudentsMeetings";
 import StudentInternal from "./pages/Examination/StudentsInternal";
+import AiInterview from "./pages/AiInterview";
 
 /* EXAM */
 import ExamForm from "./pages/Examination/ExamForm";
@@ -174,6 +175,7 @@ function App() {
           <Route path="review/:quizId/:studentId" element={<QuizReview />} />
            <Route path="students-meeting" element={<StudentsMeetings/>} />
            <Route path="students-internal" element={<StudentInternal />} />
+           <Route path="interview-english-practice" element={<AiInterview/>} />
         </Route>
 
         {/* 404 */}

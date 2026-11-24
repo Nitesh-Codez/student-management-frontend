@@ -30,6 +30,7 @@ import QuizReview from './QuizReview';
 import RegisterationStudent from "./RegisterationStudent";
 import StudentDropApply from "./StudentDropApply";
 import StudentsMeetings from "./Meetings/StudentsMeetings";
+import AiInterview from "./AiInterview";
 
 
 // Examination Components
@@ -1988,7 +1989,9 @@ try {
             { to: "quiz-dashboard", icon: "📝", label: "Practice Quiz", active: location.pathname.includes("quiz-dashboard") },
             { to: "Check-performance", icon: <FaComments />, label: "Check performance", active: location.pathname.includes("Check-performance") },
             { to: "drop-apply", icon: <FaComments />, label: "Apply Drop", active: location.pathname.includes("drop-apply") },
+            { to: "interview-english-practice", icon: <FaComments />, label: "English AI Interview", active: location.pathname.includes("interview-english-practice") },
             { to: "students-meeting", icon: <FaComments />, label: "Meetings", active: location.pathname.includes("students-meeting") },
+
           ].map((item) => (
             <Link 
               key={item.to}
@@ -2134,6 +2137,7 @@ try {
             <Route path="register-student" element={<RegisterationStudent />} />
           <Route path="drop-apply" element={<StudentDropApply />} />
           <Route path="students-meeting" element={<StudentsMeetings />} />
+          <Route path="interview-english-practice" element={<AiInterview/>} />
 
           
           {/* Internal Examination Routes */}
