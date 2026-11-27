@@ -2,13 +2,12 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import api from "../services/api";
 import StudentViva from "./StudentViva";
 
+const GROQ_API_KEY = (process.env.REACT_APP_GROQ_API_KEY || "").trim();
+const GROQ_MODEL = (
+  process.env.REACT_APP_GROQ_MODEL || "openai/gpt-oss-20b"
+).trim();
+
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
-const SESSION_MODES = [
-  "General English Interview",
-  "Academic Interview",
-  "Job Interview",
-  "Student Viva"
-];
 const QUESTION_COUNTS = [5, 10];
 const STUDENT_CLASSES = [
   "Class 6th",
@@ -29,7 +28,9 @@ const getTimeGreeting = () => {
 };
 
 const getLocalUserObject = (propUser) => {
-  if (propUser && typeof propUser === "object") return propUser;
+  if (propUser && typeof propUser === "object") {
+    return propUser.user || propUser;
+  }
 
   const keys = ["user", "currentUser", "studentUser", "authUser", "loggedInUser"];
   for (const key of keys) {
@@ -53,6 +54,20 @@ const getLocalUserObject = (propUser) => {
     }
   }
   return null;
+};
+
+const extractUserId = (userObj) => {
+  if (!userObj) return null;
+  const raw =
+    userObj.id ??
+    userObj.studentId ??
+    userObj.student_id ??
+    userObj.userId ??
+    userObj.user_id ??
+    null;
+  return raw !== null && raw !== undefined && String(raw).trim() !== ""
+    ? raw
+    : null;
 };
 
 const extractUserName = (userObj) => {
@@ -135,6 +150,69 @@ const parseMistakes = (rawMistakes) => {
       return null;
     })
     .filter((entry) => entry && (entry.mistake || entry.explanation));
+};
+
+// --------------------------------------------------
+// GROQ HELPER FOR ENGLISH AI INTERVIEW
+// --------------------------------------------------
+
+const extractGroqText = (data) => {
+  const msg = data?.choices?.[0]?.message;
+  if (!msg) return "";
+  if (typeof msg.content === "string" && msg.content.trim()) {
+    return msg.content.trim();
+  }
+  if (Array.isArray(msg.content)) {
+    return msg.content
+      .map((part) => (typeof part === "string" ? part : part?.text || ""))
+      .join(" ")
+      .trim();
+  }
+  return "";
+};
+
+const extractGroqJson = (text) => {
+  const cleaned = String(text || "")
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end <= start) {
+    throw new Error("Invalid JSON from Groq");
+  }
+  return JSON.parse(cleaned.slice(start, end + 1));
+};
+
+const callGroqInterview = async (messages, maxTokens = 450) => {
+  if (!GROQ_API_KEY) {
+    throw new Error("Missing REACT_APP_GROQ_API_KEY");
+  }
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${GROQ_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages,
+      temperature: 0.6,
+      max_tokens: maxTokens
+    })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error?.message || `Groq HTTP ${res.status}`);
+  }
+
+  const text = extractGroqText(data);
+  if (!text) {
+    throw new Error("Empty response from Groq");
+  }
+  return text;
 };
 
 const buildReportSummary = (interviewMeta, answersList, fallbackLevel, fallbackType) => {
@@ -231,37 +309,106 @@ const buildReportSummary = (interviewMeta, answersList, fallbackLevel, fallbackT
   };
 };
 
-/* SmartBot Eye Tracker Component ("Smart" Robot Eye) */
-const SmartRobotEye = ({ pupilOffset, isListening, isSpeaking, countdown }) => {
+/* 3D Talking Robot Screen Component */
+const Smart3DRobotStage = ({ pupilOffset, isListening, isSpeaking, countdown }) => {
   return (
-    <div style={styles.robotCard}>
-      <div style={styles.robotEyeSocket}>
-        <div
-          style={{
-            ...styles.robotIris,
-            transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`
-          }}
-        >
-          <div style={styles.robotPupil}>
-            <div style={styles.robotGlint} />
-          </div>
-        </div>
+    <div style={styles.robot3DStage}>
+      <div style={styles.robot3DTopBar}>
+        <span style={styles.robot3DPill}>🤖 SMARTBOT 3D • AI INTERVIEWER</span>
+        <span style={styles.robot3DStateBadge}>
+          {countdown !== null
+            ? `Next in ${countdown}s`
+            : isSpeaking
+            ? "Speaking"
+            : isListening
+            ? "Listening"
+            : "Proctoring Active"}
+        </span>
       </div>
 
-      <div style={styles.robotMeta}>
-        <div style={styles.robotNameRow}>
-          <span style={styles.robotNameText}>Smart</span>
-          <span style={styles.robotStatusPill}>
-            {countdown !== null
-              ? `Next in ${countdown}...`
-              : isListening
-              ? "Listening"
-              : isSpeaking
-              ? "Speaking"
-              : "Tracking"}
-          </span>
+      <div style={styles.robot3DScene}>
+        <div
+          className={isSpeaking ? "ssc-robot-talk" : "ssc-robot-float"}
+          style={styles.robot3DHead}
+        >
+          <div style={styles.robotAntennaTop} />
+          <div style={styles.robotVisor}>
+            <div style={styles.robot3DEye}>
+              <div
+                style={{
+                  ...styles.robot3DPupil,
+                  transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`
+                }}
+              />
+            </div>
+            <div style={styles.robot3DEye}>
+              <div
+                style={{
+                  ...styles.robot3DPupil,
+                  transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`
+                }}
+              />
+            </div>
+          </div>
+
+          <div
+            className={isSpeaking ? "ssc-mouth-speak" : ""}
+            style={styles.robot3DMouth}
+          />
         </div>
-        <div style={styles.robotSubText}>SmartBot Eye • Looking at you</div>
+
+        <div style={styles.robot3DShoulder} />
+      </div>
+
+      <div style={styles.robot3DFooterText}>
+        {isSpeaking
+          ? "SmartBot is asking the question..."
+          : isListening
+          ? "SmartBot is listening to your response..."
+          : "AI Proctored Session Monitoring"}
+      </div>
+    </div>
+  );
+};
+
+/* Center Listening Mic + Live Waves */
+const CenterListeningWaves = ({ isListening, countdown, onToggleMic }) => {
+  const bars = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  return (
+    <div style={styles.centerWaveBox}>
+      <button
+        type="button"
+        onClick={onToggleMic}
+        className={isListening ? "ssc-mic-active" : ""}
+        style={{
+          ...styles.centerMicCircle,
+          backgroundColor: isListening ? "#16a34a" : "#2563eb"
+        }}
+        title={isListening ? "Listening — Tap to stop" : "Tap to start speaking"}
+      >
+        🎤
+      </button>
+
+      <div style={styles.waveBarsRow} aria-hidden="true">
+        {bars.map((b) => (
+          <span
+            key={b}
+            className={isListening ? "ssc-wave-bar-active" : ""}
+            style={{
+              ...styles.waveBar,
+              height: isListening ? `${14 + ((b * 7) % 24)}px` : "8px",
+              animationDelay: `${b * 0.08}s`
+            }}
+          />
+        ))}
+      </div>
+
+      <div style={styles.centerWaveStatus}>
+        {countdown !== null
+          ? `Listening... Moving ahead in ${countdown}s`
+          : isListening
+          ? "Listening clearly — speak naturally, everything is running smoothly"
+          : "Mic ready — auto-starts right after SmartBot finishes speaking"}
       </div>
     </div>
   );
@@ -337,10 +484,11 @@ const ScoreCard = ({ label, score }) => {
 };
 
 export const AiInterview = ({ user: propUser }) => {
-  // "welcome" | "dashboard" | "setup" | "interview" | "report" | "history" | "viva"
+  // "welcome" | "dashboard" | "setup" | "interview" | "report" | "history" | "viva" | "terminated"
   const [view, setView] = useState("welcome");
 
   const localUserObj = useMemo(() => getLocalUserObject(propUser), [propUser]);
+  const localUserId = useMemo(() => extractUserId(localUserObj), [localUserObj]);
   const localExpectedName = useMemo(
     () => extractUserName(localUserObj),
     [localUserObj]
@@ -356,12 +504,22 @@ export const AiInterview = ({ user: propUser }) => {
   const [spokenNameRaw, setSpokenNameRaw] = useState("");
   const [authStatusMsg, setAuthStatusMsg] = useState("");
 
-  // Voice & Robot Eye states
+  // Voice, Camera & Robot Eye states
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [listeningMode, setListeningMode] = useState(null); // null | "name" | "answer"
   const [pupilOffset, setPupilOffset] = useState({ x: 0, y: 0 });
   const [silenceCountdown, setSilenceCountdown] = useState(null); // 5..1 or null
+
+  // AI Proctoring states (no termination countdown or limit shown to user)
+  const [proctorWarningMsg, setProctorWarningMsg] = useState("");
+  const tabSwitchCountRef = useRef(0);
+  const lastViolationTsRef = useRef(0);
+
+  // Candidate webcam video ref
+  const candidateVideoRef = useRef(null);
+  const candidateStreamRef = useRef(null);
+  const [cameraReady, setCameraReady] = useState(false);
 
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
@@ -374,16 +532,17 @@ export const AiInterview = ({ user: propUser }) => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Session configuration state (includes Student Viva in dropdown)
+  // Session configuration state ("English AI Interview" | "Student Viva")
   const [level, setLevel] = useState("Beginner");
-  const [interviewType, setInterviewType] = useState("General English Interview");
+  const [interviewType, setInterviewType] = useState("English AI Interview");
   const [totalQuestions, setTotalQuestions] = useState(5);
   const [starting, setStarting] = useState(false);
 
-  // Active interview/viva state
+  // Active interview state
   const [interviewId, setInterviewId] = useState(null);
   const [questionNumber, setQuestionNumber] = useState(1);
   const [currentQuestion, setCurrentQuestion] = useState("");
+  const [sessionRecords, setSessionRecords] = useState([]);
   const [answer, setAnswer] = useState("");
   const [evaluating, setEvaluating] = useState(false);
   const [evaluation, setEvaluation] = useState(null);
@@ -405,7 +564,7 @@ export const AiInterview = ({ user: propUser }) => {
     }
   }, [localExpectedClass]);
 
-  // Eye tracking based on mouse movement + subtle SmartBot gaze
+  // Eye tracking based on mouse movement
   useEffect(() => {
     const handleMouseMove = (e) => {
       const cx = window.innerWidth / 2;
@@ -478,14 +637,60 @@ export const AiInterview = ({ user: propUser }) => {
     setListeningMode(null);
   }, [clearSilenceCountdown]);
 
+  const stopCandidateCamera = useCallback(() => {
+    if (candidateStreamRef.current) {
+      candidateStreamRef.current.getTracks().forEach((track) => track.stop());
+      candidateStreamRef.current = null;
+    }
+    setCameraReady(false);
+  }, []);
+
+  const startCandidateCamera = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      return;
+    }
+    if (candidateStreamRef.current) {
+      setCameraReady(true);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false
+      });
+      candidateStreamRef.current = stream;
+      if (candidateVideoRef.current) {
+        candidateVideoRef.current.srcObject = stream;
+      }
+      setCameraReady(true);
+    } catch {
+      setCameraReady(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view === "interview") {
+      startCandidateCamera();
+    } else {
+      stopCandidateCamera();
+    }
+  }, [view, startCandidateCamera, stopCandidateCamera]);
+
+  useEffect(() => {
+    if (cameraReady && candidateVideoRef.current && candidateStreamRef.current) {
+      candidateVideoRef.current.srcObject = candidateStreamRef.current;
+    }
+  }, [cameraReady, view]);
+
   useEffect(() => {
     return () => {
       stopListening();
+      stopCandidateCamera();
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
     };
-  }, [stopListening]);
+  }, [stopListening, stopCandidateCamera]);
 
   // Ref holder for moving to next question after silence countdown
   const advanceAfterSilenceRef = useRef(null);
@@ -546,9 +751,7 @@ export const AiInterview = ({ user: propUser }) => {
         sessionStorage.setItem("ssc_student_class", studentClass);
 
         const greeting = getTimeGreeting();
-        const modeLabel =
-          interviewType === "Student Viva" ? "Student Viva" : interviewType;
-        const welcomeLine = `${greeting} ${verifiedName}! Hello, I am SmartBot, I will take this ${modeLabel}. Please choose or confirm your interview type to begin.`;
+        const welcomeLine = `${greeting} ${verifiedName}! Hello, I am SmartBot, I will take this ${interviewType}. Please confirm your setup to begin.`;
         setAuthStatusMsg(welcomeLine);
         speakText(welcomeLine);
         setView("setup");
@@ -627,7 +830,6 @@ export const AiInterview = ({ user: propUser }) => {
         } else if (mode === "answer") {
           if (combined) {
             hasSpokenInAnswerRef.current = true;
-            // User is actively speaking -> reset 5..4..3..2..1 silence countdown
             clearSilenceCountdown();
           }
           if (finalTranscript.trim()) {
@@ -682,29 +884,29 @@ export const AiInterview = ({ user: propUser }) => {
     }
   }, [view, interviewType, speakText]);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setLoadingHistory(true);
     setErrorMsg("");
     try {
-      const res = await api.get("/api/interview/history");
+      const res = await api.get("/api/interview/history", {
+        params: localUserId ? { studentId: localUserId } : {}
+      });
       const list = Array.isArray(res.data?.interviews)
         ? res.data.interviews
         : Array.isArray(res.data)
         ? res.data
         : [];
       setHistory(list);
-    } catch (err) {
-      setErrorMsg(
-        err?.response?.data?.message || "Failed to load interview history."
-      );
+    } catch {
+      setHistory([]);
     } finally {
       setLoadingHistory(false);
     }
-  };
+  }, [localUserId]);
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [fetchHistory]);
 
   const dashboardStats = useMemo(() => {
     const scored = history
@@ -727,17 +929,80 @@ export const AiInterview = ({ user: propUser }) => {
     };
   }, [history]);
 
-  const handleSessionModeSelect = (selectedMode) => {
+  const handleToggleMode = (targetMode) => {
     setErrorMsg("");
-    setInterviewType(selectedMode);
-    if (selectedMode === "Student Viva") {
-      stopListening();
+    setInterviewType(targetMode);
+    stopListening();
+
+    if (targetMode === "Student Viva") {
       setView("viva");
       const vivaIntro = `${getTimeGreeting()}! Hello, I am SmartBot, I will take this Student Viva.`;
       speakText(vivaIntro);
-    } else if (view === "viva") {
-      setView("setup");
+    } else {
+      if (view === "viva") {
+        setView(isAuthenticated ? "setup" : "welcome");
+      }
+      const engIntro = `${getTimeGreeting()}! Hello, I am SmartBot, I will take this English AI Interview.`;
+      speakText(engIntro);
     }
+  };
+
+  const generateGroqInterviewQuestion = async ({ qNum, prevList }) => {
+    const messages = [
+      {
+        role: "system",
+        content:
+          "You are a clear, polite English spoken interviewer. Output ONLY one short spoken interview question (1-2 sentences)."
+      },
+      {
+        role: "user",
+        content: `Candidate: ${studentName || "Student"}, Class/Level: ${studentClass} (${level}), Mode: English AI Interview.
+Question ${qNum} of ${totalQuestions}.
+Previous Q&A: ${JSON.stringify(prevList)}.
+Ask a fresh, natural question.`
+      }
+    ];
+
+    return await callGroqInterview(messages, 350);
+  };
+
+  const evaluateGroqInterviewAnswer = async ({ questionText, studentAns }) => {
+    const messages = [
+      {
+        role: "system",
+        content:
+          "You are an English communication coach. Evaluate the spoken answer from 0 to 100 on grammar, fluency, vocabulary, and relevance. Return ONLY valid JSON."
+      },
+      {
+        role: "user",
+        content: `Level: ${level}.
+Question: "${questionText}"
+Answer: "${studentAns}"
+
+Return ONLY valid JSON:
+{
+  "grammarScore": 75,
+  "fluencyScore": 75,
+  "vocabularyScore": 75,
+  "relevanceScore": 75,
+  "feedback": "Short helpful feedback",
+  "mistakes": [],
+  "improvedAnswer": "Better spoken phrasing"
+}`
+      }
+    ];
+
+    const raw = await callGroqInterview(messages, 450);
+    const parsed = extractGroqJson(raw);
+    return {
+      grammarScore: Number(parsed.grammarScore) || 70,
+      fluencyScore: Number(parsed.fluencyScore) || 70,
+      vocabularyScore: Number(parsed.vocabularyScore) || 70,
+      relevanceScore: Number(parsed.relevanceScore) || 70,
+      feedback: parsed.feedback || "Good effort. Keep speaking clearly.",
+      mistakes: parseMistakes(parsed.mistakes),
+      improvedAnswer: parsed.improvedAnswer || ""
+    };
   };
 
   const startSessionWithMode = async (chosenMode) => {
@@ -754,32 +1019,45 @@ export const AiInterview = ({ user: propUser }) => {
     }
 
     stopListening();
+    tabSwitchCountRef.current = 0;
+    setProctorWarningMsg("");
     setStarting(true);
     setErrorMsg("");
     setEvaluation(null);
     setAnswer("");
+    setSessionRecords([]);
 
     try {
-      const res = await api.post("/api/interview/start", {
-        level,
-        interviewType: chosenMode,
-        totalQuestions
-      });
+      let createdId = `groq-${Date.now()}`;
+      let firstQuestion = "";
 
-      const createdId = res.data?.interviewId;
-      const firstQuestion = res.data?.question;
+      try {
+        const res = await api.post("/api/interview/start", {
+          studentId: localUserId,
+          level,
+          interviewType: chosenMode,
+          totalQuestions
+        });
+        if (res.data?.interviewId) createdId = res.data.interviewId;
+        if (res.data?.question) firstQuestion = res.data.question;
+      } catch {
+        // proceed with Groq directly
+      }
 
-      if (!createdId || !firstQuestion) {
-        throw new Error("Missing interviewId or question from server.");
+      if (!firstQuestion) {
+        firstQuestion = await generateGroqInterviewQuestion({
+          qNum: 1,
+          prevList: []
+        });
       }
 
       setInterviewId(createdId);
-      const qNum = Number(res.data?.questionNumber) || 1;
-      setQuestionNumber(qNum);
+      setQuestionNumber(1);
       setCurrentQuestion(firstQuestion);
       setView("interview");
 
-      const promptSpeech = `Question ${qNum}. ${firstQuestion}`;
+      // After AI question finishes speaking -> auto start listening
+      const promptSpeech = `Question 1. ${firstQuestion}`;
       speakText(promptSpeech, () => {
         startVoiceRecognition("answer");
       });
@@ -812,101 +1090,209 @@ export const AiInterview = ({ user: propUser }) => {
     setErrorMsg("");
 
     try {
-      const res = await api.post("/api/interview/evaluate", {
-        interviewId,
-        question: currentQuestion,
-        answer: currentAns
-      });
+      let parsedEval = null;
 
-      const rawEval = res.data?.evaluation || {};
-      const parsedEval = {
-        grammarScore: rawEval.grammarScore ?? 0,
-        fluencyScore: rawEval.fluencyScore ?? 0,
-        vocabularyScore: rawEval.vocabularyScore ?? 0,
-        relevanceScore: rawEval.relevanceScore ?? 0,
-        feedback: rawEval.feedback || "",
-        mistakes: parseMistakes(rawEval.mistakes),
-        improvedAnswer: rawEval.improvedAnswer || ""
-      };
+      try {
+        parsedEval = await evaluateGroqInterviewAnswer({
+          questionText: currentQuestion,
+          studentAns: currentAns
+        });
+      } catch {
+        const res = await api.post("/api/interview/evaluate", {
+          studentId: localUserId,
+          interviewId,
+          question: currentQuestion,
+          answer: currentAns
+        });
+        const rawEval = res.data?.evaluation || {};
+        parsedEval = {
+          grammarScore: rawEval.grammarScore ?? 0,
+          fluencyScore: rawEval.fluencyScore ?? 0,
+          vocabularyScore: rawEval.vocabularyScore ?? 0,
+          relevanceScore: rawEval.relevanceScore ?? 0,
+          feedback: rawEval.feedback || "",
+          mistakes: parseMistakes(rawEval.mistakes),
+          improvedAnswer: rawEval.improvedAnswer || ""
+        };
+      }
+
       setEvaluation(parsedEval);
+      setSessionRecords((prev) => [
+        ...prev,
+        {
+          question_number: questionNumber,
+          question: currentQuestion,
+          student_answer: currentAns,
+          grammar_score: parsedEval.grammarScore,
+          fluency_score: parsedEval.fluencyScore,
+          vocabulary_score: parsedEval.vocabularyScore,
+          relevance_score: parsedEval.relevanceScore,
+          feedback: parsedEval.feedback,
+          mistakes: parsedEval.mistakes,
+          improved_answer: parsedEval.improvedAnswer
+        }
+      ]);
 
       if (parsedEval.feedback) {
         speakText(parsedEval.feedback);
       }
     } catch (err) {
       setErrorMsg(
-        err?.response?.data?.message || "Unable to evaluate answer."
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to evaluate answer."
       );
     } finally {
       setEvaluating(false);
     }
   };
 
-  const handleOpenReport = async (targetId) => {
-    const id = targetId || interviewId;
-    if (!id) return;
+  const handleOpenReport = useCallback(
+    async (targetId, overrideRecords) => {
+      const id = targetId || interviewId;
+      stopListening();
+      setLoadingReport(true);
+      setErrorMsg("");
+      setFloatingReportOpen(true);
+      setView("report");
 
-    stopListening();
-    setLoadingReport(true);
-    setErrorMsg("");
-    setFloatingReportOpen(true);
-    setView("report");
+      try {
+        const records = overrideRecords || sessionRecords;
+        let meta = {
+          id,
+          level,
+          interview_type: interviewType
+        };
+        let list = records;
 
-    try {
-      const res = await api.get(`/api/interview/report/${id}`);
-      const built = buildReportSummary(
-        res.data?.interview,
-        res.data?.answers,
-        level,
-        interviewType
-      );
-      setReportData(built);
-      speakText(
-        `Session completed. Your overall score is ${built.overallScore} out of 100.`
-      );
-    } catch (err) {
-      setErrorMsg(
-        err?.response?.data?.message || "Unable to load report."
-      );
-    } finally {
-      setLoadingReport(false);
-    }
-  };
+        if (id && !String(id).startsWith("groq-")) {
+          try {
+            const res = await api.get(`/api/interview/report/${id}`, {
+              params: localUserId ? { studentId: localUserId } : {}
+            });
+            if (res.data?.interview) meta = res.data.interview;
+            if (Array.isArray(res.data?.answers) && res.data.answers.length > 0) {
+              list = res.data.answers;
+            }
+          } catch {
+            // use local session records
+          }
+        }
 
-  const handleCompleteInterview = async () => {
-    if (!interviewId) return;
+        const built = buildReportSummary(meta, list, level, interviewType);
+        setReportData(built);
+        speakText(
+          `Session completed. Your overall score is ${built.overallScore} out of 100.`
+        );
+      } catch (err) {
+        setErrorMsg(
+          err?.response?.data?.message || "Unable to load report."
+        );
+      } finally {
+        setLoadingReport(false);
+      }
+    },
+    [interviewId, stopListening, sessionRecords, level, interviewType, localUserId, speakText]
+  );
+
+  // Auto-submit on last question with voice announcement ("Now submitting...")
+  const handleCompleteInterview = useCallback(async () => {
     stopListening();
     setCompleting(true);
     setErrorMsg("");
 
-    try {
-      await api.post("/api/interview/complete", { interviewId });
-      await fetchHistory();
-      await handleOpenReport(interviewId);
-    } catch (err) {
-      setErrorMsg(
-        err?.response?.data?.message || "Unable to complete session."
+    let updatedRecords = sessionRecords;
+    const pendingAns = answerRef.current.trim();
+    if (pendingAns && currentQuestion) {
+      const alreadyRecorded = sessionRecords.some(
+        (r) => Number(r.question_number) === Number(questionNumber)
       );
-    } finally {
-      setCompleting(false);
+      if (!alreadyRecorded) {
+        updatedRecords = [
+          ...sessionRecords,
+          {
+            question_number: questionNumber,
+            question: currentQuestion,
+            student_answer: pendingAns,
+            grammar_score: evaluation?.grammarScore ?? 70,
+            fluency_score: evaluation?.fluencyScore ?? 70,
+            vocabulary_score: evaluation?.vocabularyScore ?? 70,
+            relevance_score: evaluation?.relevanceScore ?? 70,
+            feedback: evaluation?.feedback || "Submitted at session end.",
+            mistakes: evaluation?.mistakes || [],
+            improved_answer: evaluation?.improvedAnswer || ""
+          }
+        ];
+        setSessionRecords(updatedRecords);
+      }
     }
-  };
+
+    speakText("Now submitting your interview.", async () => {
+      try {
+        if (interviewId && !String(interviewId).startsWith("groq-")) {
+          try {
+            await api.post("/api/interview/complete", {
+              studentId: localUserId,
+              interviewId
+            });
+          } catch {
+            // continue to report
+          }
+        }
+        await fetchHistory();
+        await handleOpenReport(interviewId, updatedRecords);
+      } catch (err) {
+        setErrorMsg(
+          err?.response?.data?.message || "Unable to complete session."
+        );
+      } finally {
+        setCompleting(false);
+      }
+    });
+  }, [
+    stopListening,
+    sessionRecords,
+    currentQuestion,
+    questionNumber,
+    evaluation,
+    speakText,
+    interviewId,
+    localUserId,
+    fetchHistory,
+    handleOpenReport
+  ]);
 
   const handleNextQuestion = useCallback(async () => {
-    if (!interviewId) return;
     stopListening();
     setLoadingNext(true);
     setErrorMsg("");
 
     try {
-      const res = await api.get(`/api/interview/next/${interviewId}`);
-      if (res.data?.completed) {
-        await handleCompleteInterview();
-        return;
+      const nextNum = questionNumber + 1;
+      let nextQ = "";
+
+      if (interviewId && !String(interviewId).startsWith("groq-")) {
+        try {
+          const res = await api.get(`/api/interview/next/${interviewId}`, {
+            params: localUserId ? { studentId: localUserId } : {}
+          });
+          if (res.data?.completed) {
+            await handleCompleteInterview();
+            return;
+          }
+          nextQ = res.data?.question || "";
+        } catch {
+          // fallback to Groq below
+        }
       }
 
-      const nextQ = res.data?.question || "";
-      const nextNum = Number(res.data?.questionNumber) || questionNumber + 1;
+      if (!nextQ) {
+        nextQ = await generateGroqInterviewQuestion({
+          qNum: nextNum,
+          prevList: sessionRecords
+        });
+      }
+
       setCurrentQuestion(nextQ);
       setQuestionNumber(nextNum);
       setAnswer("");
@@ -917,36 +1303,90 @@ export const AiInterview = ({ user: propUser }) => {
       });
     } catch (err) {
       setErrorMsg(
-        err?.response?.data?.message || "Unable to generate next question."
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to generate next question."
       );
     } finally {
       setLoadingNext(false);
     }
   }, [
-    interviewId,
     stopListening,
     questionNumber,
+    interviewId,
+    localUserId,
+    handleCompleteInterview,
+    sessionRecords,
     speakText,
     startVoiceRecognition
   ]);
 
-  // When user stops speaking and 5..4..3..2..1 finishes: say thank you for what they told & move to next question
+  // When user stops speaking and 5..4..3..2..1 finishes:
+  // If on last question -> say "Now submitting" & auto-submit; else -> say thank you & go next
   useEffect(() => {
     advanceAfterSilenceRef.current = async () => {
+      if (questionNumber >= totalQuestions) {
+        await handleCompleteInterview();
+        return;
+      }
+
       const spokenAnswer = answerRef.current.trim();
       const thankLine = spokenAnswer
         ? "Thank you for what you told me. Moving to the next question."
         : "Thank you. Moving to the next question.";
 
       speakText(thankLine, async () => {
-        if (questionNumber < totalQuestions) {
-          await handleNextQuestion();
-        } else {
-          await handleCompleteInterview();
-        }
+        await handleNextQuestion();
       });
     };
-  }, [speakText, questionNumber, totalQuestions, handleNextQuestion]);
+  }, [questionNumber, totalQuestions, handleCompleteInterview, speakText, handleNextQuestion]);
+
+  // AI Proctoring: Tab switch warning on 1st switch, terminate on 2nd switch
+  // Note: Do NOT display termination timing or how many switches remain
+  useEffect(() => {
+    if (view !== "interview") return;
+
+    const triggerProctorViolation = () => {
+      const now = Date.now();
+      if (now - lastViolationTsRef.current < 1200) return;
+      lastViolationTsRef.current = now;
+
+      tabSwitchCountRef.current += 1;
+
+      if (tabSwitchCountRef.current === 1) {
+        const warnText =
+          "AI Proctor Warning: Tab switching is not allowed during the interview. Please stay on this interview screen.";
+        setProctorWarningMsg(warnText);
+        speakText(warnText);
+      } else {
+        stopListening();
+        stopCandidateCamera();
+        const termMsg =
+          "Session terminated due to repeated tab switching detected by AI Proctor.";
+        setProctorWarningMsg(termMsg);
+        setView("terminated");
+        speakText(termMsg);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        triggerProctorViolation();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      triggerProctorViolation();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [view, speakText, stopListening, stopCandidateCamera]);
 
   const progressPercent = useMemo(() => {
     if (!totalQuestions) return 0;
@@ -957,6 +1397,11 @@ export const AiInterview = ({ user: propUser }) => {
     );
   }, [questionNumber, totalQuestions, evaluation]);
 
+  const activeModeToggle =
+    view === "viva" || interviewType === "Student Viva"
+      ? "Student Viva"
+      : "English AI Interview";
+
   return (
     <div style={styles.page}>
       <style>{`
@@ -965,20 +1410,41 @@ export const AiInterview = ({ user: propUser }) => {
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes micPulse {
-          0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
-          70% { box-shadow: 0 0 0 14px rgba(220, 38, 38, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+          0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+          70% { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        @keyframes waveBounce {
+          0%, 100% { transform: scaleY(0.45); }
+          50% { transform: scaleY(1.35); }
+        }
+        @keyframes robotFloat {
+          0%, 100% { transform: translateY(0px) rotateY(-4deg); }
+          50% { transform: translateY(-6px) rotateY(4deg); }
+        }
+        @keyframes robotTalk {
+          0%, 100% { transform: translateY(0px) scale(1); }
+          50% { transform: translateY(-4px) scale(1.03); }
+        }
+        @keyframes mouthSpeak {
+          0%, 100% { height: 6px; width: 26px; border-radius: 6px; }
+          50% { height: 15px; width: 20px; border-radius: 10px; }
         }
         .ssc-card-anim { animation: fadeSlideUp 0.45s ease-out both; }
         .ssc-mic-active { animation: micPulse 1.5s infinite; }
+        .ssc-wave-bar-active { animation: waveBounce 0.75s ease-in-out infinite; }
+        .ssc-robot-float { animation: robotFloat 3s ease-in-out infinite; }
+        .ssc-robot-talk { animation: robotTalk 0.5s ease-in-out infinite; }
+        .ssc-mouth-speak { animation: mouthSpeak 0.28s ease-in-out infinite; }
       `}</style>
 
       <div style={styles.container}>
-        {/* Top Header + SmartBot Eye */}
+        {/* Top Header */}
         <header style={styles.header} className="ssc-card-anim">
           <div style={{ flex: 1, minWidth: "260px" }}>
             <div style={styles.brandBadgeRow}>
               <span style={styles.pill}>🎓 Smart Students Classes</span>
+              <span style={styles.proctorPill}>🛡️ AI Proctored</span>
               {isAuthenticated && studentName && (
                 <span style={styles.studentChip}>
                   ✓ {studentName} • {studentClass}
@@ -988,33 +1454,42 @@ export const AiInterview = ({ user: propUser }) => {
                 <span style={styles.speakingTag}>🔊 SmartBot Speaking...</span>
               )}
             </div>
-            <h1 style={styles.title}>SmartBot AI Interview &amp; Viva</h1>
+            <h1 style={styles.title}>SmartBot AI Interview</h1>
             <p style={styles.subtitle}>
               {getTimeGreeting()} — Hello, I am SmartBot, I will take this{" "}
-              <strong>{interviewType}</strong>.
+              <strong>{activeModeToggle}</strong>.
             </p>
           </div>
 
-          <SmartRobotEye
-            pupilOffset={pupilOffset}
-            isListening={Boolean(listeningMode)}
-            isSpeaking={isSpeaking}
-            countdown={silenceCountdown}
-          />
-
           <div style={styles.navButtons}>
-            <select
-              aria-label="Select Interview or Student Viva"
-              value={view === "viva" ? "Student Viva" : interviewType}
-              onChange={(e) => handleSessionModeSelect(e.target.value)}
-              style={styles.selectNav}
-            >
-              {SESSION_MODES.map((mode) => (
-                <option key={mode} value={mode}>
-                  {mode}
-                </option>
-              ))}
-            </select>
+            {/* Only 2 Mode Toggles: English AI Interview & Student Viva */}
+            <div style={styles.modeToggleGroup} role="group" aria-label="Mode Toggle">
+              <button
+                type="button"
+                onClick={() => handleToggleMode("English AI Interview")}
+                style={{
+                  ...styles.toggleBtn,
+                  ...(activeModeToggle === "English AI Interview"
+                    ? styles.toggleBtnActive
+                    : {})
+                }}
+              >
+                English AI Interview
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleMode("Student Viva")}
+                style={{
+                  ...styles.toggleBtn,
+                  ...(activeModeToggle === "Student Viva"
+                    ? styles.toggleBtnVivaActive
+                    : {})
+                }}
+              >
+                Student Viva
+              </button>
+            </div>
 
             <button
               type="button"
@@ -1055,7 +1530,6 @@ export const AiInterview = ({ user: propUser }) => {
               onClick={() => {
                 setErrorMsg("");
                 setView("dashboard");
-                fetchHistory();
               }}
               style={{
                 ...styles.navBtn,
@@ -1083,406 +1557,472 @@ export const AiInterview = ({ user: propUser }) => {
             <button
               type="button"
               onClick={() => setFloatingReportOpen((prev) => !prev)}
-              style={styles.navBtn}
+              style={{
+                ...styles.navBtn,
+                ...(floatingReportOpen ? styles.reportBtnActive : {})
+              }}
             >
-              {floatingReportOpen ? "Hide Report" : "Show Report"}
+              {floatingReportOpen ? "Hide Report" : "Live Report"}
             </button>
           </div>
         </header>
 
+        {proctorWarningMsg && view === "interview" && (
+          <div style={styles.proctorWarningBanner} role="alert">
+            <span>🛡️ {proctorWarningMsg}</span>
+          </div>
+        )}
+
         {errorMsg && (
-          <div role="alert" style={styles.errorBox}>
+          <div style={styles.errorBanner} role="alert">
             <span>⚠️ {errorMsg}</span>
             <button
               type="button"
               onClick={() => setErrorMsg("")}
-              style={styles.errorDismiss}
+              style={styles.dismissBtn}
             >
-              Close
+              Dismiss
             </button>
           </div>
         )}
 
-        {/* RENDERED STUDENT VIVA PAGE WHEN SELECTED IN DROPDOWN */}
+        {/* STUDENT VIVA VIEW (Separate component) */}
         {view === "viva" && (
-          <section style={styles.sectionCard} className="ssc-card-anim">
+          <section className="ssc-card-anim" style={styles.vivaShell}>
             <div style={styles.vivaTopBar}>
               <div>
-                <span style={styles.pill}>SmartBot Viva Mode</span>
-                <h2 style={{ ...styles.sectionTitle, marginTop: "6px" }}>
-                  Student Viva Portal
-                </h2>
+                <span style={styles.vivaBadge}>Separate Viva Module</span>
+                <h2 style={styles.vivaHeading}>Student Viva</h2>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setInterviewType("General English Interview");
-                  setView("setup");
-                }}
-                style={styles.navBtn}
+                onClick={() => handleToggleMode("English AI Interview")}
+                style={styles.secondaryBtn}
               >
-                ← Back to AI Interview Setup
+                ← Back to English AI Interview
               </button>
             </div>
-            <StudentViva />
+            <StudentViva
+              userId={localUserId}
+              studentName={studentName || localExpectedName}
+              studentClass={studentClass || localExpectedClass}
+            />
           </section>
         )}
 
-        {/* STEP 1: GREETING + SMARTBOT INTRO + NAME VERIFICATION */}
-        {view === "welcome" && (
-          <div style={styles.welcomeCard} className="ssc-card-anim">
-            <div style={styles.welcomeGrid}>
-              <div style={styles.welcomeHero}>
-                <div style={styles.liveTag}>
-                  <span style={styles.liveDot} /> {getTimeGreeting().toUpperCase()} • SMARTBOT READY
-                </div>
-                <h2 style={styles.welcomeHeading}>
-                  Hello, I am <span style={styles.welcomeHighlight}>SmartBot</span>
-                </h2>
-                <p style={styles.welcomeText}>
-                  I will take this <strong>{interviewType}</strong>. Speak your name to verify your profile, select your interview type, and I will listen as you answer.
-                </p>
-
-                <div style={styles.aiPreviewBox}>
-                  <div style={styles.aiAvatar}>🤖</div>
-                  <div>
-                    <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
-                      SmartBot Intro &amp; Status
-                    </div>
-                    <div style={{ color: "#475569", fontSize: "12.5px", marginTop: "3px" }}>
-                      {authStatusMsg}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={styles.voiceVerifyBox}>
-                <h3 style={styles.formHeading}>Speak Your Name to Begin</h3>
-                <p style={styles.formSub}>
-                  Local Profile Name:{" "}
-                  <strong>{localExpectedName || "Not set in local user object"}</strong>
-                </p>
-
-                <div style={{ marginBottom: "10px" }}>
-                  <label htmlFor="sscModeSelectWelcome" style={styles.label}>
-                    Select Type (Interview / Student Viva)
-                  </label>
-                  <select
-                    id="sscModeSelectWelcome"
-                    value={interviewType}
-                    onChange={(e) => handleSessionModeSelect(e.target.value)}
-                    style={styles.textInput}
-                  >
-                    {SESSION_MODES.map((mode) => (
-                      <option key={mode} value={mode}>
-                        {mode}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: "10px" }}>
-                  <label htmlFor="sscClassSelect" style={styles.label}>
-                    Class
-                  </label>
-                  <select
-                    id="sscClassSelect"
-                    value={studentClass}
-                    onChange={(e) => setStudentClass(e.target.value)}
-                    style={styles.textInput}
-                  >
-                    {STUDENT_CLASSES.map((cls) => (
-                      <option key={cls} value={cls}>
-                        {cls}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={styles.micCenterBlock}>
-                  {listeningMode === "name" ? (
-                    <button
-                      type="button"
-                      onClick={stopListening}
-                      style={styles.stopMicBtn}
-                      className="ssc-mic-active"
-                    >
-                      🛑 Listening Name... Tap to Stop
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => startVoiceRecognition("name")}
-                      style={styles.bigMicBtn}
-                    >
-                      🎤 Speak Your Name Now
-                    </button>
-                  )}
-                </div>
-
-                {spokenNameRaw && (
-                  <div style={styles.heardBox}>
-                    <span>
-                      Heard: <strong>&ldquo;{spokenNameRaw}&rdquo;</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => verifySpokenName(spokenNameRaw)}
-                      style={styles.smallVerifyBtn}
-                    >
-                      Verify Now
-                    </button>
-                  </div>
-                )}
-
-                {isAuthenticated && (
-                  <button
-                    type="button"
-                    onClick={() => setView("setup")}
-                    style={styles.primaryBtn}
-                  >
-                    Continue to Type Selection →
-                  </button>
-                )}
-              </div>
+        {/* TERMINATED BY AI PROCTOR */}
+        {view === "terminated" && (
+          <section style={styles.terminatedCard} className="ssc-card-anim">
+            <div style={styles.terminatedBadge}>🛡️ AI Proctor Alert</div>
+            <h2 style={styles.terminatedTitle}>Interview Session Terminated</h2>
+            <p style={styles.terminatedText}>
+              {proctorWarningMsg ||
+                "Your session was ended due to repeated tab switching."}
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setView("setup")}
+                style={styles.primaryBtn}
+              >
+                Return to Setup
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setView("history");
+                  fetchHistory();
+                }}
+                style={styles.secondaryBtn}
+              >
+                View History
+              </button>
             </div>
-          </div>
+          </section>
         )}
 
-        {/* STEP 2: SELECT INTERVIEW / VIVA TYPE ONCE VERIFIED */}
-        {view === "setup" && (
-          <section style={styles.sectionCard} className="ssc-card-anim">
-            <h2 style={styles.sectionTitle}>Select Your Interview / Viva Type</h2>
-            <p style={styles.sectionSub}>
-              SmartBot will adapt to <strong>{interviewType}</strong> for{" "}
-              <strong>{studentName || "Student"}</strong> ({studentClass}).
+        {/* WELCOME SCREEN */}
+        {view === "welcome" && (
+          <section style={styles.welcomeCard} className="ssc-card-anim">
+            <div style={styles.welcomeBadge}>
+              {getTimeGreeting()} • SmartBot Voice Verification
+            </div>
+            <h2 style={styles.welcomeTitle}>
+              Hello, I am SmartBot, I will take this {activeModeToggle}.
+            </h2>
+            <p style={styles.welcomeText}>
+              Tap the microphone button and speak your name to verify against your
+              account ({localExpectedName || "Local Profile"}
+              {localUserId ? ` • ID: ${localUserId}` : ""}).
             </p>
 
-            <form onSubmit={handleStartSubmit} style={styles.formStack}>
-              <div>
-                <label htmlFor="sscSetupTypeSelect" style={styles.label}>
-                  Choose Session Type
-                </label>
-                <select
-                  id="sscSetupTypeSelect"
-                  value={interviewType}
-                  onChange={(e) => {
-                    const nextType = e.target.value;
-                    setInterviewType(nextType);
-                    speakText(
-                      `${nextType} selected. Hello, I am SmartBot, I will take this ${nextType}.`
-                    );
-                  }}
-                  style={styles.textInput}
+            <div style={styles.statusBox}>{authStatusMsg}</div>
+
+            <div style={styles.classSelectRow}>
+              <label htmlFor="welcome-class-select" style={styles.label}>
+                Student Class
+              </label>
+              <select
+                id="welcome-class-select"
+                value={studentClass}
+                onChange={(e) => setStudentClass(e.target.value)}
+                style={styles.select}
+              >
+                {STUDENT_CLASSES.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.voiceVerifyCenter}>
+              <button
+                type="button"
+                onClick={() =>
+                  listeningMode === "name"
+                    ? stopListening()
+                    : startVoiceRecognition("name")
+                }
+                className={listeningMode === "name" ? "ssc-mic-active" : ""}
+                style={{
+                  ...styles.bigMicBtn,
+                  backgroundColor: listeningMode === "name" ? "#dc2626" : "#2563eb"
+                }}
+              >
+                {listeningMode === "name"
+                  ? "🛑 Listening... Tap to Stop"
+                  : "🎤 Speak Your Name to Verify"}
+              </button>
+
+              {spokenNameRaw && (
+                <div style={styles.transcriptPill}>
+                  Heard: <strong>&ldquo;{spokenNameRaw}&rdquo;</strong>
+                </div>
+              )}
+
+              {localExpectedName && (
+                <button
+                  type="button"
+                  onClick={() => verifySpokenName(localExpectedName)}
+                  style={styles.linkBtn}
                 >
-                  {SESSION_MODES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  Quick Verify as {localExpectedName}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
 
-              <div>
-                <label style={styles.label}>Quick Mode Chips</label>
-                <div style={styles.chipRow}>
-                  {SESSION_MODES.map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => {
-                        setInterviewType(type);
-                        if (type === "Student Viva") {
-                          setView("viva");
-                        }
-                      }}
-                      style={{
-                        ...styles.optionChip,
-                        ...(interviewType === type ? styles.optionChipActive : {})
-                      }}
-                    >
-                      {type}
-                    </button>
-                  ))}
+        {/* DASHBOARD VIEW */}
+        {view === "dashboard" && (
+          <section className="ssc-card-anim">
+            <div style={styles.statsGrid}>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Total Interviews</div>
+                <div style={styles.statValue}>{dashboardStats.totalInterviews}</div>
+                <div style={styles.statHint}>Completed interview records</div>
+              </div>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Average Score</div>
+                <div style={styles.statValue}>{dashboardStats.averageScore}</div>
+                <div style={styles.statHint}>Out of 100 points</div>
+              </div>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Best Score</div>
+                <div style={styles.statValue}>{dashboardStats.bestScore}</div>
+                <div style={styles.statHint}>Highest achieved score</div>
+              </div>
+            </div>
+
+            <div style={styles.card}>
+              <div style={styles.dashActionsHeader}>
+                <div>
+                  <h2 style={styles.cardTitle}>Ready for Your Next AI Interview?</h2>
+                  <p style={styles.cardSubtitle}>
+                    AI proctored session with live 3D SmartBot and auto-listening.
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      setView("welcome");
+                    } else {
+                      setView("setup");
+                    }
+                  }}
+                  style={styles.primaryBtn}
+                >
+                  + Start New Interview
+                </button>
               </div>
+            </div>
+          </section>
+        )}
 
-              <div>
+        {/* SETUP VIEW */}
+        {view === "setup" && (
+          <section style={styles.card} className="ssc-card-anim">
+            <h2 style={styles.cardTitle}>Configure English AI Interview</h2>
+            <p style={styles.cardSubtitle}>
+              {getTimeGreeting()},{" "}
+              <strong>{studentName || localExpectedName || "Student"}</strong>! Select
+              difficulty and question count.
+            </p>
+
+            <form onSubmit={handleStartSubmit} style={styles.form}>
+              <div style={styles.formGroup}>
                 <label style={styles.label}>Difficulty Level</label>
-                <div style={styles.chipRow}>
-                  {LEVELS.map((lvl) => (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => setLevel(lvl)}
-                      style={{
-                        ...styles.optionChip,
-                        ...(level === lvl ? styles.optionChipActive : {})
-                      }}
-                    >
-                      {lvl}
-                    </button>
-                  ))}
+                <div style={styles.segmentedRow}>
+                  {LEVELS.map((lvl) => {
+                    const active = level === lvl;
+                    return (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setLevel(lvl)}
+                        style={{
+                          ...styles.segmentBtn,
+                          ...(active ? styles.segmentBtnActive : {})
+                        }}
+                      >
+                        {lvl}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div>
+              <div style={styles.formGroup}>
                 <label style={styles.label}>Number of Questions</label>
-                <div style={styles.chipRow}>
-                  {QUESTION_COUNTS.map((cnt) => (
-                    <button
-                      key={cnt}
-                      type="button"
-                      onClick={() => setTotalQuestions(cnt)}
-                      style={{
-                        ...styles.optionChip,
-                        ...(totalQuestions === cnt ? styles.optionChipActive : {})
-                      }}
-                    >
-                      {cnt} Questions
-                    </button>
-                  ))}
+                <div style={styles.segmentedRow}>
+                  {QUESTION_COUNTS.map((count) => {
+                    const active = totalQuestions === count;
+                    return (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() => setTotalQuestions(count)}
+                        style={{
+                          ...styles.segmentBtn,
+                          ...(active ? styles.segmentBtnActive : {})
+                        }}
+                      >
+                        {count} Questions
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div style={styles.actionRow}>
+              <div style={styles.submitRow}>
                 <button
                   type="submit"
                   disabled={starting}
-                  style={styles.primaryBtn}
+                  style={{
+                    ...styles.primaryBtn,
+                    opacity: starting ? 0.7 : 1,
+                    cursor: starting ? "not-allowed" : "pointer"
+                  }}
                 >
-                  {starting
-                    ? "Starting with SmartBot..."
-                    : `🎙️ Start ${interviewType}`}
+                  {starting ? "Starting..." : "Start Proctored Interview"}
                 </button>
               </div>
             </form>
           </section>
         )}
 
-        {/* STEP 3: LIVE INTERVIEW / VIVA WITH SILENCE COUNTDOWN 5..4..3..2..1 */}
+        {/* ACTIVE AI PROCTORED 2-SCREEN SPLIT INTERVIEW VIEW */}
         {view === "interview" && (
-          <section style={styles.sectionCard} className="ssc-card-anim">
-            <div style={styles.progressHeader}>
-              <span style={styles.qBadge}>
-                Question {questionNumber} of {totalQuestions}
-              </span>
-              <span style={styles.qMeta}>
-                {interviewType} • {level}
-              </span>
-            </div>
-
-            <div style={styles.progressTrack}>
-              <div
-                style={{
-                  ...styles.progressFill,
-                  width: `${progressPercent}%`
-                }}
-              />
-            </div>
-
-            {silenceCountdown !== null && (
-              <div style={styles.countdownBanner}>
-                ⏳ Silence detected — moving to next question in{" "}
-                <strong>{silenceCountdown}</strong>...
+          <section style={styles.card} className="ssc-card-anim">
+            <div style={styles.progressSection}>
+              <div style={styles.progressMeta}>
+                <span>
+                  Question <strong>{questionNumber}</strong> of{" "}
+                  <strong>{totalQuestions}</strong>
+                </span>
+                <span>
+                  English AI Interview • {level} • 🛡️ AI Proctored
+                </span>
               </div>
-            )}
+              <div style={styles.progressTrack}>
+                <div
+                  style={{
+                    ...styles.progressFill,
+                    width: `${progressPercent}%`
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 2-Screen Split: Left = Candidate Giving Interview, Right = 3D Talking Robot */}
+            <div style={styles.splitScreenGrid}>
+              <div style={styles.candidateScreenPane}>
+                <div style={styles.splitPaneHeader}>
+                  <span style={styles.paneTagLive}>● CANDIDATE</span>
+                  <span style={styles.paneNameText}>
+                    {studentName || localExpectedName || "Candidate"} ({studentClass})
+                  </span>
+                </div>
+                <div style={styles.candidateFeedBox}>
+                  <video
+                    ref={candidateVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{
+                      ...styles.candidateVideo,
+                      display: cameraReady ? "block" : "none"
+                    }}
+                  />
+                  {!cameraReady && (
+                    <div style={styles.candidateFallbackBox}>
+                      <div style={styles.candidateAvatarCircle}>
+                        {(studentName || localExpectedName || "S").charAt(0).toUpperCase()}
+                      </div>
+                      <div style={styles.candidateFallbackName}>
+                        {studentName || localExpectedName || "Candidate"}
+                      </div>
+                      <div style={styles.candidateFallbackSub}>
+                        Giving live interview • {level}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={styles.robotScreenPane}>
+                <Smart3DRobotStage
+                  pupilOffset={pupilOffset}
+                  isListening={listeningMode === "answer"}
+                  isSpeaking={isSpeaking}
+                  countdown={silenceCountdown}
+                />
+              </div>
+            </div>
+
+            {/* Center Listening Mic + Live Waves */}
+            <CenterListeningWaves
+              isListening={listeningMode === "answer"}
+              countdown={silenceCountdown}
+              onToggleMic={() =>
+                listeningMode === "answer"
+                  ? stopListening()
+                  : startVoiceRecognition("answer")
+              }
+            />
 
             <div style={styles.questionBox}>
-              <div style={styles.questionTopLine}>
-                <div style={styles.questionLabel}>SmartBot Question</div>
+              <div style={styles.questionHeaderRow}>
+                <span style={styles.qBadge}>Q{questionNumber}</span>
                 <button
                   type="button"
-                  onClick={() => speakText(currentQuestion)}
-                  style={styles.repeatBtn}
+                  onClick={() =>
+                    speakText(`Question ${questionNumber}. ${currentQuestion}`, () => {
+                      startVoiceRecognition("answer");
+                    })
+                  }
+                  style={styles.replayBtn}
                 >
-                  🔊 Repeat Question
+                  🔊 Speak Question
                 </button>
               </div>
               <p style={styles.questionText}>{currentQuestion}</p>
             </div>
 
-            <form onSubmit={handleEvaluateAnswer} style={styles.formStack}>
-              <div>
-                <div style={styles.answerLabelRow}>
-                  <label htmlFor="sscAnswerBox" style={styles.label}>
-                    Your Spoken / Typed Answer
-                  </label>
-                  {listeningMode === "answer" ? (
-                    <button
-                      type="button"
-                      onClick={stopListening}
-                      style={styles.stopAnswerMicBtn}
-                      className="ssc-mic-active"
-                    >
-                      🛑 Stop Listening
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => startVoiceRecognition("answer")}
-                      style={styles.startAnswerMicBtn}
-                    >
-                      🎤 Speak Answer
-                    </button>
-                  )}
-                </div>
-
+            <form onSubmit={handleEvaluateAnswer} style={styles.form}>
+              <div style={styles.formGroup}>
+                <label htmlFor="answer-textarea" style={styles.label}>
+                  Live Spoken Transcript / Answer
+                </label>
                 <textarea
-                  id="sscAnswerBox"
-                  rows={5}
+                  id="answer-textarea"
+                  rows={4}
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="Speak your answer—when you stop speaking, SmartBot counts 5, 4, 3, 2, 1, thanks you, and moves to the next question..."
+                  placeholder="SmartBot is listening automatically after each question..."
                   style={styles.textarea}
-                  disabled={evaluating || Boolean(evaluation)}
                 />
               </div>
 
-              {!evaluation && (
-                <div style={styles.actionRow}>
-                  <button
-                    type="submit"
-                    disabled={evaluating}
-                    style={styles.primaryBtn}
-                  >
-                    {evaluating ? "Evaluating Answer..." : "Evaluate Answer"}
-                  </button>
+              <div style={styles.interviewActions}>
+                <button
+                  type="submit"
+                  disabled={evaluating || !answer.trim()}
+                  style={{
+                    ...styles.primaryBtn,
+                    opacity: evaluating || !answer.trim() ? 0.65 : 1,
+                    cursor:
+                      evaluating || !answer.trim() ? "not-allowed" : "pointer"
+                  }}
+                >
+                  {evaluating ? "Evaluating..." : "Evaluate Answer"}
+                </button>
+
+                {questionNumber < totalQuestions ? (
                   <button
                     type="button"
                     onClick={handleNextQuestion}
                     disabled={loadingNext}
-                    style={styles.navBtn}
+                    style={styles.secondaryBtn}
                   >
-                    {loadingNext ? "Loading..." : "Next Question →"}
+                    {loadingNext ? "Loading Next..." : "Next Question →"}
                   </button>
-                </div>
-              )}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleCompleteInterview}
+                    disabled={completing}
+                    style={styles.successBtn}
+                  >
+                    {completing ? "Submitting..." : "Submit Interview ✓"}
+                  </button>
+                )}
+              </div>
             </form>
 
             {evaluation && (
-              <div style={styles.evalBox}>
-                <h3 style={styles.evalHeading}>SmartBot Feedback &amp; Scores</h3>
+              <div style={styles.evalBox} className="ssc-card-anim">
+                <h3 style={styles.evalTitle}>Answer Evaluation</h3>
 
-                <div style={styles.scoreGrid}>
-                  <ScoreCard label="Grammar" score={evaluation.grammarScore} />
-                  <ScoreCard label="Fluency" score={evaluation.fluencyScore} />
-                  <ScoreCard label="Vocabulary" score={evaluation.vocabularyScore} />
-                  <ScoreCard label="Relevance" score={evaluation.relevanceScore} />
+                <div style={styles.miniScoresGrid}>
+                  <div style={styles.miniScoreCard}>
+                    <div style={styles.miniScoreLabel}>Grammar</div>
+                    <div style={styles.miniScoreNum}>{evaluation.grammarScore}/100</div>
+                  </div>
+                  <div style={styles.miniScoreCard}>
+                    <div style={styles.miniScoreLabel}>Fluency</div>
+                    <div style={styles.miniScoreNum}>{evaluation.fluencyScore}/100</div>
+                  </div>
+                  <div style={styles.miniScoreCard}>
+                    <div style={styles.miniScoreLabel}>Vocabulary</div>
+                    <div style={styles.miniScoreNum}>
+                      {evaluation.vocabularyScore}/100
+                    </div>
+                  </div>
+                  <div style={styles.miniScoreCard}>
+                    <div style={styles.miniScoreLabel}>Relevance</div>
+                    <div style={styles.miniScoreNum}>{evaluation.relevanceScore}/100</div>
+                  </div>
                 </div>
 
                 {evaluation.feedback && (
-                  <p style={styles.feedbackText}>{evaluation.feedback}</p>
+                  <div style={styles.feedbackBlock}>
+                    <strong>Feedback:</strong> {evaluation.feedback}
+                  </div>
                 )}
 
-                {evaluation.mistakes.length > 0 && (
-                  <div style={styles.mistakeList}>
-                    <strong>Areas to Watch:</strong>
-                    <ul style={{ margin: "6px 0 0 18px" }}>
+                {evaluation.mistakes && evaluation.mistakes.length > 0 && (
+                  <div style={styles.mistakesBlock}>
+                    <strong>Areas to Refine:</strong>
+                    <ul style={styles.mistakeList}>
                       {evaluation.mistakes.map((m, idx) => (
-                        <li key={idx}>
-                          <strong>{m.mistake}</strong>
-                          {m.explanation ? ` — ${m.explanation}` : ""}
+                        <li key={idx} style={styles.mistakeItem}>
+                          <span>{m.mistake}</span>
+                          {m.explanation && (
+                            <span style={styles.mistakeTip}> — {m.explanation}</span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -1490,180 +2030,191 @@ export const AiInterview = ({ user: propUser }) => {
                 )}
 
                 {evaluation.improvedAnswer && (
-                  <div style={styles.improvedBox}>
-                    <strong>Improved Sample Answer:</strong>
-                    <p style={{ margin: "4px 0 0" }}>{evaluation.improvedAnswer}</p>
+                  <div style={styles.improvedBlock}>
+                    <strong>Suggested Better Response:</strong>
+                    <p style={styles.improvedText}>{evaluation.improvedAnswer}</p>
                   </div>
                 )}
-
-                <div style={styles.actionRow}>
-                  {questionNumber < totalQuestions ? (
-                    <button
-                      type="button"
-                      onClick={handleNextQuestion}
-                      disabled={loadingNext}
-                      style={styles.primaryBtn}
-                    >
-                      {loadingNext ? "Loading Next..." : "Next Question →"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleCompleteInterview}
-                      disabled={completing}
-                      style={styles.completeBtn}
-                    >
-                      {completing ? "Completing..." : "Complete & View Report"}
-                    </button>
-                  )}
-                </div>
               </div>
             )}
           </section>
         )}
 
-        {/* DASHBOARD VIEW */}
-        {view === "dashboard" && (
-          <section style={styles.sectionCard} className="ssc-card-anim">
-            <div style={styles.sectionTopRow}>
-              <div>
-                <h2 style={styles.sectionTitle}>Student Performance Dashboard</h2>
-                <p style={styles.sectionSub}>
-                  {studentName
-                    ? `Track your progress, ${studentName} (${studentClass}).`
-                    : "Track your AI interview and viva progress."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setErrorMsg("");
-                  setView(isAuthenticated ? "setup" : "welcome");
-                }}
-                style={styles.primaryBtn}
-              >
-                + Start New Session
-              </button>
-            </div>
-
-            <div style={styles.statsGrid}>
-              <div style={styles.statBox}>
-                <div style={styles.statLabel}>Total Sessions</div>
-                <div style={styles.statNumber}>{dashboardStats.totalInterviews}</div>
-              </div>
-              <div style={styles.statBox}>
-                <div style={styles.statLabel}>Average Score</div>
-                <div style={styles.statNumber}>{dashboardStats.averageScore}/100</div>
-              </div>
-              <div style={styles.statBox}>
-                <div style={styles.statLabel}>Best Score</div>
-                <div style={styles.statNumber}>{dashboardStats.bestScore}/100</div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* FULL REPORT VIEW */}
+        {/* REPORT VIEW */}
         {view === "report" && (
-          <section style={styles.sectionCard} className="ssc-card-anim">
-            <h2 style={styles.sectionTitle}>Session Performance Report</h2>
+          <section className="ssc-card-anim">
             {loadingReport ? (
-              <p style={styles.mutedText}>Generating your report...</p>
+              <div style={styles.card}>Loading your performance report...</div>
             ) : reportData ? (
-              <div style={styles.formStack}>
-                <div style={styles.overallBanner}>
+              <>
+                <div style={styles.reportHero}>
                   <div>
-                    <div style={{ fontSize: "12px", color: "#475569", fontWeight: 700 }}>
-                      OVERALL SCORE
+                    <div style={styles.reportTag}>
+                      {reportData.interviewType} • {reportData.level}
                     </div>
-                    <div style={styles.overallScoreBig}>
-                      {reportData.overallScore} / 100
-                    </div>
+                    <h2 style={styles.reportHeading}>Performance Summary Report</h2>
+                    <p style={styles.reportSub}>
+                      Candidate: <strong>{studentName || localExpectedName || "Student"}</strong>
+                    </p>
                   </div>
-                  <div style={{ textAlign: "right", fontSize: "13px", color: "#334155" }}>
-                    <div>
-                      <strong>Type:</strong> {reportData.interviewType}
-                    </div>
-                    <div>
-                      <strong>Level:</strong> {reportData.level}
-                    </div>
+                  <div style={styles.overallCircle}>
+                    <div style={styles.overallNum}>{reportData.overallScore}</div>
+                    <div style={styles.overallDenom}>/ 100</div>
                   </div>
                 </div>
 
-                <div style={styles.scoreGrid}>
+                <div style={styles.scoresGrid}>
                   <ScoreCard label="Grammar" score={reportData.grammarScore} />
                   <ScoreCard label="Fluency" score={reportData.fluencyScore} />
                   <ScoreCard label="Vocabulary" score={reportData.vocabularyScore} />
                   <ScoreCard label="Relevance" score={reportData.relevanceScore} />
                 </div>
 
-                <div style={styles.reportBlock}>
-                  <strong>Strengths</strong>
-                  <ul style={{ margin: "6px 0 0 18px" }}>
-                    {reportData.strengths.map((s, i) => (
-                      <li key={i}>{s}</li>
+                <div style={styles.twoColGrid}>
+                  <div style={styles.card}>
+                    <h3 style={styles.sectionHeading}>Strengths</h3>
+                    <ul style={styles.bulletList}>
+                      {reportData.strengths.map((item, idx) => (
+                        <li key={idx} style={styles.bulletItem}>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div style={styles.card}>
+                    <h3 style={styles.sectionHeading}>Areas for Improvement</h3>
+                    {reportData.areasForImprovement.length > 0 ? (
+                      <ul style={styles.bulletList}>
+                        {reportData.areasForImprovement.map((item, idx) => (
+                          <li key={idx} style={styles.bulletItem}>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={styles.mutedText}>
+                        Strong performance across all evaluated skills.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div style={styles.card}>
+                  <h3 style={styles.sectionHeading}>Actionable Suggestions</h3>
+                  <ul style={styles.bulletList}>
+                    {reportData.suggestions.map((tip, idx) => (
+                      <li key={idx} style={styles.bulletItem}>
+                        {tip}
+                      </li>
                     ))}
                   </ul>
                 </div>
 
-                <div style={styles.reportBlock}>
-                  <strong>Actionable Tips</strong>
-                  <ul style={{ margin: "6px 0 0 18px" }}>
-                    {reportData.suggestions.map((tip, i) => (
-                      <li key={i}>{tip}</li>
-                    ))}
-                  </ul>
+                <div style={styles.card}>
+                  <h3 style={styles.sectionHeading}>Question-by-Question Breakdown</h3>
+                  {reportData.answers && reportData.answers.length > 0 ? (
+                    <div style={styles.qaList}>
+                      {reportData.answers.map((row, idx) => (
+                        <div key={row.id || idx} style={styles.qaCard}>
+                          <div style={styles.qaQuestion}>
+                            Q{row.question_number || idx + 1}: {row.question}
+                          </div>
+                          <div style={styles.qaAnswer}>
+                            <strong>Your Answer:</strong> {row.student_answer || row.answer}
+                          </div>
+                          {row.feedback && (
+                            <div style={styles.qaFeedback}>
+                              <strong>Feedback:</strong> {row.feedback}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={styles.mutedText}>
+                      Detailed question answers will appear here once recorded.
+                    </p>
+                  )}
                 </div>
-
-                <div style={styles.actionRow}>
-                  <button
-                    type="button"
-                    onClick={() => setView("setup")}
-                    style={styles.primaryBtn}
-                  >
-                    Start Another Session
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p style={styles.mutedText}>No report available yet.</p>
-            )}
+              </>
+            ) : null}
           </section>
         )}
 
         {/* HISTORY VIEW */}
         {view === "history" && (
-          <section style={styles.sectionCard} className="ssc-card-anim">
-            <h2 style={styles.sectionTitle}>Past Sessions</h2>
+          <section style={styles.card} className="ssc-card-anim">
+            <div style={styles.historyHeader}>
+              <div>
+                <h2 style={styles.cardTitle}>Past Interviews</h2>
+                <p style={styles.cardSubtitle}>
+                  Review your previous AI interview attempts.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setView(isAuthenticated ? "setup" : "welcome")}
+                style={styles.primaryBtn}
+              >
+                + Start Interview
+              </button>
+            </div>
+
             {loadingHistory ? (
-              <p style={styles.mutedText}>Loading session history...</p>
+              <p style={styles.mutedText}>Loading history...</p>
             ) : history.length === 0 ? (
-              <p style={styles.mutedText}>No past sessions found yet.</p>
+              <div style={styles.emptyHistory}>
+                <p style={styles.mutedText}>No past interviews found yet.</p>
+                <button
+                  type="button"
+                  onClick={() => setView(isAuthenticated ? "setup" : "welcome")}
+                  style={styles.primaryBtn}
+                >
+                  Start First Interview
+                </button>
+              </div>
             ) : (
               <div style={styles.historyList}>
                 {history.map((item, idx) => {
-                  const id = item.id ?? item.interviewId ?? idx;
-                  const score = item.overall_score ?? item.overallScore ?? "—";
+                  const scoreVal = item.overall_score ?? item.overallScore;
+                  const typeVal =
+                    item.interview_type || item.interviewType || "English AI Interview";
+                  const dateRaw = item.created_at || item.createdAt;
+                  const formattedDate = dateRaw
+                    ? new Date(dateRaw).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric"
+                      })
+                    : "Recent";
+
                   return (
-                    <div key={id} style={styles.historyRow}>
+                    <div key={item.id || idx} style={styles.historyItem}>
                       <div>
-                        <div style={{ fontWeight: 700, color: "#0f172a" }}>
-                          {item.interview_type || item.interviewType || "Session"} •{" "}
-                          {item.level || "Beginner"}
+                        <div style={styles.historyTitle}>
+                          {typeVal} •{" "}
+                          <span style={styles.levelTag}>{item.level || "Beginner"}</span>
                         </div>
-                        <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
-                          Score: <strong>{score}</strong>
+                        <div style={styles.historyMeta}>
+                          {formattedDate} • Status: {item.status || "Completed"}
                         </div>
                       </div>
-                      {item.id && (
+
+                      <div style={styles.historyRight}>
+                        <div style={styles.historyScore}>
+                          {scoreVal !== undefined && scoreVal !== null
+                            ? `${Number(scoreVal).toFixed(1)}/100`
+                            : "—"}
+                        </div>
                         <button
                           type="button"
                           onClick={() => handleOpenReport(item.id)}
-                          style={styles.smallVerifyBtn}
+                          style={styles.viewReportBtn}
                         >
                           View Report
                         </button>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1673,68 +2224,81 @@ export const AiInterview = ({ user: propUser }) => {
         )}
       </div>
 
-      {/* FLOATING REPORT CARD */}
+      {/* FLOATING LIVE / LATEST REPORT DRAWER */}
       {floatingReportOpen && (
-        <aside style={styles.floatingReportBox} aria-label="Floating Report Summary">
+        <aside style={styles.floatingReportBox} className="ssc-card-anim">
           <div style={styles.floatingHeader}>
             <div>
-              <div style={{ fontSize: "13px", fontWeight: 800, color: "#1e3a8a" }}>
-                📄 Live / Latest Report
-              </div>
-              <div style={{ fontSize: "11px", color: "#475569" }}>
-                {interviewType} • Q{questionNumber}/{totalQuestions}
+              <div style={styles.floatingTitle}>📄 Live / Latest Report</div>
+              <div style={styles.floatingSub}>
+                {studentName || localExpectedName || "Student"} • Q{questionNumber}/
+                {totalQuestions}
               </div>
             </div>
             <button
               type="button"
               onClick={() => setFloatingReportOpen(false)}
               style={styles.floatingCloseBtn}
-              aria-label="Close floating report"
+              title="Minimize Report"
             >
               ✕
             </button>
           </div>
 
-          <div style={styles.floatingBody}>
-            {reportData ? (
-              <>
-                <div style={styles.floatingScoreRow}>
-                  <span>Overall Score</span>
-                  <strong>{reportData.overallScore} / 100</strong>
+          {evaluation ? (
+            <div style={styles.floatingBody}>
+              <div style={styles.floatingMiniGrid}>
+                <div style={styles.floatingStat}>
+                  <span>Grammar</span>
+                  <strong>{evaluation.grammarScore}</strong>
                 </div>
-                <div style={styles.floatingMetrics}>
-                  <span>Grammar: {reportData.grammarScore}</span>
-                  <span>Fluency: {reportData.fluencyScore}</span>
-                  <span>Vocab: {reportData.vocabularyScore}</span>
-                  <span>Relevance: {reportData.relevanceScore}</span>
+                <div style={styles.floatingStat}>
+                  <span>Fluency</span>
+                  <strong>{evaluation.fluencyScore}</strong>
                 </div>
+                <div style={styles.floatingStat}>
+                  <span>Vocab</span>
+                  <strong>{evaluation.vocabularyScore}</strong>
+                </div>
+                <div style={styles.floatingStat}>
+                  <span>Relevance</span>
+                  <strong>{evaluation.relevanceScore}</strong>
+                </div>
+              </div>
+              {evaluation.feedback && (
+                <p style={styles.floatingFeedback}>{evaluation.feedback}</p>
+              )}
+              {interviewId && (
                 <button
                   type="button"
-                  onClick={() => setView("report")}
+                  onClick={() => handleOpenReport(interviewId)}
                   style={styles.floatingFullBtn}
                 >
-                  Open Full Report
+                  Open Full Report →
                 </button>
-              </>
-            ) : evaluation ? (
-              <>
-                <div style={styles.floatingScoreRow}>
-                  <span>Latest Q{questionNumber}</span>
-                  <strong>Evaluated</strong>
-                </div>
-                <div style={styles.floatingMetrics}>
-                  <span>Grammar: {evaluation.grammarScore}</span>
-                  <span>Fluency: {evaluation.fluencyScore}</span>
-                  <span>Vocab: {evaluation.vocabularyScore}</span>
-                  <span>Relevance: {evaluation.relevanceScore}</span>
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: "12px", color: "#64748b" }}>
-                Complete an answer or finish a session to view live report metrics here.
+              )}
+            </div>
+          ) : reportData ? (
+            <div style={styles.floatingBody}>
+              <div style={styles.floatingOverallRow}>
+                <span>Overall Score</span>
+                <strong style={{ fontSize: "18px", color: "#1d4ed8" }}>
+                  {reportData.overallScore}/100
+                </strong>
               </div>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={() => setView("report")}
+                style={styles.floatingFullBtn}
+              >
+                View Full Summary →
+              </button>
+            </div>
+          ) : (
+            <p style={styles.floatingEmpty}>
+              Complete an answer or finish an interview to view live report metrics here.
+            </p>
+          )}
         </aside>
       )}
     </div>
@@ -1743,633 +2307,904 @@ export const AiInterview = ({ user: propUser }) => {
 
 const styles = {
   page: {
-    position: "relative",
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #eff6ff 0%, #eef2ff 50%, #f0fdf4 100%)",
-    color: "#0f172a",
-    padding: "24px 16px 80px",
-    overflowX: "hidden"
+    background: "linear-gradient(135deg, #eff6ff 0%, #f8fafc 45%, #eef2ff 100%)",
+    padding: "28px 16px 90px",
+    fontFamily:
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif",
+    color: "#0f172a"
   },
   container: {
-    position: "relative",
-    zIndex: 1,
-    maxWidth: "1060px",
-    margin: "0 auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: "18px"
+    maxWidth: "1040px",
+    margin: "0 auto"
   },
   header: {
     backgroundColor: "#ffffff",
-    border: "1.5px solid #dbeafe",
-    borderRadius: "16px",
-    padding: "18px 22px",
-    boxShadow: "0 6px 20px rgba(37, 99, 235, 0.07)",
+    borderRadius: "18px",
+    padding: "20px 24px",
+    boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.08)",
+    border: "1px solid #e2e8f0",
     display: "flex",
     flexWrap: "wrap",
-    alignItems: "center",
     justifyContent: "space-between",
-    gap: "14px"
+    alignItems: "center",
+    gap: "16px",
+    marginBottom: "22px"
   },
   brandBadgeRow: {
     display: "flex",
-    flexWrap: "wrap",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: "8px",
     marginBottom: "6px"
   },
   pill: {
-    backgroundColor: "#e0e7ff",
-    color: "#3730a3",
-    padding: "3px 10px",
-    borderRadius: "999px",
-    fontSize: "11.5px",
-    fontWeight: 700
+    display: "inline-block",
+    backgroundColor: "#dbeafe",
+    color: "#1e40af",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "4px 10px",
+    borderRadius: "999px"
+  },
+  proctorPill: {
+    display: "inline-block",
+    backgroundColor: "#fef3c7",
+    color: "#92400e",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "4px 10px",
+    borderRadius: "999px"
   },
   studentChip: {
+    display: "inline-block",
     backgroundColor: "#dcfce7",
-    color: "#15803d",
-    padding: "3px 10px",
-    borderRadius: "999px",
-    fontSize: "11.5px",
-    fontWeight: 700
+    color: "#166534",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "4px 10px",
+    borderRadius: "999px"
   },
   speakingTag: {
-    backgroundColor: "#fef3c7",
-    color: "#b45309",
-    padding: "3px 10px",
-    borderRadius: "999px",
-    fontSize: "11.5px",
-    fontWeight: 700
+    display: "inline-block",
+    backgroundColor: "#e0f2fe",
+    color: "#0369a1",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "4px 10px",
+    borderRadius: "999px"
   },
   title: {
-    margin: 0,
-    fontSize: "23px",
+    margin: "2px 0 4px",
+    fontSize: "24px",
     fontWeight: 800,
     color: "#0f172a"
   },
   subtitle: {
-    margin: "4px 0 0",
-    fontSize: "13px",
+    margin: 0,
+    fontSize: "14px",
     color: "#475569"
-  },
-  robotCard: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    backgroundColor: "#f8fbff",
-    border: "1.5px solid #c7d2fe",
-    borderRadius: "14px",
-    padding: "8px 12px"
-  },
-  robotEyeSocket: {
-    width: "46px",
-    height: "46px",
-    borderRadius: "999px",
-    backgroundColor: "#ffffff",
-    border: "2.5px solid #4f46e5",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    flexShrink: 0
-  },
-  robotIris: {
-    width: "24px",
-    height: "24px",
-    borderRadius: "999px",
-    background: "radial-gradient(circle at 35% 35%, #38bdf8 0%, #2563eb 65%, #1e1b4b 100%)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "transform 0.1s ease-out"
-  },
-  robotPupil: {
-    width: "10px",
-    height: "10px",
-    borderRadius: "999px",
-    backgroundColor: "#0f172a",
-    position: "relative"
-  },
-  robotGlint: {
-    width: "4px",
-    height: "4px",
-    borderRadius: "999px",
-    backgroundColor: "#ffffff",
-    position: "absolute",
-    top: "1px",
-    left: "1px"
-  },
-  robotMeta: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px"
-  },
-  robotNameRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px"
-  },
-  robotNameText: {
-    fontSize: "13px",
-    fontWeight: 800,
-    color: "#1e1b4b"
-  },
-  robotStatusPill: {
-    fontSize: "10.5px",
-    fontWeight: 700,
-    backgroundColor: "#eef2ff",
-    color: "#4338ca",
-    padding: "1px 7px",
-    borderRadius: "999px"
-  },
-  robotSubText: {
-    fontSize: "11px",
-    color: "#64748b"
   },
   navButtons: {
     display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
     gap: "8px",
-    width: "100%",
-    paddingTop: "8px",
-    borderTop: "1px solid #f1f5f9"
+    flexWrap: "wrap",
+    alignItems: "center"
   },
-  selectNav: {
-    height: "36px",
-    padding: "0 10px",
-    borderRadius: "8px",
-    border: "1.5px solid #c7d2fe",
-    backgroundColor: "#eef2ff",
-    color: "#3730a3",
-    fontSize: "12.5px",
+  modeToggleGroup: {
+    display: "inline-flex",
+    backgroundColor: "#e2e8f0",
+    padding: "3px",
+    borderRadius: "12px",
+    gap: "4px"
+  },
+  toggleBtn: {
+    padding: "7px 12px",
+    borderRadius: "9px",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#334155",
     fontWeight: 700,
+    fontSize: "13px",
     cursor: "pointer"
   },
+  toggleBtnActive: {
+    backgroundColor: "#2563eb",
+    color: "#ffffff"
+  },
+  toggleBtnVivaActive: {
+    backgroundColor: "#059669",
+    color: "#ffffff"
+  },
   navBtn: {
-    height: "36px",
-    padding: "0 12px",
-    borderRadius: "8px",
-    border: "1.5px solid #cbd5e1",
-    backgroundColor: "#ffffff",
-    color: "#1e293b",
-    fontSize: "12.5px",
-    fontWeight: 700,
+    padding: "8px 14px",
+    borderRadius: "10px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#f8fafc",
+    color: "#334155",
+    fontWeight: 600,
+    fontSize: "13px",
     cursor: "pointer"
   },
   navBtnActive: {
-    backgroundColor: "#4f46e5",
-    borderColor: "#4f46e5",
-    color: "#ffffff"
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    borderColor: "#2563eb"
   },
   voiceOnBtn: {
-    borderColor: "#86efac",
-    backgroundColor: "#f0fdf4",
-    color: "#15803d"
+    backgroundColor: "#ecfdf5",
+    color: "#047857",
+    borderColor: "#6ee7b7"
   },
-  errorBox: {
-    backgroundColor: "#fff1f2",
-    border: "1.5px solid #fda4af",
-    borderRadius: "12px",
+  reportBtnActive: {
+    backgroundColor: "#eff6ff",
+    color: "#1d4ed8",
+    borderColor: "#93c5fd"
+  },
+  proctorWarningBanner: {
+    backgroundColor: "#fffbeb",
+    border: "1px solid #f59e0b",
+    color: "#92400e",
     padding: "12px 16px",
-    color: "#be123c",
-    fontSize: "13px",
-    fontWeight: 600,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "12px"
+    borderRadius: "12px",
+    marginBottom: "16px",
+    fontSize: "14px",
+    fontWeight: 700
   },
-  errorDismiss: {
-    border: "1px solid #fda4af",
-    backgroundColor: "#ffffff",
-    color: "#be123c",
-    borderRadius: "6px",
-    padding: "4px 10px",
-    fontSize: "12px",
+  errorBanner: {
+    backgroundColor: "#fef2f2",
+    border: "1px solid #fecaca",
+    color: "#b91c1c",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    marginBottom: "18px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontSize: "14px",
+    fontWeight: 500
+  },
+  dismissBtn: {
+    background: "transparent",
+    border: "none",
+    color: "#991b1b",
     fontWeight: 700,
-    cursor: "pointer"
+    cursor: "pointer",
+    textDecoration: "underline"
+  },
+  vivaShell: {
+    backgroundColor: "#ffffff",
+    borderRadius: "18px",
+    padding: "20px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.08)"
   },
   vivaTopBar: {
     display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: "12px",
-    marginBottom: "14px",
-    paddingBottom: "12px",
+    paddingBottom: "14px",
+    marginBottom: "16px",
     borderBottom: "1px solid #e2e8f0"
   },
-  welcomeCard: {
-    backgroundColor: "#ffffff",
-    border: "1.5px solid #dbeafe",
-    borderRadius: "16px",
-    padding: "24px",
-    boxShadow: "0 6px 20px rgba(37, 99, 235, 0.07)"
-  },
-  welcomeGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
-    gap: "24px",
-    alignItems: "center"
-  },
-  welcomeHero: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px"
-  },
-  liveTag: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
-    alignSelf: "flex-start",
-    backgroundColor: "#eef2ff",
-    color: "#3730a3",
-    padding: "4px 10px",
+  vivaBadge: {
+    display: "inline-block",
+    backgroundColor: "#dcfce7",
+    color: "#166534",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "3px 10px",
     borderRadius: "999px",
-    fontSize: "11px",
-    fontWeight: 800
+    marginBottom: "4px"
   },
-  liveDot: {
-    width: "7px",
-    height: "7px",
-    borderRadius: "999px",
-    backgroundColor: "#4f46e5"
-  },
-  welcomeHeading: {
+  vivaHeading: {
     margin: 0,
-    fontSize: "28px",
+    fontSize: "20px",
     fontWeight: 800,
-    lineHeight: 1.2,
     color: "#0f172a"
   },
-  welcomeHighlight: {
-    color: "#4f46e5"
+  terminatedCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "20px",
+    padding: "36px 24px",
+    border: "1px solid #fecaca",
+    boxShadow: "0 12px 28px -8px rgba(220, 38, 38, 0.14)",
+    textAlign: "center"
   },
-  welcomeText: {
-    margin: 0,
-    fontSize: "13.5px",
+  terminatedBadge: {
+    display: "inline-block",
+    backgroundColor: "#fee2e2",
+    color: "#991b1b",
+    fontSize: "12px",
+    fontWeight: 800,
+    padding: "5px 12px",
+    borderRadius: "999px",
+    marginBottom: "10px"
+  },
+  terminatedTitle: {
+    margin: "0 0 8px",
+    fontSize: "24px",
+    fontWeight: 800,
+    color: "#7f1d1d"
+  },
+  terminatedText: {
+    margin: "0 auto 20px",
+    maxWidth: "540px",
+    fontSize: "15px",
     color: "#475569",
     lineHeight: 1.55
   },
-  aiPreviewBox: {
-    marginTop: "6px",
-    backgroundColor: "#f8fbff",
-    border: "1.5px solid #c7d2fe",
-    borderRadius: "12px",
-    padding: "12px 14px",
-    display: "flex",
-    alignItems: "center",
-    gap: "12px"
-  },
-  aiAvatar: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "10px",
-    backgroundColor: "#eef2ff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "20px",
-    flexShrink: 0
-  },
-  voiceVerifyBox: {
-    backgroundColor: "#f8fbff",
-    border: "1.5px solid #dbeafe",
-    borderRadius: "14px",
-    padding: "20px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px"
-  },
-  formHeading: {
-    margin: 0,
-    fontSize: "17px",
-    fontWeight: 800,
-    color: "#0f172a"
-  },
-  formSub: {
-    margin: 0,
-    fontSize: "12.5px",
-    color: "#475569"
-  },
-  label: {
-    display: "block",
-    fontSize: "12.5px",
-    fontWeight: 700,
-    color: "#1e293b",
-    marginBottom: "6px"
-  },
-  textInput: {
-    width: "100%",
-    height: "38px",
-    padding: "0 12px",
-    borderRadius: "8px",
-    border: "1.5px solid #cbd5e1",
+  welcomeCard: {
     backgroundColor: "#ffffff",
-    fontSize: "13px",
-    fontWeight: 600
+    borderRadius: "20px",
+    padding: "34px 28px",
+    boxShadow: "0 14px 30px -8px rgba(37, 99, 235, 0.12)",
+    border: "1px solid #e2e8f0",
+    textAlign: "center"
   },
-  micCenterBlock: {
-    display: "flex",
-    justifyContent: "center",
-    margin: "4px 0"
-  },
-  bigMicBtn: {
-    width: "100%",
-    height: "44px",
-    borderRadius: "10px",
-    border: "none",
-    background: "linear-gradient(135deg, #4f46e5 0%, #0284c7 100%)",
-    color: "#ffffff",
-    fontSize: "13.5px",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  stopMicBtn: {
-    width: "100%",
-    height: "44px",
-    borderRadius: "10px",
-    border: "none",
-    backgroundColor: "#dc2626",
-    color: "#ffffff",
-    fontSize: "13.5px",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  heardBox: {
-    backgroundColor: "#ffffff",
-    border: "1px solid #cbd5e1",
-    borderRadius: "8px",
-    padding: "8px 12px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "8px",
-    fontSize: "12.5px"
-  },
-  smallVerifyBtn: {
-    padding: "5px 10px",
-    borderRadius: "6px",
-    border: "1px solid #c7d2fe",
-    backgroundColor: "#eef2ff",
-    color: "#3730a3",
-    fontSize: "12px",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  primaryBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "6px",
-    height: "38px",
-    padding: "0 16px",
-    borderRadius: "8px",
-    border: "none",
-    background: "linear-gradient(135deg, #4f46e5 0%, #0284c7 100%)",
-    color: "#ffffff",
-    fontSize: "13px",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  completeBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "6px",
-    height: "38px",
-    padding: "0 16px",
-    borderRadius: "8px",
-    border: "none",
-    background: "linear-gradient(135deg, #059669 0%, #0284c7 100%)",
-    color: "#ffffff",
-    fontSize: "13px",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  sectionCard: {
-    backgroundColor: "#ffffff",
-    border: "1.5px solid #dbeafe",
-    borderRadius: "16px",
-    padding: "22px 24px",
-    boxShadow: "0 6px 20px rgba(37, 99, 235, 0.07)"
-  },
-  sectionTopRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "12px",
-    marginBottom: "18px"
-  },
-  sectionTitle: {
-    margin: 0,
-    fontSize: "20px",
-    fontWeight: 800,
-    color: "#0f172a"
-  },
-  sectionSub: {
-    margin: "4px 0 0",
-    fontSize: "13px",
-    color: "#475569"
-  },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "14px"
-  },
-  statBox: {
-    backgroundColor: "#f8fbff",
-    border: "1.5px solid #dbeafe",
-    borderRadius: "12px",
-    padding: "16px"
-  },
-  statLabel: {
-    fontSize: "12px",
-    fontWeight: 700,
-    color: "#64748b"
-  },
-  statNumber: {
-    fontSize: "24px",
-    fontWeight: 800,
-    color: "#0f172a",
-    marginTop: "6px"
-  },
-  formStack: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-    marginTop: "14px"
-  },
-  chipRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "8px"
-  },
-  optionChip: {
-    height: "36px",
-    padding: "0 14px",
-    borderRadius: "8px",
-    border: "1.5px solid #cbd5e1",
-    backgroundColor: "#f8fbff",
-    color: "#1e293b",
-    fontSize: "12.5px",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  optionChipActive: {
-    backgroundColor: "#eef2ff",
-    borderColor: "#4f46e5",
-    color: "#3730a3"
-  },
-  actionRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "10px",
-    marginTop: "6px"
-  },
-  progressHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    fontSize: "12.5px",
-    fontWeight: 700,
-    marginBottom: "8px"
-  },
-  qBadge: {
-    backgroundColor: "#eef2ff",
-    color: "#3730a3",
-    padding: "3px 10px",
-    borderRadius: "999px"
-  },
-  qMeta: {
-    color: "#64748b"
-  },
-  progressTrack: {
-    width: "100%",
-    height: "8px",
+  welcomeBadge: {
+    display: "inline-block",
+    backgroundColor: "#eff6ff",
+    color: "#1d4ed8",
+    padding: "6px 14px",
     borderRadius: "999px",
-    backgroundColor: "#e2e8f0",
-    overflow: "hidden",
-    marginBottom: "14px"
-  },
-  progressFill: {
-    height: "100%",
-    background: "linear-gradient(90deg, #4f46e5 0%, #0284c7 100%)",
-    transition: "width 0.25s ease"
-  },
-  countdownBanner: {
-    backgroundColor: "#fef3c7",
-    border: "1.5px solid #f59e0b",
-    color: "#92400e",
-    borderRadius: "10px",
-    padding: "8px 14px",
     fontSize: "13px",
     fontWeight: 700,
     marginBottom: "12px"
   },
-  questionBox: {
-    backgroundColor: "#f8fbff",
-    border: "1.5px solid #dbeafe",
-    borderRadius: "12px",
-    padding: "16px"
+  welcomeTitle: {
+    margin: "0 0 10px",
+    fontSize: "26px",
+    fontWeight: 800,
+    color: "#0f172a"
   },
-  questionTopLine: {
+  welcomeText: {
+    margin: "0 auto 18px",
+    maxWidth: "600px",
+    fontSize: "15px",
+    lineHeight: 1.6,
+    color: "#475569"
+  },
+  statusBox: {
+    maxWidth: "640px",
+    margin: "0 auto 18px",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    backgroundColor: "#f0f9ff",
+    border: "1px solid #bae6fd",
+    color: "#0c4a6e",
+    fontSize: "14px",
+    fontWeight: 600
+  },
+  classSelectRow: {
+    maxWidth: "300px",
+    margin: "0 auto 20px",
+    textAlign: "left"
+  },
+  voiceVerifyCenter: {
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
+    gap: "12px"
+  },
+  bigMicBtn: {
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "999px",
+    padding: "15px 28px",
+    fontSize: "16px",
+    fontWeight: 700,
+    cursor: "pointer"
+  },
+  transcriptPill: {
+    backgroundColor: "#f1f5f9",
+    color: "#1e293b",
+    padding: "6px 14px",
+    borderRadius: "999px",
+    fontSize: "13px"
+  },
+  linkBtn: {
+    background: "transparent",
+    border: "none",
+    color: "#2563eb",
+    fontWeight: 700,
+    fontSize: "13px",
+    cursor: "pointer",
+    textDecoration: "underline"
+  },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "16px",
+    marginBottom: "20px"
+  },
+  statCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "16px",
+    padding: "20px",
+    boxShadow: "0 8px 20px -6px rgba(15, 23, 42, 0.07)",
+    border: "1px solid #e2e8f0"
+  },
+  statLabel: {
+    fontSize: "13px",
+    fontWeight: 600,
+    color: "#64748b",
+    marginBottom: "6px"
+  },
+  statValue: {
+    fontSize: "30px",
+    fontWeight: 800,
+    color: "#0f172a",
+    marginBottom: "4px"
+  },
+  statHint: {
+    fontSize: "12px",
+    color: "#94a3b8"
+  },
+  dashActionsHeader: {
+    display: "flex",
     justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "16px"
+  },
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: "18px",
+    padding: "24px",
+    boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.08)",
+    border: "1px solid #e2e8f0",
+    marginBottom: "20px"
+  },
+  cardTitle: {
+    margin: "0 0 6px",
+    fontSize: "20px",
+    fontWeight: 700,
+    color: "#0f172a"
+  },
+  cardSubtitle: {
+    margin: "0 0 18px",
+    fontSize: "14px",
+    color: "#64748b"
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px"
+  },
+  formGroup: {
+    display: "flex",
+    flexDirection: "column",
     gap: "8px"
   },
-  questionLabel: {
-    fontSize: "11.5px",
-    fontWeight: 800,
-    color: "#4f46e5",
-    textTransform: "uppercase"
+  label: {
+    fontSize: "14px",
+    fontWeight: 700,
+    color: "#1e293b"
   },
-  repeatBtn: {
-    padding: "4px 10px",
-    borderRadius: "6px",
-    border: "1px solid #c7d2fe",
+  select: {
+    width: "100%",
+    padding: "11px 14px",
+    borderRadius: "12px",
+    border: "1px solid #cbd5e1",
+    fontSize: "14px",
     backgroundColor: "#ffffff",
-    color: "#3730a3",
+    color: "#0f172a"
+  },
+  segmentedRow: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap"
+  },
+  segmentBtn: {
+    flex: "1 1 120px",
+    padding: "11px 14px",
+    borderRadius: "12px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#f8fafc",
+    color: "#334155",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer"
+  },
+  segmentBtnActive: {
+    backgroundColor: "#eff6ff",
+    borderColor: "#2563eb",
+    color: "#1d4ed8",
+    fontWeight: 700
+  },
+  submitRow: {
+    marginTop: "6px"
+  },
+  primaryBtn: {
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "12px",
+    padding: "12px 22px",
+    fontSize: "15px",
+    fontWeight: 700,
+    cursor: "pointer"
+  },
+  secondaryBtn: {
+    backgroundColor: "#f1f5f9",
+    color: "#0f172a",
+    border: "1px solid #cbd5e1",
+    borderRadius: "12px",
+    padding: "11px 18px",
+    fontSize: "14px",
+    fontWeight: 700,
+    cursor: "pointer"
+  },
+  successBtn: {
+    backgroundColor: "#16a34a",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "12px",
+    padding: "11px 20px",
+    fontSize: "14px",
+    fontWeight: 700,
+    cursor: "pointer"
+  },
+  progressSection: {
+    marginBottom: "18px"
+  },
+  progressMeta: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "13px",
+    color: "#475569",
+    marginBottom: "8px",
+    fontWeight: 600
+  },
+  progressTrack: {
+    width: "100%",
+    height: "9px",
+    backgroundColor: "#e2e8f0",
+    borderRadius: "999px",
+    overflow: "hidden"
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#2563eb",
+    borderRadius: "999px",
+    transition: "width 0.4s ease"
+  },
+  splitScreenGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
+    gap: "16px",
+    marginBottom: "18px"
+  },
+  candidateScreenPane: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #cbd5e1",
+    borderRadius: "16px",
+    padding: "14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px"
+  },
+  splitPaneHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "8px"
+  },
+  paneTagLive: {
+    backgroundColor: "#fee2e2",
+    color: "#b91c1c",
+    fontSize: "11px",
+    fontWeight: 800,
+    padding: "3px 8px",
+    borderRadius: "999px"
+  },
+  paneNameText: {
+    fontSize: "12px",
+    fontWeight: 700,
+    color: "#334155"
+  },
+  candidateFeedBox: {
+    height: "210px",
+    borderRadius: "12px",
+    overflow: "hidden",
+    backgroundColor: "#0f172a",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  candidateVideo: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    transform: "scaleX(-1)"
+  },
+  candidateFallbackBox: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "6px",
+    color: "#f8fafc"
+  },
+  candidateAvatarCircle: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "50%",
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    fontSize: "24px",
+    fontWeight: 800,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  candidateFallbackName: {
+    fontSize: "15px",
+    fontWeight: 700
+  },
+  candidateFallbackSub: {
+    fontSize: "12px",
+    color: "#cbd5e1"
+  },
+  robotScreenPane: {
+    background: "linear-gradient(160deg, #0f172a 0%, #1e293b 100%)",
+    border: "1px solid #334155",
+    borderRadius: "16px",
+    padding: "14px",
+    color: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between"
+  },
+  robot3DStage: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    height: "100%",
+    minHeight: "238px"
+  },
+  robot3DTopBar: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "8px"
+  },
+  robot3DPill: {
+    fontSize: "11px",
+    fontWeight: 700,
+    color: "#93c5fd"
+  },
+  robot3DStateBadge: {
+    fontSize: "11px",
+    fontWeight: 700,
+    backgroundColor: "rgba(37, 99, 235, 0.35)",
+    color: "#e0f2fe",
+    padding: "2px 8px",
+    borderRadius: "999px"
+  },
+  robot3DScene: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "10px 0",
+    perspective: "700px"
+  },
+  robot3DHead: {
+    width: "128px",
+    height: "92px",
+    borderRadius: "28px",
+    background: "linear-gradient(145deg, #f8fafc 0%, #cbd5e1 100%)",
+    border: "3px solid #38bdf8",
+    boxShadow: "0 14px 28px rgba(14, 165, 233, 0.35)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+    position: "relative"
+  },
+  robotAntennaTop: {
+    width: "12px",
+    height: "12px",
+    borderRadius: "50%",
+    backgroundColor: "#38bdf8",
+    position: "absolute",
+    top: "-12px",
+    boxShadow: "0 0 10px #38bdf8"
+  },
+  robotVisor: {
+    backgroundColor: "#0f172a",
+    borderRadius: "16px",
+    padding: "8px 14px",
+    display: "flex",
+    gap: "14px",
+    alignItems: "center"
+  },
+  robot3DEye: {
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    backgroundColor: "#e0f2fe",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden"
+  },
+  robot3DPupil: {
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    backgroundColor: "#1d4ed8",
+    transition: "transform 0.08s linear"
+  },
+  robot3DMouth: {
+    width: "26px",
+    height: "6px",
+    borderRadius: "6px",
+    backgroundColor: "#0284c7"
+  },
+  robot3DShoulder: {
+    width: "96px",
+    height: "16px",
+    borderRadius: "12px 12px 20px 20px",
+    background: "linear-gradient(145deg, #64748b, #334155)",
+    marginTop: "4px"
+  },
+  robot3DFooterText: {
+    textAlign: "center",
+    fontSize: "12px",
+    color: "#cbd5e1",
+    fontWeight: 600
+  },
+  centerWaveBox: {
+    backgroundColor: "#f0fdf4",
+    border: "1px solid #bbf7d0",
+    borderRadius: "16px",
+    padding: "16px",
+    marginBottom: "18px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "10px"
+  },
+  centerMicCircle: {
+    width: "54px",
+    height: "54px",
+    borderRadius: "50%",
+    border: "none",
+    color: "#ffffff",
+    fontSize: "24px",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  waveBarsRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "5px",
+    height: "36px"
+  },
+  waveBar: {
+    width: "6px",
+    borderRadius: "999px",
+    backgroundColor: "#16a34a",
+    transition: "height 0.15s ease"
+  },
+  centerWaveStatus: {
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "#166534",
+    textAlign: "center"
+  },
+  questionBox: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderLeft: "5px solid #2563eb",
+    borderRadius: "14px",
+    padding: "18px",
+    marginBottom: "18px"
+  },
+  questionHeaderRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "8px"
+  },
+  qBadge: {
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "3px 10px",
+    borderRadius: "999px"
+  },
+  replayBtn: {
+    backgroundColor: "#e0f2fe",
+    color: "#0369a1",
+    border: "1px solid #bae6fd",
+    borderRadius: "8px",
+    padding: "5px 10px",
     fontSize: "12px",
     fontWeight: 700,
     cursor: "pointer"
   },
   questionText: {
-    margin: "8px 0 0",
-    fontSize: "16px",
-    fontWeight: 700,
-    color: "#0f172a",
-    lineHeight: 1.5
-  },
-  answerLabelRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "8px",
-    marginBottom: "6px"
-  },
-  startAnswerMicBtn: {
-    padding: "5px 12px",
-    borderRadius: "8px",
-    border: "1px solid #c7d2fe",
-    backgroundColor: "#eef2ff",
-    color: "#3730a3",
-    fontSize: "12px",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  stopAnswerMicBtn: {
-    padding: "5px 12px",
-    borderRadius: "8px",
-    border: "none",
-    backgroundColor: "#dc2626",
-    color: "#ffffff",
-    fontSize: "12px",
-    fontWeight: 700,
-    cursor: "pointer"
+    margin: 0,
+    fontSize: "17px",
+    fontWeight: 600,
+    lineHeight: 1.55,
+    color: "#0f172a"
   },
   textarea: {
     width: "100%",
-    padding: "12px",
-    borderRadius: "10px",
-    border: "1.5px solid #cbd5e1",
-    backgroundColor: "#f8fbff",
-    fontSize: "13.5px",
+    padding: "14px",
+    borderRadius: "12px",
+    border: "1px solid #cbd5e1",
+    fontSize: "15px",
     lineHeight: 1.5,
-    resize: "vertical"
+    fontFamily: "inherit",
+    resize: "vertical",
+    boxSizing: "border-box"
+  },
+  interviewActions: {
+    display: "flex",
+    gap: "12px",
+    flexWrap: "wrap",
+    alignItems: "center"
   },
   evalBox: {
-    marginTop: "18px",
-    paddingTop: "18px",
-    borderTop: "1.5px solid #e2e8f0",
-    display: "flex",
-    flexDirection: "column",
-    gap: "14px"
+    marginTop: "22px",
+    paddingTop: "20px",
+    borderTop: "1px solid #e2e8f0"
   },
-  evalHeading: {
-    margin: 0,
-    fontSize: "16px",
-    fontWeight: 800,
+  evalTitle: {
+    margin: "0 0 14px",
+    fontSize: "18px",
+    fontWeight: 700,
     color: "#0f172a"
   },
-  scoreGrid: {
+  miniScoresGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-    gap: "12px"
+    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+    gap: "12px",
+    marginBottom: "16px"
   },
-  scoreCard: {
-    backgroundColor: "#f8fbff",
-    border: "1px solid #dbeafe",
+  miniScoreCard: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
     borderRadius: "12px",
-    padding: "14px",
+    padding: "12px",
+    textAlign: "center"
+  },
+  miniScoreLabel: {
+    fontSize: "12px",
+    color: "#64748b",
+    fontWeight: 600
+  },
+  miniScoreNum: {
+    fontSize: "18px",
+    fontWeight: 800,
+    color: "#1d4ed8",
+    marginTop: "4px"
+  },
+  feedbackBlock: {
+    backgroundColor: "#eff6ff",
+    border: "1px solid #bfdbfe",
+    borderRadius: "12px",
+    padding: "12px 14px",
+    fontSize: "14px",
+    lineHeight: 1.5,
+    color: "#1e3a8a",
+    marginBottom: "12px"
+  },
+  mistakesBlock: {
+    backgroundColor: "#fffbeb",
+    border: "1px solid #fde68a",
+    borderRadius: "12px",
+    padding: "12px 14px",
+    fontSize: "14px",
+    color: "#92400e",
+    marginBottom: "12px"
+  },
+  mistakeList: {
+    margin: "6px 0 0",
+    paddingLeft: "18px"
+  },
+  mistakeItem: {
+    marginBottom: "4px"
+  },
+  mistakeTip: {
+    color: "#78350f",
+    fontSize: "13px"
+  },
+  improvedBlock: {
+    backgroundColor: "#f0fdf4",
+    border: "1px solid #bbf7d0",
+    borderRadius: "12px",
+    padding: "12px 14px",
+    fontSize: "14px",
+    color: "#166534"
+  },
+  improvedText: {
+    margin: "6px 0 0",
+    lineHeight: 1.5
+  },
+  reportHero: {
+    backgroundColor: "#ffffff",
+    borderRadius: "18px",
+    padding: "24px",
+    boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.08)",
+    border: "1px solid #e2e8f0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "16px",
+    marginBottom: "20px"
+  },
+  reportTag: {
+    display: "inline-block",
+    backgroundColor: "#e0e7ff",
+    color: "#3730a3",
+    fontSize: "12px",
+    fontWeight: 700,
+    padding: "4px 10px",
+    borderRadius: "999px",
+    marginBottom: "8px"
+  },
+  reportHeading: {
+    margin: "0 0 4px",
+    fontSize: "22px",
+    fontWeight: 800
+  },
+  reportSub: {
+    margin: 0,
+    fontSize: "14px",
+    color: "#64748b"
+  },
+  overallCircle: {
+    width: "96px",
+    height: "96px",
+    borderRadius: "50%",
+    backgroundColor: "#eff6ff",
+    border: "4px solid #2563eb",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "6px"
+    justifyContent: "center"
+  },
+  overallNum: {
+    fontSize: "24px",
+    fontWeight: 800,
+    color: "#1d4ed8",
+    lineHeight: 1.1
+  },
+  overallDenom: {
+    fontSize: "12px",
+    fontWeight: 600,
+    color: "#64748b"
+  },
+  scoresGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+    gap: "16px",
+    marginBottom: "20px"
+  },
+  scoreCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "16px",
+    padding: "18px",
+    boxShadow: "0 8px 20px -6px rgba(15, 23, 42, 0.07)",
+    border: "1px solid #e2e8f0",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    textAlign: "center"
   },
   circularWrapper: {
     position: "relative",
@@ -2377,158 +3212,240 @@ const styles = {
     height: "86px",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    marginBottom: "10px"
   },
   circularValue: {
     position: "absolute",
     display: "flex",
-    alignItems: "baseline",
-    gap: "1px"
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center"
   },
   scoreTitle: {
-    fontSize: "12.5px",
+    fontSize: "15px",
     fontWeight: 700,
-    color: "#1e293b"
+    color: "#0f172a",
+    marginBottom: "6px"
   },
   scoreBadge: {
     fontSize: "11px",
     fontWeight: 700,
-    padding: "2px 8px",
+    padding: "3px 10px",
     borderRadius: "999px"
   },
-  feedbackText: {
+  twoColGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "16px"
+  },
+  sectionHeading: {
+    margin: "0 0 12px",
+    fontSize: "17px",
+    fontWeight: 700,
+    color: "#0f172a"
+  },
+  bulletList: {
     margin: 0,
-    fontSize: "13px",
-    color: "#1e293b",
+    paddingLeft: "18px"
+  },
+  bulletItem: {
+    marginBottom: "8px",
+    fontSize: "14px",
     lineHeight: 1.5,
-    backgroundColor: "#f8fbff",
-    padding: "10px 14px",
-    borderRadius: "8px",
-    border: "1px solid #dbeafe"
+    color: "#334155"
   },
-  mistakeList: {
-    fontSize: "12.5px",
-    color: "#9f1239",
-    backgroundColor: "#fff1f2",
-    padding: "10px 14px",
-    borderRadius: "8px",
-    border: "1px solid #fecdd3"
+  mutedText: {
+    color: "#64748b",
+    fontSize: "14px",
+    margin: 0
   },
-  improvedBox: {
-    fontSize: "12.5px",
-    color: "#065f46",
-    backgroundColor: "#ecfdf5",
-    padding: "10px 14px",
-    borderRadius: "8px",
-    border: "1px solid #a7f3d0"
-  },
-  overallBanner: {
-    backgroundColor: "#eef2ff",
-    border: "1.5px solid #c7d2fe",
-    borderRadius: "12px",
-    padding: "16px 20px",
+  qaList: {
     display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "column",
     gap: "12px"
   },
-  overallScoreBig: {
-    fontSize: "28px",
-    fontWeight: 800,
-    color: "#3730a3"
+  qaCard: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "12px",
+    padding: "14px"
   },
-  reportBlock: {
-    backgroundColor: "#f8fbff",
-    border: "1px solid #dbeafe",
-    borderRadius: "10px",
-    padding: "12px 16px",
+  qaQuestion: {
+    fontWeight: 700,
+    fontSize: "14px",
+    color: "#0f172a",
+    marginBottom: "6px"
+  },
+  qaAnswer: {
+    fontSize: "14px",
+    color: "#334155",
+    marginBottom: "6px"
+  },
+  qaFeedback: {
     fontSize: "13px",
-    color: "#1e293b"
+    color: "#1d4ed8"
+  },
+  historyHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "12px",
+    marginBottom: "16px"
+  },
+  emptyHistory: {
+    textAlign: "center",
+    padding: "28px 12px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "14px"
   },
   historyList: {
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
-    marginTop: "14px"
-  },
-  historyRow: {
-    backgroundColor: "#f8fbff",
-    border: "1px solid #dbeafe",
-    borderRadius: "10px",
-    padding: "12px 16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
     gap: "12px"
   },
-  mutedText: {
+  historyItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "12px",
+    padding: "16px",
+    borderRadius: "14px",
+    border: "1px solid #e2e8f0",
+    backgroundColor: "#f8fafc"
+  },
+  historyTitle: {
+    fontSize: "15px",
+    fontWeight: 700,
+    color: "#0f172a",
+    marginBottom: "4px"
+  },
+  levelTag: {
+    backgroundColor: "#e2e8f0",
+    color: "#334155",
+    fontSize: "12px",
+    padding: "2px 8px",
+    borderRadius: "999px"
+  },
+  historyMeta: {
     fontSize: "13px",
-    color: "#64748b",
-    marginTop: "12px"
+    color: "#64748b"
+  },
+  historyRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px"
+  },
+  historyScore: {
+    fontSize: "18px",
+    fontWeight: 800,
+    color: "#2563eb"
+  },
+  viewReportBtn: {
+    backgroundColor: "#ffffff",
+    color: "#2563eb",
+    border: "1px solid #93c5fd",
+    borderRadius: "10px",
+    padding: "8px 14px",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer"
   },
   floatingReportBox: {
     position: "fixed",
     right: "18px",
     bottom: "18px",
-    width: "280px",
-    zIndex: 45,
+    width: "320px",
+    maxWidth: "calc(100vw - 36px)",
     backgroundColor: "#ffffff",
-    border: "1.5px solid #c7d2fe",
-    borderRadius: "14px",
-    boxShadow: "0 14px 32px rgba(15, 23, 42, 0.16)",
+    border: "1px solid #cbd5e1",
+    borderRadius: "16px",
+    boxShadow: "0 18px 35px -10px rgba(15, 23, 42, 0.22)",
+    zIndex: 999,
     overflow: "hidden"
   },
   floatingHeader: {
-    background: "linear-gradient(90deg, #e0e7ff 0%, #e0f2fe 100%)",
-    padding: "10px 12px",
-    borderBottom: "1px solid #c7d2fe",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  floatingCloseBtn: {
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#ffffff",
-    borderRadius: "6px",
-    padding: "2px 7px",
-    fontSize: "11px",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  floatingBody: {
-    padding: "12px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px"
-  },
-  floatingScoreRow: {
+    backgroundColor: "#0f172a",
+    color: "#ffffff",
+    padding: "10px 14px",
     display: "flex",
     justifyContent: "space-between",
-    fontSize: "12.5px",
-    color: "#1e293b"
+    alignItems: "center",
+    gap: "8px"
   },
-  floatingMetrics: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "4px 8px",
-    fontSize: "11.5px",
-    color: "#475569",
-    backgroundColor: "#f8fbff",
-    padding: "8px",
+  floatingTitle: {
+    fontSize: "13px",
+    fontWeight: 800
+  },
+  floatingSub: {
+    fontSize: "11px",
+    color: "#cbd5e1"
+  },
+  floatingCloseBtn: {
+    background: "rgba(255,255,255,0.14)",
+    border: "none",
+    color: "#ffffff",
     borderRadius: "8px",
-    border: "1px solid #e2e8f0"
+    width: "24px",
+    height: "24px",
+    cursor: "pointer",
+    fontWeight: 700
+  },
+  floatingBody: {
+    padding: "12px 14px"
+  },
+  floatingMiniGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "6px",
+    marginBottom: "10px"
+  },
+  floatingStat: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    padding: "6px 4px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    fontSize: "11px",
+    color: "#475569"
+  },
+  floatingFeedback: {
+    margin: "0 0 10px",
+    fontSize: "12px",
+    color: "#334155",
+    lineHeight: 1.4
+  },
+  floatingOverallRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "10px",
+    fontSize: "13px",
+    fontWeight: 700
   },
   floatingFullBtn: {
-    marginTop: "2px",
-    height: "32px",
-    borderRadius: "7px",
-    border: "none",
-    backgroundColor: "#4f46e5",
+    width: "100%",
+    backgroundColor: "#2563eb",
     color: "#ffffff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "8px 12px",
     fontSize: "12px",
     fontWeight: 700,
     cursor: "pointer"
+  },
+  floatingEmpty: {
+    margin: 0,
+    padding: "12px 14px",
+    fontSize: "12px",
+    color: "#64748b",
+    lineHeight: 1.45
   }
 };
 
