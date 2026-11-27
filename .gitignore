@@ -7,19 +7,22 @@
 # Testing
 /coverage
 
-# Production
+# Production build
 /build
 
-# Environment variables (Never push secrets)
-/.env
+# Environment variables - Never push secrets
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
-# Misc
+# Miscellaneous
 .DS_Store
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
