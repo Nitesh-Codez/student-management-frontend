@@ -1,0 +1,639 @@
+/* AdminViva.css — Bright Light-Themed Stylesheet */
+
+:root {
+  --viva-bg-page: linear-gradient(135deg, #f0f9ff 0%, #eef2ff 50%, #ecfdf5 100%);
+  --viva-surface: #ffffff;
+  --viva-surface-tint: #f5f9ff;
+  --viva-banner-grad: linear-gradient(90deg, #e0e7ff 0%, #ede9fe 52%, #e0f2fe 100%);
+  --viva-primary: #5558e3;
+  --viva-primary-hover: #4346c9;
+  --viva-primary-soft: #eef2ff;
+  --viva-accent-sky: #0284c7;
+  --viva-accent-emerald: #059669;
+  --viva-accent-amber: #d97706;
+  --viva-accent-rose: #e11d48;
+  --viva-text-main: #0f172a;
+  --viva-text-muted: #475569;
+  --viva-border: #dbeafe;
+  --viva-border-strong: #bfdbfe;
+  --viva-shadow-sm: 0 2px 8px rgba(37, 99, 235, 0.06);
+  --viva-shadow-md: 0 8px 24px rgba(79, 70, 229, 0.12);
+  --viva-radius-sm: 8px;
+  --viva-radius-md: 12px;
+  --viva-radius-lg: 16px;
+}
+
+.viva-page {
+  min-height: 100vh;
+  background: var(--viva-bg-page);
+  color: var(--viva-text-main);
+  padding-bottom: 36px;
+  font-family: inherit;
+}
+
+/* Toast Notification */
+.viva-toast {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 420px;
+  background: var(--viva-surface);
+  border: 1.5px solid #a7f3d0;
+  border-left: 5px solid var(--viva-accent-emerald);
+  border-radius: var(--viva-radius-md);
+  padding: 12px 14px;
+  box-shadow: var(--viva-shadow-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--viva-text-main);
+}
+
+.viva-toast--error {
+  border-color: #fecdd3;
+  border-left-color: var(--viva-accent-rose);
+  color: #9f1239;
+}
+
+.viva-toast-close {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.viva-toast-close:hover {
+  background: #f1f5f9;
+  color: var(--viva-text-main);
+}
+
+/* Top Gradient Hero Banner */
+.viva-hero {
+  background: var(--viva-banner-grad);
+  border-bottom: 1.5px solid var(--viva-border-strong);
+}
+
+.viva-hero-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 22px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.viva-pill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--viva-primary);
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.viva-hero-title {
+  margin: 6px 0 2px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--viva-text-main);
+  letter-spacing: -0.02em;
+}
+
+.viva-hero-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--viva-text-muted);
+}
+
+.viva-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Main Container */
+.viva-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Buttons */
+.viva-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--viva-radius-sm);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  border: 1px solid transparent;
+}
+
+.viva-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.viva-btn--primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #0284c7 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.25);
+}
+
+.viva-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.viva-btn--secondary {
+  background: var(--viva-surface);
+  color: var(--viva-text-main);
+  border-color: var(--viva-border-strong);
+}
+
+.viva-btn--secondary:hover:not(:disabled) {
+  background: var(--viva-surface-tint);
+  border-color: #93c5fd;
+}
+
+.viva-btn--soft-indigo {
+  background: var(--viva-primary-soft);
+  color: var(--viva-primary);
+  border-color: #c7d2fe;
+}
+
+.viva-btn--soft-indigo:hover:not(:disabled) {
+  background: #e0e7ff;
+}
+
+.viva-btn--danger {
+  background: var(--viva-accent-rose);
+  color: #ffffff;
+}
+
+.viva-btn--danger:hover:not(:disabled) {
+  background: #be123c;
+}
+
+.viva-btn--clear {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+.viva-btn--clear:hover {
+  background: #ffe4e6;
+}
+
+/* Stat Cards Grid */
+.viva-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.viva-stat-card {
+  background: var(--viva-surface);
+  border: 1.5px solid var(--viva-border);
+  border-radius: var(--viva-radius-md);
+  padding: 16px 18px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--viva-shadow-sm);
+  transition: all 0.16s ease;
+}
+
+.viva-stat-card:hover {
+  border-color: #818cf8;
+  transform: translateY(-1px);
+}
+
+.viva-stat-card--active {
+  background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+  border-color: #4f46e5;
+  color: #ffffff;
+  box-shadow: var(--viva-shadow-md);
+}
+
+.viva-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--viva-text-muted);
+}
+
+.viva-stat-card--active .viva-stat-top {
+  color: #e0e7ff;
+}
+
+.viva-stat-value {
+  margin-top: 10px;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--viva-text-main);
+}
+
+.viva-stat-card--active .viva-stat-value {
+  color: #ffffff;
+}
+
+/* Filter & Control Bar */
+.viva-filter-bar {
+  background: var(--viva-surface);
+  border: 1.5px solid var(--viva-border);
+  border-radius: var(--viva-radius-md);
+  padding: 12px 16px;
+  box-shadow: var(--viva-shadow-sm);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.viva-filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.viva-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.viva-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6366f1;
+  pointer-events: none;
+}
+
+.viva-input,
+.viva-select,
+.viva-textarea {
+  width: 100%;
+  background: var(--viva-surface-tint);
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--viva-radius-sm);
+  color: var(--viva-text-main);
+  font-size: 13px;
+  font-weight: 500;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.viva-input,
+.viva-select {
+  height: 36px;
+  padding: 0 10px;
+}
+
+.viva-search-input {
+  padding-left: 34px;
+}
+
+.viva-select {
+  width: auto;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.viva-textarea {
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.viva-input:focus,
+.viva-select:focus,
+.viva-textarea:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: var(--viva-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14);
+}
+
+.viva-filter-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--viva-text-muted);
+}
+
+/* Table Card */
+.viva-table-card {
+  background: var(--viva-surface);
+  border: 1.5px solid var(--viva-border);
+  border-radius: var(--viva-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--viva-shadow-sm);
+}
+
+.viva-table-header {
+  background: linear-gradient(90deg, #eff6ff 0%, #eef2ff 50%, #ecfdf5 100%);
+  border-bottom: 1.5px solid var(--viva-border);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.viva-table-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--viva-text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viva-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.viva-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.viva-table thead th {
+  background: #f8faff;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 11px 14px;
+  border-bottom: 1.5px solid var(--viva-border);
+}
+
+.viva-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.viva-table tbody tr:hover {
+  background: #f3f7ff;
+}
+
+.viva-viva-title {
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.viva-viva-subject {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--viva-primary);
+  margin-top: 2px;
+}
+
+.viva-viva-desc {
+  font-size: 12px;
+  color: var(--viva-text-muted);
+  margin-top: 3px;
+}
+
+/* Badges & Chips */
+.viva-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.viva-badge--active {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.viva-badge--inactive {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.viva-badge--draft {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #7dd3fc;
+}
+
+.viva-badge--closed {
+  background: #e0e7ff;
+  color: #4338ca;
+  border-color: #a5b4fc;
+}
+
+.viva-badge--easy {
+  background: #ccfbf1;
+  color: #0f766e;
+  border-color: #5eead4;
+}
+
+.viva-badge--medium {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fcd34d;
+}
+
+.viva-badge--hard {
+  background: #ffe4e6;
+  color: #be123c;
+  border-color: #fda4af;
+}
+
+.viva-topic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Action Buttons */
+.viva-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.viva-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.viva-icon-btn:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: #60a5fa;
+  color: #1d4ed8;
+}
+
+.viva-icon-btn--delete:hover:not(:disabled) {
+  background: #fff1f2;
+  border-color: #fb7185;
+  color: #be123c;
+}
+
+/* Modals */
+.viva-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.viva-modal {
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--viva-surface);
+  border: 1.5px solid var(--viva-border-strong);
+  border-radius: var(--viva-radius-lg);
+  box-shadow: var(--viva-shadow-md);
+}
+
+.viva-modal--lg {
+  max-width: 900px;
+}
+
+.viva-modal--sm {
+  max-width: 440px;
+}
+
+.viva-modal-header {
+  background: var(--viva-banner-grad);
+  border-bottom: 1.5px solid var(--viva-border);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.viva-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--viva-text-main);
+}
+
+.viva-modal-body {
+  padding: 20px;
+}
+
+.viva-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.viva-form-full {
+  grid-column: 1 / -1;
+}
+
+.viva-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 5px;
+}
+
+.viva-error-text {
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--viva-accent-rose);
+}
+
+.viva-modal-footer {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.viva-empty-state {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--viva-text-muted);
+  font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .viva-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .viva-stats-grid,
+  .viva-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .viva-hero-title {
+    font-size: 21px;
+  }
+}

@@ -110,6 +110,8 @@ const AdminDashboard = () => {
     { title: "Meetings", path: "admin-meeting", icon: <FaChalkboardTeacher />, color: "#33a551", category: "Management" },
     { title: "Manage Quiz", path: "quiz", icon: <FaQuestionCircle />, color: "#14b8a6", category: "Exams" },
     { title: "Students Reports", path: "student-summary", icon: <FaUserGraduate />, color: "#cb8728", category: "Exams" },
+    { title: "Students Viva Schdule", path: "admin-viva-schduele", icon: <FaUserGraduate />, color: "#cb8728", category: "Exams" },
+ 
   ];
 
   const filteredLinks = links.filter((link) =>

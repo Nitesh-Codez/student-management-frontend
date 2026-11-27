@@ -29,12 +29,15 @@ import AdminExamFormDetails from "./pages/AdminExamformdetails";
 import InternalMarksSheet from "./pages/StudentInternalmarks";
 import AdminMeeting from "./pages/Meetings/AdminMeeting";
 import AdminReport from "./pages/AdminReport";
+import AdminViva from "./pages/AdminViva";
+
 /* STUDENT */
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentProfile from "./pages/StudentProfile";
 import StudentFees from "./pages/StudentFees";
 import StudentAttendance from "./pages/StudentAttendance";
 import StudentsMarks from "./pages/StudentsMarks";
+
 
 import StudentFeedback from "./pages/StudentFeedback";
 import StudentStudyMaterial from "./pages/StudentStudyMaterial";
@@ -51,6 +54,8 @@ import StudentDropApply from "./pages/StudentDropApply";
 import StudentsMeetings from "./pages/Meetings/StudentsMeetings";
 import StudentInternal from "./pages/Examination/StudentsInternal";
 import AiInterview from "./pages/AiInterview";
+import StudentViva from "./pages/StudentViva";
+
 
 /* EXAM */
 import ExamForm from "./pages/Examination/ExamForm";
@@ -139,6 +144,8 @@ function App() {
           <Route path="admin-internal-marks" element={<InternalMarksSheet />} />
           <Route path="admin-meeting" element={<AdminMeeting />} />
           <Route path ="student-summary" element={<AdminReport/>} />
+          <Route path ="admin-viva-schduele" element={<AdminViva/>}/>
+          <Route path = "student-viva" element ={<StudentViva/>}/>
           
           
         </Route>
