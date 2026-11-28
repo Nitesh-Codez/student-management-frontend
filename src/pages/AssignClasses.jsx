@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import axios from "axios";
 
-const API_URL = "https://student-management-system-4-hose.onrender.com";
-
+import api from "../services/api";
 const AssignClasses = () => {
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
@@ -49,8 +47,8 @@ const today = new Date().toLocaleDateString('en-CA');
       setLoading(true);
       try {
         const [tRes, sRes] = await Promise.all([
-          axios.get(`${API_URL}/api/teachers/all`),
-          axios.get(`${API_URL}/api/students`)
+          api.get(`/api/teachers/all`),
+          api.get(`/api/students`)
         ]);
         setTeachers(tRes.data || []);
         setStudents(sRes.data.success ? sRes.data.students : sRes.data || []);
@@ -66,7 +64,7 @@ const today = new Date().toLocaleDateString('en-CA');
   const fetchTeacherSpecific = async () => {
     if (!selectedTeacher) { setTeacherLectures([]); return; }
     try {
-      const res = await axios.get(`${API_URL}/api/teacher-assignments/teacher/${selectedTeacher}`);
+      const res = await api.get(`/api/teacher-assignments/teacher/${selectedTeacher}`);
       setTeacherLectures(res.data.assignments || []);
     } catch (err) { console.error(err); }
   };
@@ -152,7 +150,7 @@ const today = new Date().toLocaleDateString('en-CA');
         if (!a.class_id || !a.subject_id) continue;
 
         try {
-          await axios.post(`${API_URL}/api/teacher-assignments/assign`, { 
+          await api.post(`/api/teacher-assignments/assign`, { 
  teacher_id:selectedTeacher,
  ...a,
  special:specialMode
@@ -201,7 +199,7 @@ const today = new Date().toLocaleDateString('en-CA');
 
   const handleUpdateSubmit = async (id) => {
     try {
-      await axios.put(`${API_URL}/api/teacher-assignments/update/${id}`, { ...editFormData, subject_id: editFormData.subject_name });
+      await api.put(`/api/teacher-assignments/update/${id}`, { ...editFormData, subject_id: editFormData.subject_name });
       alert("Updated! ✅");
       setEditingId(null);
       fetchTeacherSpecific();
@@ -211,7 +209,7 @@ const today = new Date().toLocaleDateString('en-CA');
   const handleDelete = async (id) => {
     if (!window.confirm("Delete karein?")) return;
     try {
-      await axios.delete(`${API_URL}/api/teacher-assignments/delete/${id}`);
+      await api.delete(`/api/teacher-assignments/delete/${id}`);
       fetchTeacherSpecific();
     } catch (err) { alert("Delete failed"); }
   };

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
-
-const API_URL = "https://student-management-system-4-hose.onrender.com";
+import api from "../services/api";
 
 const ApplyCorrection = () => {
   const { state } = useLocation();
@@ -44,7 +42,7 @@ const ApplyCorrection = () => {
 
   const fetchPreviousRequests = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/students/pending-edit-requests`);
+      const res = await api.get(`/api/students/pending-edit-requests`);
       if (student && res.data.requests) {
         const studentRequests = res.data.requests.filter(r => r.student_id === student.id);
         setPreviousRequests(studentRequests);
@@ -91,7 +89,7 @@ const ApplyCorrection = () => {
     try {
       setSubmitting(true);
       const requests = selectedFields.map(field =>
-        axios.post(`${API_URL}/api/students/request-edit`, {
+        api.post(`/api/students/request-edit`, {
           student_id: student.id,
           field_name: field,
           requested_value: formData[field],

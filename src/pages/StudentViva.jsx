@@ -7,8 +7,7 @@ const GROQ_MODEL = (
 ).trim();
 
 const VIVA_DURATION_SECONDS = 5 * 60; // 5 minutes viva timer
-const GRACE_BEFORE_COUNT_MS = 6000; // Give student time to start speaking before count shows
-const SILENCE_COUNT_SECONDS = 6; // Count down 6 -> 1 as plain number (no popup)
+const SILENCE_POPUP_SECONDS = 10; // 10 -> 1 center popup when nobody is speaking
 const MAX_ADMIN_PHOTOS = 5;
 
 const extractApiError = (err, fallback) =>
@@ -390,8 +389,8 @@ function StudentViva({ userId, studentName, studentClass }) {
   // 5-minute viva timer (05:00 -> 00:00)
   const [remainingSeconds, setRemainingSeconds] = useState(VIVA_DURATION_SECONDS);
 
-  // Plain number-only silence countdown (shown only after grace period if no voice, no popup)
-  const [silenceNumber, setSilenceNumber] = useState(null);
+  // Big center popup countdown (10 -> 1) when nobody is speaking
+  const [silenceCountdown, setSilenceCountdown] = useState(null);
   const [userCurrentlySpeaking, setUserCurrentlySpeaking] = useState(false);
   const [pupilOffset, setPupilOffset] = useState({ x: 0, y: 0 });
 
@@ -417,48 +416,16 @@ function StudentViva({ userId, studentName, studentClass }) {
   const recognitionRef = useRef(null);
   const shouldListenRef = useRef(false);
   const answerRef = useRef("");
-  const qaPairsRef = useRef([]);
-  const activeVivaRef = useRef(null);
-  const attemptIdRef = useRef(null);
-  const currentTopicRef = useRef("");
-  const currentQuestionRef = useRef("");
-  const questionNumberRef = useRef(1);
-  const graceTimerRef = useRef(null);
   const silenceIntervalRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
   const speechResumeTimerRef = useRef(null);
   const autoAdvanceHandlerRef = useRef(null);
   const timeUpHandlerRef = useRef(null);
-  const terminateSubmitHandlerRef = useRef(null);
   const photosCapturedRef = useRef(0);
 
   useEffect(() => {
     answerRef.current = answerText;
   }, [answerText]);
-
-  useEffect(() => {
-    qaPairsRef.current = qaPairs;
-  }, [qaPairs]);
-
-  useEffect(() => {
-    activeVivaRef.current = activeViva;
-  }, [activeViva]);
-
-  useEffect(() => {
-    attemptIdRef.current = attemptId;
-  }, [attemptId]);
-
-  useEffect(() => {
-    currentTopicRef.current = currentTopic;
-  }, [currentTopic]);
-
-  useEffect(() => {
-    currentQuestionRef.current = currentQuestion;
-  }, [currentQuestion]);
-
-  useEffect(() => {
-    questionNumberRef.current = questionNumber;
-  }, [questionNumber]);
 
   // Eye monitoring gaze tracking
   useEffect(() => {
@@ -477,10 +444,6 @@ function StudentViva({ userId, studentName, studentClass }) {
   }, []);
 
   const clearSilenceTimers = useCallback(() => {
-    if (graceTimerRef.current) {
-      clearTimeout(graceTimerRef.current);
-      graceTimerRef.current = null;
-    }
     if (silenceIntervalRef.current) {
       clearInterval(silenceIntervalRef.current);
       silenceIntervalRef.current = null;
@@ -489,11 +452,11 @@ function StudentViva({ userId, studentName, studentClass }) {
       clearTimeout(silenceTimeoutRef.current);
       silenceTimeoutRef.current = null;
     }
-    setSilenceNumber(null);
+    setSilenceCountdown(null);
   }, []);
 
-  // Give student grace period to start speaking first; only if still quiet, show plain number countdown
-  const armSilenceCountdownAfterGrace = useCallback(() => {
+  // Start 10 -> 1 big center popup countdown when nobody is speaking
+  const startTenSecondSilenceCountdown = useCallback(() => {
     clearSilenceTimers();
     if (
       !activeViva ||
@@ -508,34 +471,30 @@ function StudentViva({ userId, studentName, studentClass }) {
       return;
     }
 
-    graceTimerRef.current = setTimeout(() => {
-      if (userCurrentlySpeaking) return;
+    let count = SILENCE_POPUP_SECONDS;
+    setSilenceCountdown(count);
 
-      let count = SILENCE_COUNT_SECONDS;
-      setSilenceNumber(count);
-
-      silenceIntervalRef.current = setInterval(() => {
-        if (userCurrentlySpeaking) {
-          clearSilenceTimers();
-          return;
-        }
-        count -= 1;
-        if (count >= 1) {
-          setSilenceNumber(count);
-        } else if (silenceIntervalRef.current) {
-          clearInterval(silenceIntervalRef.current);
-          silenceIntervalRef.current = null;
-        }
-      }, 1000);
-
-      silenceTimeoutRef.current = setTimeout(() => {
+    silenceIntervalRef.current = setInterval(() => {
+      if (userCurrentlySpeaking) {
         clearSilenceTimers();
-        if (userCurrentlySpeaking) return;
-        if (autoAdvanceHandlerRef.current) {
-          autoAdvanceHandlerRef.current();
-        }
-      }, SILENCE_COUNT_SECONDS * 1000);
-    }, GRACE_BEFORE_COUNT_MS);
+        return;
+      }
+      count -= 1;
+      if (count >= 1) {
+        setSilenceCountdown(count);
+      } else if (silenceIntervalRef.current) {
+        clearInterval(silenceIntervalRef.current);
+        silenceIntervalRef.current = null;
+      }
+    }, 1000);
+
+    silenceTimeoutRef.current = setTimeout(() => {
+      clearSilenceTimers();
+      if (userCurrentlySpeaking) return;
+      if (autoAdvanceHandlerRef.current) {
+        autoAdvanceHandlerRef.current();
+      }
+    }, SILENCE_POPUP_SECONDS * 1000);
   }, [
     clearSilenceTimers,
     activeViva,
@@ -548,7 +507,7 @@ function StudentViva({ userId, studentName, studentClass }) {
     userCurrentlySpeaking,
   ]);
 
-  // Stop any counting immediately when student starts speaking; re-arm grace + count if student stops
+  // Pause countdown as soon as student starts speaking; restart 10..1 after student stops
   const handleStudentSpeakingStart = useCallback(() => {
     setUserCurrentlySpeaking(true);
     clearSilenceTimers();
@@ -564,9 +523,9 @@ function StudentViva({ userId, studentName, studentClass }) {
       clearTimeout(speechResumeTimerRef.current);
     }
     speechResumeTimerRef.current = setTimeout(() => {
-      armSilenceCountdownAfterGrace();
-    }, 800);
-  }, [armSilenceCountdownAfterGrace]);
+      startTenSecondSilenceCountdown();
+    }, 650);
+  }, [startTenSecondSilenceCountdown]);
 
   const stopCameraAndPhotos = useCallback(() => {
     if (streamRef.current) {
@@ -783,7 +742,7 @@ function StudentViva({ userId, studentName, studentClass }) {
 
     rec.onstart = () => {
       setIsListening(true);
-      armSilenceCountdownAfterGrace();
+      startTenSecondSilenceCountdown();
     };
 
     rec.onresult = (event) => {
@@ -806,7 +765,7 @@ function StudentViva({ userId, studentName, studentClass }) {
 
     rec.onerror = () => {
       setIsListening(false);
-      armSilenceCountdownAfterGrace();
+      startTenSecondSilenceCountdown();
     };
 
     rec.onend = () => {
@@ -822,7 +781,7 @@ function StudentViva({ userId, studentName, studentClass }) {
         try {
           rec.start();
         } catch {
-          armSilenceCountdownAfterGrace();
+          startTenSecondSilenceCountdown();
         }
       }
     };
@@ -832,7 +791,7 @@ function StudentViva({ userId, studentName, studentClass }) {
       rec.start();
     } catch {
       setIsListening(false);
-      armSilenceCountdownAfterGrace();
+      startTenSecondSilenceCountdown();
     }
   }, [
     activeViva,
@@ -841,20 +800,16 @@ function StudentViva({ userId, studentName, studentClass }) {
     terminatedByProctor,
     isGenerating,
     isSubmitting,
-    armSilenceCountdownAfterGrace,
+    startTenSecondSilenceCountdown,
     handleStudentSpeakingStart,
     handleStudentSpeakingStop,
   ]);
 
   const speakText = useCallback(
-    (text, onFinishedCallback) => {
+    (text) => {
       stopListening();
       if (!text || typeof window === "undefined" || !("speechSynthesis" in window)) {
-        if (typeof onFinishedCallback === "function") {
-          onFinishedCallback();
-        } else {
-          startListening();
-        }
+        startListening();
         return;
       }
 
@@ -864,33 +819,27 @@ function StudentViva({ userId, studentName, studentClass }) {
         utter.rate = 1;
         utter.pitch = 1.05;
 
-        let doneCalled = false;
-        const finishOnce = () => {
-          if (doneCalled) return;
-          doneCalled = true;
-          setIsSpeaking(false);
-          if (typeof onFinishedCallback === "function") {
-            onFinishedCallback();
-          } else if (!sessionDone && !submitSuccess && !terminatedByProctor && !isSubmitting) {
-            startListening();
-          }
-        };
-
         utter.onstart = () => {
           setIsSpeaking(true);
           clearSilenceTimers();
         };
-        utter.onend = finishOnce;
-        utter.onerror = finishOnce;
+        utter.onend = () => {
+          setIsSpeaking(false);
+          if (!sessionDone && !submitSuccess && !terminatedByProctor && !isSubmitting) {
+            startListening();
+          }
+        };
+        utter.onerror = () => {
+          setIsSpeaking(false);
+          if (!sessionDone && !submitSuccess && !terminatedByProctor && !isSubmitting) {
+            startListening();
+          }
+        };
 
         window.speechSynthesis.speak(utter);
       } catch {
         setIsSpeaking(false);
-        if (typeof onFinishedCallback === "function") {
-          onFinishedCallback();
-        } else {
-          startListening();
-        }
+        startListening();
       }
     },
     [
@@ -993,7 +942,7 @@ function StudentViva({ userId, studentName, studentClass }) {
   }, [vivas, selectedSubject]);
 
   const submitAllToBackend = useCallback(
-    async (vivaObj, currentAttemptId, finalQaList, extraMeta = {}) => {
+    async (vivaObj, currentAttemptId, finalQaList) => {
       setIsSubmitting(true);
       setVivaError("");
       try {
@@ -1007,8 +956,6 @@ function StudentViva({ userId, studentName, studentClass }) {
           student_id: studentId,
           subject: vivaObj?.subject,
           photos_captured: photosCapturedRef.current,
-          terminated: Boolean(extraMeta.terminated),
-          termination_reason: extraMeta.termination_reason || null,
           questions: finalQaList.map((item) => item.question),
           answers: finalQaList.map((item) => item.answer),
           qa: finalQaList,
@@ -1142,7 +1089,7 @@ function StudentViva({ userId, studentName, studentClass }) {
     ]
   );
 
-  // After 6..1 count without voice -> speak notice & move to next question immediately
+  // When 10..1 popup finishes without voice -> say "Moving to next question, not giving answer" and move
   useEffect(() => {
     autoAdvanceHandlerRef.current = async () => {
       await proceedQuestionOrSubmit({
@@ -1187,34 +1134,6 @@ function StudentViva({ userId, studentName, studentClass }) {
     submitAllToBackend,
     attemptId,
   ]);
-
-  // Submit current answers even when terminated by proctor
-  useEffect(() => {
-    terminateSubmitHandlerRef.current = async () => {
-      const vivaObj = activeVivaRef.current;
-      if (!vivaObj) return;
-      const draftAns = String(answerRef.current || "").trim();
-      const baseList = qaPairsRef.current || [];
-      const finalList =
-        draftAns && currentQuestionRef.current
-          ? [
-              ...baseList,
-              {
-                question_number: questionNumberRef.current,
-                topic: currentTopicRef.current,
-                question: currentQuestionRef.current,
-                answer: draftAns,
-              },
-            ]
-          : baseList;
-      setQaPairs(finalList);
-      setAnswerText("");
-      await submitAllToBackend(vivaObj, attemptIdRef.current, finalList, {
-        terminated: true,
-        termination_reason: "Repeated tab switching",
-      });
-    };
-  }, [submitAllToBackend]);
 
   // 5-minute countdown tick
   useEffect(() => {
@@ -1322,7 +1241,7 @@ function StudentViva({ userId, studentName, studentClass }) {
     setAnswerText("");
   };
 
-  // AI Proctoring on active viva: 1st tab switch warns, 2nd terminates & submits (no termination count/time shown)
+  // AI Proctoring on active viva: 1st tab switch warns, 2nd terminates (no termination count/time shown)
   useEffect(() => {
     if (!activeViva || sessionDone || submitSuccess || terminatedByProctor) {
       return;
@@ -1345,13 +1264,9 @@ function StudentViva({ userId, studentName, studentClass }) {
         stopCameraAndPhotos();
         setTerminatedByProctor(true);
         const termMsg =
-          "Viva session terminated due to repeated tab switching. Submitting your viva.";
+          "Viva session terminated due to repeated tab switching.";
         setProctorWarning(termMsg);
-        speakText(termMsg, () => {
-          if (terminateSubmitHandlerRef.current) {
-            terminateSubmitHandlerRef.current();
-          }
-        });
+        speakText(termMsg);
       }
     };
 
@@ -1405,13 +1320,31 @@ function StudentViva({ userId, studentName, studentClass }) {
             0%, 100% { transform: scaleY(0.45); }
             50% { transform: scaleY(1.38); }
           }
+          @keyframes popupPop {
+            from { opacity: 0; transform: scale(0.86); }
+            to { opacity: 1; transform: scale(1); }
+          }
           .viva-3d-float { animation: viva3DFloat 3s ease-in-out infinite; }
           .viva-3d-orbit-a { animation: viva3DOrbitA 7s linear infinite; }
           .viva-3d-orbit-b { animation: viva3DOrbitB 4.5s linear infinite; }
           .viva-3d-talk { animation: viva3DTalk 0.45s ease-in-out infinite; }
           .viva-eye-blink { animation: vivaEyeBlink 4.2s infinite; }
           .viva-wave-anim { animation: vivaWave 0.72s ease-in-out infinite; }
+          .viva-center-popup { animation: popupPop 0.22s ease-out both; }
         `}</style>
+
+        {/* Big Center Popup Countdown (10 -> 1) when nobody is speaking */}
+        {silenceCountdown !== null && !userCurrentlySpeaking && !isSpeaking && (
+          <div style={vivaStyles.centerPopupBackdrop} role="status" aria-live="polite">
+            <div style={vivaStyles.centerPopupCard} className="viva-center-popup">
+              <div style={vivaStyles.centerPopupTag}>No Voice Detected</div>
+              <div style={vivaStyles.centerPopupDigit}>{silenceCountdown}</div>
+              <div style={vivaStyles.centerPopupSub}>
+                Start speaking to pause timer • Moving to next question at 0
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={vivaStyles.sessionCard}>
           {/* Top Header + 5-Min Timer + Snapshot Counter */}
@@ -1461,9 +1394,7 @@ function StudentViva({ userId, studentName, studentClass }) {
                 Viva Terminated by AI Proctor
               </div>
               <div style={{ fontSize: "13px", color: "#475569", marginBottom: "12px" }}>
-                {isSubmitting
-                  ? "Submitting recorded responses..."
-                  : "Repeated tab switching was detected and your session has been submitted."}
+                Repeated tab switching was detected during the session.
               </div>
               <button
                 type="button"
@@ -1527,7 +1458,7 @@ function StudentViva({ userId, studentName, studentClass }) {
                 <div style={vivaStyles.errorBox}>{vivaError}</div>
               )}
 
-              {/* Question + Plain Silence Number (no popup box) */}
+              {/* Question / Status Box */}
               <div style={vivaStyles.questionCard}>
                 {isSubmitting ? (
                   <div style={{ fontWeight: 700, color: "#0284c7", fontSize: "14px" }}>
@@ -1538,16 +1469,9 @@ function StudentViva({ userId, studentName, studentClass }) {
                     Viva submitted successfully! Evaluation will be processed.
                   </div>
                 ) : (
-                  <div style={vivaStyles.questionRow}>
-                    <p style={vivaStyles.questionText}>
-                      {currentQuestion || "Generating question from model..."}
-                    </p>
-                    {silenceNumber !== null && !userCurrentlySpeaking && !isSpeaking && (
-                      <span style={vivaStyles.plainCountNumber} aria-live="polite">
-                        {silenceNumber}
-                      </span>
-                    )}
-                  </div>
+                  <p style={vivaStyles.questionText}>
+                    {currentQuestion || "Generating question from model..."}
+                  </p>
                 )}
               </div>
 
@@ -1556,11 +1480,7 @@ function StudentViva({ userId, studentName, studentClass }) {
                   <textarea
                     rows={2}
                     value={answerText}
-                    onChange={(e) => {
-                      handleStudentSpeakingStart();
-                      setAnswerText(e.target.value);
-                      handleStudentSpeakingStop();
-                    }}
+                    onChange={(e) => setAnswerText(e.target.value)}
                     placeholder={
                       isListening
                         ? "Bolte rahiye, SmartBot sun raha hai..."
@@ -1801,6 +1721,54 @@ const vivaStyles = {
     alignItems: "center",
     justifyContent: "center",
     boxSizing: "border-box",
+  },
+  centerPopupBackdrop: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(9, 13, 22, 0.52)",
+    backdropFilter: "blur(3px)",
+    zIndex: 50,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "16px",
+  },
+  centerPopupCard: {
+    width: "100%",
+    maxWidth: "280px",
+    background: "linear-gradient(160deg, #ffffff 0%, #ecfdf5 100%)",
+    borderRadius: "24px",
+    padding: "24px 20px",
+    borderWidth: "2.5px",
+    borderStyle: "solid",
+    borderColor: "#10b981",
+    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.45)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "8px",
+    textAlign: "center",
+  },
+  centerPopupTag: {
+    fontSize: "11px",
+    fontWeight: 800,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    padding: "3px 10px",
+    borderRadius: "999px",
+    backgroundColor: "#fef3c7",
+    color: "#92400e",
+  },
+  centerPopupDigit: {
+    fontSize: "64px",
+    fontWeight: 900,
+    lineHeight: 1,
+    color: "#059669",
+  },
+  centerPopupSub: {
+    fontSize: "12px",
+    fontWeight: 700,
+    color: "#334155",
   },
   sessionCard: {
     width: "100%",
@@ -2150,26 +2118,11 @@ const vivaStyles = {
     display: "flex",
     alignItems: "center",
   },
-  questionRow: {
-    width: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "12px",
-  },
   questionText: {
     margin: 0,
     fontSize: "13.5px",
     fontWeight: 700,
     lineHeight: 1.4,
-    flex: 1,
-  },
-  plainCountNumber: {
-    fontSize: "24px",
-    fontWeight: 900,
-    color: "#dc2626",
-    lineHeight: 1,
-    flexShrink: 0,
   },
   inputArea: {
     display: "flex",
