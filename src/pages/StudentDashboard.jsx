@@ -31,6 +31,7 @@ import RegisterationStudent from "./RegisterationStudent";
 import StudentDropApply from "./StudentDropApply";
 import StudentsMeetings from "./Meetings/StudentsMeetings";
 import VivaVerificationPage from "./VivaVerificationPage";
+import AiInterview from "./AiInterview";
 
 
 // Examination Components
@@ -2138,6 +2139,10 @@ try {
           <Route path="drop-apply" element={<StudentDropApply />} />
           <Route path="students-meeting" element={<StudentsMeetings />} />
           <Route path="verifying-identity" element={<VivaVerificationPage/>} />
+          <Route
+  path="interview-english-practice"
+  element={<AiInterview />}
+/>
 
           
           {/* Internal Examination Routes */}

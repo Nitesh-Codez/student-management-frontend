@@ -6,8 +6,9 @@ const GROQ_MODEL = (
   process.env.REACT_APP_GROQ_MODEL || "openai/gpt-oss-20b"
 ).trim();
 
-const VIVA_DURATION_SECONDS = 5 * 60; // 5 minutes viva timer
-const SILENCE_POPUP_SECONDS = 10; // 10 -> 1 center popup when nobody is speaking
+const VIVA_DURATION_SECONDS = 5 * 60;
+const SILENCE_COUNTDOWN_START = 6;
+const SILENCE_COUNTDOWN_END = 0;
 const MAX_ADMIN_PHOTOS = 5;
 
 const extractApiError = (err, fallback) =>
@@ -137,7 +138,7 @@ const normalizeAvailableViva = (row) => {
 };
 
 // --------------------------------------------------
-// GROQ MODEL CALLER
+// GROQ MODEL CALLER (STRICT SINGLE QUESTION)
 // --------------------------------------------------
 
 function withTimeout(promise, ms = 12000) {
@@ -172,6 +173,22 @@ function extractGroqText(data) {
   return "";
 }
 
+function sanitizeSingleQuestion(rawText) {
+  const cleaned = String(rawText || "")
+    .replace(/^(question\s*\d*\s*[:.-]\s*)/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Keep strictly one question sentence if model emits multiple questions
+  const firstQuestionMatch = cleaned.match(/[^?]+\?/);
+  if (firstQuestionMatch) {
+    return firstQuestionMatch[0].trim();
+  }
+
+  const firstSentence = cleaned.split(/(?<=[.!?])\s+/)[0] || cleaned;
+  return firstSentence.trim();
+}
+
 async function callGroqChat(messages) {
   if (!GROQ_API_KEY) {
     throw new Error("Missing REACT_APP_GROQ_API_KEY");
@@ -188,8 +205,8 @@ async function callGroqChat(messages) {
         body: JSON.stringify({
           model: GROQ_MODEL,
           messages,
-          temperature: 0.6,
-          max_tokens: 450,
+          temperature: 0.5,
+          max_tokens: 220,
         }),
       }),
       12000
@@ -219,7 +236,7 @@ async function generateQuestionFromModel({
     {
       role: "system",
       content:
-        "You are a viva examiner. Output ONLY one short spoken question (1-2 sentences) based on the topic. No extra intro or labels.",
+        "You are a viva examiner. Ask ONLY ONE single short question at a time. Never combine two questions or ask follow-up parts in the same question. No intro, no numbering, no extra text.",
     },
     {
       role: "user",
@@ -227,11 +244,12 @@ async function generateQuestionFromModel({
 Topic guide: "${topic}".
 Question ${questionNumber} of ${viva.total_questions}.
 Already asked questions: ${JSON.stringify(askedQuestions)}.
-Output ONLY the next question.`,
+Output ONLY one single question.`,
     },
   ];
 
-  return await callGroqChat(messages);
+  const raw = await callGroqChat(messages);
+  return sanitizeSingleQuestion(raw);
 }
 
 async function generateReplyFromModel({
@@ -264,7 +282,7 @@ Output ONLY the spoken reply.`,
 }
 
 // --------------------------------------------------
-// 3D SMARTBOT PANEL (EYE TRACKING + BLINK + FLOAT + WAVES)
+// 3D SMARTBOT PANEL (3D BODY + BLINKING/TRACKING EYES)
 // --------------------------------------------------
 
 function VivaBot3DPanel({
@@ -277,7 +295,7 @@ function VivaBot3DPanel({
   const statusLabel = isSubmitting
     ? "Submitting..."
     : isGenerating
-    ? "Generating..."
+    ? "Thinking..."
     : isSpeaking
     ? "Speaking..."
     : isListening
@@ -287,47 +305,54 @@ function VivaBot3DPanel({
   const waveBars = [1, 2, 3, 4, 5, 6, 7, 8];
 
   return (
-    <div style={vivaStyles.bot3DCard} className="viva-3d-float">
-      <div style={vivaStyles.botTopRow}>
-        <span style={vivaStyles.bot3DTitle}>◆ SmartBot 3D</span>
-        <span style={vivaStyles.bot3DBadge}>{statusLabel}</span>
+    <div style={vivaStyles.boxCard} className="viva-3d-float">
+      <div style={vivaStyles.boxHeaderRow}>
+        <span style={vivaStyles.botTitle}>◆ SmartBot 3D</span>
+        <span style={vivaStyles.botBadge}>{statusLabel}</span>
       </div>
 
       <div style={vivaStyles.bot3DStage}>
         <div className="viva-3d-orbit-a" style={vivaStyles.bot3DOrbitA} />
         <div className="viva-3d-orbit-b" style={vivaStyles.bot3DOrbitB} />
 
+        {/* 3D Head + 3D Torso/Shoulders Body */}
         <div
           className={isSpeaking ? "viva-3d-talk" : ""}
-          style={vivaStyles.bot3DHead}
+          style={vivaStyles.bot3DCharacter}
         >
-          <div style={vivaStyles.botAntenna} />
-          <div style={vivaStyles.botEyeSocket}>
-            <div
-              className="viva-eye-blink"
-              style={{
-                ...vivaStyles.botEyeBall,
-                transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`,
-              }}
-            >
-              <div style={vivaStyles.botPupil}>
-                <div style={vivaStyles.botGlint} />
+          <div style={vivaStyles.bot3DHead}>
+            <div style={vivaStyles.botAntenna} />
+            <div style={vivaStyles.botEyeSocket}>
+              <div
+                className="viva-eye-blink"
+                style={{
+                  ...vivaStyles.botEyeBall,
+                  transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`,
+                }}
+              >
+                <div style={vivaStyles.botPupil}>
+                  <div style={vivaStyles.botGlint} />
+                </div>
+              </div>
+            </div>
+
+            <div style={vivaStyles.botEyeSocket}>
+              <div
+                className="viva-eye-blink"
+                style={{
+                  ...vivaStyles.botEyeBall,
+                  transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`,
+                }}
+              >
+                <div style={vivaStyles.botPupil}>
+                  <div style={vivaStyles.botGlint} />
+                </div>
               </div>
             </div>
           </div>
 
-          <div style={vivaStyles.botEyeSocket}>
-            <div
-              className="viva-eye-blink"
-              style={{
-                ...vivaStyles.botEyeBall,
-                transform: `translate(${pupilOffset.x}px, ${pupilOffset.y}px)`,
-              }}
-            >
-              <div style={vivaStyles.botPupil}>
-                <div style={vivaStyles.botGlint} />
-              </div>
-            </div>
+          <div style={vivaStyles.bot3DBody}>
+            <div style={vivaStyles.botCoreLight} />
           </div>
         </div>
       </div>
@@ -351,8 +376,6 @@ function VivaBot3DPanel({
           />
         ))}
       </div>
-
-      <div style={vivaStyles.bot3DFooter}>3D Eye Lock &amp; Voice Sync</div>
     </div>
   );
 }
@@ -367,6 +390,10 @@ function StudentViva({ userId, studentName, studentClass }) {
   const [selectedSubject, setSelectedSubject] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Selected viva before clicking "Start Viva" once
+  const [stagedViva, setStagedViva] = useState(null);
+  const [hasClickedStartOnce, setHasClickedStartOnce] = useState(false);
 
   // Active viva session state
   const [activeViva, setActiveViva] = useState(null);
@@ -386,11 +413,9 @@ function StudentViva({ userId, studentName, studentClass }) {
   const [sessionDone, setSessionDone] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // 5-minute viva timer (05:00 -> 00:00)
+  // Timer + center 6 -> 0 silence counter
   const [remainingSeconds, setRemainingSeconds] = useState(VIVA_DURATION_SECONDS);
-
-  // Big center popup countdown (10 -> 1) when nobody is speaking
-  const [silenceCountdown, setSilenceCountdown] = useState(null);
+  const [silenceNumber, setSilenceNumber] = useState(null);
   const [userCurrentlySpeaking, setUserCurrentlySpeaking] = useState(false);
   const [pupilOffset, setPupilOffset] = useState({ x: 0, y: 0 });
 
@@ -407,7 +432,7 @@ function StudentViva({ userId, studentName, studentClass }) {
   const [capturedPhotosCount, setCapturedPhotosCount] = useState(0);
   const [lastPhotoFlash, setLastPhotoFlash] = useState(false);
 
-  // AI Proctoring (warning on 1st switch, terminate on 2nd switch; no termination count/time shown)
+  // AI Proctoring (warning on 1st switch, terminate on 2nd switch)
   const [proctorWarning, setProctorWarning] = useState("");
   const [terminatedByProctor, setTerminatedByProctor] = useState(false);
   const switchCountRef = useRef(0);
@@ -423,9 +448,39 @@ function StudentViva({ userId, studentName, studentClass }) {
   const timeUpHandlerRef = useRef(null);
   const photosCapturedRef = useRef(0);
 
+  const isFullscreenSessionActive = Boolean(
+    activeViva && !sessionDone && !submitSuccess && !terminatedByProctor
+  );
+
   useEffect(() => {
     answerRef.current = answerText;
   }, [answerText]);
+
+  const requestAutoFullScreen = useCallback(async () => {
+    if (typeof document === "undefined") return;
+    if (document.fullscreenElement) return;
+    const el = document.documentElement;
+    try {
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        await el.webkitRequestFullscreen();
+      }
+    } catch {
+      // Ignore if browser blocks fullscreen
+    }
+  }, []);
+
+  const exitFullScreenSafe = useCallback(async () => {
+    if (typeof document === "undefined") return;
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   // Eye monitoring gaze tracking
   useEffect(() => {
@@ -443,7 +498,7 @@ function StudentViva({ userId, studentName, studentClass }) {
     return () => window.removeEventListener("pointermove", onPointerMove);
   }, []);
 
-  const clearSilenceTimers = useCallback(() => {
+  const clearSilenceCounter = useCallback(() => {
     if (silenceIntervalRef.current) {
       clearInterval(silenceIntervalRef.current);
       silenceIntervalRef.current = null;
@@ -452,12 +507,12 @@ function StudentViva({ userId, studentName, studentClass }) {
       clearTimeout(silenceTimeoutRef.current);
       silenceTimeoutRef.current = null;
     }
-    setSilenceCountdown(null);
+    setSilenceNumber(null);
   }, []);
 
-  // Start 10 -> 1 big center popup countdown when nobody is speaking
-  const startTenSecondSilenceCountdown = useCallback(() => {
-    clearSilenceTimers();
+  // Start 6 -> 0 center number counter when nobody is speaking
+  const startSixToZeroSilenceCounter = useCallback(() => {
+    clearSilenceCounter();
     if (
       !activeViva ||
       sessionDone ||
@@ -471,32 +526,35 @@ function StudentViva({ userId, studentName, studentClass }) {
       return;
     }
 
-    let count = SILENCE_POPUP_SECONDS;
-    setSilenceCountdown(count);
+    let current = SILENCE_COUNTDOWN_START;
+    setSilenceNumber(current);
+
+    const stepMs = 1000;
+    const totalSteps = SILENCE_COUNTDOWN_START - SILENCE_COUNTDOWN_END;
 
     silenceIntervalRef.current = setInterval(() => {
       if (userCurrentlySpeaking) {
-        clearSilenceTimers();
+        clearSilenceCounter();
         return;
       }
-      count -= 1;
-      if (count >= 1) {
-        setSilenceCountdown(count);
+      current -= 1;
+      if (current >= SILENCE_COUNTDOWN_END) {
+        setSilenceNumber(current);
       } else if (silenceIntervalRef.current) {
         clearInterval(silenceIntervalRef.current);
         silenceIntervalRef.current = null;
       }
-    }, 1000);
+    }, stepMs);
 
     silenceTimeoutRef.current = setTimeout(() => {
-      clearSilenceTimers();
+      clearSilenceCounter();
       if (userCurrentlySpeaking) return;
       if (autoAdvanceHandlerRef.current) {
         autoAdvanceHandlerRef.current();
       }
-    }, SILENCE_POPUP_SECONDS * 1000);
+    }, totalSteps * stepMs);
   }, [
-    clearSilenceTimers,
+    clearSilenceCounter,
     activeViva,
     sessionDone,
     submitSuccess,
@@ -507,25 +565,25 @@ function StudentViva({ userId, studentName, studentClass }) {
     userCurrentlySpeaking,
   ]);
 
-  // Pause countdown as soon as student starts speaking; restart 10..1 after student stops
-  const handleStudentSpeakingStart = useCallback(() => {
+  // If interrupted / student speaks, reset 6 -> 0 counter and restart from 6 once silence returns
+  const handleStudentInterruptOrSpeak = useCallback(() => {
     setUserCurrentlySpeaking(true);
-    clearSilenceTimers();
+    clearSilenceCounter();
     if (speechResumeTimerRef.current) {
       clearTimeout(speechResumeTimerRef.current);
       speechResumeTimerRef.current = null;
     }
-  }, [clearSilenceTimers]);
+  }, [clearSilenceCounter]);
 
-  const handleStudentSpeakingStop = useCallback(() => {
+  const handleStudentSilenceResume = useCallback(() => {
     setUserCurrentlySpeaking(false);
     if (speechResumeTimerRef.current) {
       clearTimeout(speechResumeTimerRef.current);
     }
     speechResumeTimerRef.current = setTimeout(() => {
-      startTenSecondSilenceCountdown();
-    }, 650);
-  }, [startTenSecondSilenceCountdown]);
+      startSixToZeroSilenceCounter();
+    }, 500);
+  }, [startSixToZeroSilenceCounter]);
 
   const stopCameraAndPhotos = useCallback(() => {
     if (streamRef.current) {
@@ -690,7 +748,7 @@ function StudentViva({ userId, studentName, studentClass }) {
   ]);
 
   const stopListening = useCallback(() => {
-    clearSilenceTimers();
+    clearSilenceCounter();
     if (speechResumeTimerRef.current) {
       clearTimeout(speechResumeTimerRef.current);
       speechResumeTimerRef.current = null;
@@ -707,7 +765,7 @@ function StudentViva({ userId, studentName, studentClass }) {
       recognitionRef.current = null;
     }
     setIsListening(false);
-  }, [clearSilenceTimers]);
+  }, [clearSilenceCounter]);
 
   const startListening = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -742,30 +800,30 @@ function StudentViva({ userId, studentName, studentClass }) {
 
     rec.onstart = () => {
       setIsListening(true);
-      startTenSecondSilenceCountdown();
+      startSixToZeroSilenceCounter();
     };
 
     rec.onresult = (event) => {
-      handleStudentSpeakingStart();
+      handleStudentInterruptOrSpeak();
       let transcript = "";
       for (let i = 0; i < event.results.length; i++) {
         transcript += `${event.results[i][0].transcript} `;
       }
       setAnswerText(transcript.trim());
-      handleStudentSpeakingStop();
+      handleStudentSilenceResume();
     };
 
     rec.onspeechstart = () => {
-      handleStudentSpeakingStart();
+      handleStudentInterruptOrSpeak();
     };
 
     rec.onspeechend = () => {
-      handleStudentSpeakingStop();
+      handleStudentSilenceResume();
     };
 
     rec.onerror = () => {
       setIsListening(false);
-      startTenSecondSilenceCountdown();
+      startSixToZeroSilenceCounter();
     };
 
     rec.onend = () => {
@@ -781,7 +839,7 @@ function StudentViva({ userId, studentName, studentClass }) {
         try {
           rec.start();
         } catch {
-          startTenSecondSilenceCountdown();
+          startSixToZeroSilenceCounter();
         }
       }
     };
@@ -791,7 +849,7 @@ function StudentViva({ userId, studentName, studentClass }) {
       rec.start();
     } catch {
       setIsListening(false);
-      startTenSecondSilenceCountdown();
+      startSixToZeroSilenceCounter();
     }
   }, [
     activeViva,
@@ -800,9 +858,9 @@ function StudentViva({ userId, studentName, studentClass }) {
     terminatedByProctor,
     isGenerating,
     isSubmitting,
-    startTenSecondSilenceCountdown,
-    handleStudentSpeakingStart,
-    handleStudentSpeakingStop,
+    startSixToZeroSilenceCounter,
+    handleStudentInterruptOrSpeak,
+    handleStudentSilenceResume,
   ]);
 
   const speakText = useCallback(
@@ -821,7 +879,7 @@ function StudentViva({ userId, studentName, studentClass }) {
 
         utter.onstart = () => {
           setIsSpeaking(true);
-          clearSilenceTimers();
+          clearSilenceCounter();
         };
         utter.onend = () => {
           setIsSpeaking(false);
@@ -849,7 +907,7 @@ function StudentViva({ userId, studentName, studentClass }) {
       submitSuccess,
       terminatedByProctor,
       isSubmitting,
-      clearSilenceTimers,
+      clearSilenceCounter,
     ]
   );
 
@@ -945,6 +1003,7 @@ function StudentViva({ userId, studentName, studentClass }) {
     async (vivaObj, currentAttemptId, finalQaList) => {
       setIsSubmitting(true);
       setVivaError("");
+      clearSilenceCounter();
       try {
         const targetAttemptId =
           currentAttemptId || vivaObj?.attempt_id || vivaObj?.id;
@@ -984,17 +1043,18 @@ function StudentViva({ userId, studentName, studentClass }) {
         setSubmitSuccess(true);
         setSessionDone(true);
         setCurrentQuestion("");
+        await exitFullScreenSafe();
       } catch (err) {
         setVivaError(extractApiError(err, "Failed to submit viva answers."));
       } finally {
         setIsSubmitting(false);
       }
     },
-    [userId]
+    [userId, clearSilenceCounter, exitFullScreenSafe]
   );
 
   const proceedQuestionOrSubmit = useCallback(
-    async ({ spokenAnswer, noAnswerNotice }) => {
+    async ({ spokenAnswer }) => {
       if (!activeViva || isGenerating || isSubmitting || sessionDone) return;
 
       stopListening();
@@ -1033,40 +1093,40 @@ function StudentViva({ userId, studentName, studentClass }) {
         if (isLastQuestion) {
           setCurrentQuestion("");
           setIsGenerating(false);
+          if (reply) {
+            speakText(reply);
+          }
           await submitAllToBackend(activeViva, attemptId, updatedQa);
           return;
         }
 
-        const nextNum = questionNumber + 1;
+        const nextQNum = questionNumber + 1;
         const nextTopic = pickRandomTopic(
           activeViva.topics,
           usedTopics,
           activeViva.subject
         );
+        const nextUsedTopics = [...usedTopics, nextTopic];
 
-        const nextQuestion = await generateQuestionFromModel({
+        const nextQuestionText = await generateQuestionFromModel({
           viva: activeViva,
           topic: nextTopic,
-          questionNumber: nextNum,
+          questionNumber: nextQNum,
           askedQuestions,
         });
 
+        setQuestionNumber(nextQNum);
         setCurrentTopic(nextTopic);
-        setUsedTopics((prev) =>
-          prev.length >= activeViva.topics.length ? [nextTopic] : [...prev, nextTopic]
-        );
-        setQuestionNumber(nextNum);
-        setCurrentQuestion(nextQuestion);
-        setAskedQuestions((prev) => [...prev, nextQuestion]);
+        setUsedTopics(nextUsedTopics);
+        setCurrentQuestion(nextQuestionText);
+        setAskedQuestions((prev) => [...prev, nextQuestionText]);
         setIsGenerating(false);
 
-        const spokenLead = noAnswerNotice
-          ? `${noAnswerNotice} ${nextQuestion}`
-          : `${reply} ${nextQuestion}`.trim();
-        speakText(spokenLead);
+        const spokenPayload = reply ? `${reply} ${nextQuestionText}` : nextQuestionText;
+        speakText(spokenPayload);
       } catch (err) {
-        setVivaError(err?.message || "Failed to process question transition.");
         setIsGenerating(false);
+        setVivaError(extractApiError(err, "Unable to generate next question."));
         startListening();
       }
     },
@@ -1080,46 +1140,103 @@ function StudentViva({ userId, studentName, studentClass }) {
       qaPairs,
       currentTopic,
       currentQuestion,
-      submitAllToBackend,
-      attemptId,
       usedTopics,
       askedQuestions,
+      submitAllToBackend,
+      attemptId,
       speakText,
       startListening,
     ]
   );
 
-  // When 10..1 popup finishes without voice -> say "Moving to next question, not giving answer" and move
+  // "Done Answer" button handler: finishes current answer & moves to next question or submits
+  const handleDoneAnswer = useCallback(() => {
+    if (
+      !activeViva ||
+      isGenerating ||
+      isSubmitting ||
+      sessionDone ||
+      terminatedByProctor
+    ) {
+      return;
+    }
+    proceedQuestionOrSubmit({ spokenAnswer: answerRef.current });
+  }, [
+    activeViva,
+    isGenerating,
+    isSubmitting,
+    sessionDone,
+    terminatedByProctor,
+    proceedQuestionOrSubmit,
+  ]);
+
+  // "Submit Viva" button handler: submits answers collected so far
+  const handleSubmitVivaNow = useCallback(async () => {
+    if (!activeViva || isSubmitting || submitSuccess) return;
+    stopListening();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    const trimmedCurrentAns = String(answerRef.current || "").trim();
+    const finalQa =
+      currentQuestion && trimmedCurrentAns && !sessionDone
+        ? [
+            ...qaPairs,
+            {
+              question_number: questionNumber,
+              topic: currentTopic,
+              question: currentQuestion,
+              answer: trimmedCurrentAns,
+            },
+          ]
+        : qaPairs;
+
+    setAnswerText("");
+    await submitAllToBackend(activeViva, attemptId, finalQa);
+  }, [
+    activeViva,
+    isSubmitting,
+    submitSuccess,
+    stopListening,
+    currentQuestion,
+    sessionDone,
+    qaPairs,
+    questionNumber,
+    currentTopic,
+    attemptId,
+    submitAllToBackend,
+  ]);
+
   useEffect(() => {
-    autoAdvanceHandlerRef.current = async () => {
-      await proceedQuestionOrSubmit({
-        spokenAnswer: "",
-        noAnswerNotice: "Moving to next question, not giving answer.",
-      });
+    autoAdvanceHandlerRef.current = () => {
+      proceedQuestionOrSubmit({ spokenAnswer: answerRef.current });
     };
   }, [proceedQuestionOrSubmit]);
 
-  // Auto-submit when 5-minute viva timer reaches 00:00
   useEffect(() => {
     timeUpHandlerRef.current = async () => {
       if (!activeViva || sessionDone || submitSuccess || isSubmitting) return;
       stopListening();
-      const draftAns = String(answerRef.current || "").trim();
-      const finalList =
-        draftAns && currentQuestion
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+
+      const finalQa =
+        currentQuestion && answerRef.current.trim()
           ? [
               ...qaPairs,
               {
                 question_number: questionNumber,
                 topic: currentTopic,
                 question: currentQuestion,
-                answer: draftAns,
+                answer: answerRef.current.trim(),
               },
             ]
           : qaPairs;
-      setQaPairs(finalList);
+
       setAnswerText("");
-      await submitAllToBackend(activeViva, attemptId, finalList);
+      await submitAllToBackend(activeViva, attemptId, finalQa);
     };
   }, [
     activeViva,
@@ -1131,20 +1248,20 @@ function StudentViva({ userId, studentName, studentClass }) {
     qaPairs,
     questionNumber,
     currentTopic,
-    submitAllToBackend,
     attemptId,
+    submitAllToBackend,
   ]);
 
-  // 5-minute countdown tick
+  // 5-minute countdown timer
   useEffect(() => {
-    if (!activeViva || sessionDone || submitSuccess || terminatedByProctor || isSubmitting) {
+    if (!activeViva || sessionDone || submitSuccess || terminatedByProctor) {
       return;
     }
 
-    const timerId = setInterval(() => {
+    const interval = setInterval(() => {
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
-          clearInterval(timerId);
+          clearInterval(interval);
           if (timeUpHandlerRef.current) {
             timeUpHandlerRef.current();
           }
@@ -1154,503 +1271,823 @@ function StudentViva({ userId, studentName, studentClass }) {
       });
     }, 1000);
 
-    return () => clearInterval(timerId);
-  }, [activeViva, sessionDone, submitSuccess, terminatedByProctor, isSubmitting]);
+    return () => clearInterval(interval);
+  }, [activeViva, sessionDone, submitSuccess, terminatedByProctor]);
 
-  const handleStartViva = async (viva) => {
-    const isDoneAlready =
-      viva.alreadyAttempted || completedVivaIds.includes(String(viva.id));
-    if (isDoneAlready) {
-      setErrorMsg("This viva has already been attempted. Re-attempt is not allowed.");
-      return;
-    }
-
-    stopListening();
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-
-    setRemainingSeconds(VIVA_DURATION_SECONDS);
-    photosCapturedRef.current = 0;
-    setCapturedPhotosCount(0);
-    setFaceAlert("");
-    switchCountRef.current = 0;
-    setProctorWarning("");
-    setTerminatedByProctor(false);
-
-    const topic = pickRandomTopic(viva.topics, [], viva.subject);
-
-    setActiveViva(viva);
-    setAttemptId(viva.attempt_id ?? viva.id);
-    setQuestionNumber(1);
-    setCurrentTopic(topic);
-    setUsedTopics([topic]);
-    setCurrentQuestion("");
-    setAskedQuestions([]);
-    setQaPairs([]);
-    setVivaError("");
-    setAnswerText("");
-    setSessionDone(false);
-    setSubmitSuccess(false);
-    setIsGenerating(true);
-
-    try {
-      const question = await generateQuestionFromModel({
-        viva,
-        topic,
-        questionNumber: 1,
-        askedQuestions: [],
-      });
-
-      setCurrentQuestion(question);
-      setAskedQuestions([question]);
-      setIsGenerating(false);
-      speakText(question);
-    } catch (err) {
-      setVivaError(err?.message || "Failed to generate question from model.");
-      setIsGenerating(false);
-    }
-  };
-
-  const handleSubmitAnswer = async () => {
-    const submitted = String(answerRef.current || "").trim();
-    if (!activeViva || !submitted || isGenerating || isSubmitting) return;
-    await proceedQuestionOrSubmit({
-      spokenAnswer: submitted,
-      noAnswerNotice: "",
-    });
-  };
-
-  const handleExitViva = () => {
-    stopListening();
-    stopCameraAndPhotos();
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    setActiveViva(null);
-    setAttemptId(null);
-    setRemainingSeconds(VIVA_DURATION_SECONDS);
-    setSessionDone(false);
-    setSubmitSuccess(false);
-    setTerminatedByProctor(false);
-    setProctorWarning("");
-    setFaceAlert("");
-    setCurrentQuestion("");
-    setQaPairs([]);
-    setVivaError("");
-    setAnswerText("");
-  };
-
-  // AI Proctoring on active viva: 1st tab switch warns, 2nd terminates (no termination count/time shown)
+  // AI Proctoring: warn on 1st tab/window switch, terminate on 2nd switch
   useEffect(() => {
     if (!activeViva || sessionDone || submitSuccess || terminatedByProctor) {
       return;
     }
 
-    const onViolation = () => {
+    const handleViolation = () => {
       const now = Date.now();
-      if (now - lastSwitchTsRef.current < 1200) return;
+      if (now - lastSwitchTsRef.current < 800) return;
       lastSwitchTsRef.current = now;
 
       switchCountRef.current += 1;
-
       if (switchCountRef.current === 1) {
-        const msg =
-          "AI Proctor Warning: Tab switching is not allowed during the viva. Please stay on this screen.";
-        setProctorWarning(msg);
-        speakText(msg);
+        setProctorWarning(
+          "Warning: Tab or screen switch detected. Switching again will terminate the viva."
+        );
       } else {
         stopListening();
-        stopCameraAndPhotos();
+        clearSilenceCounter();
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
         setTerminatedByProctor(true);
-        const termMsg =
-          "Viva session terminated due to repeated tab switching.";
-        setProctorWarning(termMsg);
-        speakText(termMsg);
+        setSessionDone(true);
+        setCurrentQuestion("");
+        exitFullScreenSafe();
       }
     };
 
-    const onVisibility = () => {
-      if (document.hidden) onViolation();
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        handleViolation();
+      }
     };
-    const onBlur = () => onViolation();
 
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("blur", onBlur);
+    const onWindowBlur = () => {
+      handleViolation();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onWindowBlur);
 
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onWindowBlur);
     };
   }, [
     activeViva,
     sessionDone,
     submitSuccess,
     terminatedByProctor,
-    speakText,
     stopListening,
-    stopCameraAndPhotos,
+    clearSilenceCounter,
+    exitFullScreenSafe,
   ]);
 
-  if (activeViva) {
-    return (
-      <div style={vivaStyles.sessionPage}>
-        <style>{`
-          @keyframes viva3DFloat {
-            0%, 100% { transform: translateY(0px) rotateY(-3deg); }
-            50% { transform: translateY(-6px) rotateY(3deg); }
-          }
-          @keyframes viva3DOrbitA {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          @keyframes viva3DOrbitB {
-            0% { transform: rotate(360deg); }
-            100% { transform: rotate(0deg); }
-          }
-          @keyframes viva3DTalk {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.06); }
-          }
-          @keyframes vivaEyeBlink {
-            0%, 92%, 100% { transform: scaleY(1); }
-            96% { transform: scaleY(0.08); }
-          }
-          @keyframes vivaWave {
-            0%, 100% { transform: scaleY(0.45); }
-            50% { transform: scaleY(1.38); }
-          }
-          @keyframes popupPop {
-            from { opacity: 0; transform: scale(0.86); }
-            to { opacity: 1; transform: scale(1); }
-          }
-          .viva-3d-float { animation: viva3DFloat 3s ease-in-out infinite; }
-          .viva-3d-orbit-a { animation: viva3DOrbitA 7s linear infinite; }
-          .viva-3d-orbit-b { animation: viva3DOrbitB 4.5s linear infinite; }
-          .viva-3d-talk { animation: viva3DTalk 0.45s ease-in-out infinite; }
-          .viva-eye-blink { animation: vivaEyeBlink 4.2s infinite; }
-          .viva-wave-anim { animation: vivaWave 0.72s ease-in-out infinite; }
-          .viva-center-popup { animation: popupPop 0.22s ease-out both; }
-        `}</style>
+  // Stage a viva so the user sees the single "Start Viva" button once
+  const handleSelectVivaForStart = (viva) => {
+    if (viva?.alreadyAttempted || completedVivaIds.includes(String(viva?.id))) {
+      setErrorMsg("You have already attempted this viva.");
+      return;
+    }
+    setErrorMsg("");
+    setHasClickedStartOnce(false);
+    setStagedViva(viva);
+  };
 
-        {/* Big Center Popup Countdown (10 -> 1) when nobody is speaking */}
-        {silenceCountdown !== null && !userCurrentlySpeaking && !isSpeaking && (
-          <div style={vivaStyles.centerPopupBackdrop} role="status" aria-live="polite">
-            <div style={vivaStyles.centerPopupCard} className="viva-center-popup">
-              <div style={vivaStyles.centerPopupTag}>No Voice Detected</div>
-              <div style={vivaStyles.centerPopupDigit}>{silenceCountdown}</div>
-              <div style={vivaStyles.centerPopupSub}>
-                Start speaking to pause timer • Moving to next question at 0
-              </div>
-            </div>
+  // Launches the viva and triggers automatic full screen on click
+  const startVivaSession = async (viva) => {
+    if (!viva) return;
+    if (viva.alreadyAttempted || completedVivaIds.includes(String(viva.id))) {
+      setErrorMsg("You have already attempted this viva.");
+      return;
+    }
+
+    setHasClickedStartOnce(true);
+    await requestAutoFullScreen();
+
+    stopListening();
+    clearSilenceCounter();
+    setErrorMsg("");
+    setVivaError("");
+    setProctorWarning("");
+    setTerminatedByProctor(false);
+    setFaceAlert("");
+    setCapturedPhotosCount(0);
+    photosCapturedRef.current = 0;
+    switchCountRef.current = 0;
+    lastSwitchTsRef.current = 0;
+
+    setActiveViva(viva);
+    setAttemptId(viva.attempt_id || viva.id);
+    setQuestionNumber(1);
+    setQaPairs([]);
+    setAskedQuestions([]);
+    setAnswerText("");
+    setSessionDone(false);
+    setSubmitSuccess(false);
+    setRemainingSeconds(VIVA_DURATION_SECONDS);
+    setIsGenerating(true);
+
+    try {
+      const studentId = userId || getLoggedInStudentId();
+      let resolvedAttemptId = viva.attempt_id || viva.id;
+
+      try {
+        const startRes = await api.post(`/api/student/viva/${viva.id}/start`, {
+          student_id: studentId,
+        });
+        resolvedAttemptId =
+          startRes.data?.attempt_id ??
+          startRes.data?.attemptId ??
+          startRes.data?.data?.attempt_id ??
+          resolvedAttemptId;
+      } catch {
+        // fallback to viva.attempt_id or viva.id
+      }
+
+      setAttemptId(resolvedAttemptId);
+
+      const firstTopic = pickRandomTopic(viva.topics, [], viva.subject);
+      setCurrentTopic(firstTopic);
+      setUsedTopics([firstTopic]);
+
+      const firstQuestion = await generateQuestionFromModel({
+        viva,
+        topic: firstTopic,
+        questionNumber: 1,
+        askedQuestions: [],
+      });
+
+      setCurrentQuestion(firstQuestion);
+      setAskedQuestions([firstQuestion]);
+      setIsGenerating(false);
+      speakText(firstQuestion);
+    } catch (err) {
+      setIsGenerating(false);
+      setVivaError(extractApiError(err, "Failed to start viva session."));
+    }
+  };
+
+  const handleExitToLobby = async () => {
+    stopListening();
+    stopCameraAndPhotos();
+    clearSilenceCounter();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    await exitFullScreenSafe();
+    setActiveViva(null);
+    setStagedViva(null);
+    setHasClickedStartOnce(false);
+    setAttemptId(null);
+    setCurrentQuestion("");
+    setAnswerText("");
+    setQaPairs([]);
+    setSessionDone(false);
+    setSubmitSuccess(false);
+    setTerminatedByProctor(false);
+    setProctorWarning("");
+    setRemainingSeconds(VIVA_DURATION_SECONDS);
+    fetchVivas();
+  };
+
+  // --------------------------------------------------
+  // FULL-SCREEN ACTIVE VIVA VIEW (ONLY 2 BOXES + CENTER 6->0)
+  // --------------------------------------------------
+  if (isFullscreenSessionActive) {
+    return (
+      <div style={vivaStyles.fullscreenShell}>
+        <style>{vivaKeyframesCss}</style>
+
+        {/* Top compact bar inside full screen */}
+        <div style={vivaStyles.fullscreenTopBar}>
+          <span style={vivaStyles.fullscreenMeta}>
+            {activeViva.subject} • Q{questionNumber}/{activeViva.total_questions} •{" "}
+            {formatClock(remainingSeconds)}
+          </span>
+
+          <div style={vivaStyles.fullscreenActions}>
+            <button
+              type="button"
+              onClick={handleDoneAnswer}
+              disabled={isGenerating || isSubmitting}
+              style={vivaStyles.doneAnswerBtn}
+            >
+              Done Answer
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitVivaNow}
+              disabled={isSubmitting}
+              style={vivaStyles.submitVivaBtn}
+            >
+              {isSubmitting ? "Submitting..." : "Submit Viva"}
+            </button>
+          </div>
+        </div>
+
+        {proctorWarning && (
+          <div style={vivaStyles.warningBanner}>{proctorWarning}</div>
+        )}
+        {vivaError && <div style={vivaStyles.errorBanner}>{vivaError}</div>}
+
+        {/* Single current question */}
+        <div style={vivaStyles.singleQuestionStrip}>
+          {isGenerating ? (
+            <span style={vivaStyles.questionText}>Preparing question...</span>
+          ) : (
+            <span style={vivaStyles.questionText}>{currentQuestion}</span>
+          )}
+        </div>
+
+        {/* Center bare number countdown 6 -> 0 when nobody is speaking */}
+        {silenceNumber !== null && (
+          <div style={vivaStyles.centerSilenceNumber} aria-live="polite">
+            {silenceNumber}
           </div>
         )}
 
-        <div style={vivaStyles.sessionCard}>
-          {/* Top Header + 5-Min Timer + Snapshot Counter */}
-          <div style={vivaStyles.topHeaderRow}>
-            <div>
-              <div style={vivaStyles.topSubMeta}>
-                {activeViva.subject} • Q{questionNumber}/{activeViva.total_questions} • AI Proctored
-              </div>
-              <h2 style={vivaStyles.topTitle}>{activeViva.title}</h2>
+        {/* Strictly 2 Boxes: 1) SmartBot 3D, 2) Student Monitoring Camera */}
+        <div style={vivaStyles.twoBoxesGrid}>
+          <VivaBot3DPanel
+            isSpeaking={isSpeaking}
+            isListening={isListening}
+            isGenerating={isGenerating}
+            isSubmitting={isSubmitting}
+            pupilOffset={pupilOffset}
+          />
+
+          <div
+            style={{
+              ...vivaStyles.boxCard,
+              ...(lastPhotoFlash ? vivaStyles.photoFlashRing : {}),
+            }}
+          >
+            <div style={vivaStyles.boxHeaderRow}>
+              <span style={vivaStyles.camBadge}>● LIVE CAM</span>
+              <span style={vivaStyles.photoCountText}>
+                📸 {capturedPhotosCount}/{MAX_ADMIN_PHOTOS}
+              </span>
             </div>
 
-            <div style={vivaStyles.topRightGroup}>
-              <div
-                style={{
-                  ...vivaStyles.timerBadge,
-                  backgroundColor: remainingSeconds <= 30 ? "#fef2f2" : "#eff6ff",
-                  color: remainingSeconds <= 30 ? "#b91c1c" : "#1d4ed8",
-                  borderColor: remainingSeconds <= 30 ? "#fca5a5" : "#93c5fd",
-                }}
-              >
-                ⏱ {formatClock(remainingSeconds)}
-              </div>
-              <div style={vivaStyles.photoBadge}>
-                📸 {capturedPhotosCount}/{MAX_ADMIN_PHOTOS}
-              </div>
-              <button
-                type="button"
-                onClick={handleExitViva}
-                style={vivaStyles.exitBtn}
-              >
-                Exit
-              </button>
+            <div style={vivaStyles.videoBox}>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={vivaStyles.videoElement}
+              />
+              {!cameraReady && (
+                <div style={vivaStyles.videoPlaceholder}>{faceStatusMsg}</div>
+              )}
+            </div>
+
+            <div style={vivaStyles.camFooterText}>
+              {faceAlert || faceStatusMsg}
             </div>
           </div>
-
-          {proctorWarning && (
-            <div style={vivaStyles.proctorBanner}>{proctorWarning}</div>
-          )}
-
-          {faceAlert && (
-            <div style={vivaStyles.faceAlertBanner}>⚠️ {faceAlert}</div>
-          )}
-
-          {terminatedByProctor ? (
-            <div style={vivaStyles.terminatedBox}>
-              <div style={{ fontWeight: 800, fontSize: "16px", marginBottom: "6px" }}>
-                Viva Terminated by AI Proctor
-              </div>
-              <div style={{ fontSize: "13px", color: "#475569", marginBottom: "12px" }}>
-                Repeated tab switching was detected during the session.
-              </div>
-              <button
-                type="button"
-                onClick={handleExitViva}
-                style={vivaStyles.primaryActionBtn}
-              >
-                Back to Available Vivas
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* 1st Part Split Screen: Left = Student Straight Camera + Photo Capture, Right = 3D Robot */}
-              <div style={vivaStyles.splitGrid}>
-                <div style={vivaStyles.studentPaneCard}>
-                  <div style={vivaStyles.paneLabelRow}>
-                    <span style={vivaStyles.studentPill}>● LIVE CAM</span>
-                    <span style={vivaStyles.photoMiniPill}>
-                      {lastPhotoFlash
-                        ? "📸 Captured!"
-                        : `Admin: ${capturedPhotosCount}/${MAX_ADMIN_PHOTOS}`}
-                    </span>
-                  </div>
-
-                  <div style={vivaStyles.cameraFrameBox}>
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      style={{
-                        ...vivaStyles.cameraVideo,
-                        display: cameraReady ? "block" : "none",
-                      }}
-                    />
-                    {!cameraReady && (
-                      <div style={vivaStyles.cameraFallback}>
-                        <div style={vivaStyles.studentAvatarCircle}>
-                          {(studentName || "S").charAt(0).toUpperCase()}
-                        </div>
-                        <div style={{ fontSize: "12px", fontWeight: 700 }}>
-                          {studentName || "Student"}
-                        </div>
-                      </div>
-                    )}
-                    <div style={vivaStyles.straightGuideOval} aria-hidden="true" />
-                  </div>
-
-                  <div style={vivaStyles.faceStatusFooter}>{faceStatusMsg}</div>
-                </div>
-
-                <VivaBot3DPanel
-                  isSpeaking={isSpeaking}
-                  isListening={isListening}
-                  isGenerating={isGenerating}
-                  isSubmitting={isSubmitting}
-                  pupilOffset={pupilOffset}
-                />
-              </div>
-
-              {vivaError && (
-                <div style={vivaStyles.errorBox}>{vivaError}</div>
-              )}
-
-              {/* Question / Status Box */}
-              <div style={vivaStyles.questionCard}>
-                {isSubmitting ? (
-                  <div style={{ fontWeight: 700, color: "#0284c7", fontSize: "14px" }}>
-                    Submitting all questions and answers for evaluation...
-                  </div>
-                ) : sessionDone || submitSuccess ? (
-                  <div style={{ fontWeight: 800, color: "#059669", fontSize: "15px" }}>
-                    Viva submitted successfully! Evaluation will be processed.
-                  </div>
-                ) : (
-                  <p style={vivaStyles.questionText}>
-                    {currentQuestion || "Generating question from model..."}
-                  </p>
-                )}
-              </div>
-
-              {!sessionDone && !submitSuccess && (
-                <div style={vivaStyles.inputArea}>
-                  <textarea
-                    rows={2}
-                    value={answerText}
-                    onChange={(e) => setAnswerText(e.target.value)}
-                    placeholder={
-                      isListening
-                        ? "Bolte rahiye, SmartBot sun raha hai..."
-                        : "Yahan answer bolein ya type karein..."
-                    }
-                    style={vivaStyles.textarea}
-                  />
-
-                  <div style={vivaStyles.actionRow}>
-                    <button
-                      type="button"
-                      onClick={isListening ? stopListening : startListening}
-                      style={vivaStyles.micBtn}
-                    >
-                      {isListening ? "Stop Mic" : "Start Mic"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSubmitAnswer}
-                      disabled={!answerText.trim() || isGenerating || isSubmitting}
-                      style={{
-                        ...vivaStyles.primaryActionBtn,
-                        opacity:
-                          !answerText.trim() || isGenerating || isSubmitting
-                            ? 0.6
-                            : 1,
-                        cursor:
-                          !answerText.trim() || isGenerating || isSubmitting
-                            ? "not-allowed"
-                            : "pointer",
-                      }}
-                    >
-                      {isSubmitting
-                        ? "Submitting..."
-                        : isGenerating
-                        ? "Sending..."
-                        : questionNumber >= activeViva.total_questions
-                        ? "Finish & Submit"
-                        : "Submit Answer"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
         </div>
       </div>
     );
   }
 
-  return (
-    <div style={vivaStyles.listPage}>
-      <div style={{ maxWidth: "980px", margin: "0 auto" }}>
-        <div style={vivaStyles.listHeader}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>
-              Available Vivas
-            </h1>
-            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#475569" }}>
-              5-minute proctored viva with live camera &amp; 3D SmartBot
-            </p>
-          </div>
-
-          <select
-            value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e.target.value)}
-            style={vivaStyles.subjectSelect}
+  // --------------------------------------------------
+  // COMPLETED / TERMINATED SUMMARY VIEW
+  // --------------------------------------------------
+  if (activeViva && (sessionDone || submitSuccess || terminatedByProctor)) {
+    return (
+      <div style={vivaStyles.lobbyContainer}>
+        <style>{vivaKeyframesCss}</style>
+        <div style={vivaStyles.summaryCard}>
+          <h2>
+            {terminatedByProctor
+              ? "Viva Terminated by AI Proctoring"
+              : "Viva Completed"}
+          </h2>
+          <p style={vivaStyles.mutedText}>
+            {terminatedByProctor
+              ? "Multiple tab or window switches were detected."
+              : submitSuccess
+              ? "Your viva responses have been submitted."
+              : "Session ended."}
+          </p>
+          <button
+            type="button"
+            onClick={handleExitToLobby}
+            style={vivaStyles.primaryBtn}
           >
-            {subjects.map((subj) => (
-              <option key={subj} value={subj}>
-                {subj === "ALL" ? "All Subjects" : subj}
-              </option>
-            ))}
-          </select>
+            Back to Viva List
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------
+  // LOBBY + SINGLE "START VIVA" BUTTON BEFORE FULL SCREEN
+  // --------------------------------------------------
+  return (
+    <div style={vivaStyles.lobbyContainer}>
+      <style>{vivaKeyframesCss}</style>
+
+      <div style={vivaStyles.lobbyHeader}>
+        <div>
+          <h2 style={vivaStyles.lobbyTitle}>Student Viva</h2>
+          <p style={vivaStyles.mutedText}>
+            {studentName ? `${studentName}` : "Candidate"}
+            {studentClass ? ` (${studentClass})` : ""}
+          </p>
         </div>
 
-        {loading ? (
-          <div style={vivaStyles.infoBox}>Loading vivas...</div>
-        ) : errorMsg ? (
-          <div style={vivaStyles.errorBox}>{errorMsg}</div>
-        ) : filteredVivas.length === 0 ? (
-          <div style={vivaStyles.infoBox}>No available vivas found.</div>
-        ) : (
-          <div style={vivaStyles.vivaGrid}>
-            {filteredVivas.map((viva) => {
-              const isAttempted =
-                viva.alreadyAttempted || completedVivaIds.includes(String(viva.id));
+        <button
+          type="button"
+          onClick={fetchVivas}
+          style={vivaStyles.secondaryBtn}
+        >
+          ↻ Refresh
+        </button>
+      </div>
 
-              return (
-                <div
-                  key={viva.id}
+      {errorMsg && <div style={vivaStyles.errorBanner}>{errorMsg}</div>}
+
+      {/* One-time Start Viva trigger once a viva is chosen */}
+      {stagedViva && !hasClickedStartOnce && (
+        <div style={vivaStyles.startGateCard}>
+          <div>
+            <div style={vivaStyles.stagedTitle}>
+              {stagedViva.title} ({stagedViva.subject})
+            </div>
+            <div style={vivaStyles.mutedText}>
+              Clicking Start Viva enters full screen automatically.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => startVivaSession(stagedViva)}
+            style={vivaStyles.startVivaBtn}
+          >
+            Start Viva
+          </button>
+        </div>
+      )}
+
+      {/* Subject filter */}
+      <div style={vivaStyles.filterRow}>
+        {subjects.map((subj) => (
+          <button
+            key={subj}
+            type="button"
+            onClick={() => setSelectedSubject(subj)}
+            style={{
+              ...vivaStyles.filterChip,
+              ...(selectedSubject === subj ? vivaStyles.filterChipActive : {}),
+            }}
+          >
+            {subj}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <p style={vivaStyles.mutedText}>Loading vivas...</p>
+      ) : filteredVivas.length === 0 ? (
+        <p style={vivaStyles.mutedText}>No vivas available right now.</p>
+      ) : (
+        <div style={vivaStyles.vivaGrid}>
+          {filteredVivas.map((viva) => {
+            const isDone =
+              viva.alreadyAttempted || completedVivaIds.includes(String(viva.id));
+            return (
+              <div key={viva.id} style={vivaStyles.vivaCard}>
+                <div style={vivaStyles.cardTop}>
+                  <span style={vivaStyles.subjectTag}>{viva.subject}</span>
+                  <span style={vivaStyles.qCountTag}>
+                    {viva.total_questions} Questions
+                  </span>
+                </div>
+                <h3 style={vivaStyles.cardTitle}>{viva.title}</h3>
+                {viva.description && (
+                  <p style={vivaStyles.cardDesc}>{viva.description}</p>
+                )}
+                <button
+                  type="button"
+                  disabled={isDone}
+                  onClick={() => handleSelectVivaForStart(viva)}
                   style={{
-                    ...vivaStyles.vivaCard,
-                    borderColor: isAttempted ? "#cbd5e1" : "#86efac",
-                    background: isAttempted
-                      ? "#f8fafc"
-                      : "linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%)",
+                    ...vivaStyles.primaryBtn,
+                    ...(isDone ? vivaStyles.disabledBtn : {}),
                   }}
                 >
-                  <div>
-                    <div style={vivaStyles.vivaCardTop}>
-                      <span style={vivaStyles.subjectBadge}>{viva.subject}</span>
-                      {isAttempted && (
-                        <span style={vivaStyles.attemptedBadge}>
-                          ✓ Attempted
-                        </span>
-                      )}
-                    </div>
-                    <h3 style={vivaStyles.vivaCardTitle}>{viva.title}</h3>
-                    {viva.description && (
-                      <p style={vivaStyles.vivaCardDesc}>{viva.description}</p>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={isAttempted}
-                    onClick={() => handleStartViva(viva)}
-                    style={{
-                      ...vivaStyles.startVivaBtn,
-                      backgroundColor: isAttempted ? "#94a3b8" : "#059669",
-                      cursor: isAttempted ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {isAttempted ? "Already Attempted" : "Start Viva"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  {isDone ? "Attempted" : "Select Viva"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
+// --------------------------------------------------
+// STYLES & ANIMATIONS
+// --------------------------------------------------
+
+const vivaKeyframesCss = `
+@keyframes vivaFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes vivaOrbitSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes vivaBlink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%, 97% { transform: scaleY(0.08); }
+}
+@keyframes vivaTalkPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+@keyframes vivaWave {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1.35); }
+}
+.viva-3d-float {
+  animation: vivaFloat 3.6s ease-in-out infinite;
+}
+.viva-3d-orbit-a {
+  animation: vivaOrbitSpin 9s linear infinite;
+}
+.viva-3d-orbit-b {
+  animation: vivaOrbitSpin 13s linear infinite reverse;
+}
+.viva-eye-blink {
+  animation: vivaBlink 4.2s infinite;
+}
+.viva-3d-talk {
+  animation: vivaTalkPulse 0.65s ease-in-out infinite;
+}
+.viva-wave-anim {
+  animation: vivaWave 0.75s ease-in-out infinite;
+}
+`;
+
 const vivaStyles = {
-  listPage: {
-    minHeight: "100vh",
-    background: "linear-gradient(135deg, #ecfdf5 0%, #eff6ff 55%, #f5f3ff 100%)",
-    padding: "20px 16px",
-    color: "#0f172a",
+  fullscreenShell: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 9999,
+    background: "#070b14",
+    color: "#f8fafc",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    padding: "18px 24px",
+    overflow: "hidden",
   },
-  listHeader: {
+  fullscreenTopBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+  fullscreenMeta: {
+    fontSize: "14px",
+    fontWeight: 600,
+    color: "#cbd5e1",
+  },
+  fullscreenActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+  doneAnswerBtn: {
+    background: "#0ea5e9",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "9px 16px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  submitVivaBtn: {
+    background: "#16a34a",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "9px 16px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  singleQuestionStrip: {
+    textAlign: "center",
+    padding: "8px 16px",
+  },
+  questionText: {
+    fontSize: "20px",
+    fontWeight: 600,
+    color: "#f1f5f9",
+    lineHeight: 1.45,
+  },
+  centerSilenceNumber: {
+    position: "fixed",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    zIndex: 10020,
+    fontSize: "88px",
+    fontWeight: 800,
+    lineHeight: 1,
+    color: "#38bdf8",
+    textShadow: "0 0 28px rgba(56, 189, 248, 0.55)",
+    pointerEvents: "none",
+    userSelect: "none",
+  },
+  twoBoxesGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: "24px",
+    alignItems: "stretch",
+    width: "100%",
+    maxWidth: "1100px",
+    margin: "0 auto",
+    flex: 1,
+    maxHeight: "74vh",
+  },
+  boxCard: {
+    background: "rgba(15, 23, 42, 0.92)",
+    border: "1px solid rgba(148, 163, 184, 0.25)",
+    borderRadius: "18px",
+    padding: "16px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    overflow: "hidden",
+  },
+  photoFlashRing: {
+    boxShadow: "0 0 0 3px #38bdf8",
+  },
+  boxHeaderRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    flexWrap: "wrap",
-    gap: "12px",
-    marginBottom: "18px",
+    marginBottom: "10px",
   },
-  subjectSelect: {
-    padding: "8px 14px",
-    borderRadius: "10px",
-    borderWidth: "1.5px",
-    borderStyle: "solid",
-    borderColor: "#cbd5e1",
-    backgroundColor: "#ffffff",
+  botTitle: {
     fontWeight: 700,
+    color: "#38bdf8",
+    fontSize: "14px",
   },
-  infoBox: {
-    backgroundColor: "#ffffff",
+  botBadge: {
+    fontSize: "12px",
+    padding: "3px 10px",
+    borderRadius: "999px",
+    background: "rgba(56, 189, 248, 0.16)",
+    color: "#7dd3fc",
+    fontWeight: 600,
+  },
+  bot3DStage: {
+    position: "relative",
+    flex: 1,
+    minHeight: "230px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: "14px",
-    padding: "24px",
-    textAlign: "center",
+    background:
+      "radial-gradient(circle at 50% 40%, rgba(56, 189, 248, 0.18), rgba(2, 6, 23, 0.9))",
+    overflow: "hidden",
+  },
+  bot3DOrbitA: {
+    position: "absolute",
+    width: "190px",
+    height: "190px",
+    borderRadius: "50%",
+    border: "1px dashed rgba(56, 189, 248, 0.35)",
+  },
+  bot3DOrbitB: {
+    position: "absolute",
+    width: "230px",
+    height: "230px",
+    borderRadius: "50%",
+    border: "1px solid rgba(129, 140, 248, 0.22)",
+  },
+  bot3DCharacter: {
+    position: "relative",
+    zIndex: 2,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "8px",
+  },
+  bot3DHead: {
+    position: "relative",
+    width: "112px",
+    height: "92px",
+    borderRadius: "28px",
+    background: "linear-gradient(145deg, #1e293b, #0f172a)",
+    border: "2px solid #38bdf8",
+    boxShadow: "0 12px 28px rgba(2, 132, 199, 0.35)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "16px",
+  },
+  botAntenna: {
+    position: "absolute",
+    top: "-12px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    background: "#34d399",
+    boxShadow: "0 0 10px #34d399",
+  },
+  botEyeSocket: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "50%",
+    background: "#020617",
+    border: "1px solid rgba(125, 211, 252, 0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  botEyeBall: {
+    width: "20px",
+    height: "20px",
+    borderRadius: "50%",
+    background: "#e0f2fe",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "transform 0.08s linear",
+  },
+  botPupil: {
+    position: "relative",
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    background: "#0284c7",
+  },
+  botGlint: {
+    position: "absolute",
+    top: "1px",
+    right: "1px",
+    width: "4px",
+    height: "4px",
+    borderRadius: "50%",
+    background: "#ffffff",
+  },
+  bot3DBody: {
+    width: "136px",
+    height: "56px",
+    borderRadius: "24px 24px 14px 14px",
+    background: "linear-gradient(180deg, #1e293b, #090d16)",
+    border: "1.5px solid rgba(56, 189, 248, 0.55)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 10px 24px rgba(0, 0, 0, 0.45)",
+  },
+  botCoreLight: {
+    width: "22px",
+    height: "10px",
+    borderRadius: "999px",
+    background: "#38bdf8",
+    boxShadow: "0 0 12px #38bdf8",
+  },
+  waveStrip: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    height: "28px",
+    marginTop: "10px",
+  },
+  waveBar: {
+    width: "5px",
+    borderRadius: "999px",
+    transition: "height 0.15s ease",
+  },
+  camBadge: {
+    fontSize: "12px",
     fontWeight: 700,
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#e2e8f0",
+    color: "#4ade80",
+  },
+  photoCountText: {
+    fontSize: "12px",
+    color: "#cbd5e1",
+  },
+  videoBox: {
+    position: "relative",
+    flex: 1,
+    minHeight: "230px",
+    borderRadius: "14px",
+    overflow: "hidden",
+    background: "#020617",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoElement: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    transform: "scaleX(-1)",
+  },
+  videoPlaceholder: {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "16px",
+    textAlign: "center",
+    color: "#94a3b8",
+    fontSize: "14px",
+  },
+  camFooterText: {
+    marginTop: "10px",
+    fontSize: "13px",
+    color: "#e2e8f0",
+    textAlign: "center",
+  },
+  warningBanner: {
+    background: "rgba(234, 179, 8, 0.16)",
+    border: "1px solid #eab308",
+    color: "#fde047",
+    padding: "8px 14px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    textAlign: "center",
+  },
+  errorBanner: {
+    background: "rgba(239, 68, 68, 0.16)",
+    border: "1px solid #ef4444",
+    color: "#fca5a5",
+    padding: "8px 14px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    marginBottom: "12px",
+  },
+  lobbyContainer: {
+    padding: "20px",
+    maxWidth: "1080px",
+    margin: "0 auto",
+  },
+  lobbyHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "16px",
+  },
+  lobbyTitle: {
+    margin: 0,
+    fontSize: "24px",
+  },
+  mutedText: {
+    color: "#64748b",
+    margin: "4px 0 0",
+    fontSize: "14px",
+  },
+  startGateCard: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    padding: "16px",
+    borderRadius: "12px",
+    border: "1px solid #0284c7",
+    background: "#f0f9ff",
+    marginBottom: "16px",
+  },
+  stagedTitle: {
+    fontWeight: 700,
+    fontSize: "16px",
+    color: "#0f172a",
+  },
+  startVivaBtn: {
+    background: "#0284c7",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "10px 20px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  filterRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginBottom: "16px",
+  },
+  filterChip: {
+    padding: "6px 14px",
+    borderRadius: "999px",
+    border: "1px solid #cbd5e1",
+    background: "#ffffff",
+    color: "#334155",
+    cursor: "pointer",
+    fontSize: "13px",
+  },
+  filterChipActive: {
+    background: "#0f172a",
+    color: "#ffffff",
+    borderColor: "#0f172a",
   },
   vivaGrid: {
     display: "grid",
@@ -1658,515 +2095,69 @@ const vivaStyles = {
     gap: "16px",
   },
   vivaCard: {
-    borderRadius: "16px",
-    padding: "18px",
-    borderWidth: "1.5px",
-    borderStyle: "solid",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    gap: "14px",
-    boxShadow: "0 10px 24px -10px rgba(15, 23, 42, 0.12)",
-  },
-  vivaCardTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "8px",
-  },
-  subjectBadge: {
-    fontSize: "12px",
-    fontWeight: 700,
-    color: "#0284c7",
-    backgroundColor: "#e0f2fe",
-    padding: "3px 10px",
-    borderRadius: "999px",
-  },
-  attemptedBadge: {
-    fontSize: "11px",
-    fontWeight: 800,
-    color: "#475569",
-    backgroundColor: "#e2e8f0",
-    padding: "3px 9px",
-    borderRadius: "999px",
-  },
-  vivaCardTitle: {
-    margin: "10px 0 6px",
-    fontSize: "17px",
-    fontWeight: 800,
-  },
-  vivaCardDesc: {
-    margin: 0,
-    fontSize: "13px",
-    color: "#475569",
-  },
-  startVivaBtn: {
-    width: "100%",
-    padding: "10px",
-    borderRadius: "10px",
-    borderWidth: "0px",
-    borderStyle: "none",
-    color: "#ffffff",
-    fontWeight: 700,
-  },
-  sessionPage: {
-    position: "relative",
-    minHeight: "100dvh",
-    maxHeight: "100dvh",
-    overflow: "hidden",
-    background: "linear-gradient(135deg, #090d16 0%, #172554 55%, #064e3b 100%)",
-    padding: "10px 12px",
-    color: "#0f172a",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxSizing: "border-box",
-  },
-  centerPopupBackdrop: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(9, 13, 22, 0.52)",
-    backdropFilter: "blur(3px)",
-    zIndex: 50,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "16px",
-  },
-  centerPopupCard: {
-    width: "100%",
-    maxWidth: "280px",
-    background: "linear-gradient(160deg, #ffffff 0%, #ecfdf5 100%)",
-    borderRadius: "24px",
-    padding: "24px 20px",
-    borderWidth: "2.5px",
-    borderStyle: "solid",
-    borderColor: "#10b981",
-    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.45)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "8px",
-    textAlign: "center",
-  },
-  centerPopupTag: {
-    fontSize: "11px",
-    fontWeight: 800,
-    letterSpacing: "0.04em",
-    textTransform: "uppercase",
-    padding: "3px 10px",
-    borderRadius: "999px",
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-  },
-  centerPopupDigit: {
-    fontSize: "64px",
-    fontWeight: 900,
-    lineHeight: 1,
-    color: "#059669",
-  },
-  centerPopupSub: {
-    fontSize: "12px",
-    fontWeight: 700,
-    color: "#334155",
-  },
-  sessionCard: {
-    width: "100%",
-    maxWidth: "760px",
-    maxHeight: "97dvh",
-    overflowY: "auto",
-    backgroundColor: "#ffffff",
-    borderRadius: "18px",
-    padding: "14px",
-    borderWidth: "2px",
-    borderStyle: "solid",
-    borderColor: "#a7f3d0",
-    boxShadow: "0 20px 45px -12px rgba(0, 0, 0, 0.35)",
-    display: "flex",
-    flexDirection: "column",
-    gap: "9px",
-    boxSizing: "border-box",
-  },
-  topHeaderRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "8px",
-  },
-  topSubMeta: {
-    fontSize: "11px",
-    fontWeight: 800,
-    color: "#0284c7",
-  },
-  topTitle: {
-    margin: "1px 0 0",
-    fontSize: "15px",
-    fontWeight: 800,
-  },
-  topRightGroup: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-  },
-  timerBadge: {
-    fontSize: "11px",
-    fontWeight: 900,
-    padding: "4px 9px",
-    borderRadius: "999px",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    whiteSpace: "nowrap",
-  },
-  photoBadge: {
-    fontSize: "11px",
-    fontWeight: 800,
-    padding: "4px 9px",
-    borderRadius: "999px",
-    backgroundColor: "#eef2ff",
-    color: "#3730a3",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#c7d2fe",
-    whiteSpace: "nowrap",
-  },
-  exitBtn: {
-    padding: "5px 10px",
-    borderRadius: "8px",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#fca5a5",
-    backgroundColor: "#fef2f2",
-    color: "#b91c1c",
-    fontWeight: 700,
-    fontSize: "12px",
-    cursor: "pointer",
-  },
-  proctorBanner: {
-    padding: "7px 12px",
-    borderRadius: "10px",
-    backgroundColor: "#fffbeb",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#f59e0b",
-    color: "#92400e",
-    fontWeight: 700,
-    fontSize: "12px",
-  },
-  faceAlertBanner: {
-    padding: "6px 12px",
-    borderRadius: "10px",
-    backgroundColor: "#fef2f2",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#fca5a5",
-    color: "#991b1b",
-    fontWeight: 800,
-    fontSize: "12px",
-  },
-  terminatedBox: {
-    padding: "20px 14px",
+    border: "1px solid #e2e8f0",
     borderRadius: "12px",
-    backgroundColor: "#fef2f2",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#fecaca",
-    textAlign: "center",
-    color: "#991b1b",
-  },
-  splitGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    padding: "16px",
+    background: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
     gap: "10px",
   },
-  studentPaneCard: {
-    padding: "10px",
-    borderRadius: "14px",
-    background: "linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%)",
-    borderWidth: "1.5px",
-    borderStyle: "solid",
-    borderColor: "#93c5fd",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "6px",
-  },
-  paneLabelRow: {
-    width: "100%",
+  cardTop: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: "4px",
   },
-  studentPill: {
-    fontSize: "10px",
-    fontWeight: 800,
-    backgroundColor: "#dbeafe",
-    color: "#1d4ed8",
-    padding: "2px 7px",
-    borderRadius: "999px",
-  },
-  photoMiniPill: {
-    fontSize: "10px",
-    fontWeight: 800,
-    color: "#4338ca",
-  },
-  cameraFrameBox: {
-    position: "relative",
-    width: "100%",
-    height: "116px",
-    borderRadius: "11px",
-    overflow: "hidden",
-    backgroundColor: "#0f172a",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cameraVideo: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    transform: "scaleX(-1)",
-  },
-  straightGuideOval: {
-    position: "absolute",
-    width: "68px",
-    height: "88px",
-    borderRadius: "50%",
-    border: "1.5px dashed rgba(52, 211, 153, 0.85)",
-    pointerEvents: "none",
-  },
-  cameraFallback: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "4px",
-    color: "#ffffff",
-  },
-  studentAvatarCircle: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "50%",
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    fontSize: "15px",
-    fontWeight: 800,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  faceStatusFooter: {
-    fontSize: "10.5px",
-    fontWeight: 700,
-    color: "#1e3a8a",
-    textAlign: "center",
-  },
-  bot3DCard: {
-    padding: "10px",
-    borderRadius: "14px",
-    background: "linear-gradient(160deg, #090d16 0%, #172554 55%, #064e3b 100%)",
-    borderWidth: "1.5px",
-    borderStyle: "solid",
-    borderColor: "#38bdf8",
-    boxShadow: "0 14px 28px -10px rgba(14, 165, 233, 0.5)",
-    color: "#ffffff",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "6px",
-  },
-  botTopRow: {
-    width: "100%",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "4px",
-  },
-  bot3DTitle: {
-    fontWeight: 800,
+  subjectTag: {
     fontSize: "12px",
-    color: "#7dd3fc",
-  },
-  bot3DBadge: {
-    fontSize: "10px",
     fontWeight: 700,
-    padding: "2px 8px",
-    borderRadius: "999px",
-    backgroundColor: "rgba(15, 23, 42, 0.75)",
-    color: "#a7f3d0",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#34d399",
+    color: "#0284c7",
   },
-  bot3DStage: {
-    position: "relative",
-    width: "100px",
-    height: "68px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bot3DOrbitA: {
-    position: "absolute",
-    width: "66px",
-    height: "66px",
-    borderRadius: "50%",
-    border: "1.5px dashed rgba(56, 189, 248, 0.65)",
-  },
-  bot3DOrbitB: {
-    position: "absolute",
-    width: "52px",
-    height: "52px",
-    borderRadius: "50%",
-    border: "1.5px dotted rgba(52, 211, 153, 0.75)",
-  },
-  bot3DHead: {
-    position: "relative",
-    zIndex: 2,
-    width: "86px",
-    height: "42px",
-    borderRadius: "16px",
-    background: "linear-gradient(145deg, #1e293b 0%, #0f172a 100%)",
-    borderWidth: "2px",
-    borderStyle: "solid",
-    borderColor: "#38bdf8",
-    boxShadow: "0 0 18px rgba(56, 189, 248, 0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-evenly",
-    padding: "0 6px",
-  },
-  botAntenna: {
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-    backgroundColor: "#38bdf8",
-    position: "absolute",
-    top: "-8px",
-    boxShadow: "0 0 8px #38bdf8",
-  },
-  botEyeSocket: {
-    width: "22px",
-    height: "22px",
-    borderRadius: "50%",
-    backgroundColor: "#e0f2fe",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  botEyeBall: {
-    width: "16px",
-    height: "16px",
-    borderRadius: "50%",
-    backgroundColor: "#0284c7",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "transform 0.08s linear",
-  },
-  botPupil: {
-    width: "7px",
-    height: "7px",
-    borderRadius: "50%",
-    backgroundColor: "#090d16",
-    position: "relative",
-  },
-  botGlint: {
-    width: "2.5px",
-    height: "2.5px",
-    borderRadius: "50%",
-    backgroundColor: "#ffffff",
-    position: "absolute",
-    top: "1px",
-    right: "1px",
-  },
-  waveStrip: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "4px",
-    height: "20px",
-  },
-  waveBar: {
-    width: "4px",
-    borderRadius: "999px",
-    transition: "height 0.15s ease",
-  },
-  bot3DFooter: {
-    fontSize: "10px",
-    fontWeight: 700,
-    color: "#bae6fd",
-  },
-  errorBox: {
-    padding: "8px 12px",
-    borderRadius: "10px",
-    backgroundColor: "#fef2f2",
-    color: "#b91c1c",
-    fontWeight: 700,
+  qCountTag: {
     fontSize: "12px",
+    color: "#64748b",
   },
-  questionCard: {
-    padding: "11px 13px",
-    borderRadius: "12px",
-    backgroundColor: "#f8fafc",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#cbd5e1",
-    minHeight: "44px",
-    display: "flex",
-    alignItems: "center",
-  },
-  questionText: {
+  cardTitle: {
     margin: 0,
-    fontSize: "13.5px",
-    fontWeight: 700,
-    lineHeight: 1.4,
-  },
-  inputArea: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "7px",
-  },
-  textarea: {
-    width: "100%",
-    padding: "9px 11px",
-    borderRadius: "10px",
-    borderWidth: "1.5px",
-    borderStyle: "solid",
-    borderColor: "#cbd5e1",
-    fontSize: "13px",
-    boxSizing: "border-box",
-    resize: "none",
-  },
-  actionRow: {
-    display: "flex",
-    gap: "8px",
-    justifyContent: "flex-end",
-  },
-  micBtn: {
-    padding: "7px 12px",
-    borderRadius: "9px",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#cbd5e1",
-    backgroundColor: "#f1f5f9",
+    fontSize: "17px",
     color: "#0f172a",
-    fontWeight: 700,
-    fontSize: "12px",
+  },
+  cardDesc: {
+    margin: 0,
+    fontSize: "13px",
+    color: "#475569",
+  },
+  primaryBtn: {
+    background: "#0f172a",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "9px 14px",
+    fontWeight: 600,
     cursor: "pointer",
   },
-  primaryActionBtn: {
-    padding: "7px 16px",
-    borderRadius: "9px",
-    borderWidth: "0px",
-    borderStyle: "none",
-    background: "linear-gradient(90deg, #059669 0%, #0284c7 100%)",
-    color: "#ffffff",
-    fontWeight: 700,
-    fontSize: "12px",
+  secondaryBtn: {
+    background: "#f1f5f9",
+    color: "#0f172a",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    padding: "8px 14px",
+    fontWeight: 600,
     cursor: "pointer",
+  },
+  disabledBtn: {
+    background: "#94a3b8",
+    cursor: "not-allowed",
+  },
+  summaryCard: {
+    maxWidth: "480px",
+    margin: "48px auto",
+    padding: "24px",
+    borderRadius: "14px",
+    border: "1px solid #e2e8f0",
+    background: "#ffffff",
+    textAlign: "center",
   },
 };
 

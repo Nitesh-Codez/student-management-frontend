@@ -699,10 +699,10 @@ export default function VivaVerificationPage({ user, onVerified }) {
                   "Let's proceed to your AI interview."
                 );
 
-                navigate(
-                  "/student/interview-english-practice",
-                  { replace: true }
-                );
+               navigate(
+  "/student/interview-english-practice",
+  { replace: true }
+);
               }}
               style={styles.continueButton}
             >

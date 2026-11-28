@@ -176,14 +176,14 @@ function App() {
           <Route path="students-internal" element={<StudentInternal />} />
           <Route path="student-viva" element={<StudentViva />} />
           <Route path="verifying-identity" element={<VivaVerificationPage />} />
-          <Route
-            path="interview-english-practice"
-            element={
-              <VerifiedInterviewRoute>
-                <AiInterview />
-              </VerifiedInterviewRoute>
-            }
-          />
+         <Route
+  path="interview-english-practice"
+  element={
+    <VerifiedInterviewRoute>
+      <AiInterview />
+    </VerifiedInterviewRoute>
+  }
+/>
         </Route>
 
         {/* 404 */}
